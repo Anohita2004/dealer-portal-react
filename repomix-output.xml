@@ -49,21 +49,165 @@ README.md
 src/App.css
 src/App.jsx
 src/assets/react.svg
+src/components/BarChartCard.jsx
+src/components/DashboardCard.jsx
+src/components/Layout.jsx
+src/components/Navbar.jsx
+src/components/PieChartCard.jsx
 src/components/ProtectedRoute.jsx
+src/components/Sidebar.jsx
 src/context/AuthContext.jsx
 src/index.css
 src/main.jsx
+src/pages/Admin.jsx
+src/pages/Campaigns.jsx
 src/pages/Dashboard.jsx
+src/pages/dashboards/AccountsDashboard.jsx
+src/pages/dashboards/AdminDashboard.jsx
+src/pages/dashboards/DealerDashboard.jsx
+src/pages/dashboards/InventoryDashboard.jsx
+src/pages/dashboards/ManagerDashboard.jsx
 src/pages/Documents.jsx
 src/pages/Invoices.jsx
 src/pages/Login.jsx
 src/pages/OTPVerify.jsx
+src/pages/Reports.jsx
 src/services/api.js
+src/theme.js
 vite.config.js
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/components/BarChartCard.jsx">
+import React from "react";
+import { Card, CardContent, Typography } from "@mui/material";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
+
+export default function BarChartCard({ title, data, xKey, yKey, color = "#1976d2" }) {
+  return (
+    <Card sx={{ borderRadius: 3, boxShadow: 2, p: 2 }}>
+      <CardContent>
+        <Typography variant="subtitle1" gutterBottom>{title}</Typography>
+        <ResponsiveContainer width="100%" height={250}>
+          <BarChart data={data}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey={xKey} />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey={yKey} fill={color} radius={[6, 6, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+</file>
+
+<file path="src/components/DashboardCard.jsx">
+import React from "react";
+import { Card, CardContent, Typography, Box } from "@mui/material";
+
+export default function DashboardCard({ title, value, icon, color = "primary.main" }) {
+  return (
+    <Card sx={{
+      borderRadius: 3,
+      boxShadow: 2,
+      p: 2,
+      backgroundColor: "background.paper",
+      transition: "transform 0.2s ease",
+      "&:hover": { transform: "translateY(-4px)", boxShadow: 4 },
+    }}>
+      <CardContent>
+        <Box display="flex" alignItems="center" justifyContent="space-between">
+          <Typography variant="subtitle2" color="text.secondary">
+            {title}
+          </Typography>
+          <Box color={color}>{icon}</Box>
+        </Box>
+        <Typography variant="h5" sx={{ mt: 1, fontWeight: "bold" }}>
+          {value}
+        </Typography>
+      </CardContent>
+    </Card>
+  );
+}
+</file>
+
+<file path="src/components/PieChartCard.jsx">
+import React from "react";
+import { Card, CardContent, Typography } from "@mui/material";
+import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
+
+export default function PieChartCard({ title, data }) {
+  const COLORS = ["#1976d2", "#2e7d32", "#ed6c02", "#d32f2f"];
+
+  return (
+    <Card sx={{ borderRadius: 3, boxShadow: 2, p: 2 }}>
+      <CardContent>
+        <Typography variant="subtitle1">{title}</Typography>
+        <ResponsiveContainer width="100%" height={250}>
+          <PieChart>
+            <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
+              {data.map((_, index) => (
+                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
+              ))}
+            </Pie>
+            <Tooltip />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
+  );
+}
+</file>
+
+<file path="src/theme.js">
+import { createTheme } from "@mui/material/styles";
+
+const theme = createTheme({
+  palette: {
+    mode: "light",
+    background: {
+      default: "#f4f5f7",
+      paper: "#ffffff",
+    },
+    primary: { main: "#000000" }, // black accents
+    secondary: { main: "#616161" },
+    text: {
+      primary: "#111",
+      secondary: "#555",
+    },
+  },
+  shape: { borderRadius: 20 },
+  typography: {
+    fontFamily: "'Poppins', 'Inter', sans-serif",
+    h5: { fontWeight: 600 },
+  },
+  components: {
+    MuiCard: {
+      styleOverrides: {
+        root: {
+          borderRadius: 20,
+          background: "#ffffff",
+          boxShadow:
+            "6px 6px 16px rgba(0,0,0,0.1), -6px -6px 16px rgba(255,255,255,0.9)",
+          transition: "0.3s ease",
+          "&:hover": {
+            transform: "translateY(-3px)",
+            boxShadow:
+              "10px 10px 24px rgba(0,0,0,0.15), -10px -10px 24px rgba(255,255,255,0.8)",
+          },
+        },
+      },
+    },
+  },
+});
+
+export default theme;
+</file>
 
 <file path=".gitignore">
 # Logs
@@ -218,6 +362,27 @@ If you are developing a production application, we recommend using TypeScript wi
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="35.93" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 228"><path fill="#00D8FF" d="M210.483 73.824a171.49 171.49 0 0 0-8.24-2.597c.465-1.9.893-3.777 1.273-5.621c6.238-30.281 2.16-54.676-11.769-62.708c-13.355-7.7-35.196.329-57.254 19.526a171.23 171.23 0 0 0-6.375 5.848a155.866 155.866 0 0 0-4.241-3.917C100.759 3.829 77.587-4.822 63.673 3.233C50.33 10.957 46.379 33.89 51.995 62.588a170.974 170.974 0 0 0 1.892 8.48c-3.28.932-6.445 1.924-9.474 2.98C17.309 83.498 0 98.307 0 113.668c0 15.865 18.582 31.778 46.812 41.427a145.52 145.52 0 0 0 6.921 2.165a167.467 167.467 0 0 0-2.01 9.138c-5.354 28.2-1.173 50.591 12.134 58.266c13.744 7.926 36.812-.22 59.273-19.855a145.567 145.567 0 0 0 5.342-4.923a168.064 168.064 0 0 0 6.92 6.314c21.758 18.722 43.246 26.282 56.54 18.586c13.731-7.949 18.194-32.003 12.4-61.268a145.016 145.016 0 0 0-1.535-6.842c1.62-.48 3.21-.974 4.76-1.488c29.348-9.723 48.443-25.443 48.443-41.52c0-15.417-17.868-30.326-45.517-39.844Zm-6.365 70.984c-1.4.463-2.836.91-4.3 1.345c-3.24-10.257-7.612-21.163-12.963-32.432c5.106-11 9.31-21.767 12.459-31.957c2.619.758 5.16 1.557 7.61 2.4c23.69 8.156 38.14 20.213 38.14 29.504c0 9.896-15.606 22.743-40.946 31.14Zm-10.514 20.834c2.562 12.94 2.927 24.64 1.23 33.787c-1.524 8.219-4.59 13.698-8.382 15.893c-8.067 4.67-25.32-1.4-43.927-17.412a156.726 156.726 0 0 1-6.437-5.87c7.214-7.889 14.423-17.06 21.459-27.246c12.376-1.098 24.068-2.894 34.671-5.345a134.17 134.17 0 0 1 1.386 6.193ZM87.276 214.515c-7.882 2.783-14.16 2.863-17.955.675c-8.075-4.657-11.432-22.636-6.853-46.752a156.923 156.923 0 0 1 1.869-8.499c10.486 2.32 22.093 3.988 34.498 4.994c7.084 9.967 14.501 19.128 21.976 27.15a134.668 134.668 0 0 1-4.877 4.492c-9.933 8.682-19.886 14.842-28.658 17.94ZM50.35 144.747c-12.483-4.267-22.792-9.812-29.858-15.863c-6.35-5.437-9.555-10.836-9.555-15.216c0-9.322 13.897-21.212 37.076-29.293c2.813-.98 5.757-1.905 8.812-2.773c3.204 10.42 7.406 21.315 12.477 32.332c-5.137 11.18-9.399 22.249-12.634 32.792a134.718 134.718 0 0 1-6.318-1.979Zm12.378-84.26c-4.811-24.587-1.616-43.134 6.425-47.789c8.564-4.958 27.502 2.111 47.463 19.835a144.318 144.318 0 0 1 3.841 3.545c-7.438 7.987-14.787 17.08-21.808 26.988c-12.04 1.116-23.565 2.908-34.161 5.309a160.342 160.342 0 0 1-1.76-7.887Zm110.427 27.268a347.8 347.8 0 0 0-7.785-12.803c8.168 1.033 15.994 2.404 23.343 4.08c-2.206 7.072-4.956 14.465-8.193 22.045a381.151 381.151 0 0 0-7.365-13.322Zm-45.032-43.861c5.044 5.465 10.096 11.566 15.065 18.186a322.04 322.04 0 0 0-30.257-.006c4.974-6.559 10.069-12.652 15.192-18.18ZM82.802 87.83a323.167 323.167 0 0 0-7.227 13.238c-3.184-7.553-5.909-14.98-8.134-22.152c7.304-1.634 15.093-2.97 23.209-3.984a321.524 321.524 0 0 0-7.848 12.897Zm8.081 65.352c-8.385-.936-16.291-2.203-23.593-3.793c2.26-7.3 5.045-14.885 8.298-22.6a321.187 321.187 0 0 0 7.257 13.246c2.594 4.48 5.28 8.868 8.038 13.147Zm37.542 31.03c-5.184-5.592-10.354-11.779-15.403-18.433c4.902.192 9.899.29 14.978.29c5.218 0 10.376-.117 15.453-.343c-4.985 6.774-10.018 12.97-15.028 18.486Zm52.198-57.817c3.422 7.8 6.306 15.345 8.596 22.52c-7.422 1.694-15.436 3.058-23.88 4.071a382.417 382.417 0 0 0 7.859-13.026a347.403 347.403 0 0 0 7.425-13.565Zm-16.898 8.101a358.557 358.557 0 0 1-12.281 19.815a329.4 329.4 0 0 1-23.444.823c-7.967 0-15.716-.248-23.178-.732a310.202 310.202 0 0 1-12.513-19.846h.001a307.41 307.41 0 0 1-10.923-20.627a310.278 310.278 0 0 1 10.89-20.637l-.001.001a307.318 307.318 0 0 1 12.413-19.761c7.613-.576 15.42-.876 23.31-.876H128c7.926 0 15.743.303 23.354.883a329.357 329.357 0 0 1 12.335 19.695a358.489 358.489 0 0 1 11.036 20.54a329.472 329.472 0 0 1-11 20.722Zm22.56-122.124c8.572 4.944 11.906 24.881 6.52 51.026c-.344 1.668-.73 3.367-1.15 5.09c-10.622-2.452-22.155-4.275-34.23-5.408c-7.034-10.017-14.323-19.124-21.64-27.008a160.789 160.789 0 0 1 5.888-5.4c18.9-16.447 36.564-22.941 44.612-18.3ZM128 90.808c12.625 0 22.86 10.235 22.86 22.86s-10.235 22.86-22.86 22.86s-22.86-10.235-22.86-22.86s10.235-22.86 22.86-22.86Z"></path></svg>
 </file>
 
+<file path="src/components/Layout.jsx">
+import React from "react";
+import Navbar from "./Navbar";
+import Sidebar from "./Sidebar";
+import { Outlet } from "react-router-dom";
+
+export default function Layout() {
+  return (
+    <div>
+      <Navbar />
+      <div style={{ display: "flex" }}>
+        <Sidebar />
+        <main style={{ flex: 1, padding: "1.5rem" }}>
+          <Outlet />  {/* 👈 This renders the page inside Layout */}
+        </main>
+      </div>
+    </div>
+  );
+}
+</file>
+
 <file path="src/context/AuthContext.jsx">
 import React, { createContext, useState } from "react";
 import api from "../services/api";
@@ -255,6 +420,320 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+</file>
+
+<file path="src/main.jsx">
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <App />
+  </StrictMode>,
+)
+</file>
+
+<file path="src/pages/dashboards/AccountsDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+
+export default function AccountsDashboard() {
+  const [summary, setSummary] = useState({});
+
+  useEffect(() => {
+    (async () => {
+      const res = await api.get("/reports/accounts-summary");
+      setSummary(res.data);
+    })();
+  }, []);
+
+  return (
+    <div>
+      <h2>Accounts Dashboard</h2>
+      <div className="grid">
+        <div className="card"><h4>Invoices</h4><p>{summary.totalInvoices || 0}</p></div>
+        <div className="card"><h4>Credit Notes</h4><p>{summary.creditNotes || 0}</p></div>
+        <div className="card"><h4>Outstanding</h4><p>₹{summary.outstanding || 0}</p></div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/AdminDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import { useNavigate } from "react-router-dom";
+
+export default function AdminDashboard() {
+  const navigate = useNavigate();
+  const [summary, setSummary] = useState({});
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get("/reports/summary");
+        setSummary(res.data);
+      } catch (e) {
+        console.error("Error fetching admin summary:", e);
+      }
+    })();
+  }, []);
+
+  return (
+    <div>
+      <h2>Administrator Dashboard</h2>
+      <div className="grid">
+        <div className="card" onClick={() => navigate("/campaigns")}>
+          <h4>Active Campaigns</h4>
+          <p>{summary.activeCampaigns || 0}</p>
+        </div>
+        <div className="card" onClick={() => navigate("/admin")}>
+          <h4>Registered Dealers</h4>
+          <p>{summary.dealers || 0}</p>
+        </div>
+        <div className="card" onClick={() => navigate("/reports")}>
+          <h4>Pending Approvals</h4>
+          <p>{summary.pendingApprovals || 0}</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/DealerDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+
+export default function DealerDashboard() {
+  const [summary, setSummary] = useState({});
+  const [invoices, setInvoices] = useState([]);
+
+  useEffect(() => {
+    const fetchData = async () => {
+      try {
+        // Dealer performance summary
+        const summaryRes = await api.get("/reports/dealer-performance");
+        setSummary(summaryRes.data);
+
+        // Dealer invoices
+        const invoiceRes = await api.get("/invoices");
+        setInvoices(invoiceRes.data.invoices || invoiceRes.data);
+      } catch (err) {
+        console.error("Error loading dealer dashboard:", err);
+      }
+    };
+    fetchData();
+  }, []);
+
+  return (
+    <div>
+      <h2>Dealer Dashboard</h2>
+      <div className="grid">
+        <div className="card">
+          <h4>Total Sales</h4>
+          <p>₹{summary.totalSales || 0}</p>
+        </div>
+        <div className="card">
+          <h4>Total Invoices</h4>
+          <p>{summary.totalInvoices || 0}</p>
+        </div>
+      </div>
+
+      <h3 style={{ marginTop: "2rem" }}>Recent Invoices</h3>
+      <table border="1" cellPadding="8">
+        <thead>
+          <tr><th>Invoice #</th><th>Date</th><th>Amount</th><th>Status</th></tr>
+        </thead>
+        <tbody>
+          {invoices.slice(0, 5).map((i) => (
+            <tr key={i.id}>
+              <td>{i.invoiceNumber}</td>
+              <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
+              <td>₹{i.totalAmount}</td>
+              <td>{i.status}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/InventoryDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+
+export default function InventoryDashboard() {
+  const [stock, setStock] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      const res = await api.get("/inventory/stock-summary");
+      setStock(res.data.stock || []);
+    })();
+  }, []);
+
+  return (
+    <div>
+      <h2>Inventory Dashboard</h2>
+      <table border="1" cellPadding="8">
+        <thead><tr><th>Product</th><th>Plant</th><th>Available Qty</th></tr></thead>
+        <tbody>
+          {stock.map(s => (
+            <tr key={s.id}><td>{s.productName}</td><td>{s.plant}</td><td>{s.quantity}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/ManagerDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+
+export default function ManagerDashboard() {
+  const [dealers, setDealers] = useState([]);
+  const [summary, setSummary] = useState({});
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get("/reports/dealer-performance");
+        setDealers(res.data.dealers || []);
+        setSummary({
+          totalDealers: res.data.dealers?.length || 0,
+          avgSales: res.data.averageSales || 0
+        });
+      } catch (err) {
+        console.error("Error fetching TM dashboard:", err);
+      }
+    })();
+  }, []);
+
+  return (
+    <div>
+      <h2>Territory / Area Manager Dashboard</h2>
+      <div className="grid">
+        <div className="card"><h4>Total Dealers</h4><p>{summary.totalDealers}</p></div>
+        <div className="card"><h4>Average Sales</h4><p>₹{summary.avgSales}</p></div>
+      </div>
+      <h3>Dealer Performance</h3>
+      <table border="1" cellPadding="8">
+        <thead><tr><th>Name</th><th>Region</th><th>Sales</th><th>License Validity</th></tr></thead>
+        <tbody>
+          {dealers.map(d => (
+            <tr key={d.id}><td>{d.name}</td><td>{d.region}</td><td>₹{d.sales}</td><td>{d.licenseValidity}</td></tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+</file>
+
+<file path="vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [
+    react({
+      babel: {
+        plugins: [['babel-plugin-react-compiler']],
+      },
+    }),
+  ],
+})
+</file>
+
+<file path="package.json">
+{
+  "name": "dealer-portal-react",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/material": "^7.3.4",
+    "axios": "^1.13.1",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-hook-form": "^7.65.0",
+    "react-router-dom": "^7.9.5",
+    "react-toastify": "^11.0.5"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "babel-plugin-react-compiler": "^19.1.0-rc.3",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.22",
+    "globals": "^16.4.0",
+    "vite": "^7.1.7"
+  }
+}
+</file>
+
+<file path="src/components/Navbar.jsx">
+import React, { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
+import { Link, useNavigate } from "react-router-dom";
+
+export default function Navbar() {
+  const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  return (
+    <nav style={{ display: "flex", justifyContent: "space-between", padding: "1rem", background: "#1976d2", color: "#fff" }}>
+      <div>
+        <strong>Dealer Portal</strong>
+      </div>
+      <div>
+        {user && <span style={{ marginRight: "1rem" }}>Hi, {user.name || user.username}</span>}
+        <button onClick={handleLogout} style={{ background: "#fff", color: "#1976d2", borderRadius: 4 }}>Logout</button>
+      </div>
+    </nav>
+  );
+}
+</file>
+
+<file path="src/components/ProtectedRoute.jsx">
+import React, { useContext } from 'react';
+import { Navigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
+
+export default function ProtectedRoute({ children, roles = [] }) {
+  const { user } = useContext(AuthContext);
+  if (!user) return <Navigate to="/login" replace />;
+
+  if (roles.length && !roles.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  return children;
+}
 </file>
 
 <file path="src/index.css">
@@ -326,145 +805,106 @@ button:focus-visible {
     background-color: #f9f9f9;
   }
 }
-</file>
-
-<file path="src/main.jsx">
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
-
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
-</file>
-
-<file path="vite.config.js">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    react({
-      babel: {
-        plugins: [['babel-plugin-react-compiler']],
-      },
-    }),
-  ],
-})
-</file>
-
-<file path="package.json">
-{
-  "name": "dealer-portal-react",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@mui/material": "^7.3.4",
-    "axios": "^1.13.1",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "react-hook-form": "^7.65.0",
-    "react-router-dom": "^7.9.5",
-    "react-toastify": "^11.0.5"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "@types/react": "^19.1.16",
-    "@types/react-dom": "^19.1.9",
-    "@vitejs/plugin-react": "^5.0.4",
-    "babel-plugin-react-compiler": "^19.1.0-rc.3",
-    "eslint": "^9.36.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.22",
-    "globals": "^16.4.0",
-    "vite": "^7.1.7"
-  }
+/* src/index.css */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+}
+.card {
+  background: #fff;
+  border-radius: 8px;
+  padding: 1rem;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.1);
+  cursor: pointer;
+  transition: 0.2s;
+}
+.card:hover {
+  transform: translateY(-3px);
+  box-shadow: 0 3px 8px rgba(0,0,0,0.15);
 }
 </file>
 
-<file path="src/App.jsx">
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Invoices from './pages/Invoices';
-import Documents from './pages/Documents';
-import ProtectedRoute from './components/ProtectedRoute';
+<file path="src/pages/Admin.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
 
-function App(){
+export default function Admin() {
+  const [dealers, setDealers] = useState([]);
+
+  const fetchDealers = async () => {
+    const res = await api.get("/dealers");
+    setDealers(res.data.dealers || res.data);
+  };
+
+  const toggleActive = async (id, active) => {
+    await api.put(`/dealers/${id}`, { active: !active });
+    fetchDealers();
+  };
+
+  useEffect(() => { fetchDealers(); }, []);
+
   return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={<Login />} />
-          <Route path="/" element={<ProtectedRoute><Dashboard/></ProtectedRoute>} />
-          <Route path="/dashboard" element={<ProtectedRoute><Dashboard/></ProtectedRoute>} />
-          <Route path="/invoices" element={<ProtectedRoute><Invoices/></ProtectedRoute>} />
-          <Route path="/documents" element={<ProtectedRoute><Documents/></ProtectedRoute>} />
-          {/* Add routes for Campaigns, Reports, Admin */}
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
+    <div>
+      <h2>Dealer Management</h2>
+      <table border="1" cellPadding="8">
+        <thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          {dealers.map(d => (
+            <tr key={d.id}>
+              <td>{d.id}</td>
+              <td>{d.name}</td>
+              <td>{d.active ? "Active" : "Blocked"}</td>
+              <td><button onClick={() => toggleActive(d.id, d.active)}>{d.active ? "Block" : "Unblock"}</button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
   );
 }
-export default App;
 </file>
 
-<file path="src/components/ProtectedRoute.jsx">
-import React, { useContext } from 'react';
-import { Navigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
+<file path="src/pages/Campaigns.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
 
-export default function ProtectedRoute({ children, roles = [] }) {
-  const { user } = useContext(AuthContext);
-  if (!user) return <Navigate to="/login" replace />;
+export default function Campaigns() {
+  const [campaigns, setCampaigns] = useState([]);
+  const [newCampaign, setNewCampaign] = useState({ title: "", description: "", active: true });
 
-  if (roles.length && !roles.includes(user.role)) {
-    return <Navigate to="/unauthorized" replace />;
-  }
-  return children;
-}
-</file>
+  const fetchCampaigns = async () => {
+    const res = await api.get("/campaigns");
+    setCampaigns(res.data.campaigns || res.data);
+  };
 
-<file path="src/pages/Dashboard.jsx">
-import React, { useEffect, useState } from 'react';
-import api from '../services/api';
+  useEffect(() => { fetchCampaigns(); }, []);
 
-export default function Dashboard(){
-  const [report, setReport] = useState(null);
-  useEffect(()=>{
-    (async ()=>{
-      try {
-        const res = await api.get('/reports/dealer-performance');
-        setReport(res.data);
-      } catch (e) {
-        console.error(e);
-      }
-    })();
-  },[]);
+  const addCampaign = async (e) => {
+    e.preventDefault();
+    await api.post("/campaigns", newCampaign);
+    setNewCampaign({ title: "", description: "", active: true });
+    fetchCampaigns();
+  };
+
   return (
-    <div style={{padding:20}}>
-      <h2>Dashboard</h2>
-      {report ? (
-        <div>
-          <p>Total invoices: {report.totalInvoices}</p>
-          <p>Total sales: {report.totalSales}</p>
-        </div>
-      ) : <p>Loading...</p>}
+    <div>
+      <h2>Campaigns</h2>
+      <form onSubmit={addCampaign}>
+        <input placeholder="Title" value={newCampaign.title} onChange={e => setNewCampaign({...newCampaign, title: e.target.value})}/>
+        <input placeholder="Description" value={newCampaign.description} onChange={e => setNewCampaign({...newCampaign, description: e.target.value})}/>
+        <label>
+          Active: 
+          <input type="checkbox" checked={newCampaign.active} onChange={e => setNewCampaign({...newCampaign, active: e.target.checked})}/>
+        </label>
+        <button type="submit">Add</button>
+      </form>
+
+      <ul>
+        {campaigns.map(c => (
+          <li key={c.id}>{c.title} — {c.active ? "Active" : "Inactive"}</li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -660,6 +1100,35 @@ export default function OTPVerify({ userId }) {
 }
 </file>
 
+<file path="src/pages/Reports.jsx">
+import React, { useState } from "react";
+import api from "../services/api";
+
+export default function Reports() {
+  const [report, setReport] = useState(null);
+  const [type, setType] = useState("dealer-performance");
+
+  const fetchReport = async () => {
+    const res = await api.get(`/reports/${type}`);
+    setReport(res.data);
+  };
+
+  return (
+    <div>
+      <h2>Reports</h2>
+      <select onChange={e => setType(e.target.value)} value={type}>
+        <option value="dealer-performance">Dealer Performance</option>
+        <option value="outstanding-receivables">Outstanding Receivables</option>
+        <option value="invoice-register">Invoice Register</option>
+      </select>
+      <button onClick={fetchReport}>Generate</button>
+
+      {report && <pre>{JSON.stringify(report, null, 2)}</pre>}
+    </div>
+  );
+}
+</file>
+
 <file path="src/services/api.js">
 import axios from "axios";
 
@@ -689,6 +1158,135 @@ api.interceptors.response.use(
 );
 
 export default api;
+</file>
+
+<file path="src/App.jsx">
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Invoices from './pages/Invoices';
+import Documents from './pages/Documents';
+import Campaigns from "./pages/Campaigns";
+import Reports from "./pages/Reports";
+import Admin from "./pages/Admin";
+import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout';
+
+// ✅ When Layout is inside ProtectedRoute, all child routes share Navbar & Sidebar
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public route */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Protected routes grouped inside Layout */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            {/* All pages with the sidebar/navbar go here */}
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="invoices" element={<Invoices />} />
+            <Route path="documents" element={<Documents />} />
+            <Route path="campaigns" element={<Campaigns />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="admin" element={<Admin />} />
+            {/* 🔜 Add Campaigns, Reports, Admin here */}
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+
+export default App;
+</file>
+
+<file path="src/components/Sidebar.jsx">
+import React, { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
+import { Link, useLocation } from "react-router-dom";
+
+export default function Sidebar() {
+  const { user } = useContext(AuthContext);
+  const { pathname } = useLocation();
+
+  const baseLinks = [{ path: "/dashboard", label: "Dashboard" }];
+  const roleLinks = {
+    dealer: [{ path: "/invoices", label: "Invoices" }, { path: "/documents", label: "Documents" }],
+    tm: [{ path: "/reports", label: "Reports" }],
+    am: [{ path: "/reports", label: "Reports" }],
+    admin: [
+      { path: "/campaigns", label: "Campaigns" },
+      { path: "/admin", label: "Dealer Management" },
+      { path: "/reports", label: "Reports" },
+    ],
+    accounts: [{ path: "/reports", label: "Accounts Reports" }],
+    inventory: [{ path: "/inventory", label: "Stock View" }],
+  };
+
+  const links = [...baseLinks, ...(roleLinks[user?.role?.toLowerCase()] || [])];
+
+  return (
+    <aside style={{ width: 200, background: "#f3f3f3", padding: 20, height: "100vh" }}>
+      {links.map((l) => (
+        <div key={l.path} style={{ margin: "10px 0" }}>
+          <Link
+            to={l.path}
+            style={{
+              textDecoration: "none",
+              color: pathname === l.path ? "#1976d2" : "#333",
+              fontWeight: pathname === l.path ? "bold" : "normal",
+            }}
+          >
+            {l.label}
+          </Link>
+        </div>
+      ))}
+    </aside>
+  );
+}
+</file>
+
+<file path="src/pages/Dashboard.jsx">
+import React, { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
+import DealerDashboard from "./dashboards/DealerDashboard";
+import ManagerDashboard from "./dashboards/ManagerDashboard";
+import AdminDashboard from "./dashboards/AdminDashboard";
+import AccountsDashboard from "./dashboards/AccountsDashboard";
+import InventoryDashboard from "./dashboards/InventoryDashboard";
+
+export default function Dashboard() {
+  const { user } = useContext(AuthContext);
+
+  if (!user) return <p>Loading user...</p>;
+
+  switch (user.role?.toLowerCase()) {
+    case "dealer":
+      return <DealerDashboard />;
+    case "tm":
+    case "am":
+      return <ManagerDashboard />;
+    case "admin":
+      return <AdminDashboard />;
+    case "accounts":
+      return <AccountsDashboard />;
+    case "inventory":
+      return <InventoryDashboard />;
+    default:
+      return <p>No dashboard available for role: {user.role}</p>;
+  }
+}
 </file>
 
 </files>
