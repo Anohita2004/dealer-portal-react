@@ -1,27 +1,29 @@
-import React, { useEffect, useState } from 'react';
-import api from '../services/api';
+import React, { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
+import DealerDashboard from "./dashboards/DealerDashboard";
+import ManagerDashboard from "./dashboards/ManagerDashboard";
+import AdminDashboard from "./dashboards/AdminDashboard";
+import AccountsDashboard from "./dashboards/AccountsDashboard";
+import InventoryDashboard from "./dashboards/InventoryDashboard";
 
-export default function Dashboard(){
-  const [report, setReport] = useState(null);
-  useEffect(()=>{
-    (async ()=>{
-      try {
-        const res = await api.get('/reports/dealer-performance');
-        setReport(res.data);
-      } catch (e) {
-        console.error(e);
-      }
-    })();
-  },[]);
-  return (
-    <div style={{padding:20}}>
-      <h2>Dashboard</h2>
-      {report ? (
-        <div>
-          <p>Total invoices: {report.totalInvoices}</p>
-          <p>Total sales: {report.totalSales}</p>
-        </div>
-      ) : <p>Loading...</p>}
-    </div>
-  );
+export default function Dashboard() {
+  const { user } = useContext(AuthContext);
+
+  if (!user) return <p>Loading user...</p>;
+
+  switch (user.role?.toLowerCase()) {
+    case "dealer":
+      return <DealerDashboard />;
+    case "tm":
+    case "am":
+      return <ManagerDashboard />;
+    case "admin":
+      return <AdminDashboard />;
+    case "accounts":
+      return <AccountsDashboard />;
+    case "inventory":
+      return <InventoryDashboard />;
+    default:
+      return <p>No dashboard available for role: {user.role}</p>;
+  }
 }
