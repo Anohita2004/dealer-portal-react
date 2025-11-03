@@ -9,17 +9,6 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
-import { motion } from "framer-motion";
-import {
-  FileText,
-  TrendingUp,
-  Receipt,
-  Gift,
-  FileCheck,
-  Upload,
-  Phone,
-  Download,
-} from "lucide-react";
 
 export default function DealerDashboard() {
   const [summary, setSummary] = useState({});
@@ -33,17 +22,19 @@ export default function DealerDashboard() {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [summaryRes, invoiceRes, promoRes, docRes, trendRes] = await Promise.all([
-          api.get("/reports/dealer-performance"),
-          api.get("/invoices"),
-          api.get("/campaigns/active"),
-          api.get("/documents"),
-          api.get("/reports/dealer-performance?trend=true"),
-        ]);
+        const summaryRes = await api.get("/reports/dealer-performance");
         setSummary(summaryRes.data);
+
+        const invoiceRes = await api.get("/invoices");
         setInvoices(invoiceRes.data.invoices || invoiceRes.data);
+
+        const promoRes = await api.get("/campaigns/active");
         setPromotions(promoRes.data);
+
+        const docRes = await api.get("/documents");
         setDocuments(docRes.data);
+
+        const trendRes = await api.get("/reports/dealer-performance?trend=true");
         setTrend(trendRes.data.trend || []);
       } catch (err) {
         console.error("Error loading dealer dashboard:", err);
@@ -55,212 +46,156 @@ export default function DealerDashboard() {
   }, []);
 
   if (loading)
-    return (
-      <div className="p-10 text-center text-blue-700 font-semibold animate-pulse">
-        Loading your dashboard...
-      </div>
-    );
+    return <div className="center text-center" style={{ height: "80vh" }}>Loading dashboard...</div>;
 
   return (
-    <div className="p-8 bg-gradient-to-br from-gray-50 to-blue-50 min-h-screen">
-      {/* Header */}
-      <div className="mb-8">
-        <h2 className="text-4xl font-extrabold text-blue-800 flex items-center gap-3">
-          <TrendingUp className="w-8 h-8 text-blue-600" />
-          Dealer Dashboard
-        </h2>
-        <p className="text-gray-600 mt-2">
-          Welcome back,{" "}
-          <span className="font-semibold text-blue-700">
-            {summary.dealerName || "Dealer"}
-          </span>
-          — track your performance, documents, and offers.
+    <div style={{ padding: "2rem" }}>
+      {/* HEADER */}
+      <div className="mt-2">
+        <h2>Dealer Dashboard</h2>
+        <p style={{ color: "#94a3b8" }}>
+          Welcome back, <strong>{summary.dealerName || "Dealer"}</strong> — stay on top of your performance and updates.
         </p>
       </div>
 
-      {/* Summary Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6 mb-10">
-        <AnimatedCard icon={<TrendingUp />} title="Total Sales" value={`₹${summary.totalSales || 0}`} />
-        <AnimatedCard icon={<Receipt />} title="Total Invoices" value={summary.totalInvoices || 0} />
-        <AnimatedCard icon={<FileCheck />} title="Pending Deliveries" value={summary.pendingDeliveries || 0} />
-        <AnimatedCard icon={<FileText />} title="Outstanding Amount" value={`₹${summary.outstanding || 0}`} />
+      {/* SUMMARY CARDS */}
+      <div className="grid mt-4">
+        <Card title="Total Sales" value={`₹${summary.totalSales || 0}`} icon="💰" />
+        <Card title="Total Invoices" value={summary.totalInvoices || 0} icon="🧾" />
+        <Card title="Pending Deliveries" value={summary.pendingDeliveries || 0} icon="🚚" />
+        <Card title="Outstanding Amount" value={`₹${summary.outstanding || 0}`} icon="📉" />
       </div>
 
-      {/* Sales Trend */}
-      <SectionCard title="Sales Trend (Last 6 Months)">
+      {/* SALES TREND */}
+      <div className="card mt-6">
+        <h3>Sales Trend (Last 6 Months)</h3>
         {trend.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={trend}>
-              <CartesianGrid strokeDasharray="3 3" />
-              <XAxis dataKey="month" />
-              <YAxis />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="month" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
               <Tooltip />
-              <Line type="monotone" dataKey="sales" stroke="#2563eb" strokeWidth={2} />
+              <Line type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={2} />
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <p className="text-gray-500 text-sm">No trend data available</p>
+          <p style={{ color: "#94a3b8" }}>No trend data available</p>
         )}
-      </SectionCard>
+      </div>
 
-      {/* Invoices */}
-      <SectionCard title="Recent Invoices">
-        <Table
-          headers={["Invoice #", "Date", "Amount", "Status", "Action"]}
-          rows={invoices.slice(0, 5).map((i) => ({
-            data: [
-              i.invoiceNumber,
-              new Date(i.invoiceDate).toLocaleDateString(),
-              `₹${i.totalAmount}`,
-              <span
-                className={`font-semibold ${
-                  i.status === "Paid"
-                    ? "text-green-600"
-                    : i.status === "Pending"
-                    ? "text-yellow-600"
-                    : "text-red-600"
-                }`}
-              >
-                {i.status}
-              </span>,
-              <span className="text-blue-600 hover:underline cursor-pointer">
-                Download
-              </span>,
-            ],
-          }))}
-        />
-      </SectionCard>
+      {/* RECENT INVOICES */}
+      <div className="card mt-6">
+        <h3>Recent Invoices</h3>
+        <table>
+          <thead>
+            <tr>
+              <th>Invoice #</th>
+              <th>Date</th>
+              <th>Amount</th>
+              <th>Status</th>
+              <th>Action</th>
+            </tr>
+          </thead>
+          <tbody>
+            {invoices.slice(0, 5).map((i) => (
+              <tr key={i.id}>
+                <td>{i.invoiceNumber}</td>
+                <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
+                <td>₹{i.totalAmount}</td>
+                <td style={{ color: i.status === "Paid" ? "#22c55e" : "#facc15" }}>
+                  {i.status}
+                </td>
+                <td className="hover-glow" style={{ color: "#3b82f6", cursor: "pointer" }}>
+                  Download
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
 
-      {/* Promotions */}
-      <SectionCard title="Active Promotions">
+      {/* ACTIVE PROMOTIONS */}
+      <div className="card mt-6">
+        <h3>Active Promotions</h3>
         {promotions.length > 0 ? (
-          <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-5">
+          <div className="grid">
             {promotions.map((promo) => (
-              <motion.div
-                key={promo.id}
-                whileHover={{ scale: 1.03 }}
-                className="p-4 border rounded-2xl bg-gradient-to-br from-blue-50 to-white shadow-sm"
-              >
-                <h4 className="font-bold text-blue-700 flex items-center gap-2">
-                  <Gift className="w-5 h-5" />
-                  {promo.title}
-                </h4>
-                <p className="text-sm text-gray-600 mt-1">{promo.description}</p>
-                <p className="text-xs text-gray-500 mt-2">
+              <div key={promo.id} className="card hover-glow">
+                <h4 style={{ color: "#60a5fa" }}>{promo.title}</h4>
+                <p style={{ color: "#94a3b8" }}>{promo.description}</p>
+                <p style={{ fontSize: "0.8rem", color: "#64748b" }}>
                   Valid till: {new Date(promo.validTill).toLocaleDateString()}
                 </p>
-              </motion.div>
+              </div>
             ))}
           </div>
         ) : (
-          <p className="text-gray-500 text-sm">No active promotions</p>
+          <p style={{ color: "#94a3b8" }}>No active promotions</p>
         )}
-      </SectionCard>
+      </div>
 
-      {/* Documents */}
-      <SectionCard title="Uploaded Documents">
+      {/* DOCUMENTS */}
+      <div className="card mt-6">
+        <h3>Uploaded Documents</h3>
         {documents.length > 0 ? (
-          <Table
-            headers={["File Name", "Type", "Status", "Uploaded On"]}
-            rows={documents.map((doc) => ({
-              data: [
-                doc.fileName,
-                doc.documentType,
-                <span
-                  className={`font-medium ${
-                    doc.status === "Approved"
-                      ? "text-green-600"
-                      : doc.status === "Rejected"
-                      ? "text-red-600"
-                      : "text-yellow-600"
-                  }`}
-                >
-                  {doc.status}
-                </span>,
-                new Date(doc.createdAt).toLocaleDateString(),
-              ],
-            }))}
-          />
+          <table>
+            <thead>
+              <tr>
+                <th>File Name</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Uploaded On</th>
+              </tr>
+            </thead>
+            <tbody>
+              {documents.map((doc) => (
+                <tr key={doc.id}>
+                  <td>{doc.fileName}</td>
+                  <td>{doc.documentType}</td>
+                  <td
+                    style={{
+                      color:
+                        doc.status === "Approved"
+                          ? "#22c55e"
+                          : doc.status === "Rejected"
+                          ? "#ef4444"
+                          : "#facc15",
+                    }}
+                  >
+                    {doc.status}
+                  </td>
+                  <td>{new Date(doc.createdAt).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
-          <p className="text-gray-500 text-sm">No documents uploaded yet</p>
+          <p style={{ color: "#94a3b8" }}>No documents uploaded yet</p>
         )}
-      </SectionCard>
+      </div>
 
-      {/* Quick Actions */}
-      <div className="flex flex-wrap gap-4 justify-end mt-8">
-        <ActionButton color="blue" icon={<Upload />} text="Upload New License" />
-        <ActionButton color="green" icon={<Download />} text="Download Statement" />
-        <ActionButton color="yellow" icon={<Phone />} text="Contact TM" />
+      {/* QUICK ACTIONS */}
+      <div className="mt-6 flex" style={{ gap: "1rem" }}>
+        <button className="primary">Upload New License</button>
+        <button className="primary" style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}>
+          Download Statement
+        </button>
+        <button className="primary" style={{ background: "linear-gradient(90deg, #facc15, #eab308)" }}>
+          Contact TM
+        </button>
       </div>
     </div>
   );
 }
 
-/* =======================
-   Reusable UI Components
-======================= */
-
-const AnimatedCard = ({ title, value, icon }) => (
-  <motion.div
-    whileHover={{ scale: 1.05 }}
-    className="bg-white shadow-lg rounded-2xl p-5 border-t-4 border-blue-500 transition-all"
-  >
-    <div className="flex justify-between items-center">
-      <div>
-        <h4 className="text-gray-500 text-sm">{title}</h4>
-        <p className="text-2xl font-bold text-blue-700 mt-1">{value}</p>
-      </div>
-      <div className="bg-blue-100 text-blue-700 p-3 rounded-xl">{icon}</div>
+// Reusable Card
+const Card = ({ title, value, icon }) => (
+  <div className="card">
+    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      <span style={{ fontSize: "1.5rem" }}>{icon}</span>
+      <h4>{title}</h4>
     </div>
-  </motion.div>
-);
-
-const SectionCard = ({ title, children }) => (
-  <div className="bg-white rounded-2xl shadow-md p-6 mb-8">
-    <h3 className="text-lg font-semibold text-blue-800 mb-4">{title}</h3>
-    {children}
+    <p style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#3b82f6" }}>{value}</p>
   </div>
 );
-
-const Table = ({ headers, rows }) => (
-  <div className="overflow-x-auto">
-    <table className="w-full border-collapse text-sm">
-      <thead>
-        <tr className="bg-gray-100 text-gray-700">
-          {headers.map((h, i) => (
-            <th key={i} className="p-3 border text-left">
-              {h}
-            </th>
-          ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, i) => (
-          <tr key={i} className="hover:bg-blue-50 transition">
-            {row.data.map((cell, j) => (
-              <td key={j} className="p-3 border">
-                {cell}
-              </td>
-            ))}
-          </tr>
-        ))}
-      </tbody>
-    </table>
-  </div>
-);
-
-const ActionButton = ({ color, icon, text }) => {
-  const colors = {
-    blue: "bg-blue-600 hover:bg-blue-700",
-    green: "bg-green-600 hover:bg-green-700",
-    yellow: "bg-yellow-500 hover:bg-yellow-600",
-  };
-  return (
-    <button
-      className={`${colors[color]} text-white px-6 py-2 rounded-xl shadow flex items-center gap-2 transition`}
-    >
-      {icon}
-      {text}
-    </button>
-  );
-};
