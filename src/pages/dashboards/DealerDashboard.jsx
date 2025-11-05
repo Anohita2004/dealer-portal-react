@@ -46,20 +46,28 @@ export default function DealerDashboard() {
   }, []);
 
   if (loading)
-    return <div className="center text-center" style={{ height: "80vh" }}>Loading dashboard...</div>;
+    return (
+      <div style={styles.loading}>
+        <p style={{ color: "#94a3b8" }}>Loading dashboard...</p>
+      </div>
+    );
 
   return (
-    <div style={{ padding: "2rem" }}>
+    <div style={styles.page}>
       {/* HEADER */}
-      <div className="mt-2">
-        <h2>Dealer Dashboard</h2>
-        <p style={{ color: "#94a3b8" }}>
-          Welcome back, <strong>{summary.dealerName || "Dealer"}</strong> — stay on top of your performance and updates.
+      <div style={styles.header}>
+        <h2 style={styles.title}>Dealer Dashboard</h2>
+        <p style={styles.subtitle}>
+          Welcome back,{" "}
+          <strong style={{ color: "#60a5fa" }}>
+            {summary.dealerName || "Dealer"}
+          </strong>{" "}
+          — stay on top of your performance and updates.
         </p>
       </div>
 
       {/* SUMMARY CARDS */}
-      <div className="grid mt-4">
+      <div style={styles.cardGrid}>
         <Card title="Total Sales" value={`₹${summary.totalSales || 0}`} icon="💰" />
         <Card title="Total Invoices" value={summary.totalInvoices || 0} icon="🧾" />
         <Card title="Pending Deliveries" value={summary.pendingDeliveries || 0} icon="🚚" />
@@ -67,12 +75,12 @@ export default function DealerDashboard() {
       </div>
 
       {/* SALES TREND */}
-      <div className="card mt-6">
-        <h3>Sales Trend (Last 6 Months)</h3>
+      <div style={styles.sectionCard}>
+        <h3 style={styles.sectionTitle}>Sales Trend (Last 6 Months)</h3>
         {trend.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <LineChart data={trend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
               <XAxis dataKey="month" stroke="#94a3b8" />
               <YAxis stroke="#94a3b8" />
               <Tooltip />
@@ -80,16 +88,16 @@ export default function DealerDashboard() {
             </LineChart>
           </ResponsiveContainer>
         ) : (
-          <p style={{ color: "#94a3b8" }}>No trend data available</p>
+          <p style={styles.muted}>No trend data available</p>
         )}
       </div>
 
       {/* RECENT INVOICES */}
-      <div className="card mt-6">
-        <h3>Recent Invoices</h3>
-        <table>
+      <div style={styles.sectionCard}>
+        <h3 style={styles.sectionTitle}>Recent Invoices</h3>
+        <table style={styles.table}>
           <thead>
-            <tr>
+            <tr style={styles.tableHeader}>
               <th>Invoice #</th>
               <th>Date</th>
               <th>Amount</th>
@@ -99,16 +107,18 @@ export default function DealerDashboard() {
           </thead>
           <tbody>
             {invoices.slice(0, 5).map((i) => (
-              <tr key={i.id}>
+              <tr key={i.id} style={styles.tableRow}>
                 <td>{i.invoiceNumber}</td>
                 <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
                 <td>₹{i.totalAmount}</td>
-                <td style={{ color: i.status === "Paid" ? "#22c55e" : "#facc15" }}>
+                <td
+                  style={{
+                    color: i.status === "Paid" ? "#22c55e" : "#facc15",
+                  }}
+                >
                   {i.status}
                 </td>
-                <td className="hover-glow" style={{ color: "#3b82f6", cursor: "pointer" }}>
-                  Download
-                </td>
+                <td style={styles.action}>Download</td>
               </tr>
             ))}
           </tbody>
@@ -116,32 +126,32 @@ export default function DealerDashboard() {
       </div>
 
       {/* ACTIVE PROMOTIONS */}
-      <div className="card mt-6">
-        <h3>Active Promotions</h3>
+      <div style={styles.sectionCard}>
+        <h3 style={styles.sectionTitle}>Active Promotions</h3>
         {promotions.length > 0 ? (
-          <div className="grid">
+          <div style={styles.cardGrid}>
             {promotions.map((promo) => (
-              <div key={promo.id} className="card hover-glow">
+              <div key={promo.id} style={styles.smallCard}>
                 <h4 style={{ color: "#60a5fa" }}>{promo.title}</h4>
-                <p style={{ color: "#94a3b8" }}>{promo.description}</p>
-                <p style={{ fontSize: "0.8rem", color: "#64748b" }}>
+                <p style={styles.muted}>{promo.description}</p>
+                <p style={styles.small}>
                   Valid till: {new Date(promo.validTill).toLocaleDateString()}
                 </p>
               </div>
             ))}
           </div>
         ) : (
-          <p style={{ color: "#94a3b8" }}>No active promotions</p>
+          <p style={styles.muted}>No active promotions</p>
         )}
       </div>
 
       {/* DOCUMENTS */}
-      <div className="card mt-6">
-        <h3>Uploaded Documents</h3>
+      <div style={styles.sectionCard}>
+        <h3 style={styles.sectionTitle}>Uploaded Documents</h3>
         {documents.length > 0 ? (
-          <table>
+          <table style={styles.table}>
             <thead>
-              <tr>
+              <tr style={styles.tableHeader}>
                 <th>File Name</th>
                 <th>Type</th>
                 <th>Status</th>
@@ -150,7 +160,7 @@ export default function DealerDashboard() {
             </thead>
             <tbody>
               {documents.map((doc) => (
-                <tr key={doc.id}>
+                <tr key={doc.id} style={styles.tableRow}>
                   <td>{doc.fileName}</td>
                   <td>{doc.documentType}</td>
                   <td
@@ -171,17 +181,27 @@ export default function DealerDashboard() {
             </tbody>
           </table>
         ) : (
-          <p style={{ color: "#94a3b8" }}>No documents uploaded yet</p>
+          <p style={styles.muted}>No documents uploaded yet</p>
         )}
       </div>
 
       {/* QUICK ACTIONS */}
-      <div className="mt-6 flex" style={{ gap: "1rem" }}>
-        <button className="primary">Upload New License</button>
-        <button className="primary" style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}>
+      <div style={styles.actionRow}>
+        <button style={styles.primaryBtn}>Upload New License</button>
+        <button
+          style={{
+            ...styles.primaryBtn,
+            background: "linear-gradient(90deg, #22c55e, #16a34a)",
+          }}
+        >
           Download Statement
         </button>
-        <button className="primary" style={{ background: "linear-gradient(90deg, #facc15, #eab308)" }}>
+        <button
+          style={{
+            ...styles.primaryBtn,
+            background: "linear-gradient(90deg, #facc15, #eab308)",
+          }}
+        >
           Contact TM
         </button>
       </div>
@@ -191,11 +211,102 @@ export default function DealerDashboard() {
 
 // Reusable Card
 const Card = ({ title, value, icon }) => (
-  <div className="card">
+  <div style={styles.card}>
     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
       <span style={{ fontSize: "1.5rem" }}>{icon}</span>
-      <h4>{title}</h4>
+      <h4 style={{ margin: 0 }}>{title}</h4>
     </div>
-    <p style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#3b82f6" }}>{value}</p>
+    <p style={styles.cardValue}>{value}</p>
   </div>
 );
+
+// 🎨 Inline Styles
+const styles = {
+  page: {
+    minHeight: "100vh",
+    background:
+      "radial-gradient(circle at top left, #0f172a, #020617 70%)",
+    color: "#e2e8f0",
+    fontFamily: "'Poppins', sans-serif",
+    padding: "2rem",
+  },
+  header: { marginBottom: "2rem" },
+  title: { fontSize: "2rem", color: "#f1f5f9", margin: 0 },
+  subtitle: { color: "#94a3b8", fontSize: "0.9rem" },
+  cardGrid: {
+    display: "grid",
+    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
+    gap: "1.5rem",
+    marginTop: "1.5rem",
+  },
+  card: {
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "16px",
+    padding: "1.5rem",
+    boxShadow: "0 4px 25px rgba(0,0,0,0.4)",
+    transition: "all 0.3s ease",
+  },
+  cardValue: {
+    fontSize: "1.8rem",
+    fontWeight: "bold",
+    color: "#3b82f6",
+    marginTop: "0.5rem",
+  },
+  sectionCard: {
+    background: "rgba(255,255,255,0.04)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "16px",
+    padding: "1.5rem",
+    marginTop: "2rem",
+    boxShadow: "0 4px 25px rgba(0,0,0,0.3)",
+  },
+  sectionTitle: { marginBottom: "1rem", color: "#f1f5f9" },
+  muted: { color: "#94a3b8" },
+  small: { fontSize: "0.8rem", color: "#64748b" },
+  smallCard: {
+    background: "rgba(255,255,255,0.05)",
+    border: "1px solid rgba(255,255,255,0.08)",
+    borderRadius: "12px",
+    padding: "1rem",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+    marginTop: "1rem",
+    color: "#e2e8f0",
+  },
+  tableHeader: {
+    textAlign: "left",
+    borderBottom: "1px solid rgba(255,255,255,0.1)",
+    color: "#94a3b8",
+  },
+  tableRow: {
+    borderBottom: "1px solid rgba(255,255,255,0.05)",
+  },
+  action: {
+    color: "#3b82f6",
+    cursor: "pointer",
+  },
+  actionRow: {
+    display: "flex",
+    gap: "1rem",
+    marginTop: "2rem",
+  },
+  primaryBtn: {
+    border: "none",
+    borderRadius: "8px",
+    padding: "0.8rem 1.5rem",
+    color: "#fff",
+    cursor: "pointer",
+    background: "linear-gradient(90deg, #2563eb, #1d4ed8)",
+    transition: "all 0.3s ease",
+  },
+  loading: {
+    height: "100vh",
+    display: "flex",
+    justifyContent: "center",
+    alignItems: "center",
+    background: "radial-gradient(circle at top left, #0f172a, #020617 70%)",
+  },
+};
