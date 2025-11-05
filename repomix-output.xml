@@ -385,35 +385,6 @@ export default function DashboardCard({ title, value, icon, color = "primary.mai
 }
 </file>
 
-<file path="src/components/PieChartCard.jsx">
-import React from "react";
-import { Card, CardContent, Typography } from "@mui/material";
-import { PieChart, Pie, Cell, Tooltip, Legend, ResponsiveContainer } from "recharts";
-
-export default function PieChartCard({ title, data }) {
-  const COLORS = ["#1976d2", "#2e7d32", "#ed6c02", "#d32f2f"];
-
-  return (
-    <Card sx={{ borderRadius: 3, boxShadow: 2, p: 2 }}>
-      <CardContent>
-        <Typography variant="subtitle1">{title}</Typography>
-        <ResponsiveContainer width="100%" height={250}>
-          <PieChart>
-            <Pie data={data} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} fill="#8884d8" label>
-              {data.map((_, index) => (
-                <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
-              ))}
-            </Pie>
-            <Tooltip />
-            <Legend />
-          </PieChart>
-        </ResponsiveContainer>
-      </CardContent>
-    </Card>
-  );
-}
-</file>
-
 <file path="src/context/AuthContext.jsx">
 import React, { createContext, useState } from "react";
 import api from "../services/api";
@@ -587,6 +558,99 @@ export default function Layout() {
         </main>
       </div>
     </div>
+  );
+}
+</file>
+
+<file path="src/components/PieChartCard.jsx">
+import React from "react";
+import { Card, CardContent, Typography } from "@mui/material";
+import {
+  PieChart,
+  Pie,
+  Cell,
+  Tooltip,
+  Legend,
+  ResponsiveContainer,
+} from "recharts";
+
+export default function PieChartCard({ title, data = [] }) {
+  const COLORS = ["#3b82f6", "#22c55e", "#f97316", "#ef4444", "#8b5cf6"];
+
+  // ✅ Ensure data is always an array in the correct format
+  const chartData = Array.isArray(data)
+    ? data
+    : Object.entries(data || {}).map(([name, value]) => ({
+        name,
+        value,
+      }));
+
+  // ✅ Handle empty data gracefully
+  if (!chartData.length) {
+    return (
+      <Card
+        sx={{
+          borderRadius: 3,
+          boxShadow: 2,
+          p: 2,
+          backgroundColor: "#0f172a",
+          color: "#94a3b8",
+          textAlign: "center",
+        }}
+      >
+        <CardContent>
+          <Typography variant="subtitle1">{title}</Typography>
+          <Typography sx={{ mt: 2 }}>No data available</Typography>
+        </CardContent>
+      </Card>
+    );
+  }
+
+  return (
+    <Card
+      sx={{
+        borderRadius: 3,
+        boxShadow: 2,
+        p: 2,
+        backgroundColor: "#1e293b",
+        color: "#e2e8f0",
+      }}
+    >
+      <CardContent>
+        <Typography variant="subtitle1" sx={{ mb: 2 }}>
+          {title}
+        </Typography>
+
+        <ResponsiveContainer width="100%" height={250}>
+          <PieChart>
+            <Pie
+              data={chartData}
+              dataKey="value"
+              nameKey="name"
+              cx="50%"
+              cy="50%"
+              outerRadius={80}
+              label
+            >
+              {chartData.map((_, index) => (
+                <Cell
+                  key={`cell-${index}`}
+                  fill={COLORS[index % COLORS.length]}
+                />
+              ))}
+            </Pie>
+            <Tooltip
+              contentStyle={{
+                backgroundColor: "#0f172a",
+                border: "1px solid #334155",
+                color: "#e2e8f0",
+              }}
+            />
+            <Legend />
+          </PieChart>
+        </ResponsiveContainer>
+      </CardContent>
+    </Card>
   );
 }
 </file>
@@ -1659,35 +1723,6 @@ export default function Invoices(){
 }
 </file>
 
-<file path="src/pages/Reports.jsx">
-import React, { useState } from "react";
-import api from "../services/api";
-
-export default function Reports() {
-  const [report, setReport] = useState(null);
-  const [type, setType] = useState("dealer-performance");
-
-  const fetchReport = async () => {
-    const res = await api.get(`/reports/${type}`);
-    setReport(res.data);
-  };
-
-  return (
-    <div>
-      <h2>Reports</h2>
-      <select onChange={e => setType(e.target.value)} value={type}>
-        <option value="dealer-performance">Dealer Performance</option>
-        <option value="outstanding-receivables">Outstanding Receivables</option>
-        <option value="invoice-register">Invoice Register</option>
-      </select>
-      <button onClick={fetchReport}>Generate</button>
-
-      {report && <pre>{JSON.stringify(report, null, 2)}</pre>}
-    </div>
-  );
-}
-</file>
-
 <file path="src/services/api.js">
 import axios from "axios";
 
@@ -2273,47 +2308,378 @@ const styles = {
 };
 </file>
 
-<file path="package.json">
-{
-  "name": "dealer-portal-react",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@mui/material": "^7.3.4",
-    "axios": "^1.13.1",
-    "framer-motion": "^12.23.24",
-    "lucide-react": "^0.552.0",
-    "react": "^19.1.1",
-    "react-dom": "^19.1.1",
-    "react-hook-form": "^7.65.0",
-    "react-router-dom": "^7.9.5",
-    "react-toastify": "^11.0.5",
-    "recharts": "^3.3.0"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "@types/react": "^19.1.16",
-    "@types/react-dom": "^19.1.9",
-    "@vitejs/plugin-react": "^5.0.4",
-    "autoprefixer": "^10.4.21",
-    "babel-plugin-react-compiler": "^19.1.0-rc.3",
-    "eslint": "^9.36.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.22",
-    "globals": "^16.4.0",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.16",
-    "vite": "^7.1.7"
-  }
+<file path="src/pages/Reports.jsx">
+import React, { useState } from "react";
+import api from "../services/api";
+import { Button, TextField, MenuItem } from "@mui/material";
+import BarChartCard from "../components/BarChartCard";
+import PieChartCard from "../components/PieChartCard";
+import DashboardCard from "../components/DashboardCard";
+import { Download } from "@mui/icons-material";
+
+export default function Reports() {
+  const [reportType, setReportType] = useState("");
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [filters, setFilters] = useState({
+    dealerId: "",
+    productGroup: "",
+    invoiceNumber: "",
+    startDate: "",
+    endDate: "",
+    status: "",
+  });
+
+  const handleFilterChange = (e) => {
+    setFilters({ ...filters, [e.target.name]: e.target.value });
+  };
+
+  const fetchReport = async () => {
+    if (!reportType) return alert("Please select a report type");
+    setLoading(true);
+    try {
+      const params = new URLSearchParams();
+      Object.entries(filters).forEach(([k, v]) => v && params.append(k, v));
+      const res = await api.get(`/reports/${reportType}?${params.toString()}`);
+      setData(res.data);
+    } catch (err) {
+      console.error("Error generating report:", err);
+      alert("Failed to generate report");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportReport = async (format) => {
+    if (!reportType) return alert("Please select a report type first");
+    const res = await api.get(`/reports/${reportType}?format=${format}`, {
+      responseType: "blob",
+    });
+    const blob = new Blob([res.data], {
+      type: format === "pdf" ? "application/pdf" : "application/vnd.ms-excel",
+    });
+    const url = window.URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.setAttribute("download", `${reportType}.${format}`);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  };
+
+  const downloadInvoicePDF = async (invoiceId) => {
+    try {
+      const res = await api.get(`/invoices/${invoiceId}/download`, {
+        responseType: "blob",
+      });
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `invoice_${invoiceId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Error downloading invoice PDF:", err);
+      alert("Failed to download invoice copy");
+    }
+  };
+
+  const renderDashboard = () => {
+    if (!data) return null;
+
+    switch (reportType) {
+      /** ===========================
+       * Dealer Performance Report
+       ============================ */
+      case "dealer-performance":
+        return (
+          <>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(3, 1fr)",
+                gap: "1rem",
+              }}
+            >
+              <DashboardCard
+                title="Total Invoices"
+                value={data.totalInvoices || 0}
+              />
+              <DashboardCard
+                title="Total Sales"
+                value={`₹${data.totalSales || 0}`}
+              />
+              <DashboardCard
+                title="Pending Amount"
+                value={`₹${data.pendingAmount || 0}`}
+              />
+            </div>
+
+            <div style={{ marginTop: "2rem" }}>
+              <BarChartCard
+                title="Dealer-wise Sales Performance"
+                data={(data?.invoices || []).map((inv) => ({
+                  name: inv?.dealer?.businessName || "Unknown Dealer",
+                  total: inv?.totalAmount || 0,
+                }))}
+                xKey="name"
+                yKey="total"
+              />
+            </div>
+
+            <div style={{ marginTop: "2rem" }}>
+              <PieChartCard
+                title="Product Group Sales Volume"
+                data={Object.entries(
+                  (data?.invoices || []).reduce((groups, inv) => {
+                    const group = inv?.productGroup || "Others";
+                    groups[group] =
+                      (groups[group] || 0) + (inv?.totalAmount || 0);
+                    return groups;
+                  }, {})
+                ).map(([name, value]) => ({ name, value }))}
+              />
+            </div>
+          </>
+        );
+
+      /** ===========================
+       * Account Statement Report
+       ============================ */
+      case "account-statement":
+        return (
+          <div style={{ marginTop: "2rem" }}>
+            <DashboardCard
+              title="Opening Balance"
+              value={`₹${data.openingBalance || 0}`}
+            />
+            <DashboardCard
+              title="Closing Balance"
+              value={`₹${data.closingBalance || 0}`}
+            />
+            <DashboardCard
+              title="Total Debit"
+              value={`₹${data.totalDebit || 0}`}
+            />
+            <DashboardCard
+              title="Total Credit"
+              value={`₹${data.totalCredit || 0}`}
+            />
+          </div>
+        );
+
+      /** ===========================
+       * Invoice Register Report
+       ============================ */
+      case "invoice-register":
+        return (
+          <div style={{ marginTop: "2rem" }}>
+            <h3 style={{ color: "#60a5fa" }}>Invoice Register</h3>
+
+            {/* Filters */}
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "repeat(5, 1fr)",
+                gap: "1rem",
+                marginTop: "1rem",
+              }}
+            >
+              <TextField
+                name="dealerId"
+                label="Dealer ID"
+                value={filters.dealerId}
+                onChange={handleFilterChange}
+                size="small"
+                InputProps={{
+                  style: { color: "#e2e8f0", backgroundColor: "#1e293b" },
+                }}
+              />
+              <TextField
+                name="productGroup"
+                label="Product Group"
+                value={filters.productGroup}
+                onChange={handleFilterChange}
+                size="small"
+                InputProps={{
+                  style: { color: "#e2e8f0", backgroundColor: "#1e293b" },
+                }}
+              />
+              <TextField
+                name="invoiceNumber"
+                label="Invoice #"
+                value={filters.invoiceNumber}
+                onChange={handleFilterChange}
+                size="small"
+                InputProps={{
+                  style: { color: "#e2e8f0", backgroundColor: "#1e293b" },
+                }}
+              />
+              <TextField
+                type="date"
+                name="startDate"
+                label="From"
+                value={filters.startDate}
+                onChange={handleFilterChange}
+                size="small"
+                InputLabelProps={{ shrink: true }}
+                InputProps={{
+                  style: { color: "#e2e8f0", backgroundColor: "#1e293b" },
+                }}
+              />
+              <TextField
+                type="date"
+                name="endDate"
+                label="To"
+                value={filters.endDate}
+                onChange={handleFilterChange}
+                size="small"
+                InputLabelProps={{ shrink: true }}
+                InputProps={{
+                  style: { color: "#e2e8f0", backgroundColor: "#1e293b" },
+                }}
+              />
+              <TextField
+                name="status"
+                select
+                label="Status"
+                value={filters.status}
+                onChange={handleFilterChange}
+                size="small"
+                InputProps={{
+                  style: { color: "#e2e8f0", backgroundColor: "#1e293b" },
+                }}
+              >
+                <MenuItem value="">All</MenuItem>
+                <MenuItem value="Paid">Paid</MenuItem>
+                <MenuItem value="Unpaid">Unpaid</MenuItem>
+              </TextField>
+            </div>
+
+            {/* Table */}
+            <table
+              style={{
+                width: "100%",
+                color: "#e2e8f0",
+                marginTop: "2rem",
+                borderCollapse: "collapse",
+              }}
+            >
+              <thead>
+                <tr style={{ backgroundColor: "#1e293b" }}>
+                  <th style={{ padding: "0.8rem" }}>Invoice #</th>
+                  <th>Date</th>
+                  <th>Dealer</th>
+                  <th>Product Group</th>
+                  <th>Amount</th>
+                  <th>Status</th>
+                  <th>Action</th>
+                </tr>
+              </thead>
+              <tbody>
+                {(data?.invoices || []).map((inv) => (
+                  <tr key={inv.id} style={{ borderBottom: "1px solid #334155" }}>
+                    <td>{inv.invoiceNumber}</td>
+                    <td>{new Date(inv.invoiceDate).toLocaleDateString()}</td>
+                    <td>{inv.dealer?.businessName || "N/A"}</td>
+                    <td>{inv.productGroup || "—"}</td>
+                    <td>₹{inv.totalAmount}</td>
+                    <td
+                      style={{
+                        color:
+                          inv.status === "Paid" ? "#22c55e" : "#facc15",
+                        fontWeight: 500,
+                      }}
+                    >
+                      {inv.status}
+                    </td>
+                    <td>
+                      <Button
+                        variant="outlined"
+                        size="small"
+                        sx={{
+                          color: "#60a5fa",
+                          borderColor: "#60a5fa",
+                          textTransform: "none",
+                        }}
+                        onClick={() => downloadInvoicePDF(inv.id)}
+                      >
+                        Download PDF
+                      </Button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+
+      default:
+        return null;
+    }
+  };
+
+  return (
+    <div style={{ padding: "2rem" }}>
+      <h2 style={{ color: "#60a5fa" }}>Reports Dashboard</h2>
+      <p style={{ color: "#94a3b8" }}>
+        Select a report type to view insights and export data.
+      </p>
+
+      <div
+        style={{ margin: "1.5rem 0", display: "flex", alignItems: "center" }}
+      >
+        <select
+          style={{
+            padding: "0.5rem 1rem",
+            borderRadius: "8px",
+            marginRight: "1rem",
+            background: "#1e293b",
+            color: "white",
+            border: "1px solid #334155",
+          }}
+          value={reportType}
+          onChange={(e) => setReportType(e.target.value)}
+        >
+          <option value="">Select Report Type</option>
+          <option value="dealer-performance">Dealer Performance</option>
+          <option value="account-statement">Account Statement</option>
+          <option value="invoice-register">Invoice Register</option>
+        </select>
+
+        <Button
+          variant="contained"
+          onClick={fetchReport}
+          disabled={loading}
+          sx={{ bgcolor: "#3b82f6", borderRadius: "8px", mr: 2 }}
+        >
+          {loading ? "Generating..." : "Generate"}
+        </Button>
+
+        <Button
+          variant="outlined"
+          onClick={() => exportReport("pdf")}
+          sx={{ color: "white", borderColor: "#3b82f6", mr: 1 }}
+          startIcon={<Download />}
+        >
+          PDF
+        </Button>
+
+        <Button
+          variant="outlined"
+          onClick={() => exportReport("excel")}
+          sx={{ color: "white", borderColor: "#3b82f6" }}
+          startIcon={<Download />}
+        >
+          Excel
+        </Button>
+      </div>
+
+      {renderDashboard()}
+    </div>
+  );
 }
 </file>
 
@@ -2500,7 +2866,8 @@ export default function DealerDashboard() {
         setPromotions(promoRes.data);
 
         const docRes = await api.get("/documents");
-        setDocuments(docRes.data);
+        setDocuments(docRes.data.documents || []);
+
 
         const trendRes = await api.get("/reports/dealer-performance?trend=true");
         setTrend(trendRes.data.trend || []);
@@ -2778,6 +3145,51 @@ const styles = {
     background: "radial-gradient(circle at top left, #0f172a, #020617 70%)",
   },
 };
+</file>
+
+<file path="package.json">
+{
+  "name": "dealer-portal-react",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.5",
+    "@mui/material": "^7.3.4",
+    "axios": "^1.13.1",
+    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.552.0",
+    "react": "^19.1.1",
+    "react-dom": "^19.1.1",
+    "react-hook-form": "^7.65.0",
+    "react-router-dom": "^7.9.5",
+    "react-toastify": "^11.0.5",
+    "recharts": "^3.3.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.21",
+    "babel-plugin-react-compiler": "^19.1.0-rc.3",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.22",
+    "globals": "^16.4.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.16",
+    "vite": "^7.1.7"
+  }
+}
 </file>
 
 </files>

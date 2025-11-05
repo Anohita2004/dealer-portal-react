@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
+import socket from "../../services/socket"; // ✅ new import
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import {
   BarChart,
   Bar,
@@ -19,26 +21,27 @@ export default function AdminDashboard() {
   const [dealerActivity, setDealerActivity] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // 📊 Initial data fetch
   useEffect(() => {
-    (async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
 
-        // ✅ 1. Admin summary using dealer performance as proxy
+        // 1️⃣ Dealer performance summary
         const performanceRes = await api.get("/reports/dealer-performance");
         const invoices = performanceRes.data?.invoices || [];
         const totalSales = performanceRes.data?.totalSales || 0;
         const dealers = new Set(invoices.map((i) => i.dealerId)).size;
 
         setSummary({
-          activeCampaigns: 0, // will update below
+          activeCampaigns: 0,
           dealers,
-          pendingApprovals: 5, // mock fallback if not implemented yet
+          pendingApprovals: 0,
           blockedDealers: 2,
           totalSales,
         });
 
-        // ✅ 2. Campaigns
+        // 2️⃣ Campaigns
         const campaignRes = await api.get("/campaigns");
         setCampaigns(campaignRes.data.campaigns || campaignRes.data);
         setSummary((prev) => ({
@@ -46,13 +49,16 @@ export default function AdminDashboard() {
           activeCampaigns: campaignRes.data.campaigns?.length || 0,
         }));
 
-        // ✅ 3. Simulated dealer activity (based on invoices by month)
+        // 3️⃣ Dealer activity trend
         const monthly = {};
         invoices.forEach((i) => {
           const month = new Date(i.invoiceDate).toLocaleString("default", {
             month: "short",
           });
-          monthly[month] = monthly[month] || { dealersOnboarded: 0, blockedDealers: 0 };
+          monthly[month] = monthly[month] || {
+            dealersOnboarded: 0,
+            blockedDealers: 0,
+          };
           monthly[month].dealersOnboarded += 1;
         });
         const dealerTrend = Object.keys(monthly).map((m) => ({
@@ -62,16 +68,101 @@ export default function AdminDashboard() {
         }));
         setDealerActivity(dealerTrend);
 
-        // ✅ 4. Pending approvals (placeholder - will connect later)
-        const approvalRes = await api.get("/documents").catch(() => ({ data: [] }));
-        setApprovals(approvalRes.data || []);
+        // 4️⃣ Pending approvals
+        const approvalRes = await api.get("/documents");
+        setApprovals(approvalRes.data.documents || []);
+        setSummary((prev) => ({
+          ...prev,
+          pendingApprovals: approvalRes.data.documents?.length || 0,
+        }));
       } catch (e) {
         console.error("Error fetching admin dashboard:", e);
       } finally {
         setLoading(false);
       }
-    })();
+    };
+
+    loadData();
   }, []);
+
+  // ⚡ Real-time socket connection
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) socket.auth = { token };
+    socket.connect();
+
+    socket.on("connect", () => console.log("✅ Admin socket connected"));
+
+    // 🆕 Dealer uploads a new document → Add to approvals
+    socket.on("document:new", (data) => {
+      toast.info(`📄 New document uploaded by Dealer ${data.dealerId}`);
+      setApprovals((prev) => [
+        {
+          id: data.id || Date.now(),
+          dealerName: data.dealerName || `Dealer ${data.dealerId}`,
+          documentType: data.documentType || "Document",
+          createdAt: new Date(),
+          status: "pending",
+        },
+        ...prev,
+      ]);
+      setSummary((prev) => ({
+        ...prev,
+        pendingApprovals: prev.pendingApprovals + 1,
+      }));
+    });
+
+    // ✅ A document was approved/rejected elsewhere
+    socket.on("document:pending:update", () => {
+      toast.info("🔁 Document approval status updated");
+      api.get("/documents").then((res) => {
+        setApprovals(res.data.documents || []);
+        setSummary((prev) => ({
+          ...prev,
+          pendingApprovals: res.data.documents?.length || 0,
+        }));
+      });
+    });
+
+    // 📨 A new campaign was pushed
+    socket.on("campaign:new", (campaign) => {
+      toast.success(`📢 New campaign launched: ${campaign.title}`);
+      setCampaigns((prev) => [campaign, ...prev]);
+      setSummary((prev) => ({
+        ...prev,
+        activeCampaigns: (prev.activeCampaigns || 0) + 1,
+      }));
+    });
+
+    // 🔔 General system notifications
+    socket.on("notification:update", (notif) => {
+      toast.info(`🔔 ${notif.message || "System update received"}`);
+    });
+
+    return () => {
+      socket.off("document:new");
+      socket.off("document:pending:update");
+      socket.off("campaign:new");
+      socket.off("notification:update");
+      socket.disconnect();
+    };
+  }, []);
+
+  // ✅ Handle approve/reject buttons
+  const handleApproval = async (id, action) => {
+    try {
+      await api.patch(`/documents/${id}/status`, { action });
+      toast.success(`Document ${action}d successfully`);
+      setApprovals((prev) => prev.filter((doc) => doc.id !== id));
+      setSummary((prev) => ({
+        ...prev,
+        pendingApprovals: prev.pendingApprovals - 1,
+      }));
+    } catch (err) {
+      toast.error(`Failed to ${action} document`);
+      console.error(err);
+    }
+  };
 
   if (loading)
     return (
@@ -112,7 +203,11 @@ export default function AdminDashboard() {
           icon="🕒"
           onClick={() => navigate("/documents")}
         />
-        <Card title="Blocked Dealers" value={summary.blockedDealers || 0} icon="🚫" />
+        <Card
+          title="Blocked Dealers"
+          value={summary.blockedDealers || 0}
+          icon="🚫"
+        />
       </div>
 
       {/* Dealer Activity Chart */}
@@ -160,6 +255,7 @@ export default function AdminDashboard() {
                         marginRight: "0.5rem",
                         background: "linear-gradient(90deg, #22c55e, #16a34a)",
                       }}
+                      onClick={() => handleApproval(a.id, "approve")}
                     >
                       Approve
                     </button>
@@ -168,6 +264,7 @@ export default function AdminDashboard() {
                       style={{
                         background: "linear-gradient(90deg, #ef4444, #b91c1c)",
                       }}
+                      onClick={() => handleApproval(a.id, "reject")}
                     >
                       Reject
                     </button>
@@ -234,6 +331,7 @@ export default function AdminDashboard() {
   );
 }
 
+// 📦 Reusable Card component
 const Card = ({ title, value, icon, onClick }) => (
   <div className="card hover-glow" onClick={onClick}>
     <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>

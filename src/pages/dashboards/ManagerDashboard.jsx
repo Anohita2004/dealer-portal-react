@@ -1,6 +1,8 @@
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
+import socket from "../../services/socket"; // ✅ new import
 import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 import {
   BarChart,
   Bar,
@@ -21,40 +23,96 @@ export default function ManagerDashboard() {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // 📊 Initial data load
   useEffect(() => {
-    (async () => {
+    const loadData = async () => {
       try {
         setLoading(true);
+        const [summaryRes, perfRes, approvalsRes, msgRes, campRes] =
+          await Promise.all([
+            api.get("/reports/dealer-performance"),
+            api.get("/reports/territory"),
+            api.get("/reports/pending-approvals"),
+            api.get("/messages"),
+            api.get("/campaigns"),
+          ]);
 
-        // Summary for TM/AM region
-        const summaryRes = await api.get("/reports/dealer-performance");
         setSummary(summaryRes.data || {});
-
-        // Dealer performance trend
-        const perfRes = await api.get("/reports/territory");
         setDealerPerformance(perfRes.data.report || []);
-
-        // Pending dealer document approvals (filtered by region)
-        const approvalsRes = await api.get("/reports/pending-approvals");
         setPendingApprovals(approvalsRes.data || []);
-
-        // Messages from dealers
-        const msgRes = await api.get("/messages");
         setMessages(msgRes.data.messages || msgRes.data || []);
-
-        // Active campaigns in region
-        const campRes = await api.get("/campaigns");
         setCampaigns(campRes.data.campaigns || campRes.data || []);
       } catch (err) {
         console.error("Manager dashboard load error:", err);
       } finally {
         setLoading(false);
       }
-    })();
+    };
+    loadData();
+  }, []);
+
+  // ⚡ Real-time Socket.IO integration
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) socket.auth = { token };
+    socket.connect();
+
+    socket.on("connect", () => {
+      console.log("✅ Connected to socket server (Manager)");
+    });
+
+    // 🗂 Dealer uploaded a new document
+    socket.on("document:new", (data) => {
+      toast.info(`📄 New document uploaded by Dealer ${data.dealerId}`);
+      // Optionally refresh pending approvals count
+      setPendingApprovals((prev) => [
+        { dealerId: data.dealerId, documentType: "New Upload", createdAt: new Date() },
+        ...prev,
+      ]);
+    });
+
+    // 🧾 Dealer document was approved/rejected elsewhere
+    socket.on("document:pending:update", () => {
+      toast.info("🔄 Document approval list updated.");
+      // You could re-fetch pending approvals if needed
+      api.get("/reports/pending-approvals").then((res) => {
+        setPendingApprovals(res.data || []);
+      });
+    });
+
+    // 💬 Dealer sent a new message
+    socket.on("message:new", (msg) => {
+      toast.success(`💬 Message from Dealer: ${msg.content}`);
+      setMessages((prev) => [msg, ...prev]);
+    });
+
+    // 📨 Notification update (license expiry, etc.)
+    socket.on("notification:update", (notif) => {
+      toast.info(`🔔 ${notif.message || "New regional update available"}`);
+    });
+
+    // 🎯 New campaign launched
+    socket.on("campaign:new", (campaign) => {
+      toast.info(`📢 New Campaign: ${campaign.title}`);
+      setCampaigns((prev) => [campaign, ...prev]);
+    });
+
+    return () => {
+      socket.off("document:new");
+      socket.off("document:pending:update");
+      socket.off("message:new");
+      socket.off("notification:update");
+      socket.off("campaign:new");
+      socket.disconnect();
+    };
   }, []);
 
   if (loading)
-    return <div className="center text-center" style={{ height: "80vh" }}>Loading manager dashboard...</div>;
+    return (
+      <div className="center text-center" style={{ height: "80vh" }}>
+        Loading manager dashboard...
+      </div>
+    );
 
   return (
     <div style={{ padding: "2rem" }}>
@@ -109,9 +167,9 @@ export default function ManagerDashboard() {
             </thead>
             <tbody>
               {pendingApprovals.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.dealerName}</td>
-                  <td>{a.documentType}</td>
+                <tr key={a.id || Math.random()}>
+                  <td>{a.dealerName || a.dealerId}</td>
+                  <td>{a.documentType || "Document"}</td>
                   <td>{new Date(a.createdAt).toLocaleDateString()}</td>
                   <td>Pending</td>
                 </tr>
@@ -130,7 +188,8 @@ export default function ManagerDashboard() {
           <ul>
             {messages.slice(0, 5).map((msg) => (
               <li key={msg.id} style={{ margin: "0.5rem 0" }}>
-                <strong>{msg.dealerName}</strong>: {msg.subject} —{" "}
+                <strong>{msg.dealerName || `Dealer ${msg.senderId}`}</strong>:{" "}
+                {msg.content} —{" "}
                 <span style={{ color: "#64748b" }}>{msg.status || "Unread"}</span>
               </li>
             ))}
@@ -191,6 +250,8 @@ const Card = ({ title, value, icon, onClick }) => (
       <span style={{ fontSize: "1.5rem" }}>{icon}</span>
       <h4>{title}</h4>
     </div>
-    <p style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#3b82f6" }}>{value}</p>
+    <p style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#3b82f6" }}>
+      {value}
+    </p>
   </div>
 );

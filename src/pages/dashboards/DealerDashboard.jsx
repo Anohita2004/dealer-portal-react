@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
+import socket from "../../services/socket"; // ✅ new socket import
+import { toast } from "react-toastify";
 import {
   LineChart,
   Line,
@@ -18,23 +20,23 @@ export default function DealerDashboard() {
   const [trend, setTrend] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // 📦 Fetch dashboard data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const summaryRes = await api.get("/reports/dealer-performance");
+        const [summaryRes, invoiceRes, promoRes, docRes, trendRes] = await Promise.all([
+          api.get("/reports/dealer-performance"),
+          api.get("/invoices"),
+          api.get("/campaigns/active"),
+          api.get("/documents"),
+          api.get("/reports/dealer-performance?trend=true"),
+        ]);
+
         setSummary(summaryRes.data);
-
-        const invoiceRes = await api.get("/invoices");
-        setInvoices(invoiceRes.data.invoices || invoiceRes.data);
-
-        const promoRes = await api.get("/campaigns/active");
-        setPromotions(promoRes.data);
-
-        const docRes = await api.get("/documents");
-        setDocuments(docRes.data);
-
-        const trendRes = await api.get("/reports/dealer-performance?trend=true");
+        setInvoices(invoiceRes.data.invoices || invoiceRes.data || []);
+        setPromotions(promoRes.data || []);
+        setDocuments(docRes.data.documents || []);
         setTrend(trendRes.data.trend || []);
       } catch (err) {
         console.error("Error loading dealer dashboard:", err);
@@ -43,6 +45,51 @@ export default function DealerDashboard() {
       }
     };
     fetchData();
+  }, []);
+
+  // ⚡ Real-time socket events
+  useEffect(() => {
+    // Authenticate socket with stored token
+    const token = localStorage.getItem("token");
+    if (token) socket.auth = { token };
+
+    socket.connect();
+
+    socket.on("connect", () => {
+      console.log("🔌 Connected to backend socket server");
+    });
+
+    // ✅ Document approval / rejection updates
+    socket.on("document:update", (data) => {
+      toast.info(data.message || `Document ${data.status}`);
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === data.id ? { ...d, status: data.status } : d))
+      );
+    });
+
+    // ✅ New messages from TM/AM
+    socket.on("message:reply", (msg) => {
+      toast.success(`💬 New reply from ${msg.senderRole}: ${msg.content}`);
+    });
+
+    // ✅ New promotions or campaigns pushed by TM/AM
+    socket.on("promotion:new", (promo) => {
+      toast.info(`🎉 New promotion: ${promo.title}`);
+      setPromotions((prev) => [promo, ...prev]);
+    });
+
+    // ✅ Optional: General notifications (like license validity)
+    socket.on("notification:update", (notif) => {
+      toast.info(`🔔 ${notif.message || "You have new updates"}`);
+    });
+
+    return () => {
+      socket.off("document:update");
+      socket.off("message:reply");
+      socket.off("promotion:new");
+      socket.off("notification:update");
+      socket.disconnect();
+    };
   }, []);
 
   if (loading)
@@ -111,11 +158,7 @@ export default function DealerDashboard() {
                 <td>{i.invoiceNumber}</td>
                 <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
                 <td>₹{i.totalAmount}</td>
-                <td
-                  style={{
-                    color: i.status === "Paid" ? "#22c55e" : "#facc15",
-                  }}
-                >
+                <td style={{ color: i.status === "Paid" ? "#22c55e" : "#facc15" }}>
                   {i.status}
                 </td>
                 <td style={styles.action}>Download</td>
@@ -166,9 +209,9 @@ export default function DealerDashboard() {
                   <td
                     style={{
                       color:
-                        doc.status === "Approved"
+                        doc.status === "approved"
                           ? "#22c55e"
-                          : doc.status === "Rejected"
+                          : doc.status === "rejected"
                           ? "#ef4444"
                           : "#facc15",
                     }}
@@ -220,12 +263,11 @@ const Card = ({ title, value, icon }) => (
   </div>
 );
 
-// 🎨 Inline Styles
+// 🎨 Inline Styles (unchanged)
 const styles = {
   page: {
     minHeight: "100vh",
-    background:
-      "radial-gradient(circle at top left, #0f172a, #020617 70%)",
+    background: "radial-gradient(circle at top left, #0f172a, #020617 70%)",
     color: "#e2e8f0",
     fontFamily: "'Poppins', sans-serif",
     padding: "2rem",
