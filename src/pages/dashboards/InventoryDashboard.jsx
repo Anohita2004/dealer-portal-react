@@ -51,139 +51,231 @@ export default function InventoryDashboard() {
     }
     try {
       await api.patch(`/inventory/${id}`, { stock: parseInt(newStock) });
-      alert("Stock updated successfully!");
       const res = await api.get("/inventory");
       setInventory(res.data.inventory || []);
       setSelectedProduct(null);
       setNewStock("");
     } catch (err) {
       console.error("Error updating stock:", err);
-      alert("Failed to update stock.");
     }
   };
 
   if (loading)
-    return <div className="center text-center" style={{ height: "80vh" }}>Loading inventory dashboard...</div>;
+    return (
+      <div className="center text-center" style={{ height: "80vh" }}>
+        Loading inventory dashboard...
+      </div>
+    );
   if (error) return <p className="error">{error}</p>;
 
   return (
-    <div style={{ padding: "2rem" }}>
+    <div style={{ padding: "1.5rem" }}>
+      {/* ✅ Header */}
       <PageHeader
         title="Inventory Dashboard"
-        subtitle="Monitor stock across plants and ensure real-time SAP visibility."
+        subtitle="Monitor product stock, plant capacity, and reorder risks."
       />
 
+      {/* ✅ Unified Toolbar */}
       <Toolbar
-        right={[
-          <IconPillButton key="adjust" icon="📝" label="Bulk Adjust" tone="warning" onClick={() => {}} />,
-          <IconPillButton key="export" icon="⬇️" label="Export" tone="success" onClick={() => {}} />,
+        left={[
+          <SearchInput
+            key="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search products or plants..."
+          />,
         ]}
+        right={[
+          <IconPillButton
+            key="adjust"
+            icon="📝"
+            label="Bulk Adjust"
+            tone="warning"
+            onClick={() => {}}
+          />,
+          <IconPillButton
+            key="export"
+            icon="⬇️"
+            label="Export"
+            tone="success"
+            onClick={() => {}}
+          />,
+        ]}
+      />
+
+      {/* ✅ 2-Column Modern Dashboard Layout */}
+      <div
+        className="dashboard-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "70% 30%",
+          gap: "1.5rem",
+          marginTop: "1.5rem",
+        }}
       >
-        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products or plants..." />
-      </Toolbar>
-
-      <div className="grid mt-4">
-        <StatCard title="Total Products" value={inventory.length} icon="📦" accent="#f97316" />
-        <StatCard title="Active Plants" value={new Set(inventory.map(i => i.plant)).size} icon="🏭" accent="#22c55e" />
-        <StatCard title="Low Stock Items" value={inventory.filter(i => i.stock < 10).length} icon="⚠️" accent="#ef4444" />
-        <StatCard title="Total Stock" value={inventory.reduce((sum, i) => sum + i.stock, 0)} icon="📊" accent="#a78bfa" />
-      </div>
-
-      <Card title="Stock Overview by Plant" style={{ marginTop: "1.5rem" }}>
-        {inventory.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={aggregateByPlant(inventory)}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="plant" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip />
-              <Bar dataKey="totalStock" fill="#f97316" name="Total Stock" />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No inventory data available</p>
-        )}
-      </Card>
-
-      <Card title="Product Inventory Details" style={{ marginTop: "1.5rem" }}>
-        <DataTable
-          columns={[
-            { key: "name", label: "Product" },
-            { key: "plant", label: "Plant" },
-            { key: "stock", label: "Stock", render: (v) => (
-              <span style={{ color: v < 10 ? "#ef4444" : "inherit", fontWeight: v < 10 ? 700 : 400 }}>{v}</span>
-            ) },
-            { key: "uom", label: "UOM" },
-            { key: "lastUpdatedAt", label: "Last Updated" },
-            { key: "action", label: "Action" },
-          ]}
-          rows={inventory
-            .filter((item) => {
-              const q = search.toLowerCase();
-              return !q || item.name?.toLowerCase().includes(q) || item.plant?.toLowerCase().includes(q);
-            })
-            .map((item) => ({
-            id: item.id,
-            name: item.name,
-            plant: item.plant,
-            stock: item.stock,
-            uom: item.uom,
-            lastUpdatedAt: new Date(item.lastUpdatedAt).toLocaleDateString(),
-            action: selectedProduct === item.id ? (
-              <div>
-                <input
-                  type="number"
-                  placeholder="New stock"
-                  value={newStock}
-                  onChange={(e) => setNewStock(e.target.value)}
-                  style={{ width: "70px", marginRight: "0.5rem" }}
-                />
-                <button
-                  className="primary"
-                  style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}
-                  onClick={() => handleStockUpdate(item.id)}
-                >
-                  Save
-                </button>
-                <button
-                  className="primary"
-                  style={{ background: "linear-gradient(90deg, #ef4444, #b91c1c)", marginLeft: "0.5rem" }}
-                  onClick={() => setSelectedProduct(null)}
-                >
-                  Cancel
-                </button>
-              </div>
+        {/* ✅ LEFT COLUMN */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          {/* ✅ Main Chart */}
+          <Card title="Stock Overview by Plant">
+            {inventory.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={aggregateByPlant(inventory)}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--card-border)"
+                  />
+                  <XAxis dataKey="plant" stroke="var(--text-muted)" />
+                  <YAxis stroke="var(--text-muted)" />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--card-bg)",
+                      border: "1px solid var(--card-border)",
+                      color: "var(--text-color)",
+                    }}
+                  />
+                  <Bar
+                    dataKey="totalStock"
+                    fill="var(--accent)"
+                    barSize={20}
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
             ) : (
-              <button
-                className="primary"
-                style={{ background: "linear-gradient(90deg, #f97316, #ea580c)" }}
-                onClick={() => setSelectedProduct(item.id)}
-              >
-                Update Stock
-              </button>
-            ),
-          }))}
-          emptyMessage="No inventory records available."
-        />
-      </Card>
+              <p style={{ color: "#94a3b8" }}>No inventory data available</p>
+            )}
+          </Card>
 
-      <div className="grid mt-6">
-        <Card title="Low Stock Ratio">
-          <DonutProgress
-            value={inventory.filter((i) => i.stock < 10).length}
-            total={inventory.length}
-            colors={["#ef4444", "#1f2937"]}
-            label="Items below threshold"
-          />
-        </Card>
-        <Card title="Plant Coverage">
-          <DonutProgress
-            value={new Set(inventory.map(i => i.plant)).size}
-            total={Math.max(new Set(inventory.map(i => i.plant)).size, 1)}
-            colors={["#22c55e", "#1f2937"]}
-            label="Active plants"
-          />
-        </Card>
+          {/* ✅ Table */}
+          <Card title="Product Inventory Details">
+            <DataTable
+              columns={[
+                { key: "name", label: "Product" },
+                { key: "plant", label: "Plant" },
+                {
+                  key: "stock",
+                  label: "Stock",
+                  render: (v) => (
+                    <span
+                      style={{
+                        color: v < 10 ? "#ef4444" : "inherit",
+                        fontWeight: v < 10 ? 700 : 400,
+                      }}
+                    >
+                      {v}
+                    </span>
+                  ),
+                },
+                { key: "uom", label: "UOM" },
+                { key: "lastUpdatedAt", label: "Last Updated" },
+                { key: "action", label: "Action" },
+              ]}
+              rows={inventory
+                .filter((item) => {
+                  const q = search.toLowerCase();
+                  const name = item?.name?.toString().toLowerCase() || "";
+                  const plant = item?.plant?.toString().toLowerCase() || "";
+                  return q === "" || name.includes(q) || plant.includes(q);
+                })
+                .map((item) => ({
+                  id: item.id,
+                  name: item.name || "—",
+                  plant: item.plant || "—",
+                  stock: item.stock ?? 0,
+                  uom: item.uom || "—",
+                  lastUpdatedAt: item.lastUpdatedAt
+                    ? new Date(item.lastUpdatedAt).toLocaleDateString()
+                    : "—",
+
+                  action:
+                    selectedProduct === item.id ? (
+                      <div style={{ display: "flex", gap: ".5rem" }}>
+                        <input
+                          type="number"
+                          value={newStock}
+                          onChange={(e) => setNewStock(e.target.value)}
+                          style={{ width: "70px" }}
+                        />
+                        <button className="primary" onClick={() => handleStockUpdate(item.id)}>
+                          Save
+                        </button>
+                        <button
+                          className="primary danger"
+                          onClick={() => setSelectedProduct(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        className="primary"
+                        onClick={() => setSelectedProduct(item.id)}
+                      >
+                        Update
+                      </button>
+                    ),
+                }))}
+              emptyMessage="No inventory records available."
+            />
+          </Card>
+        </div>
+
+        {/* ✅ RIGHT COLUMN */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          {/* ✅ KPI Grid */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "1rem",
+            }}
+          >
+            <StatCard
+              title="Total Products"
+              value={inventory.length}
+              icon="📦"
+            />
+            <StatCard
+              title="Active Plants"
+              value={new Set(inventory.map((i) => i.plant)).size}
+              icon="🏭"
+            />
+            <StatCard
+              title="Low Stock Items"
+              value={inventory.filter((i) => i.stock < 10).length}
+              icon="⚠️"
+            />
+            <StatCard
+              title="Total Stock"
+              value={inventory.reduce((sum, i) => sum + i.stock, 0)}
+              icon="📊"
+            />
+          </div>
+
+          {/* ✅ Donut Cards */}
+          <Card title="Low Stock Ratio">
+            <DonutProgress
+              value={inventory.filter((i) => i.stock < 10).length}
+              total={inventory.length}
+              label="Items below threshold"
+            />
+          </Card>
+
+          <Card title="Plant Coverage">
+            <DonutProgress
+              value={new Set(inventory.map((i) => i.plant)).size}
+              total={Math.max(new Set(inventory.map((i) => i.plant)).size, 1)}
+              label="Active plants"
+            />
+          </Card>
+
+          {/* ✅ Quick Actions */}
+          <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+            <IconPillButton label="Bulk Adjust" icon="📝" tone="warning" />
+            <IconPillButton label="Export" icon="⬇️" tone="success" />
+          </div>
+        </div>
       </div>
     </div>
   );
@@ -201,5 +293,3 @@ const aggregateByPlant = (data) => {
     totalStock: plantTotals[plant],
   }));
 };
-
-/* (legacy local Card removed in favor of shared component) */
