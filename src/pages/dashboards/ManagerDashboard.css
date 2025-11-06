@@ -1,0 +1,130 @@
+.manager-dashboard {
+  background: radial-gradient(circle at top left, #1a1c24, #0f111a 80%);
+  min-height: 100vh;
+  color: #e5e7eb;
+  padding: 2rem;
+  font-family: "Inter", sans-serif;
+}
+
+.dashboard-header h1 {
+  font-size: 2rem;
+  color: #00d8ff;
+  margin-bottom: 0.3rem;
+}
+
+.dashboard-header p {
+  color: #9ca3af;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.summary-card {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  border-radius: 16px;
+  padding: 1.2rem;
+  text-align: center;
+  transition: 0.3s;
+}
+
+.summary-card:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chart-card,
+.glass-card {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border-radius: 20px;
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.03);
+}
+
+.chart-card h2,
+.glass-card h2 {
+  color: #60a5fa;
+  margin-bottom: 1rem;
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.custom-table th,
+.custom-table td {
+  padding: 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.status-pending {
+  color: #facc15;
+}
+
+.dual-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.message-list li {
+  margin: 0.5rem 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+}
+
+.campaign-card {
+  padding: 1rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  margin-bottom: 1rem;
+  transition: 0.3s;
+}
+
+.campaign-card:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.quick-actions {
+  margin-top: 2.5rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.quick-actions button {
+  background: linear-gradient(90deg, #00d8ff, #0070f3);
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+  color: white;
+}
+
+.quick-actions button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 12px #00d8ff;
+}
+
+.loading-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: #0f111a;
+  color: #00d8ff;
+  font-size: 1.3rem;
+  letter-spacing: 0.5px;
+}

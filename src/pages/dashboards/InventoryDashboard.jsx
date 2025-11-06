@@ -1,5 +1,13 @@
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import DataTable from "../../components/DataTable";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+import DonutProgress from "../../components/DonutProgress";
 import {
   BarChart,
   Bar,
@@ -17,6 +25,7 @@ export default function InventoryDashboard() {
   const [error, setError] = useState("");
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [newStock, setNewStock] = useState("");
+  const [search, setSearch] = useState("");
 
   useEffect(() => {
     const fetchInventory = async () => {
@@ -59,25 +68,28 @@ export default function InventoryDashboard() {
 
   return (
     <div style={{ padding: "2rem" }}>
-      {/* Header */}
-      <div>
-        <h2 style={{ fontSize: "2rem", color: "#60a5fa" }}>Inventory Dashboard</h2>
-        <p style={{ color: "#94a3b8" }}>
-          Monitor stock across plants and ensure real-time SAP visibility.
-        </p>
-      </div>
+      <PageHeader
+        title="Inventory Dashboard"
+        subtitle="Monitor stock across plants and ensure real-time SAP visibility."
+      />
 
-      {/* Summary Cards */}
+      <Toolbar
+        right={[
+          <IconPillButton key="adjust" icon="📝" label="Bulk Adjust" tone="warning" onClick={() => {}} />,
+          <IconPillButton key="export" icon="⬇️" label="Export" tone="success" onClick={() => {}} />,
+        ]}
+      >
+        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products or plants..." />
+      </Toolbar>
+
       <div className="grid mt-4">
-        <Card title="Total Products" value={inventory.length} icon="📦" />
-        <Card title="Active Plants" value={new Set(inventory.map(i => i.plant)).size} icon="🏭" />
-        <Card title="Low Stock Items" value={inventory.filter(i => i.stock < 10).length} icon="⚠️" />
-        <Card title="Total Stock" value={inventory.reduce((sum, i) => sum + i.stock, 0)} icon="📊" />
+        <StatCard title="Total Products" value={inventory.length} icon="📦" accent="#3b82f6" />
+        <StatCard title="Active Plants" value={new Set(inventory.map(i => i.plant)).size} icon="🏭" accent="#22c55e" />
+        <StatCard title="Low Stock Items" value={inventory.filter(i => i.stock < 10).length} icon="⚠️" accent="#ef4444" />
+        <StatCard title="Total Stock" value={inventory.reduce((sum, i) => sum + i.stock, 0)} icon="📊" accent="#a78bfa" />
       </div>
 
-      {/* Inventory Chart */}
-      <div className="card mt-6">
-        <h3>Stock Overview by Plant</h3>
+      <Card title="Stock Overview by Plant" style={{ marginTop: "1.5rem" }}>
         {inventory.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={aggregateByPlant(inventory)}>
@@ -91,85 +103,87 @@ export default function InventoryDashboard() {
         ) : (
           <p style={{ color: "#94a3b8" }}>No inventory data available</p>
         )}
-      </div>
+      </Card>
 
-      {/* Inventory Table */}
-      <div className="card mt-6">
-        <h3>Product Inventory Details</h3>
-        {inventory.length > 0 ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Plant</th>
-                <th>Stock</th>
-                <th>UOM</th>
-                <th>Last Updated</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inventory.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.name}</td>
-                  <td>{item.plant}</td>
-                  <td
-                    style={{
-                      color: item.stock < 10 ? "red" : "inherit",
-                      fontWeight: item.stock < 10 ? "bold" : "normal",
-                    }}
-                  >
-                    {item.stock}
-                  </td>
-                  <td>{item.uom}</td>
-                  <td>{new Date(item.lastUpdatedAt).toLocaleDateString()}</td>
-                  <td>
-                    {selectedProduct === item.id ? (
-                      <div>
-                        <input
-                          type="number"
-                          placeholder="New stock"
-                          value={newStock}
-                          onChange={(e) => setNewStock(e.target.value)}
-                          style={{ width: "70px", marginRight: "0.5rem" }}
-                        />
-                        <button
-                          className="primary"
-                          style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}
-                          onClick={() => handleStockUpdate(item.id)}
-                        >
-                          Save
-                        </button>
-                        <button
-                          className="primary"
-                          style={{
-                            background: "linear-gradient(90deg, #ef4444, #b91c1c)",
-                            marginLeft: "0.5rem",
-                          }}
-                          onClick={() => setSelectedProduct(null)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        className="primary"
-                        style={{
-                          background: "linear-gradient(90deg, #3b82f6, #2563eb)",
-                        }}
-                        onClick={() => setSelectedProduct(item.id)}
-                      >
-                        Update Stock
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No inventory records available.</p>
-        )}
+      <Card title="Product Inventory Details" style={{ marginTop: "1.5rem" }}>
+        <DataTable
+          columns={[
+            { key: "name", label: "Product" },
+            { key: "plant", label: "Plant" },
+            { key: "stock", label: "Stock", render: (v) => (
+              <span style={{ color: v < 10 ? "#ef4444" : "inherit", fontWeight: v < 10 ? 700 : 400 }}>{v}</span>
+            ) },
+            { key: "uom", label: "UOM" },
+            { key: "lastUpdatedAt", label: "Last Updated" },
+            { key: "action", label: "Action" },
+          ]}
+          rows={inventory
+            .filter((item) => {
+              const q = search.toLowerCase();
+              return !q || item.name?.toLowerCase().includes(q) || item.plant?.toLowerCase().includes(q);
+            })
+            .map((item) => ({
+            id: item.id,
+            name: item.name,
+            plant: item.plant,
+            stock: item.stock,
+            uom: item.uom,
+            lastUpdatedAt: new Date(item.lastUpdatedAt).toLocaleDateString(),
+            action: selectedProduct === item.id ? (
+              <div>
+                <input
+                  type="number"
+                  placeholder="New stock"
+                  value={newStock}
+                  onChange={(e) => setNewStock(e.target.value)}
+                  style={{ width: "70px", marginRight: "0.5rem" }}
+                />
+                <button
+                  className="primary"
+                  style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}
+                  onClick={() => handleStockUpdate(item.id)}
+                >
+                  Save
+                </button>
+                <button
+                  className="primary"
+                  style={{ background: "linear-gradient(90deg, #ef4444, #b91c1c)", marginLeft: "0.5rem" }}
+                  onClick={() => setSelectedProduct(null)}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                className="primary"
+                style={{ background: "linear-gradient(90deg, #3b82f6, #2563eb)" }}
+                onClick={() => setSelectedProduct(item.id)}
+              >
+                Update Stock
+              </button>
+            ),
+          }))}
+          emptyMessage="No inventory records available."
+        />
+      </Card>
+
+      <div className="grid mt-6">
+        <Card title="Low Stock Ratio">
+          <DonutProgress
+            value={inventory.filter((i) => i.stock < 10).length}
+            total={inventory.length}
+            colors={["#ef4444", "#1f2937"]}
+            label="Items below threshold"
+          />
+        </Card>
+        <Card title="Plant Coverage">
+          <DonutProgress
+            value={new Set(inventory.map(i => i.plant)).size}
+            total={Math.max(new Set(inventory.map(i => i.plant)).size, 1)}
+            colors={["#22c55e", "#1f2937"]}
+            label="Active plants"
+          />
+        </Card>
       </div>
     </div>
   );
@@ -188,13 +202,4 @@ const aggregateByPlant = (data) => {
   }));
 };
 
-/* Reusable summary card */
-const Card = ({ title, value, icon }) => (
-  <div className="card hover-glow">
-    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-      <span style={{ fontSize: "1.5rem" }}>{icon}</span>
-      <h4>{title}</h4>
-    </div>
-    <p style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#3b82f6" }}>{value}</p>
-  </div>
-);
+/* (legacy local Card removed in favor of shared component) */

@@ -1,6 +1,7 @@
+// src/pages/manager/ManagerDashboard.jsx
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
-import socket from "../../services/socket"; // ✅ new import
+import socket from "../../services/socket";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 import {
@@ -13,6 +14,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import "./ManagerDashboard.css";
 
 export default function ManagerDashboard() {
   const navigate = useNavigate();
@@ -23,7 +25,6 @@ export default function ManagerDashboard() {
   const [campaigns, setCampaigns] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // 📊 Initial data load
   useEffect(() => {
     const loadData = async () => {
       try {
@@ -51,112 +52,85 @@ export default function ManagerDashboard() {
     loadData();
   }, []);
 
-  // ⚡ Real-time Socket.IO integration
+  // Socket.io
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) socket.auth = { token };
     socket.connect();
 
-    socket.on("connect", () => {
-      console.log("✅ Connected to socket server (Manager)");
-    });
-
-    // 🗂 Dealer uploaded a new document
     socket.on("document:new", (data) => {
       toast.info(`📄 New document uploaded by Dealer ${data.dealerId}`);
-      // Optionally refresh pending approvals count
       setPendingApprovals((prev) => [
         { dealerId: data.dealerId, documentType: "New Upload", createdAt: new Date() },
         ...prev,
       ]);
     });
 
-    // 🧾 Dealer document was approved/rejected elsewhere
-    socket.on("document:pending:update", () => {
-      toast.info("🔄 Document approval list updated.");
-      // You could re-fetch pending approvals if needed
-      api.get("/reports/pending-approvals").then((res) => {
-        setPendingApprovals(res.data || []);
-      });
-    });
-
-    // 💬 Dealer sent a new message
     socket.on("message:new", (msg) => {
       toast.success(`💬 Message from Dealer: ${msg.content}`);
       setMessages((prev) => [msg, ...prev]);
     });
 
-    // 📨 Notification update (license expiry, etc.)
-    socket.on("notification:update", (notif) => {
-      toast.info(`🔔 ${notif.message || "New regional update available"}`);
-    });
-
-    // 🎯 New campaign launched
     socket.on("campaign:new", (campaign) => {
       toast.info(`📢 New Campaign: ${campaign.title}`);
       setCampaigns((prev) => [campaign, ...prev]);
     });
 
     return () => {
-      socket.off("document:new");
-      socket.off("document:pending:update");
-      socket.off("message:new");
-      socket.off("notification:update");
-      socket.off("campaign:new");
       socket.disconnect();
     };
   }, []);
 
   if (loading)
     return (
-      <div className="center text-center" style={{ height: "80vh" }}>
-        Loading manager dashboard...
+      <div className="loading-screen">
+        <div className="loading-text">Loading Manager Dashboard...</div>
       </div>
     );
 
   return (
-    <div style={{ padding: "2rem" }}>
-      {/* Header */}
-      <div>
-        <h2 style={{ fontSize: "2rem", color: "#60a5fa" }}>Manager Dashboard</h2>
-        <p style={{ color: "#94a3b8" }}>
-          Monitor dealers, campaigns, and regional activities in your assigned territory.
-        </p>
-      </div>
+    <div className="manager-dashboard">
+      <header className="dashboard-header">
+        <h1>Regional Manager Dashboard</h1>
+        <p>Monitor dealers, campaigns, and performance insights in real-time.</p>
+      </header>
 
       {/* Summary Cards */}
-      <div className="grid mt-4">
-        <Card title="Total Dealers" value={summary.totalInvoices || 0} icon="🏪" onClick={() => navigate("/dealers")} />
-        <Card title="Active Campaigns" value={campaigns.length} icon="📢" onClick={() => navigate("/campaigns")} />
-        <Card title="Pending Approvals" value={pendingApprovals.length} icon="🕒" onClick={() => navigate("/reports")} />
-        <Card title="New Messages" value={messages.length} icon="💬" onClick={() => navigate("/messages")} />
+      <div className="summary-grid">
+        <SummaryCard title="Total Dealers" value={summary.totalInvoices || 0} color="#00d8ff" />
+        <SummaryCard title="Active Campaigns" value={campaigns.length} color="#ff4fd8" />
+        <SummaryCard title="Pending Approvals" value={pendingApprovals.length} color="#ffd54f" />
+        <SummaryCard title="New Messages" value={messages.length} color="#4fff85" />
       </div>
 
-      {/* Dealer Performance Chart */}
-      <div className="card mt-6">
-        <h3>Dealer Performance by Territory</h3>
-        {dealerPerformance.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={dealerPerformance}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="businessName" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="totalSales" fill="#3b82f6" name="Sales (₹)" />
-              <Bar dataKey="outstanding" fill="#ef4444" name="Outstanding (₹)" />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No dealer performance data available</p>
-        )}
+      {/* Graph Section */}
+      <div className="chart-card">
+        <h2>Dealer Performance Overview</h2>
+        <ResponsiveContainer width="100%" height={350}>
+          <BarChart data={dealerPerformance}>
+            <defs>
+              <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#00d8ff" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#003366" stopOpacity={0.2} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+            <XAxis dataKey="businessName" stroke="#9ca3af" />
+            <YAxis stroke="#9ca3af" />
+            <Tooltip
+              contentStyle={{ backgroundColor: "rgba(20,20,30,0.9)", borderRadius: "10px" }}
+            />
+            <Legend />
+            <Bar dataKey="totalSales" fill="url(#colorSales)" barSize={16} radius={[8, 8, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
       {/* Pending Approvals */}
-      <div className="card mt-6">
-        <h3>Pending Dealer Approvals</h3>
+      <div className="glass-card">
+        <h2>Pending Approvals</h2>
         {pendingApprovals.length > 0 ? (
-          <table>
+          <table className="custom-table">
             <thead>
               <tr>
                 <th>Dealer</th>
@@ -171,87 +145,64 @@ export default function ManagerDashboard() {
                   <td>{a.dealerName || a.dealerId}</td>
                   <td>{a.documentType || "Document"}</td>
                   <td>{new Date(a.createdAt).toLocaleDateString()}</td>
-                  <td>Pending</td>
+                  <td className="status-pending">Pending</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p style={{ color: "#94a3b8" }}>No pending approvals</p>
+          <p>No pending approvals</p>
         )}
       </div>
 
-      {/* Recent Messages */}
-      <div className="card mt-6">
-        <h3>Recent Dealer Messages</h3>
-        {messages.length > 0 ? (
-          <ul>
-            {messages.slice(0, 5).map((msg) => (
-              <li key={msg.id} style={{ margin: "0.5rem 0" }}>
-                <strong>{msg.dealerName || `Dealer ${msg.senderId}`}</strong>:{" "}
-                {msg.content} —{" "}
-                <span style={{ color: "#64748b" }}>{msg.status || "Unread"}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No new messages</p>
-        )}
+      {/* Messages + Campaigns */}
+      <div className="dual-section">
+        <div className="glass-card">
+          <h2>Recent Messages</h2>
+          {messages.length > 0 ? (
+            <ul className="message-list">
+              {messages.slice(0, 5).map((msg) => (
+                <li key={msg.id}>
+                  <strong>{msg.dealerName || `Dealer ${msg.senderId}`}</strong>: {msg.content}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No new messages</p>
+          )}
+        </div>
+
+        <div className="glass-card">
+          <h2>Active Campaigns</h2>
+          {campaigns.length > 0 ? (
+            <div className="campaign-grid">
+              {campaigns.slice(0, 3).map((c) => (
+                <div key={c.id} className="campaign-card">
+                  <h3>{c.title}</h3>
+                  <p>{c.description}</p>
+                  <span>Valid till {new Date(c.endDate).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>No campaigns running</p>
+          )}
+        </div>
       </div>
 
-      {/* Active Campaigns */}
-      <div className="card mt-6">
-        <h3>Active Campaigns</h3>
-        {campaigns.length > 0 ? (
-          <div className="grid">
-            {campaigns.slice(0, 3).map((c) => (
-              <div key={c.id} className="card hover-glow" style={{ cursor: "pointer" }}>
-                <h4 style={{ color: "#60a5fa" }}>{c.title}</h4>
-                <p style={{ color: "#94a3b8" }}>{c.description}</p>
-                <p style={{ fontSize: "0.8rem", color: "#64748b" }}>
-                  Valid till: {new Date(c.endDate).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No active campaigns</p>
-        )}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="mt-6 flex" style={{ gap: "1rem" }}>
-        <button className="primary" onClick={() => navigate("/reports")}>
-          📊 View Reports
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/messages")}
-          style={{ background: "linear-gradient(90deg, #3b82f6, #2563eb)" }}
-        >
-          💬 View Messages
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/campaigns")}
-          style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}
-        >
-          📢 Regional Campaigns
-        </button>
+      {/* Actions */}
+      <div className="quick-actions">
+        <button onClick={() => navigate("/reports")}>📊 Reports</button>
+        <button onClick={() => navigate("/messages")}>💬 Messages</button>
+        <button onClick={() => navigate("/campaigns")}>📢 Campaigns</button>
       </div>
     </div>
   );
 }
 
-// 📦 Card Component
-const Card = ({ title, value, icon, onClick }) => (
-  <div className="card hover-glow" onClick={onClick}>
-    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-      <span style={{ fontSize: "1.5rem" }}>{icon}</span>
-      <h4>{title}</h4>
-    </div>
-    <p style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#3b82f6" }}>
-      {value}
-    </p>
+const SummaryCard = ({ title, value, color }) => (
+  <div className="summary-card" style={{ borderColor: color, boxShadow: `0 0 15px ${color}55` }}>
+    <h4>{title}</h4>
+    <p style={{ color }}>{value}</p>
   </div>
 );
