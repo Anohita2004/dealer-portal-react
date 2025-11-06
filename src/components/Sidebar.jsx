@@ -1,29 +1,41 @@
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { Link, useLocation } from "react-router-dom";
+import {
+  FaHome,
+  FaFileInvoice,
+  FaFileAlt,
+  FaChartBar,
+  FaCogs,
+  FaUsers,
+  FaWarehouse,
+  FaBars,
+} from "react-icons/fa";
 
 export default function Sidebar() {
   const { user } = useContext(AuthContext);
   const { pathname } = useLocation();
 
+  const [collapsed, setCollapsed] = useState(false);
+
   const role = user?.role?.toLowerCase() || "user";
 
-  const baseLinks = [{ path: "/dashboard", label: "Dashboard", icon: "🏠" }];
+  const baseLinks = [{ path: "/dashboard", label: "Dashboard", icon: <FaHome /> }];
 
   const roleLinks = {
     dealer: [
-      { path: "/invoices", label: "Invoices", icon: "🧾" },
-      { path: "/documents", label: "Documents", icon: "📄" },
+      { path: "/invoices", label: "Invoices", icon: <FaFileInvoice /> },
+      { path: "/documents", label: "Documents", icon: <FaFileAlt /> },
     ],
-    tm: [{ path: "/reports", label: "Reports", icon: "📊" }],
-    am: [{ path: "/reports", label: "Reports", icon: "📊" }],
+    tm: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
+    am: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
     admin: [
-      { path: "/campaigns", label: "Campaigns", icon: "📢" },
-      { path: "/admin", label: "Dealer Management", icon: "🧑‍💼" },
-      { path: "/reports", label: "Reports", icon: "📊" },
+      { path: "/campaigns", label: "Campaigns", icon: <FaCogs /> },
+      { path: "/admin", label: "Dealer Mgmt", icon: <FaUsers /> },
+      { path: "/reports", label: "Reports", icon: <FaChartBar /> },
     ],
-    accounts: [{ path: "/reports", label: "Accounts Reports", icon: "📘" }],
-    inventory: [{ path: "/inventory", label: "Stock View", icon: "📦" }],
+    accounts: [{ path: "/reports", label: "Accounts Reports", icon: <FaChartBar /> }],
+    inventory: [{ path: "/inventory", label: "Stock View", icon: <FaWarehouse /> }],
   };
 
   const links = [...baseLinks, ...(roleLinks[role] || [])];
@@ -31,76 +43,127 @@ export default function Sidebar() {
   return (
     <aside
       style={{
-        width: "240px",
+        width: collapsed ? "70px" : "240px",
         height: "100vh",
         position: "fixed",
         left: 0,
         top: 0,
         background: "var(--sidebar-bg)",
         backdropFilter: "blur(14px)",
-        borderRight: "1px solid rgba(255,255,255,0.1)",
-        padding: "2rem 1rem",
+        borderRight: "1px solid var(--card-border)",
+        padding: "1rem",
         display: "flex",
         flexDirection: "column",
-        color: "var(--text-color)",
-        boxShadow: "4px 0 20px rgba(0,0,0,0.35)",
-        zIndex: 50,
+        transition: "0.3s ease",
+        zIndex: 1000,
+        overflow: "hidden",
       }}
     >
-      {/* ROLE HEADER */}
+      {/* SIDEBAR HEADER + TOGGLE */}
       <div
         style={{
-          textAlign: "center",
+          display: "flex",
+          justifyContent: collapsed ? "center" : "space-between",
+          alignItems: "center",
           marginBottom: "2rem",
           paddingBottom: "1rem",
-          borderBottom: "1px solid rgba(255,255,255,0.1)",
+          borderBottom: "1px solid var(--card-border)",
         }}
       >
-        <h3 style={{ color: "#f97316", fontWeight: "700" }}>
-          {role.toUpperCase()}
-        </h3>
+        {!collapsed && (
+          <h3 style={{ color: "#f97316", fontWeight: "700" }}>
+            {role.toUpperCase()}
+          </h3>
+        )}
+
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          style={{
+            background: "var(--card-bg)",
+            border: "1px solid var(--card-border)",
+            borderRadius: "8px",
+            padding: "0.5rem",
+            cursor: "pointer",
+            color: "var(--text-color)",
+          }}
+        >
+          <FaBars />
+        </button>
       </div>
 
       {/* NAV LINKS */}
-      {links.map((l) => {
-        const active = pathname === l.path;
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        {links.map((l) => {
+          const active = pathname === l.path;
 
-        return (
-          <Link
-            key={l.path}
-            to={l.path}
-            style={{
-              textDecoration: "none",
-              color: active ? "#f97316" : "var(--text-color)",
-              background: active
-                ? "linear-gradient(90deg, rgba(249,115,22,0.3), rgba(249,115,22,0.1))"
-                : "transparent",
-              padding: "0.75rem 1rem",
-              borderRadius: "9999px",
-              marginBottom: "0.5rem",
-              fontWeight: active ? "600" : "400",
-              display: "flex",
-              alignItems: "center",
-              gap: "0.75rem",
-              transition: "0.25s ease",
-            }}
-            onMouseEnter={(e) => {
-              e.target.style.background =
-                "linear-gradient(90deg, rgba(249,115,22,0.18), rgba(249,115,22,0.07))";
-              e.target.style.color = "#f97316";
-            }}
-            onMouseLeave={(e) => {
-              e.target.style.background = active
-                ? "linear-gradient(90deg, rgba(249,115,22,0.3), rgba(249,115,22,0.1))"
-                : "transparent";
-              e.target.style.color = active ? "#f97316" : "var(--text-color)";
-            }}
-          >
-            <span style={{ fontSize: "1.2rem" }}>{l.icon}</span>
-            {l.label}
-          </Link>
-        );
-      })}
+          return (
+            <div style={{ position: "relative" }} key={l.path}>
+              <Link
+                to={l.path}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: collapsed ? "0" : "0.75rem",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "10px",
+                  color: active ? "#f97316" : "var(--text-color)",
+                  textDecoration: "none",
+                  background: active
+                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
+                    : "transparent",
+                  fontWeight: active ? "600" : "400",
+                  transition: "0.25s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background =
+                    "linear-gradient(90deg, rgba(249,115,22,0.15), rgba(249,115,22,0.05))";
+                  e.target.style.color = "#f97316";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = active
+                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
+                    : "transparent";
+                  e.target.style.color = active ? "#f97316" : "var(--text-color)";
+                }}
+              >
+                <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
+
+                {!collapsed && <span>{l.label}</span>}
+              </Link>
+
+              {/* ✅ Tooltip when collapsed */}
+              {collapsed && (
+                <div className="sidebar-tooltip">{l.label}</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ✅ Tooltip styles */}
+      <style>
+        {`
+            .sidebar-tooltip {
+                position: absolute;
+                left: 80px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: var(--card-bg);
+                padding: 6px 10px;
+                border-radius: 6px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: 0.2s ease;
+                color: var(--text-color);
+                border: 1px solid var(--card-border);
+            }
+            a:hover + .sidebar-tooltip {
+                opacity: 1;
+            }
+        `}
+      </style>
     </aside>
   );
 }
