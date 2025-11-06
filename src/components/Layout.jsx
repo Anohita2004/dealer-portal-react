@@ -8,20 +8,20 @@ export default function Layout() {
     <div
       style={{
         minHeight: "100vh",
-        display: "flex",
         background: "var(--bg-glow), var(--bg-base)",
         color: "var(--text-color)",
-        overflow: "hidden",
       }}
     >
+      {/* ✅ Fixed sidebar */}
       <Sidebar />
 
+      {/* ✅ Main content shifted right */}
       <div
         style={{
-          flex: 1,
+          marginLeft: "240px",
           display: "flex",
           flexDirection: "column",
-          backdropFilter: "blur(8px)",
+          minHeight: "100vh",
         }}
       >
         <Navbar />
@@ -29,10 +29,8 @@ export default function Layout() {
         <main
           style={{
             flex: 1,
-            overflowY: "auto",
             padding: "2rem",
-            background: "transparent",
-            borderTopLeftRadius: "1.5rem",
+            overflowY: "auto",
           }}
         >
           <div
@@ -44,7 +42,6 @@ export default function Layout() {
               minHeight: "85vh",
               boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
               backdropFilter: "blur(12px)",
-              color: "var(--text-color)",
             }}
           >
             <Outlet />

@@ -1,0 +1,78 @@
+.sidebar {
+  width: 240px;
+  height: 100vh;
+  padding: 1.5rem 1rem;
+  background: var(--sidebar-bg, var(--card-bg));
+  border-right: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+}
+
+.sidebar-header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--card-border);
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+
+.sidebar-header h3 {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ✅ Navigation */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* ✅ Clean nav item */
+.sidebar-link {
+  display: block;
+  padding: 0.7rem 1rem;
+  margin: 0.1rem 0;
+  border-radius: 0.6rem;
+  color: var(--text-color);
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* ✅ Hover */
+.sidebar-link:hover {
+  background: var(--hover-bg);
+  color: var(--accent);
+}
+
+/* ✅ Active item */
+.sidebar-link.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ✅ Light/Dark Theme Variables */
+:root {
+  /* Light theme */
+  --sidebar-bg: #f8f9fc;
+  --card-bg: #ffffff;
+  --card-border: #e5e7eb;
+  --hover-bg: #f3f4f6;
+  --accent: #f97316;
+  --accent-bg: rgba(249, 115, 22, 0.15);
+  --text-color: #111827;
+}
+
+[data-theme="dark"] {
+  --sidebar-bg: #0f0f11;
+  --card-bg: #1a1a1c;
+  --card-border: #2c2c2f;
+  --hover-bg: rgba(255, 255, 255, 0.06);
+  --accent-bg: rgba(249, 115, 22, 0.18);
+  --text-color: #e5e7eb;
+}
