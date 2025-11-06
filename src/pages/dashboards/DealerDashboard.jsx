@@ -2,6 +2,12 @@ import React, { useEffect, useState } from "react";
 import api from "../../services/api";
 import socket from "../../services/socket";
 import { toast } from "react-toastify";
+import Card from "../../components/Card";
+import StatCard from "../../components/StatCard";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+
 import {
   BarChart,
   Bar,
@@ -12,7 +18,6 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import "./ManagerDashboard.css"; // ✅ reuse same CSS
 
 export default function DealerDashboard() {
   const [summary, setSummary] = useState({});
@@ -21,19 +26,21 @@ export default function DealerDashboard() {
   const [documents, setDocuments] = useState([]);
   const [trend, setTrend] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
-  // 📊 Fetch data
+  // ✅ Fetch Data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [summaryRes, invoiceRes, promoRes, docRes, trendRes] = await Promise.all([
-          api.get("/reports/dealer-performance"),
-          api.get("/invoices"),
-          api.get("/campaigns/active"),
-          api.get("/documents"),
-          api.get("/reports/dealer-performance?trend=true"),
-        ]);
+        const [summaryRes, invoiceRes, promoRes, docRes, trendRes] =
+          await Promise.all([
+            api.get("/reports/dealer-performance"),
+            api.get("/invoices"),
+            api.get("/campaigns/active"),
+            api.get("/documents"),
+            api.get("/reports/dealer-performance?trend=true"),
+          ]);
 
         setSummary(summaryRes.data);
         setInvoices(invoiceRes.data.invoices || []);
@@ -49,7 +56,7 @@ export default function DealerDashboard() {
     fetchData();
   }, []);
 
-  // ⚡ Socket events
+  // ✅ Socket Events
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) socket.auth = { token };
@@ -84,148 +91,215 @@ export default function DealerDashboard() {
     );
 
   return (
-    <div className="manager-dashboard">
-      {/* HEADER */}
-      <header className="dashboard-header">
-        <h1>Dealer Dashboard</h1>
-        <p>
+    <div style={{ padding: "1.5rem" }}>
+      {/* ✅ Header */}
+      <header style={{ marginBottom: "1.5rem" }}>
+        <h1 style={{ marginBottom: ".3rem" }}>Dealer Dashboard</h1>
+        <p className="text-muted">
           Welcome back,{" "}
-          <span style={{ color: "#f97316" }}>{summary.dealerName || "Dealer"}</span> — your latest
-          performance overview and business updates.
+          <span style={{ color: "var(--accent)", fontWeight: 600 }}>
+            {summary.dealerName || "Dealer"}
+          </span>
+          — here is your latest performance overview.
         </p>
       </header>
 
-      {/* SUMMARY */}
-      <div className="summary-grid">
-        <SummaryCard title="Total Sales" value={`₹${summary.totalSales || 0}`} color="#f97316" />
-        <SummaryCard title="Invoices" value={summary.totalInvoices || 0} color="#ff4fd8" />
-        <SummaryCard title="Outstanding" value={`₹${summary.outstanding || 0}`} color="#ffd54f" />
-        <SummaryCard title="Active Promotions" value={promotions.length} color="#4fff85" />
-      </div>
+      {/* ✅ Toolbar */}
+      <Toolbar
+        left={[
+          <SearchInput
+            key="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search invoices, documents..."
+          />,
+        ]}
+        right={[
+          <IconPillButton key="upload" icon="📤" label="Upload Document" />,
+          <IconPillButton key="promo" icon="🎉" label="Promotions" tone="warning" />,
+        ]}
+      />
 
-      {/* CHART */}
-      <div className="chart-card">
-        <h2>Sales vs Outstanding (Last 6 Months)</h2>
-        <ResponsiveContainer width="100%" height={350}>
-          <BarChart data={trend}>
-            <defs>
-              <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f97316" stopOpacity={0.85} />
-                <stop offset="95%" stopColor="#3d1e0f" stopOpacity={0.2} />
-              </linearGradient>
-              <linearGradient id="outstandingGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ff4fd8" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="#3b003b" stopOpacity={0.2} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis dataKey="month" stroke="#9ca3af" />
-            <YAxis stroke="#9ca3af" />
-            <Tooltip contentStyle={{ backgroundColor: "rgba(20,20,30,0.9)", borderRadius: "10px" }} />
-            <Legend />
-            <Bar dataKey="sales" fill="url(#salesGradient)" barSize={16} radius={[8, 8, 0, 0]} />
-            <Bar
-              dataKey="outstanding"
-              fill="url(#outstandingGradient)"
-              barSize={16}
-              radius={[8, 8, 0, 0]}
+      {/* ✅ 2 Column Layout */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "70% 30%",
+          gap: "1.5rem",
+          marginTop: "1.5rem",
+        }}
+      >
+        {/* ✅ LEFT COLUMN */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          {/* ✅ Sales Chart */}
+          <Card title="Sales vs Outstanding (Last 6 Months)">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={trend}>
+                <defs>
+                  <linearGradient id="sales" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.9} />
+                    <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.2} />
+                  </linearGradient>
+                </defs>
+
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
+                <XAxis dataKey="month" stroke="var(--text-muted)" />
+                <YAxis stroke="var(--text-muted)" />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--card-bg)",
+                    border: "1px solid var(--card-border)",
+                    color: "var(--text-color)",
+                  }}
+                />
+                <Legend />
+                <Bar
+                  dataKey="sales"
+                  fill="url(#sales)"
+                  barSize={18}
+                  radius={[6, 6, 0, 0]}
+                />
+                <Bar
+                  dataKey="outstanding"
+                  fill="var(--text-muted)"
+                  barSize={18}
+                  radius={[6, 6, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+
+          {/* ✅ Recent Invoices */}
+          <Card title="Recent Invoices">
+            {invoices.length > 0 ? (
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>Invoice #</th>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.slice(0, 5).map((i) => (
+                    <tr key={i.id}>
+                      <td>{i.invoiceNumber}</td>
+                      <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
+                      <td>₹{i.totalAmount}</td>
+                      <td
+                        className={
+                          i.status === "Paid" ? "status-approved" : "status-pending"
+                        }
+                      >
+                        {i.status}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>No invoices found</p>
+            )}
+          </Card>
+
+          {/* ✅ Uploaded Documents */}
+          <Card title="Uploaded Documents">
+            {documents.length > 0 ? (
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>File</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Uploaded</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.slice(0, 5).map((d) => (
+                    <tr key={d.id}>
+                      <td>{d.fileName}</td>
+                      <td>{d.documentType}</td>
+                      <td className={`status-${d.status || "pending"}`}>{d.status}</td>
+                      <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>No uploaded documents</p>
+            )}
+          </Card>
+        </div>
+
+        {/* ✅ RIGHT COLUMN */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          {/* ✅ KPIs */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "1rem",
+            }}
+          >
+            <StatCard
+              title="Total Sales"
+              value={`₹${summary.totalSales || 0}`}
+              icon="💰"
             />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* RECENT INVOICES */}
-      <div className="glass-card">
-        <h2>Recent Invoices</h2>
-        {invoices.length > 0 ? (
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>Invoice #</th>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.slice(0, 5).map((i) => (
-                <tr key={i.id}>
-                  <td>{i.invoiceNumber}</td>
-                  <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
-                  <td>₹{i.totalAmount}</td>
-                  <td className={i.status === "Paid" ? "status-approved" : "status-pending"}>
-                    {i.status}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No invoices found</p>
-        )}
-      </div>
-
-      {/* DOCUMENTS */}
-      <div className="glass-card">
-        <h2>Uploaded Documents</h2>
-        {documents.length > 0 ? (
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>File</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Uploaded</th>
-              </tr>
-            </thead>
-            <tbody>
-              {documents.slice(0, 5).map((d) => (
-                <tr key={d.id}>
-                  <td>{d.fileName}</td>
-                  <td>{d.documentType}</td>
-                  <td className={`status-${d.status || "pending"}`}>{d.status}</td>
-                  <td>{new Date(d.createdAt).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No uploaded documents</p>
-        )}
-      </div>
-
-      {/* PROMOTIONS */}
-      <div className="glass-card">
-        <h2>Active Promotions</h2>
-        {promotions.length > 0 ? (
-          <div className="campaign-grid">
-            {promotions.slice(0, 3).map((promo) => (
-              <div key={promo.id} className="campaign-card">
-                <h3>{promo.title}</h3>
-                <p>{promo.description}</p>
-                <span>Valid till {new Date(promo.validTill).toLocaleDateString()}</span>
-              </div>
-            ))}
+            <StatCard title="Invoices" value={summary.totalInvoices || 0} icon="🧾" />
+            <StatCard
+              title="Outstanding"
+              value={`₹${summary.outstanding || 0}`}
+              icon="⚠️"
+            />
+            <StatCard
+              title="Promotions"
+              value={promotions.length}
+              icon="🎉"
+            />
           </div>
-        ) : (
-          <p>No active promotions</p>
-        )}
-      </div>
 
-      {/* ACTIONS */}
-      <div className="quick-actions">
-        <button>📤 Upload Document</button>
-        <button>📑 View Statements</button>
-        <button>💬 Contact Manager</button>
+          {/* ✅ Promotions */}
+          <Card title="Active Promotions">
+            {promotions.length > 0 ? (
+              <div
+                style={{
+                  display: "grid",
+                  gap: "1rem",
+                }}
+              >
+                {promotions.slice(0, 3).map((promo) => (
+                  <div
+                    key={promo.id}
+                    style={{
+                      padding: ".7rem",
+                      borderBottom: "1px solid var(--card-border)",
+                    }}
+                  >
+                    <h4 style={{ color: "var(--accent)" }}>{promo.title}</h4>
+                    <p className="text-muted">{promo.description}</p>
+                    <small className="text-muted">
+                      Valid till {new Date(promo.validTill).toLocaleDateString()}
+                    </small>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>No active promotions</p>
+            )}
+          </Card>
+
+          {/* ✅ Quick Actions */}
+          <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+            <IconPillButton icon="📤" label="Upload Document" />
+            <IconPillButton icon="📑" label="View Statements" />
+            <IconPillButton icon="💬" label="Contact Manager" tone="success" />
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-// 📦 Reuse summary card
-const SummaryCard = ({ title, value, color }) => (
-  <div className="summary-card" style={{ borderColor: color, boxShadow: `0 0 15px ${color}55` }}>
-    <h4>{title}</h4>
-    <p style={{ color }}>{value}</p>
-  </div>
-);
+// ✅ nothing below here needs changes
