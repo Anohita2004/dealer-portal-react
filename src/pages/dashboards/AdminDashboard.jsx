@@ -2,6 +2,13 @@ import React, { useEffect, useState } from "react";
 import api from "../../services/api";
 import socket from "../../services/socket"; // ✅ new import
 import { useNavigate } from "react-router-dom";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import DataTable from "../../components/DataTable";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
 import { toast } from "react-toastify";
 import {
   BarChart,
@@ -20,6 +27,7 @@ export default function AdminDashboard() {
   const [campaigns, setCampaigns] = useState([]);
   const [dealerActivity, setDealerActivity] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
   // 📊 Initial data fetch
   useEffect(() => {
@@ -173,46 +181,28 @@ export default function AdminDashboard() {
 
   return (
     <div style={{ padding: "2rem" }}>
-      {/* Header */}
-      <div>
-        <h2 style={{ fontSize: "2rem", color: "#2563eb", marginBottom: "0.3rem" }}>
-          Administrator Dashboard
-        </h2>
-        <p style={{ color: "#6b7280" }}>
-          Manage campaigns, dealer approvals, and monitor business operations.
-        </p>
-      </div>
+      <PageHeader
+        title="Administrator Dashboard"
+        subtitle="Manage campaigns, dealer approvals, and monitor business operations."
+      />
 
-      {/* Summary Cards */}
+      <Toolbar
+        right={[
+          <IconPillButton key="new-camp" icon="➕" label="New Campaign" onClick={() => navigate("/campaigns")} />,
+          <IconPillButton key="manage" icon="⚙️" label="Manage Dealers" tone="warning" onClick={() => navigate("/admin")} />,
+        ]}
+      >
+        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search dealers, campaigns..." />
+      </Toolbar>
+
       <div className="grid mt-4">
-        <Card
-          title="Active Campaigns"
-          value={summary.activeCampaigns || 0}
-          icon="📢"
-          onClick={() => navigate("/campaigns")}
-        />
-        <Card
-          title="Registered Dealers"
-          value={summary.dealers || 0}
-          icon="🏪"
-          onClick={() => navigate("/admin")}
-        />
-        <Card
-          title="Pending Approvals"
-          value={summary.pendingApprovals || 0}
-          icon="🕒"
-          onClick={() => navigate("/documents")}
-        />
-        <Card
-          title="Blocked Dealers"
-          value={summary.blockedDealers || 0}
-          icon="🚫"
-        />
+        <StatCard title="Active Campaigns" value={summary.activeCampaigns || 0} icon="📢" accent="#a78bfa" />
+        <StatCard title="Registered Dealers" value={summary.dealers || 0} icon="🏪" accent="#f97316" />
+        <StatCard title="Pending Approvals" value={summary.pendingApprovals || 0} icon="🕒" accent="#f59e0b" />
+        <StatCard title="Blocked Dealers" value={summary.blockedDealers || 0} icon="🚫" accent="#ef4444" />
       </div>
 
-      {/* Dealer Activity Chart */}
-      <div className="card mt-6">
-        <h3 style={{ color: "#2563eb" }}>Dealer Activity (Last 6 Months)</h3>
+      <Card title="Dealer Activity (Last 6 Months)" style={{ marginTop: "1.5rem" }}>
         {dealerActivity.length > 0 ? (
           <ResponsiveContainer width="100%" height={300}>
             <BarChart data={dealerActivity}>
@@ -220,67 +210,58 @@ export default function AdminDashboard() {
               <XAxis dataKey="month" stroke="#6b7280" />
               <YAxis stroke="#6b7280" />
               <Tooltip />
-              <Bar dataKey="dealersOnboarded" fill="#2563eb" name="Dealers Onboarded" />
+              <Bar dataKey="dealersOnboarded" fill="#f97316" name="Dealers Onboarded" />
               <Bar dataKey="blockedDealers" fill="#ef4444" name="Blocked Dealers" />
             </BarChart>
           </ResponsiveContainer>
         ) : (
           <p style={{ color: "#94a3b8" }}>No dealer activity data available</p>
         )}
-      </div>
+      </Card>
 
-      {/* Pending Approvals Table */}
-      <div className="card mt-6">
-        <h3 style={{ color: "#2563eb" }}>Pending Approvals</h3>
-        {approvals.length > 0 ? (
-          <table className="styled-table">
-            <thead>
-              <tr>
-                <th>Dealer</th>
-                <th>Document Type</th>
-                <th>Uploaded On</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {approvals.slice(0, 5).map((a) => (
-                <tr key={a.id}>
-                  <td>{a.dealerName}</td>
-                  <td>{a.documentType}</td>
-                  <td>{new Date(a.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    <button
-                      className="approve-btn"
-                      style={{
-                        marginRight: "0.5rem",
-                        background: "linear-gradient(90deg, #22c55e, #16a34a)",
-                      }}
-                      onClick={() => handleApproval(a.id, "approve")}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      className="reject-btn"
-                      style={{
-                        background: "linear-gradient(90deg, #ef4444, #b91c1c)",
-                      }}
-                      onClick={() => handleApproval(a.id, "reject")}
-                    >
-                      Reject
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No pending approvals</p>
-        )}
-      </div>
+      <Card title="Pending Approvals" style={{ marginTop: "1.5rem" }}>
+        <DataTable
+          columns={[
+            { key: "dealer", label: "Dealer" },
+            { key: "documentType", label: "Document Type" },
+            { key: "uploadedOn", label: "Uploaded On" },
+            { key: "action", label: "Action" },
+          ]}
+          rows={approvals
+            .filter((a) => {
+              const q = search.toLowerCase();
+              return !q || a.dealerName?.toLowerCase().includes(q) || a.documentType?.toLowerCase().includes(q);
+            })
+            .slice(0, 10)
+            .map((a) => ({
+              id: a.id,
+              dealer: a.dealerName,
+              documentType: a.documentType,
+              uploadedOn: new Date(a.createdAt).toLocaleDateString(),
+              action: (
+                <div>
+                  <button
+                    className="primary"
+                    style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)", marginRight: "0.5rem" }}
+                    onClick={() => handleApproval(a.id, "approve")}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    className="primary"
+                    style={{ background: "linear-gradient(90deg, #ef4444, #b91c1c)" }}
+                    onClick={() => handleApproval(a.id, "reject")}
+                  >
+                    Reject
+                  </button>
+                </div>
+              ),
+            }))}
+          emptyMessage="No pending approvals"
+        />
+      </Card>
 
-      {/* Campaign Overview */}
-      <div className="card mt-6">
-        <h3 style={{ color: "#2563eb" }}>Active Campaigns</h3>
+      <Card title="Active Campaigns" style={{ marginTop: "1.5rem" }}>
         {campaigns.length > 0 ? (
           <div className="grid">
             {campaigns.slice(0, 4).map((c) => (
@@ -290,7 +271,7 @@ export default function AdminDashboard() {
                 style={{ cursor: "pointer" }}
                 onClick={() => navigate(`/campaigns/${c.id}`)}
               >
-                <h4 style={{ color: "#1e40af" }}>{c.title}</h4>
+                <h4 style={{ color: "#f97316" }}>{c.title}</h4>
                 <p style={{ color: "#6b7280" }}>{c.description}</p>
                 <p style={{ fontSize: "0.8rem", color: "#9ca3af" }}>
                   Valid till: {new Date(c.endDate).toLocaleDateString()}
@@ -301,52 +282,15 @@ export default function AdminDashboard() {
         ) : (
           <p style={{ color: "#94a3b8" }}>No active campaigns</p>
         )}
-      </div>
+      </Card>
 
-      {/* Quick Admin Actions */}
       <div className="mt-6 flex" style={{ gap: "1rem" }}>
-        <button className="primary" onClick={() => navigate("/campaigns")}>
-          ➕ Create Campaign
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/admin")}
-          style={{
-            background: "linear-gradient(90deg, #facc15, #eab308)",
-          }}
-        >
-          ⚙️ Manage Dealers
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/reports")}
-          style={{
-            background: "linear-gradient(90deg, #3b82f6, #2563eb)",
-          }}
-        >
-          📊 View Reports
-        </button>
+        <IconPillButton icon="➕" label="Create Campaign" onClick={() => navigate("/campaigns")} />
+        <IconPillButton icon="⚙️" label="Manage Dealers" tone="warning" onClick={() => navigate("/admin")} />
+        <IconPillButton icon="📊" label="View Reports" onClick={() => navigate("/reports")} />
       </div>
     </div>
   );
 }
 
-// 📦 Reusable Card component
-const Card = ({ title, value, icon, onClick }) => (
-  <div className="card hover-glow" onClick={onClick}>
-    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-      <span style={{ fontSize: "1.5rem" }}>{icon}</span>
-      <h4>{title}</h4>
-    </div>
-    <p
-      style={{
-        fontSize: "1.8rem",
-        fontWeight: "bold",
-        color: "#2563eb",
-        marginTop: "0.3rem",
-      }}
-    >
-      {value}
-    </p>
-  </div>
-);
+// (legacy local Card removed in favor of shared components)

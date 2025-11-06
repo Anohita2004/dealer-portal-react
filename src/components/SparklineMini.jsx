@@ -1,7 +1,7 @@
 import React from "react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
 
-export default function SparklineMini({ data, color = "#3b82f6" }) {
+export default function SparklineMini({ data, color = "#f97316" }) {
   return (
     <div style={{ width: "100%", height: 60 }}>
       <ResponsiveContainer width="100%" height="100%">

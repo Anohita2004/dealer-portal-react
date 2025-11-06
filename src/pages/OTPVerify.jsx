@@ -44,7 +44,7 @@ export default function OTPVerify({ userId }) {
 const styles = {
   page: {
     height: '100vh',
-    background: 'radial-gradient(circle at top, #1a1a2e 0%, #0f172a 50%, #000 100%)',
+    background: 'var(--bg-glow), var(--bg-base)',
     backgroundImage:
       'url("https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1920&q=80")',
     backgroundSize: 'cover',

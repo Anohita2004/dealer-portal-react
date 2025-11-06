@@ -2,7 +2,7 @@ import React from "react";
 
 export default function IconPillButton({ icon, label, onClick, tone = "primary" }) {
   const tones = {
-    primary: "linear-gradient(90deg, #3b82f6, #2563eb)",
+    primary: "linear-gradient(90deg, #f97316, #ea580c)",
     success: "linear-gradient(90deg, #22c55e, #16a34a)",
     warning: "linear-gradient(90deg, #f59e0b, #d97706)",
     danger: "linear-gradient(90deg, #ef4444, #b91c1c)",

@@ -1,5 +1,6 @@
 .manager-dashboard {
-  background: radial-gradient(circle at top left, #1a1c24, #0f111a 80%);
+  background: radial-gradient(circle at 20% 0%, rgba(249, 115, 22, 0.05), transparent 40%),
+    linear-gradient(135deg, #0b0d10, #141216 80%);
   min-height: 100vh;
   color: #e5e7eb;
   padding: 2rem;
@@ -8,7 +9,7 @@
 
 .dashboard-header h1 {
   font-size: 2rem;
-  color: #00d8ff;
+  color: #f97316;
   margin-bottom: 0.3rem;
 }
 
@@ -50,7 +51,7 @@
 
 .chart-card h2,
 .glass-card h2 {
-  color: #60a5fa;
+  color: #f97316;
   margin-bottom: 1rem;
 }
 
@@ -103,7 +104,7 @@
 }
 
 .quick-actions button {
-  background: linear-gradient(90deg, #00d8ff, #0070f3);
+  background: linear-gradient(90deg, #f97316, #ea580c);
   border: none;
   padding: 0.8rem 1.5rem;
   border-radius: 8px;
@@ -115,7 +116,7 @@
 
 .quick-actions button:hover {
   transform: translateY(-2px);
-  box-shadow: 0 0 12px #00d8ff;
+  box-shadow: 0 0 12px #f97316;
 }
 
 .loading-screen {
@@ -123,8 +124,8 @@
   align-items: center;
   justify-content: center;
   height: 100vh;
-  background: #0f111a;
-  color: #00d8ff;
+  background: #0f1114;
+  color: #f97316;
   font-size: 1.3rem;
   letter-spacing: 0.5px;
 }

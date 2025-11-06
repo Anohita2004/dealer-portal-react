@@ -51,13 +51,24 @@ src/App.jsx
 src/assets/react.svg
 src/Auth.css
 src/components/BarChartCard.jsx
+src/components/Card.jsx
 src/components/DashboardCard.jsx
+src/components/DataTable.jsx
+src/components/DonutProgress.jsx
+src/components/EmptyState.jsx
+src/components/IconPillButton.jsx
 src/components/Layout.jsx
 src/components/Navbar.jsx
+src/components/PageHeader.jsx
 src/components/PieChartCard.jsx
 src/components/ProtectedRoute.jsx
+src/components/SearchInput.jsx
 src/components/Sidebar.jsx
+src/components/SparklineMini.jsx
+src/components/StatCard.jsx
+src/components/Toolbar.jsx
 src/context/AuthContext.jsx
+src/context/ThemeContext.jsx
 src/index.css
 src/main.jsx
 src/pages/Admin.jsx
@@ -67,6 +78,7 @@ src/pages/dashboards/AccountsDashboard.jsx
 src/pages/dashboards/AdminDashboard.jsx
 src/pages/dashboards/DealerDashboard.jsx
 src/pages/dashboards/InventoryDashboard.jsx
+src/pages/dashboards/ManagerDashboard.css
 src/pages/dashboards/ManagerDashboard.jsx
 src/pages/Documents.jsx
 src/pages/Invoices.jsx
@@ -74,12 +86,36 @@ src/pages/Login.jsx
 src/pages/OTPVerify.jsx
 src/pages/Reports.jsx
 src/services/api.js
+src/services/socket.js
 src/theme.js
 vite.config.js
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/context/ThemeContext.jsx">
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+const ThemeModeContext = createContext({ mode: "dark", toggle: () => {} });
+
+export function ThemeModeProvider({ children }) {
+  const [mode, setMode] = useState(() => localStorage.getItem("ui-mode") || "dark");
+
+  useEffect(() => {
+    localStorage.setItem("ui-mode", mode);
+    document.documentElement.setAttribute("data-theme", mode);
+  }, [mode]);
+
+  const value = useMemo(() => ({ mode, toggle: () => setMode((m) => (m === "dark" ? "light" : "dark")) }), [mode]);
+
+  return <ThemeModeContext.Provider value={value}>{children}</ThemeModeContext.Provider>;
+}
+
+export function useThemeMode() {
+  return useContext(ThemeModeContext);
+}
+</file>
 
 <file path=".gitignore">
 # Logs
@@ -355,6 +391,22 @@ export default function BarChartCard({ title, data, xKey, yKey, color = "#1976d2
 }
 </file>
 
+<file path="src/components/Card.jsx">
+import React from "react";
+
+export default function Card({ title, children, footer, style }) {
+  return (
+    <div className="card" style={style}>
+      {title && (
+        <h3 style={{ marginTop: 0, marginBottom: "0.75rem" }}>{title}</h3>
+      )}
+      {children}
+      {footer && <div style={{ marginTop: "0.75rem" }}>{footer}</div>}
+    </div>
+  );
+}
+</file>
+
 <file path="src/components/DashboardCard.jsx">
 import React from "react";
 import { Card, CardContent, Typography, Box } from "@mui/material";
@@ -381,6 +433,244 @@ export default function DashboardCard({ title, value, icon, color = "primary.mai
         </Typography>
       </CardContent>
     </Card>
+  );
+}
+</file>
+
+<file path="src/components/DataTable.jsx">
+import React from "react";
+
+export default function DataTable({ columns, rows, emptyMessage = "No data available" }) {
+  if (!rows || rows.length === 0) {
+    return <p style={{ color: "#94a3b8" }}>{emptyMessage}</p>;
+  }
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            {columns.map((c) => (
+              <th key={c.key} style={{ textAlign: "left", padding: "0.6rem", borderBottom: "1px solid rgba(255,255,255,0.1)", color: "#cbd5e1", fontWeight: 600 }}>
+                {c.label}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, idx) => (
+            <tr key={row.id || idx} style={{ background: idx % 2 === 1 ? "rgba(255,255,255,0.02)" : "transparent" }}>
+              {columns.map((c) => (
+                <td key={c.key} style={{ padding: "0.6rem", borderBottom: "1px solid rgba(255,255,255,0.06)" }}>
+                  {typeof c.render === "function" ? c.render(row[c.key], row) : row[c.key]}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/DonutProgress.jsx">
+import React from "react";
+import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
+
+export default function DonutProgress({ value = 0, total = 100, colors = ["#f97316", "#1f2937"], center, label }) {
+  const safeTotal = total <= 0 ? 1 : total;
+  const percent = Math.max(0, Math.min(100, Math.round((value / safeTotal) * 100)));
+  const data = [
+    { name: "value", value: Math.max(0, value) },
+    { name: "rest", value: Math.max(0, safeTotal - value) },
+  ];
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+      <div style={{ width: 120, height: 120 }}>
+        <ResponsiveContainer width="100%" height="100%">
+          <PieChart>
+            <Pie
+              data={data}
+              innerRadius={48}
+              outerRadius={58}
+              paddingAngle={2}
+              dataKey="value"
+              startAngle={90}
+              endAngle={-270}
+            >
+              {data.map((entry, index) => (
+                <Cell key={`cell-${index}`} fill={colors[index] || colors[0]} />
+              ))}
+            </Pie>
+          </PieChart>
+        </ResponsiveContainer>
+      </div>
+      <div>
+        {label && <div style={{ color: "#94a3b8" }}>{label}</div>}
+        <div style={{ fontSize: "1.6rem", fontWeight: 700, color: "#e2e8f0" }}>{percent}%</div>
+        {center}
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/EmptyState.jsx">
+import React from "react";
+
+export default function EmptyState({ icon = "🔍", title = "No data", description }) {
+  return (
+    <div style={{ textAlign: "center", padding: "1.5rem", color: "#94a3b8" }}>
+      <div style={{ fontSize: "2rem" }}>{icon}</div>
+      <div style={{ fontWeight: 600, marginTop: "0.25rem", color: "#cbd5e1" }}>{title}</div>
+      {description && <div style={{ marginTop: "0.25rem" }}>{description}</div>}
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/IconPillButton.jsx">
+import React from "react";
+
+export default function IconPillButton({ icon, label, onClick, tone = "primary" }) {
+  const tones = {
+    primary: "linear-gradient(90deg, #f97316, #ea580c)",
+    success: "linear-gradient(90deg, #22c55e, #16a34a)",
+    warning: "linear-gradient(90deg, #f59e0b, #d97706)",
+    danger: "linear-gradient(90deg, #ef4444, #b91c1c)",
+  };
+  return (
+    <button
+      onClick={onClick}
+      style={{
+        border: "none",
+        borderRadius: 9999,
+        padding: "0.5rem 0.9rem",
+        color: "#fff",
+        display: "flex",
+        alignItems: "center",
+        gap: "0.5rem",
+        background: tones[tone] || tones.primary,
+        boxShadow: "0 0 12px rgba(0,0,0,0.25)",
+        cursor: "pointer",
+      }}
+    >
+      {icon && <span>{icon}</span>}
+      <span style={{ fontWeight: 600 }}>{label}</span>
+    </button>
+  );
+}
+</file>
+
+<file path="src/components/PageHeader.jsx">
+import React from "react";
+
+export default function PageHeader({ title, subtitle, actions }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: "1rem", marginBottom: "1.25rem" }}>
+      <div>
+        <h2 style={{ fontSize: "2rem", margin: 0, color: "#f97316" }}>{title}</h2>
+        {subtitle && (
+          <p style={{ marginTop: "0.25rem", color: "#94a3b8" }}>{subtitle}</p>
+        )}
+      </div>
+      {actions && <div style={{ display: "flex", gap: "0.5rem" }}>{actions}</div>}
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/SearchInput.jsx">
+import React from "react";
+
+export default function SearchInput({ placeholder = "Search", value, onChange, style }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.5rem",
+        padding: "0.6rem 0.9rem",
+        borderRadius: 9999,
+        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        boxShadow: "inset 0 0 10px rgba(0,0,0,0.2)",
+        color: "#cbd5e1",
+        ...style,
+      }}
+    >
+      <span style={{ opacity: 0.8 }}>🔎</span>
+      <input
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        style={{
+          outline: "none",
+          border: "none",
+          background: "transparent",
+          color: "#e2e8f0",
+          width: "100%",
+        }}
+      />
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/SparklineMini.jsx">
+import React from "react";
+import { AreaChart, Area, ResponsiveContainer } from "recharts";
+
+export default function SparklineMini({ data, color = "#f97316" }) {
+  return (
+    <div style={{ width: "100%", height: 60 }}>
+      <ResponsiveContainer width="100%" height="100%">
+        <AreaChart data={data} margin={{ top: 6, right: 0, bottom: 0, left: 0 }}>
+          <defs>
+            <linearGradient id="spark" x1="0" y1="0" x2="0" y2="1">
+              <stop offset="5%" stopColor={color} stopOpacity={0.7} />
+              <stop offset="95%" stopColor={color} stopOpacity={0.05} />
+            </linearGradient>
+          </defs>
+          <Area type="monotone" dataKey="v" stroke={color} fill="url(#spark)" strokeWidth={2} />
+        </AreaChart>
+      </ResponsiveContainer>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/StatCard.jsx">
+import React from "react";
+
+export default function StatCard({ title, value, icon, accent = "#f97316" }) {
+  return (
+    <div
+      className="card hover-glow"
+      style={{ display: "flex", flexDirection: "column", gap: "0.25rem" }}
+    >
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+          {icon && <span style={{ fontSize: "1.35rem" }}>{icon}</span>}
+          <h4 style={{ margin: 0 }}>{title}</h4>
+        </div>
+        <div style={{ width: 8, height: 8, borderRadius: 9999, background: accent }} />
+      </div>
+      <div style={{ fontSize: "1.8rem", fontWeight: 700, color: accent }}>{value}</div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/Toolbar.jsx">
+import React from "react";
+
+export default function Toolbar({ children, right }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", marginBottom: "0.75rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>{children}</div>
+      {right && <div style={{ display: "flex", gap: "0.5rem" }}>{right}</div>}
+    </div>
   );
 }
 </file>
@@ -424,62 +714,153 @@ export const AuthProvider = ({ children }) => {
 };
 </file>
 
-<file path="src/main.jsx">
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
+<file path="src/pages/dashboards/ManagerDashboard.css">
+.manager-dashboard {
+  background: radial-gradient(circle at 20% 0%, rgba(249, 115, 22, 0.05), transparent 40%),
+    linear-gradient(135deg, #0b0d10, #141216 80%);
+  min-height: 100vh;
+  color: #e5e7eb;
+  padding: 2rem;
+  font-family: "Inter", sans-serif;
+}
 
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <App />
-  </StrictMode>,
-)
+.dashboard-header h1 {
+  font-size: 2rem;
+  color: #f97316;
+  margin-bottom: 0.3rem;
+}
+
+.dashboard-header p {
+  color: #9ca3af;
+}
+
+.summary-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 1rem;
+  margin-top: 2rem;
+}
+
+.summary-card {
+  backdrop-filter: blur(10px);
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid transparent;
+  border-radius: 16px;
+  padding: 1.2rem;
+  text-align: center;
+  transition: 0.3s;
+}
+
+.summary-card:hover {
+  transform: translateY(-3px);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.chart-card,
+.glass-card {
+  margin-top: 2rem;
+  padding: 1.5rem;
+  border-radius: 20px;
+  backdrop-filter: blur(12px);
+  background: rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.03);
+}
+
+.chart-card h2,
+.glass-card h2 {
+  color: #f97316;
+  margin-bottom: 1rem;
+}
+
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.custom-table th,
+.custom-table td {
+  padding: 0.7rem;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+.status-pending {
+  color: #facc15;
+}
+
+.dual-section {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+  gap: 1.5rem;
+  margin-top: 2rem;
+}
+
+.message-list li {
+  margin: 0.5rem 0;
+  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
+  padding-bottom: 0.5rem;
+}
+
+.campaign-card {
+  padding: 1rem;
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.05);
+  margin-bottom: 1rem;
+  transition: 0.3s;
+}
+
+.campaign-card:hover {
+  background: rgba(255, 255, 255, 0.1);
+}
+
+.quick-actions {
+  margin-top: 2.5rem;
+  display: flex;
+  gap: 1rem;
+  justify-content: center;
+}
+
+.quick-actions button {
+  background: linear-gradient(90deg, #f97316, #ea580c);
+  border: none;
+  padding: 0.8rem 1.5rem;
+  border-radius: 8px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: 0.3s;
+  color: white;
+}
+
+.quick-actions button:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 0 12px #f97316;
+}
+
+.loading-screen {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  height: 100vh;
+  background: #0f1114;
+  color: #f97316;
+  font-size: 1.3rem;
+  letter-spacing: 0.5px;
+}
 </file>
 
-<file path="src/theme.js">
-import { createTheme } from "@mui/material/styles";
+<file path="src/services/socket.js">
+// src/services/socket.js
+import { io } from "socket.io-client";
 
-const theme = createTheme({
-  palette: {
-    mode: "light",
-    background: {
-      default: "#f4f5f7",
-      paper: "#ffffff",
-    },
-    primary: { main: "#000000" }, // black accents
-    secondary: { main: "#616161" },
-    text: {
-      primary: "#111",
-      secondary: "#555",
-    },
+const socket = io(import.meta.env.VITE_API_URL.replace("/api", ""), {
+  transports: ["websocket"],
+  auth: {
+    token: localStorage.getItem("token"), // JWT from backend auth
   },
-  shape: { borderRadius: 20 },
-  typography: {
-    fontFamily: "'Poppins', 'Inter', sans-serif",
-    h5: { fontWeight: 600 },
-  },
-  components: {
-    MuiCard: {
-      styleOverrides: {
-        root: {
-          borderRadius: 20,
-          background: "#ffffff",
-          boxShadow:
-            "6px 6px 16px rgba(0,0,0,0.1), -6px -6px 16px rgba(255,255,255,0.9)",
-          transition: "0.3s ease",
-          "&:hover": {
-            transform: "translateY(-3px)",
-            boxShadow:
-              "10px 10px 24px rgba(0,0,0,0.15), -10px -10px 24px rgba(255,255,255,0.8)",
-          },
-        },
-      },
-    },
-  },
+  reconnection: true,
 });
 
-export default theme;
+export default socket;
 </file>
 
 <file path="vite.config.js">
@@ -510,7 +891,7 @@ export default function Layout() {
       style={{
         minHeight: "100vh",
         display: "flex",
-        background: "linear-gradient(135deg, #0f172a, #1e293b, #0f172a)",
+        background: "var(--bg-glow), var(--bg-base)",
         color: "#f8fafc",
         overflow: "hidden",
       }}
@@ -544,11 +925,11 @@ export default function Layout() {
         >
           <div
             style={{
-              background: "rgba(255,255,255,0.03)",
-              borderRadius: "16px",
+              background: "rgba(255,255,255,0.035)",
+              borderRadius: "20px",
               padding: "2rem",
               boxShadow:
-                "0 4px 20px rgba(0,0,0,0.4), inset 0 0 10px rgba(255,255,255,0.05)",
+                "0 4px 28px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.05)",
               backdropFilter: "blur(10px)",
               minHeight: "85vh",
             }}
@@ -575,7 +956,7 @@ import {
 } from "recharts";
 
 export default function PieChartCard({ title, data = [] }) {
-  const COLORS = ["#3b82f6", "#22c55e", "#f97316", "#ef4444", "#8b5cf6"];
+  const COLORS = ["#f97316", "#22c55e", "#a78bfa", "#ef4444", "#06b6d4"];
 
   // ✅ Ensure data is always an array in the correct format
   const chartData = Array.isArray(data)
@@ -593,7 +974,7 @@ export default function PieChartCard({ title, data = [] }) {
           borderRadius: 3,
           boxShadow: 2,
           p: 2,
-          backgroundColor: "#0f172a",
+          backgroundColor: "rgba(255,255,255,0.04)",
           color: "#94a3b8",
           textAlign: "center",
         }}
@@ -612,7 +993,7 @@ export default function PieChartCard({ title, data = [] }) {
         borderRadius: 3,
         boxShadow: 2,
         p: 2,
-        backgroundColor: "#1e293b",
+        backgroundColor: "rgba(255,255,255,0.04)",
         color: "#e2e8f0",
       }}
     >
@@ -641,8 +1022,8 @@ export default function PieChartCard({ title, data = [] }) {
             </Pie>
             <Tooltip
               contentStyle={{
-                backgroundColor: "#0f172a",
-                border: "1px solid #334155",
+                backgroundColor: "rgba(12,12,14,0.9)",
+                border: "1px solid rgba(255,255,255,0.08)",
                 color: "#e2e8f0",
               }}
             />
@@ -669,6 +1050,34 @@ export default function ProtectedRoute({ children, roles = [] }) {
   }
   return children;
 }
+</file>
+
+<file path="src/main.jsx">
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.jsx'
+import { ThemeProvider, CssBaseline } from '@mui/material'
+import getTheme from './theme.js'
+import { ThemeModeProvider, useThemeMode } from './context/ThemeContext.jsx'
+
+function ThemedApp() {
+  const { mode } = useThemeMode();
+  return (
+    <ThemeProvider theme={getTheme(mode)}>
+      <CssBaseline />
+      <App />
+    </ThemeProvider>
+  )
+}
+
+createRoot(document.getElementById('root')).render(
+  <StrictMode>
+    <ThemeModeProvider>
+      <ThemedApp />
+    </ThemeModeProvider>
+  </StrictMode>,
+)
 </file>
 
 <file path="src/pages/Admin.jsx">
@@ -754,869 +1163,6 @@ export default function Campaigns() {
     </div>
   );
 }
-</file>
-
-<file path="src/pages/dashboards/AccountsDashboard.jsx">
-import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import { useNavigate } from "react-router-dom";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
-
-export default function AccountsDashboard() {
-  const navigate = useNavigate();
-  const [summary, setSummary] = useState({});
-  const [statements, setStatements] = useState([]);
-  const [financialData, setFinancialData] = useState([]);
-  const [pendingReconciliations, setPendingReconciliations] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-
-        // Fetch invoices & financial summary
-        const invoiceRes = await api.get("/reports/invoice-register");
-        const creditRes = await api.get("/reports/credit-debit-notes");
-        const outstandingRes = await api.get("/reports/outstanding-receivables");
-        const dealerRes = await api.get("/dealers");
-
-        // Summaries
-        setSummary({
-          invoices: invoiceRes.data.invoices?.length || 0,
-          creditNotes: creditRes.data.totalCredit || 0,
-          debitNotes: creditRes.data.totalDebit || 0,
-          outstanding: outstandingRes.data.totalOutstanding || 0,
-          totalDealers: dealerRes.data.total || 0,
-        });
-
-        // Financial performance over time
-        const monthlyData = invoiceRes.data.invoices
-          ?.slice(0, 10)
-          .map((inv) => ({
-            month: new Date(inv.invoiceDate).toLocaleString("default", { month: "short" }),
-            total: inv.totalAmount,
-            paid: inv.paidAmount,
-          })) || [];
-        setFinancialData(monthlyData);
-
-        // Account statements
-        const statementRes = await api.get("/reports/account-statement");
-        setStatements(statementRes.data.statements || []);
-
-        // Pending reconciliations (unpaid invoices)
-        setPendingReconciliations(outstandingRes.data.invoices || []);
-      } catch (err) {
-        console.error("Error fetching accounts dashboard:", err);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  if (loading)
-    return <div className="center text-center" style={{ height: "80vh" }}>Loading accounts dashboard...</div>;
-
-  return (
-    <div style={{ padding: "2rem" }}>
-      {/* Header */}
-      <div>
-        <h2 style={{ fontSize: "2rem", color: "#60a5fa" }}>Accounts Dashboard</h2>
-        <p style={{ color: "#94a3b8" }}>
-          Manage invoices, financial statements, and ensure accurate reconciliation.
-        </p>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid mt-4">
-        <Card title="Total Invoices" value={summary.invoices} icon="🧾" onClick={() => navigate("/reports")} />
-        <Card title="Total Credit Notes" value={`₹${summary.creditNotes}`} icon="📈" onClick={() => navigate("/reports")} />
-        <Card title="Total Debit Notes" value={`₹${summary.debitNotes}`} icon="📉" onClick={() => navigate("/reports")} />
-        <Card title="Outstanding (₹)" value={summary.outstanding} icon="💰" />
-      </div>
-
-      {/* Financial Performance Chart */}
-      <div className="card mt-6">
-        <h3>Financial Performance Overview</h3>
-        {financialData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={financialData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="month" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="total" stroke="#3b82f6" name="Total Invoices" />
-              <Line type="monotone" dataKey="paid" stroke="#22c55e" name="Paid Amount" />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No financial data available</p>
-        )}
-      </div>
-
-      {/* Account Statements */}
-      <div className="card mt-6">
-        <h3>Recent Account Statements</h3>
-        {statements.length > 0 ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Dealer</th>
-                <th>Date</th>
-                <th>Debit</th>
-                <th>Credit</th>
-                <th>Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {statements.slice(0, 5).map((stmt) => (
-                <tr key={stmt.id}>
-                  <td>{stmt.dealer?.businessName || "N/A"}</td>
-                  <td>{new Date(stmt.statementDate).toLocaleDateString()}</td>
-                  <td>{stmt.debitAmount}</td>
-                  <td>{stmt.creditAmount}</td>
-                  <td>{stmt.balance}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No recent account statements</p>
-        )}
-      </div>
-
-      {/* Pending Reconciliations */}
-      <div className="card mt-6">
-        <h3>Pending Reconciliation</h3>
-        {pendingReconciliations.length > 0 ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Invoice #</th>
-                <th>Dealer</th>
-                <th>Due Date</th>
-                <th>Balance</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingReconciliations.slice(0, 5).map((inv) => (
-                <tr key={inv.id}>
-                  <td>{inv.invoiceNumber}</td>
-                  <td>{inv.dealer?.businessName || "N/A"}</td>
-                  <td>{new Date(inv.dueDate).toLocaleDateString()}</td>
-                  <td>{inv.balanceAmount}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>All reconciliations are up-to-date!</p>
-        )}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="mt-6 flex" style={{ gap: "1rem" }}>
-        <button className="primary" onClick={() => navigate("/reports")}>
-          📊 Generate Financial Reports
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/invoices")}
-          style={{ background: "linear-gradient(90deg, #3b82f6, #2563eb)" }}
-        >
-          🧾 View Invoices
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/reports")}
-          style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}
-        >
-          💼 View Credit/Debit Notes
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// Card Component
-const Card = ({ title, value, icon, onClick }) => (
-  <div className="card hover-glow" onClick={onClick}>
-    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-      <span style={{ fontSize: "1.5rem" }}>{icon}</span>
-      <h4>{title}</h4>
-    </div>
-    <p style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#3b82f6" }}>{value}</p>
-  </div>
-);
-</file>
-
-<file path="src/pages/dashboards/AdminDashboard.jsx">
-import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import { useNavigate } from "react-router-dom";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-
-export default function AdminDashboard() {
-  const navigate = useNavigate();
-  const [summary, setSummary] = useState({});
-  const [approvals, setApprovals] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
-  const [dealerActivity, setDealerActivity] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-
-        // ✅ 1. Admin summary using dealer performance as proxy
-        const performanceRes = await api.get("/reports/dealer-performance");
-        const invoices = performanceRes.data?.invoices || [];
-        const totalSales = performanceRes.data?.totalSales || 0;
-        const dealers = new Set(invoices.map((i) => i.dealerId)).size;
-
-        setSummary({
-          activeCampaigns: 0, // will update below
-          dealers,
-          pendingApprovals: 5, // mock fallback if not implemented yet
-          blockedDealers: 2,
-          totalSales,
-        });
-
-        // ✅ 2. Campaigns
-        const campaignRes = await api.get("/campaigns");
-        setCampaigns(campaignRes.data.campaigns || campaignRes.data);
-        setSummary((prev) => ({
-          ...prev,
-          activeCampaigns: campaignRes.data.campaigns?.length || 0,
-        }));
-
-        // ✅ 3. Simulated dealer activity (based on invoices by month)
-        const monthly = {};
-        invoices.forEach((i) => {
-          const month = new Date(i.invoiceDate).toLocaleString("default", {
-            month: "short",
-          });
-          monthly[month] = monthly[month] || { dealersOnboarded: 0, blockedDealers: 0 };
-          monthly[month].dealersOnboarded += 1;
-        });
-        const dealerTrend = Object.keys(monthly).map((m) => ({
-          month: m,
-          dealersOnboarded: monthly[m].dealersOnboarded,
-          blockedDealers: Math.floor(Math.random() * 3),
-        }));
-        setDealerActivity(dealerTrend);
-
-        // ✅ 4. Pending approvals (placeholder - will connect later)
-        const approvalRes = await api.get("/documents").catch(() => ({ data: [] }));
-        setApprovals(approvalRes.data || []);
-      } catch (e) {
-        console.error("Error fetching admin dashboard:", e);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  if (loading)
-    return (
-      <div className="center text-center" style={{ height: "80vh" }}>
-        Loading admin dashboard...
-      </div>
-    );
-
-  return (
-    <div style={{ padding: "2rem" }}>
-      {/* Header */}
-      <div>
-        <h2 style={{ fontSize: "2rem", color: "#2563eb", marginBottom: "0.3rem" }}>
-          Administrator Dashboard
-        </h2>
-        <p style={{ color: "#6b7280" }}>
-          Manage campaigns, dealer approvals, and monitor business operations.
-        </p>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid mt-4">
-        <Card
-          title="Active Campaigns"
-          value={summary.activeCampaigns || 0}
-          icon="📢"
-          onClick={() => navigate("/campaigns")}
-        />
-        <Card
-          title="Registered Dealers"
-          value={summary.dealers || 0}
-          icon="🏪"
-          onClick={() => navigate("/admin")}
-        />
-        <Card
-          title="Pending Approvals"
-          value={summary.pendingApprovals || 0}
-          icon="🕒"
-          onClick={() => navigate("/documents")}
-        />
-        <Card title="Blocked Dealers" value={summary.blockedDealers || 0} icon="🚫" />
-      </div>
-
-      {/* Dealer Activity Chart */}
-      <div className="card mt-6">
-        <h3 style={{ color: "#2563eb" }}>Dealer Activity (Last 6 Months)</h3>
-        {dealerActivity.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={dealerActivity}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
-              <Tooltip />
-              <Bar dataKey="dealersOnboarded" fill="#2563eb" name="Dealers Onboarded" />
-              <Bar dataKey="blockedDealers" fill="#ef4444" name="Blocked Dealers" />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No dealer activity data available</p>
-        )}
-      </div>
-
-      {/* Pending Approvals Table */}
-      <div className="card mt-6">
-        <h3 style={{ color: "#2563eb" }}>Pending Approvals</h3>
-        {approvals.length > 0 ? (
-          <table className="styled-table">
-            <thead>
-              <tr>
-                <th>Dealer</th>
-                <th>Document Type</th>
-                <th>Uploaded On</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {approvals.slice(0, 5).map((a) => (
-                <tr key={a.id}>
-                  <td>{a.dealerName}</td>
-                  <td>{a.documentType}</td>
-                  <td>{new Date(a.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    <button
-                      className="approve-btn"
-                      style={{
-                        marginRight: "0.5rem",
-                        background: "linear-gradient(90deg, #22c55e, #16a34a)",
-                      }}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      className="reject-btn"
-                      style={{
-                        background: "linear-gradient(90deg, #ef4444, #b91c1c)",
-                      }}
-                    >
-                      Reject
-                    </button>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No pending approvals</p>
-        )}
-      </div>
-
-      {/* Campaign Overview */}
-      <div className="card mt-6">
-        <h3 style={{ color: "#2563eb" }}>Active Campaigns</h3>
-        {campaigns.length > 0 ? (
-          <div className="grid">
-            {campaigns.slice(0, 4).map((c) => (
-              <div
-                key={c.id}
-                className="card hover-glow"
-                style={{ cursor: "pointer" }}
-                onClick={() => navigate(`/campaigns/${c.id}`)}
-              >
-                <h4 style={{ color: "#1e40af" }}>{c.title}</h4>
-                <p style={{ color: "#6b7280" }}>{c.description}</p>
-                <p style={{ fontSize: "0.8rem", color: "#9ca3af" }}>
-                  Valid till: {new Date(c.endDate).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No active campaigns</p>
-        )}
-      </div>
-
-      {/* Quick Admin Actions */}
-      <div className="mt-6 flex" style={{ gap: "1rem" }}>
-        <button className="primary" onClick={() => navigate("/campaigns")}>
-          ➕ Create Campaign
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/admin")}
-          style={{
-            background: "linear-gradient(90deg, #facc15, #eab308)",
-          }}
-        >
-          ⚙️ Manage Dealers
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/reports")}
-          style={{
-            background: "linear-gradient(90deg, #3b82f6, #2563eb)",
-          }}
-        >
-          📊 View Reports
-        </button>
-      </div>
-    </div>
-  );
-}
-
-const Card = ({ title, value, icon, onClick }) => (
-  <div className="card hover-glow" onClick={onClick}>
-    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-      <span style={{ fontSize: "1.5rem" }}>{icon}</span>
-      <h4>{title}</h4>
-    </div>
-    <p
-      style={{
-        fontSize: "1.8rem",
-        fontWeight: "bold",
-        color: "#2563eb",
-        marginTop: "0.3rem",
-      }}
-    >
-      {value}
-    </p>
-  </div>
-);
-</file>
-
-<file path="src/pages/dashboards/InventoryDashboard.jsx">
-import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-
-export default function InventoryDashboard() {
-  const [inventory, setInventory] = useState([]);
-  const [summary, setSummary] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [newStock, setNewStock] = useState("");
-
-  useEffect(() => {
-    const fetchInventory = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get("/inventory");
-        setInventory(res.data.inventory || []);
-        setSummary(res.data.summary || {});
-      } catch (err) {
-        console.error("Error fetching inventory:", err);
-        setError("Failed to load inventory data.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchInventory();
-  }, []);
-
-  const handleStockUpdate = async (id) => {
-    if (!newStock || isNaN(newStock)) {
-      alert("Enter a valid number for stock.");
-      return;
-    }
-    try {
-      await api.patch(`/inventory/${id}`, { stock: parseInt(newStock) });
-      alert("Stock updated successfully!");
-      const res = await api.get("/inventory");
-      setInventory(res.data.inventory || []);
-      setSelectedProduct(null);
-      setNewStock("");
-    } catch (err) {
-      console.error("Error updating stock:", err);
-      alert("Failed to update stock.");
-    }
-  };
-
-  if (loading)
-    return <div className="center text-center" style={{ height: "80vh" }}>Loading inventory dashboard...</div>;
-  if (error) return <p className="error">{error}</p>;
-
-  return (
-    <div style={{ padding: "2rem" }}>
-      {/* Header */}
-      <div>
-        <h2 style={{ fontSize: "2rem", color: "#60a5fa" }}>Inventory Dashboard</h2>
-        <p style={{ color: "#94a3b8" }}>
-          Monitor stock across plants and ensure real-time SAP visibility.
-        </p>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid mt-4">
-        <Card title="Total Products" value={inventory.length} icon="📦" />
-        <Card title="Active Plants" value={new Set(inventory.map(i => i.plant)).size} icon="🏭" />
-        <Card title="Low Stock Items" value={inventory.filter(i => i.stock < 10).length} icon="⚠️" />
-        <Card title="Total Stock" value={inventory.reduce((sum, i) => sum + i.stock, 0)} icon="📊" />
-      </div>
-
-      {/* Inventory Chart */}
-      <div className="card mt-6">
-        <h3>Stock Overview by Plant</h3>
-        {inventory.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={aggregateByPlant(inventory)}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="plant" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip />
-              <Bar dataKey="totalStock" fill="#3b82f6" name="Total Stock" />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No inventory data available</p>
-        )}
-      </div>
-
-      {/* Inventory Table */}
-      <div className="card mt-6">
-        <h3>Product Inventory Details</h3>
-        {inventory.length > 0 ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Product</th>
-                <th>Plant</th>
-                <th>Stock</th>
-                <th>UOM</th>
-                <th>Last Updated</th>
-                <th>Action</th>
-              </tr>
-            </thead>
-            <tbody>
-              {inventory.map((item) => (
-                <tr key={item.id}>
-                  <td>{item.name}</td>
-                  <td>{item.plant}</td>
-                  <td
-                    style={{
-                      color: item.stock < 10 ? "red" : "inherit",
-                      fontWeight: item.stock < 10 ? "bold" : "normal",
-                    }}
-                  >
-                    {item.stock}
-                  </td>
-                  <td>{item.uom}</td>
-                  <td>{new Date(item.lastUpdatedAt).toLocaleDateString()}</td>
-                  <td>
-                    {selectedProduct === item.id ? (
-                      <div>
-                        <input
-                          type="number"
-                          placeholder="New stock"
-                          value={newStock}
-                          onChange={(e) => setNewStock(e.target.value)}
-                          style={{ width: "70px", marginRight: "0.5rem" }}
-                        />
-                        <button
-                          className="primary"
-                          style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}
-                          onClick={() => handleStockUpdate(item.id)}
-                        >
-                          Save
-                        </button>
-                        <button
-                          className="primary"
-                          style={{
-                            background: "linear-gradient(90deg, #ef4444, #b91c1c)",
-                            marginLeft: "0.5rem",
-                          }}
-                          onClick={() => setSelectedProduct(null)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        className="primary"
-                        style={{
-                          background: "linear-gradient(90deg, #3b82f6, #2563eb)",
-                        }}
-                        onClick={() => setSelectedProduct(item.id)}
-                      >
-                        Update Stock
-                      </button>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No inventory records available.</p>
-        )}
-      </div>
-    </div>
-  );
-}
-
-/* Helper: Aggregate stock by plant for the chart */
-const aggregateByPlant = (data) => {
-  const plantTotals = {};
-  data.forEach((item) => {
-    if (!plantTotals[item.plant]) plantTotals[item.plant] = 0;
-    plantTotals[item.plant] += item.stock;
-  });
-  return Object.keys(plantTotals).map((plant) => ({
-    plant,
-    totalStock: plantTotals[plant],
-  }));
-};
-
-/* Reusable summary card */
-const Card = ({ title, value, icon }) => (
-  <div className="card hover-glow">
-    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-      <span style={{ fontSize: "1.5rem" }}>{icon}</span>
-      <h4>{title}</h4>
-    </div>
-    <p style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#3b82f6" }}>{value}</p>
-  </div>
-);
-</file>
-
-<file path="src/pages/dashboards/ManagerDashboard.jsx">
-import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import { useNavigate } from "react-router-dom";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
-
-export default function ManagerDashboard() {
-  const navigate = useNavigate();
-  const [summary, setSummary] = useState({});
-  const [dealerPerformance, setDealerPerformance] = useState([]);
-  const [pendingApprovals, setPendingApprovals] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
-  const [loading, setLoading] = useState(true);
-
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-
-        // Summary for TM/AM region
-        const summaryRes = await api.get("/reports/dealer-performance");
-        setSummary(summaryRes.data || {});
-
-        // Dealer performance trend
-        const perfRes = await api.get("/reports/territory");
-        setDealerPerformance(perfRes.data.report || []);
-
-        // Pending dealer document approvals (filtered by region)
-        const approvalsRes = await api.get("/reports/pending-approvals");
-        setPendingApprovals(approvalsRes.data || []);
-
-        // Messages from dealers
-        const msgRes = await api.get("/messages");
-        setMessages(msgRes.data.messages || msgRes.data || []);
-
-        // Active campaigns in region
-        const campRes = await api.get("/campaigns");
-        setCampaigns(campRes.data.campaigns || campRes.data || []);
-      } catch (err) {
-        console.error("Manager dashboard load error:", err);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  if (loading)
-    return <div className="center text-center" style={{ height: "80vh" }}>Loading manager dashboard...</div>;
-
-  return (
-    <div style={{ padding: "2rem" }}>
-      {/* Header */}
-      <div>
-        <h2 style={{ fontSize: "2rem", color: "#60a5fa" }}>Manager Dashboard</h2>
-        <p style={{ color: "#94a3b8" }}>
-          Monitor dealers, campaigns, and regional activities in your assigned territory.
-        </p>
-      </div>
-
-      {/* Summary Cards */}
-      <div className="grid mt-4">
-        <Card title="Total Dealers" value={summary.totalInvoices || 0} icon="🏪" onClick={() => navigate("/dealers")} />
-        <Card title="Active Campaigns" value={campaigns.length} icon="📢" onClick={() => navigate("/campaigns")} />
-        <Card title="Pending Approvals" value={pendingApprovals.length} icon="🕒" onClick={() => navigate("/reports")} />
-        <Card title="New Messages" value={messages.length} icon="💬" onClick={() => navigate("/messages")} />
-      </div>
-
-      {/* Dealer Performance Chart */}
-      <div className="card mt-6">
-        <h3>Dealer Performance by Territory</h3>
-        {dealerPerformance.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={dealerPerformance}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="businessName" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip />
-              <Legend />
-              <Bar dataKey="totalSales" fill="#3b82f6" name="Sales (₹)" />
-              <Bar dataKey="outstanding" fill="#ef4444" name="Outstanding (₹)" />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No dealer performance data available</p>
-        )}
-      </div>
-
-      {/* Pending Approvals */}
-      <div className="card mt-6">
-        <h3>Pending Dealer Approvals</h3>
-        {pendingApprovals.length > 0 ? (
-          <table>
-            <thead>
-              <tr>
-                <th>Dealer</th>
-                <th>Document</th>
-                <th>Date</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {pendingApprovals.map((a) => (
-                <tr key={a.id}>
-                  <td>{a.dealerName}</td>
-                  <td>{a.documentType}</td>
-                  <td>{new Date(a.createdAt).toLocaleDateString()}</td>
-                  <td>Pending</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No pending approvals</p>
-        )}
-      </div>
-
-      {/* Recent Messages */}
-      <div className="card mt-6">
-        <h3>Recent Dealer Messages</h3>
-        {messages.length > 0 ? (
-          <ul>
-            {messages.slice(0, 5).map((msg) => (
-              <li key={msg.id} style={{ margin: "0.5rem 0" }}>
-                <strong>{msg.dealerName}</strong>: {msg.subject} —{" "}
-                <span style={{ color: "#64748b" }}>{msg.status || "Unread"}</span>
-              </li>
-            ))}
-          </ul>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No new messages</p>
-        )}
-      </div>
-
-      {/* Active Campaigns */}
-      <div className="card mt-6">
-        <h3>Active Campaigns</h3>
-        {campaigns.length > 0 ? (
-          <div className="grid">
-            {campaigns.slice(0, 3).map((c) => (
-              <div key={c.id} className="card hover-glow" style={{ cursor: "pointer" }}>
-                <h4 style={{ color: "#60a5fa" }}>{c.title}</h4>
-                <p style={{ color: "#94a3b8" }}>{c.description}</p>
-                <p style={{ fontSize: "0.8rem", color: "#64748b" }}>
-                  Valid till: {new Date(c.endDate).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No active campaigns</p>
-        )}
-      </div>
-
-      {/* Quick Actions */}
-      <div className="mt-6 flex" style={{ gap: "1rem" }}>
-        <button className="primary" onClick={() => navigate("/reports")}>
-          📊 View Reports
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/messages")}
-          style={{ background: "linear-gradient(90deg, #3b82f6, #2563eb)" }}
-        >
-          💬 View Messages
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/campaigns")}
-          style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}
-        >
-          📢 Regional Campaigns
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// 📦 Card Component
-const Card = ({ title, value, icon, onClick }) => (
-  <div className="card hover-glow" onClick={onClick}>
-    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-      <span style={{ fontSize: "1.5rem" }}>{icon}</span>
-      <h4>{title}</h4>
-    </div>
-    <p style={{ fontSize: "1.8rem", fontWeight: "bold", color: "#3b82f6" }}>{value}</p>
-  </div>
-);
 </file>
 
 <file path="src/pages/Documents.jsx">
@@ -1723,45 +1269,92 @@ export default function Invoices(){
 }
 </file>
 
-<file path="src/services/api.js">
-import axios from "axios";
+<file path="src/theme.js">
+import { createTheme } from "@mui/material/styles";
 
-const api = axios.create({
-  baseURL: "http://localhost:3000/api",
-  withCredentials: true,
-});
+export function getTheme(mode = "dark") {
+  const isDark = mode === "dark";
+  return createTheme({
+    palette: {
+      mode: isDark ? "dark" : "light",
+      background: {
+        default: isDark ? "#0b0d10" : "#0e0f12",
+        paper: isDark ? "#0b1222" : "#12161c",
+      },
+      primary: { main: isDark ? "#f97316" : "#f97316" },
+      secondary: { main: isDark ? "#a78bfa" : "#a78bfa" },
+      success: { main: "#22c55e" },
+      error: { main: "#ef4444" },
+      warning: { main: "#f59e0b" },
+      info: { main: "#60a5fa" },
+      text: {
+        primary: isDark ? "#e2e8f0" : "#e5e7eb",
+        secondary: isDark ? "#94a3b8" : "#a1a1aa",
+      },
+    },
+    shape: { borderRadius: 20 },
+    typography: {
+      fontFamily: "'Poppins', 'Inter', sans-serif",
+      h1: { fontWeight: 700 },
+      h2: { fontWeight: 700 },
+      h3: { fontWeight: 600 },
+      h4: { fontWeight: 600 },
+      h5: { fontWeight: 600 },
+      body1: { lineHeight: 1.6 },
+    },
+    components: {
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            borderRadius: 20,
+            background: "rgba(255,255,255,0.04)",
+            boxShadow:
+              "0 10px 30px rgba(0,0,0,0.35), inset 0 0 10px rgba(255,255,255,0.04)",
+            transition: "0.3s ease",
+            "&:hover": {
+              transform: "translateY(-3px)",
+              boxShadow:
+                "0 16px 40px rgba(0,0,0,0.45), inset 0 0 10px rgba(255,255,255,0.06)",
+            },
+          },
+        },
+      },
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            borderRadius: 10,
+            textTransform: "none",
+            fontWeight: 600,
+            paddingInline: 16,
+            paddingBlock: 8,
+          },
+        },
+      },
+      MuiTableCell: {
+        styleOverrides: {
+          head: { fontWeight: 700 },
+        },
+      },
+    },
+  });
+}
 
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`; // ✅ backend expects this format
-  }
-  return config;
-});
-
-api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
-    }
-    return Promise.reject(err);
-  }
-);
-
-export default api;
+export default getTheme;
 </file>
 
 <file path="src/components/Navbar.jsx">
-import React, { useContext } from "react";
+import React, { useContext, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
+import SearchInput from "./SearchInput";
+import IconPillButton from "./IconPillButton";
+import { useThemeMode } from "../context/ThemeContext";
 
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
+  const [globalSearch, setGlobalSearch] = useState("");
+  const { mode, toggle } = useThemeMode();
 
   const handleLogout = () => {
     logout();
@@ -1774,54 +1367,55 @@ export default function Navbar() {
         display: "flex",
         justifyContent: "space-between",
         alignItems: "center",
-        padding: "1rem 2rem",
-        background: "rgba(15, 23, 42, 0.8)",
-        backdropFilter: "blur(12px)",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.1)",
-        boxShadow: "0 4px 20px rgba(0,0,0,0.4)",
+        gap: "1rem",
+        padding: "0.9rem 1.5rem",
+        background: "rgba(12, 12, 14, 0.75)",
+        backdropFilter: "blur(14px)",
+        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
+        boxShadow: "0 4px 24px rgba(0,0,0,0.45)",
+        position: "sticky",
+        top: 0,
+        zIndex: 30,
       }}
     >
-      <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
         <img
           src="/logo192.png"
           alt="Portal Logo"
           style={{ width: "32px", height: "32px", borderRadius: "50%" }}
         />
-        <strong style={{ fontSize: "1.2rem", color: "#60a5fa" }}>
+        <strong style={{ fontSize: "1.15rem", color: "#f97316" }}>
           Dealer Portal
         </strong>
       </div>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+      <div style={{ flex: 1, maxWidth: 680 }}>
+        <SearchInput
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+          placeholder="Search across app..."
+        />
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
+        <IconPillButton
+          icon={mode === "dark" ? "🌙" : "☀️"}
+          label={mode === "dark" ? "Dark" : "Light"}
+          tone="warning"
+          onClick={toggle}
+        />
+        <IconPillButton
+          icon="🧾"
+          label="New Invoice"
+          tone="primary"
+          onClick={() => navigate("/invoices")}
+        />
         {user && (
           <span style={{ color: "#cbd5e1" }}>
             👋 Hi, <strong>{user.name || user.username}</strong>
           </span>
         )}
-        <button
-          onClick={handleLogout}
-          style={{
-            background: "linear-gradient(90deg, #3b82f6, #2563eb)",
-            border: "none",
-            borderRadius: "8px",
-            padding: "0.5rem 1.2rem",
-            color: "#fff",
-            fontWeight: "500",
-            cursor: "pointer",
-            boxShadow: "0 0 10px rgba(59,130,246,0.4)",
-            transition: "transform 0.2s, box-shadow 0.2s",
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.boxShadow = "0 0 18px rgba(59,130,246,0.8)";
-            e.target.style.transform = "translateY(-2px)";
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.boxShadow = "0 0 10px rgba(59,130,246,0.4)";
-            e.target.style.transform = "translateY(0)";
-          }}
-        >
-          Logout
-        </button>
+        <IconPillButton icon="🚪" label="Logout" tone="danger" onClick={handleLogout} />
       </div>
     </nav>
   );
@@ -1829,12 +1423,24 @@ export default function Navbar() {
 </file>
 
 <file path="src/index.css">
-/* 🌌 Modern Glass Dashboard Theme */
+/* 🌌 Modern Glass Dashboard Theme with theme variables */
+
+:root {
+  --bg-base: linear-gradient(135deg, #0b0d10, #141216);
+  --bg-glow: radial-gradient(circle at 20% 0%, rgba(249, 115, 22, 0.06), transparent 35%);
+  --accent: #f97316;
+}
+
+[data-theme="light"] {
+  --bg-base: linear-gradient(135deg, #0e0f12, #12161c);
+  --bg-glow: radial-gradient(circle at 80% 0%, rgba(249, 115, 22, 0.08), transparent 40%);
+  --accent: #f97316;
+}
 
 body {
   margin: 0;
   font-family: "Inter", "Segoe UI", sans-serif;
-  background: linear-gradient(135deg, #0f172a, #1e293b);
+  background: var(--bg-glow), var(--bg-base);
   color: #e2e8f0;
   min-height: 100vh;
   overflow-x: hidden;
@@ -1846,7 +1452,7 @@ nav {
   justify-content: space-between;
   align-items: center;
   padding: 1rem 2rem;
-  background: rgba(30, 41, 59, 0.8);
+  background: rgba(12, 12, 14, 0.75);
   backdrop-filter: blur(12px);
   border-bottom: 1px solid rgba(255, 255, 255, 0.1);
   color: #fff;
@@ -1855,11 +1461,11 @@ nav {
 
 nav strong {
   font-size: 1.3rem;
-  color: #60a5fa;
+  color: #f97316;
 }
 
 nav button {
-  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  background: linear-gradient(90deg, #f97316, #ea580c);
   color: white;
   border: none;
   padding: 0.6rem 1.2rem;
@@ -1870,7 +1476,7 @@ nav button {
 }
 
 nav button:hover {
-  background: linear-gradient(90deg, #2563eb, #1d4ed8);
+  background: linear-gradient(90deg, #ea580c, #c2410c);
 }
 
 /* 🔹 SIDEBAR */
@@ -1898,15 +1504,15 @@ aside a {
 }
 
 aside a:hover {
-  background: rgba(59, 130, 246, 0.15);
-  color: #60a5fa;
+  background: rgba(249, 115, 22, 0.15);
+  color: #f97316;
   transform: translateX(3px);
 }
 
 aside a.active {
-  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  background: linear-gradient(90deg, #f97316, #ea580c);
   color: white;
-  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
 }
 
 /* 🔹 MAIN CONTAINER */
@@ -1930,7 +1536,7 @@ main {
 
 .card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
 }
 
 /* 🔹 TABLE */
@@ -1948,8 +1554,8 @@ td {
 
 th {
   text-align: left;
-  background: rgba(255, 255, 255, 0.08);
-  color: #93c5fd;
+  background: rgba(249, 115, 22, 0.1);
+  color: #fbbf24;
 }
 
 tr:hover {
@@ -1958,13 +1564,13 @@ tr:hover {
 
 /* 🔹 HEADINGS */
 h2, h3 {
-  color: #60a5fa;
+  color: #f97316;
   font-weight: 600;
 }
 
 /* 🔹 QUICK ACTION BUTTONS */
 button.primary {
-  background: linear-gradient(90deg, #3b82f6, #2563eb);
+  background: linear-gradient(90deg, #f97316, #ea580c);
   border: none;
   padding: 0.6rem 1.2rem;
   color: white;
@@ -1974,7 +1580,7 @@ button.primary {
 }
 
 button.primary:hover {
-  box-shadow: 0 0 15px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 0 15px rgba(249, 115, 22, 0.45);
   transform: scale(1.05);
 }
 
@@ -2005,7 +1611,7 @@ button.primary:hover {
 
 /* Glowing Hover */
 .hover-glow:hover {
-  box-shadow: 0 0 20px rgba(59, 130, 246, 0.5);
+  box-shadow: 0 0 20px rgba(249, 115, 22, 0.5);
   transition: 0.3s;
 }
 </file>
@@ -2040,6 +1646,718 @@ export default function Dashboard() {
       return <p>No dashboard available for role: {user.role}</p>;
   }
 }
+</file>
+
+<file path="src/pages/dashboards/AccountsDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import { useNavigate } from "react-router-dom";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import DataTable from "../../components/DataTable";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+import DonutProgress from "../../components/DonutProgress";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+
+export default function AccountsDashboard() {
+  const navigate = useNavigate();
+  const [summary, setSummary] = useState({});
+  const [statements, setStatements] = useState([]);
+  const [financialData, setFinancialData] = useState([]);
+  const [pendingReconciliations, setPendingReconciliations] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      try {
+        setLoading(true);
+
+        // Fetch invoices & financial summary
+        const invoiceRes = await api.get("/reports/invoice-register");
+        const creditRes = await api.get("/reports/credit-debit-notes");
+        const outstandingRes = await api.get("/reports/outstanding-receivables");
+        const dealerRes = await api.get("/dealers");
+
+        // Summaries
+        setSummary({
+          invoices: invoiceRes.data.invoices?.length || 0,
+          creditNotes: creditRes.data.totalCredit || 0,
+          debitNotes: creditRes.data.totalDebit || 0,
+          outstanding: outstandingRes.data.totalOutstanding || 0,
+          totalDealers: dealerRes.data.total || 0,
+        });
+
+        // Financial performance over time
+        const monthlyData = invoiceRes.data.invoices
+          ?.slice(0, 10)
+          .map((inv) => ({
+            month: new Date(inv.invoiceDate).toLocaleString("default", { month: "short" }),
+            total: inv.totalAmount,
+            paid: inv.paidAmount,
+          })) || [];
+        setFinancialData(monthlyData);
+
+        // Account statements
+        const statementRes = await api.get("/reports/account-statement");
+        setStatements(statementRes.data.statements || []);
+
+        // Pending reconciliations (unpaid invoices)
+        setPendingReconciliations(outstandingRes.data.invoices || []);
+      } catch (err) {
+        console.error("Error fetching accounts dashboard:", err);
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  if (loading)
+    return <div className="center text-center" style={{ height: "80vh" }}>Loading accounts dashboard...</div>;
+
+  return (
+    <div style={{ padding: "2rem" }}>
+      <PageHeader
+        title="Accounts Dashboard"
+        subtitle="Manage invoices, financial statements, and ensure accurate reconciliation."
+      />
+
+      <Toolbar
+        right={[
+          <IconPillButton key="new" icon="➕" label="New" tone="primary" onClick={() => navigate("/invoices")} />,
+          <IconPillButton key="export" icon="⬇️" label="Export" tone="success" onClick={() => navigate("/reports")} />,
+        ]}
+      >
+        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search invoices, dealers..." />
+      </Toolbar>
+
+      <div className="grid mt-4">
+        <StatCard title="Total Invoices" value={summary.invoices} icon="🧾" accent="#f97316" />
+        <StatCard title="Total Credit Notes" value={`₹${summary.creditNotes}`} icon="📈" accent="#22c55e" />
+        <StatCard title="Total Debit Notes" value={`₹${summary.debitNotes}`} icon="📉" accent="#ef4444" />
+        <StatCard title="Outstanding (₹)" value={summary.outstanding} icon="💰" accent="#a78bfa" />
+      </div>
+
+      <Card title="Financial Performance Overview" style={{ marginTop: "1.5rem" }}>
+        {financialData.length > 0 ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <LineChart data={financialData}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="month" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip />
+              <Legend />
+              <Line type="monotone" dataKey="total" stroke="#f97316" name="Total Invoices" />
+              <Line type="monotone" dataKey="paid" stroke="#22c55e" name="Paid Amount" />
+            </LineChart>
+          </ResponsiveContainer>
+        ) : (
+          <p style={{ color: "#94a3b8" }}>No financial data available</p>
+        )}
+      </Card>
+
+      <div className="grid mt-6">
+        <Card title="Outstanding Ratio">
+          <DonutProgress
+            value={financialData.reduce((s, d) => s + (d.total - d.paid), 0)}
+            total={financialData.reduce((s, d) => s + d.total, 0)}
+            colors={["#ef4444", "#1f2937"]}
+            label="Outstanding vs Total"
+          />
+        </Card>
+        <Card title="Paid Ratio">
+          <DonutProgress
+            value={financialData.reduce((s, d) => s + d.paid, 0)}
+            total={financialData.reduce((s, d) => s + d.total, 0)}
+            colors={["#22c55e", "#1f2937"]}
+            label="Paid vs Total"
+          />
+        </Card>
+      </div>
+
+      <Card title="Recent Account Statements" style={{ marginTop: "1.5rem" }}>
+        <DataTable
+          columns={[
+            { key: "dealer", label: "Dealer" },
+            { key: "date", label: "Date" },
+            { key: "debitAmount", label: "Debit" },
+            { key: "creditAmount", label: "Credit" },
+            { key: "balance", label: "Balance" },
+          ]}
+          rows={statements.slice(0, 5).map((stmt) => ({
+            id: stmt.id,
+            dealer: stmt.dealer?.businessName || "N/A",
+            date: new Date(stmt.statementDate).toLocaleDateString(),
+            debitAmount: stmt.debitAmount,
+            creditAmount: stmt.creditAmount,
+            balance: stmt.balance,
+          }))}
+          emptyMessage="No recent account statements"
+        />
+      </Card>
+
+      <Card title="Pending Reconciliation" style={{ marginTop: "1.5rem" }}>
+        <DataTable
+          columns={[
+            { key: "invoiceNumber", label: "Invoice #" },
+            { key: "dealer", label: "Dealer" },
+            { key: "dueDate", label: "Due Date" },
+            { key: "balanceAmount", label: "Balance" },
+          ]}
+          rows={pendingReconciliations.slice(0, 5).map((inv) => ({
+            id: inv.id,
+            invoiceNumber: inv.invoiceNumber,
+            dealer: inv.dealer?.businessName || "N/A",
+            dueDate: new Date(inv.dueDate).toLocaleDateString(),
+            balanceAmount: inv.balanceAmount,
+          }))}
+          emptyMessage="All reconciliations are up-to-date!"
+        />
+      </Card>
+
+      <div className="mt-6 flex" style={{ gap: "1rem" }}>
+        <button className="primary" onClick={() => navigate("/reports")}>
+          📊 Generate Financial Reports
+        </button>
+        <button
+          className="primary"
+          onClick={() => navigate("/invoices")}
+          style={{ background: "linear-gradient(90deg, #f97316, #ea580c)" }}
+        >
+          🧾 View Invoices
+        </button>
+        <button
+          className="primary"
+          onClick={() => navigate("/reports")}
+          style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}
+        >
+          💼 View Credit/Debit Notes
+        </button>
+      </div>
+    </div>
+  );
+}
+
+// (Stat cards moved to shared component)
+</file>
+
+<file path="src/pages/dashboards/AdminDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import socket from "../../services/socket"; // ✅ new import
+import { useNavigate } from "react-router-dom";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import DataTable from "../../components/DataTable";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+import { toast } from "react-toastify";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+export default function AdminDashboard() {
+  const navigate = useNavigate();
+  const [summary, setSummary] = useState({});
+  const [approvals, setApprovals] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [dealerActivity, setDealerActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  // 📊 Initial data fetch
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+
+        // 1️⃣ Dealer performance summary
+        const performanceRes = await api.get("/reports/dealer-performance");
+        const invoices = performanceRes.data?.invoices || [];
+        const totalSales = performanceRes.data?.totalSales || 0;
+        const dealers = new Set(invoices.map((i) => i.dealerId)).size;
+
+        setSummary({
+          activeCampaigns: 0,
+          dealers,
+          pendingApprovals: 0,
+          blockedDealers: 2,
+          totalSales,
+        });
+
+        // 2️⃣ Campaigns
+        const campaignRes = await api.get("/campaigns");
+        setCampaigns(campaignRes.data.campaigns || campaignRes.data);
+        setSummary((prev) => ({
+          ...prev,
+          activeCampaigns: campaignRes.data.campaigns?.length || 0,
+        }));
+
+        // 3️⃣ Dealer activity trend
+        const monthly = {};
+        invoices.forEach((i) => {
+          const month = new Date(i.invoiceDate).toLocaleString("default", {
+            month: "short",
+          });
+          monthly[month] = monthly[month] || {
+            dealersOnboarded: 0,
+            blockedDealers: 0,
+          };
+          monthly[month].dealersOnboarded += 1;
+        });
+        const dealerTrend = Object.keys(monthly).map((m) => ({
+          month: m,
+          dealersOnboarded: monthly[m].dealersOnboarded,
+          blockedDealers: Math.floor(Math.random() * 3),
+        }));
+        setDealerActivity(dealerTrend);
+
+        // 4️⃣ Pending approvals
+        const approvalRes = await api.get("/documents");
+        setApprovals(approvalRes.data.documents || []);
+        setSummary((prev) => ({
+          ...prev,
+          pendingApprovals: approvalRes.data.documents?.length || 0,
+        }));
+      } catch (e) {
+        console.error("Error fetching admin dashboard:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    loadData();
+  }, []);
+
+  // ⚡ Real-time socket connection
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) socket.auth = { token };
+    socket.connect();
+
+    socket.on("connect", () => console.log("✅ Admin socket connected"));
+
+    // 🆕 Dealer uploads a new document → Add to approvals
+    socket.on("document:new", (data) => {
+      toast.info(`📄 New document uploaded by Dealer ${data.dealerId}`);
+      setApprovals((prev) => [
+        {
+          id: data.id || Date.now(),
+          dealerName: data.dealerName || `Dealer ${data.dealerId}`,
+          documentType: data.documentType || "Document",
+          createdAt: new Date(),
+          status: "pending",
+        },
+        ...prev,
+      ]);
+      setSummary((prev) => ({
+        ...prev,
+        pendingApprovals: prev.pendingApprovals + 1,
+      }));
+    });
+
+    // ✅ A document was approved/rejected elsewhere
+    socket.on("document:pending:update", () => {
+      toast.info("🔁 Document approval status updated");
+      api.get("/documents").then((res) => {
+        setApprovals(res.data.documents || []);
+        setSummary((prev) => ({
+          ...prev,
+          pendingApprovals: res.data.documents?.length || 0,
+        }));
+      });
+    });
+
+    // 📨 A new campaign was pushed
+    socket.on("campaign:new", (campaign) => {
+      toast.success(`📢 New campaign launched: ${campaign.title}`);
+      setCampaigns((prev) => [campaign, ...prev]);
+      setSummary((prev) => ({
+        ...prev,
+        activeCampaigns: (prev.activeCampaigns || 0) + 1,
+      }));
+    });
+
+    // 🔔 General system notifications
+    socket.on("notification:update", (notif) => {
+      toast.info(`🔔 ${notif.message || "System update received"}`);
+    });
+
+    return () => {
+      socket.off("document:new");
+      socket.off("document:pending:update");
+      socket.off("campaign:new");
+      socket.off("notification:update");
+      socket.disconnect();
+    };
+  }, []);
+
+  // ✅ Handle approve/reject buttons
+  const handleApproval = async (id, action) => {
+    try {
+      await api.patch(`/documents/${id}/status`, { action });
+      toast.success(`Document ${action}d successfully`);
+      setApprovals((prev) => prev.filter((doc) => doc.id !== id));
+      setSummary((prev) => ({
+        ...prev,
+        pendingApprovals: prev.pendingApprovals - 1,
+      }));
+    } catch (err) {
+      toast.error(`Failed to ${action} document`);
+      console.error(err);
+    }
+  };
+
+  if (loading)
+    return (
+      <div className="center text-center" style={{ height: "80vh" }}>
+        Loading admin dashboard...
+      </div>
+    );
+
+  return (
+    <div style={{ padding: "2rem" }}>
+      <PageHeader
+        title="Administrator Dashboard"
+        subtitle="Manage campaigns, dealer approvals, and monitor business operations."
+      />
+
+      <Toolbar
+        right={[
+          <IconPillButton key="new-camp" icon="➕" label="New Campaign" onClick={() => navigate("/campaigns")} />,
+          <IconPillButton key="manage" icon="⚙️" label="Manage Dealers" tone="warning" onClick={() => navigate("/admin")} />,
+        ]}
+      >
+        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search dealers, campaigns..." />
+      </Toolbar>
+
+      <div className="grid mt-4">
+        <StatCard title="Active Campaigns" value={summary.activeCampaigns || 0} icon="📢" accent="#a78bfa" />
+        <StatCard title="Registered Dealers" value={summary.dealers || 0} icon="🏪" accent="#f97316" />
+        <StatCard title="Pending Approvals" value={summary.pendingApprovals || 0} icon="🕒" accent="#f59e0b" />
+        <StatCard title="Blocked Dealers" value={summary.blockedDealers || 0} icon="🚫" accent="#ef4444" />
+      </div>
+
+      <Card title="Dealer Activity (Last 6 Months)" style={{ marginTop: "1.5rem" }}>
+        {dealerActivity.length > 0 ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={dealerActivity}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+              <XAxis dataKey="month" stroke="#6b7280" />
+              <YAxis stroke="#6b7280" />
+              <Tooltip />
+              <Bar dataKey="dealersOnboarded" fill="#f97316" name="Dealers Onboarded" />
+              <Bar dataKey="blockedDealers" fill="#ef4444" name="Blocked Dealers" />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <p style={{ color: "#94a3b8" }}>No dealer activity data available</p>
+        )}
+      </Card>
+
+      <Card title="Pending Approvals" style={{ marginTop: "1.5rem" }}>
+        <DataTable
+          columns={[
+            { key: "dealer", label: "Dealer" },
+            { key: "documentType", label: "Document Type" },
+            { key: "uploadedOn", label: "Uploaded On" },
+            { key: "action", label: "Action" },
+          ]}
+          rows={approvals
+            .filter((a) => {
+              const q = search.toLowerCase();
+              return !q || a.dealerName?.toLowerCase().includes(q) || a.documentType?.toLowerCase().includes(q);
+            })
+            .slice(0, 10)
+            .map((a) => ({
+              id: a.id,
+              dealer: a.dealerName,
+              documentType: a.documentType,
+              uploadedOn: new Date(a.createdAt).toLocaleDateString(),
+              action: (
+                <div>
+                  <button
+                    className="primary"
+                    style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)", marginRight: "0.5rem" }}
+                    onClick={() => handleApproval(a.id, "approve")}
+                  >
+                    Approve
+                  </button>
+                  <button
+                    className="primary"
+                    style={{ background: "linear-gradient(90deg, #ef4444, #b91c1c)" }}
+                    onClick={() => handleApproval(a.id, "reject")}
+                  >
+                    Reject
+                  </button>
+                </div>
+              ),
+            }))}
+          emptyMessage="No pending approvals"
+        />
+      </Card>
+
+      <Card title="Active Campaigns" style={{ marginTop: "1.5rem" }}>
+        {campaigns.length > 0 ? (
+          <div className="grid">
+            {campaigns.slice(0, 4).map((c) => (
+              <div
+                key={c.id}
+                className="card hover-glow"
+                style={{ cursor: "pointer" }}
+                onClick={() => navigate(`/campaigns/${c.id}`)}
+              >
+                <h4 style={{ color: "#f97316" }}>{c.title}</h4>
+                <p style={{ color: "#6b7280" }}>{c.description}</p>
+                <p style={{ fontSize: "0.8rem", color: "#9ca3af" }}>
+                  Valid till: {new Date(c.endDate).toLocaleDateString()}
+                </p>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p style={{ color: "#94a3b8" }}>No active campaigns</p>
+        )}
+      </Card>
+
+      <div className="mt-6 flex" style={{ gap: "1rem" }}>
+        <IconPillButton icon="➕" label="Create Campaign" onClick={() => navigate("/campaigns")} />
+        <IconPillButton icon="⚙️" label="Manage Dealers" tone="warning" onClick={() => navigate("/admin")} />
+        <IconPillButton icon="📊" label="View Reports" onClick={() => navigate("/reports")} />
+      </div>
+    </div>
+  );
+}
+
+// (legacy local Card removed in favor of shared components)
+</file>
+
+<file path="src/pages/dashboards/InventoryDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import DataTable from "../../components/DataTable";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+import DonutProgress from "../../components/DonutProgress";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+export default function InventoryDashboard() {
+  const [inventory, setInventory] = useState([]);
+  const [summary, setSummary] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [newStock, setNewStock] = useState("");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get("/inventory");
+        setInventory(res.data.inventory || []);
+        setSummary(res.data.summary || {});
+      } catch (err) {
+        console.error("Error fetching inventory:", err);
+        setError("Failed to load inventory data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInventory();
+  }, []);
+
+  const handleStockUpdate = async (id) => {
+    if (!newStock || isNaN(newStock)) {
+      alert("Enter a valid number for stock.");
+      return;
+    }
+    try {
+      await api.patch(`/inventory/${id}`, { stock: parseInt(newStock) });
+      alert("Stock updated successfully!");
+      const res = await api.get("/inventory");
+      setInventory(res.data.inventory || []);
+      setSelectedProduct(null);
+      setNewStock("");
+    } catch (err) {
+      console.error("Error updating stock:", err);
+      alert("Failed to update stock.");
+    }
+  };
+
+  if (loading)
+    return <div className="center text-center" style={{ height: "80vh" }}>Loading inventory dashboard...</div>;
+  if (error) return <p className="error">{error}</p>;
+
+  return (
+    <div style={{ padding: "2rem" }}>
+      <PageHeader
+        title="Inventory Dashboard"
+        subtitle="Monitor stock across plants and ensure real-time SAP visibility."
+      />
+
+      <Toolbar
+        right={[
+          <IconPillButton key="adjust" icon="📝" label="Bulk Adjust" tone="warning" onClick={() => {}} />,
+          <IconPillButton key="export" icon="⬇️" label="Export" tone="success" onClick={() => {}} />,
+        ]}
+      >
+        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products or plants..." />
+      </Toolbar>
+
+      <div className="grid mt-4">
+        <StatCard title="Total Products" value={inventory.length} icon="📦" accent="#f97316" />
+        <StatCard title="Active Plants" value={new Set(inventory.map(i => i.plant)).size} icon="🏭" accent="#22c55e" />
+        <StatCard title="Low Stock Items" value={inventory.filter(i => i.stock < 10).length} icon="⚠️" accent="#ef4444" />
+        <StatCard title="Total Stock" value={inventory.reduce((sum, i) => sum + i.stock, 0)} icon="📊" accent="#a78bfa" />
+      </div>
+
+      <Card title="Stock Overview by Plant" style={{ marginTop: "1.5rem" }}>
+        {inventory.length > 0 ? (
+          <ResponsiveContainer width="100%" height={300}>
+            <BarChart data={aggregateByPlant(inventory)}>
+              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+              <XAxis dataKey="plant" stroke="#94a3b8" />
+              <YAxis stroke="#94a3b8" />
+              <Tooltip />
+              <Bar dataKey="totalStock" fill="#f97316" name="Total Stock" />
+            </BarChart>
+          </ResponsiveContainer>
+        ) : (
+          <p style={{ color: "#94a3b8" }}>No inventory data available</p>
+        )}
+      </Card>
+
+      <Card title="Product Inventory Details" style={{ marginTop: "1.5rem" }}>
+        <DataTable
+          columns={[
+            { key: "name", label: "Product" },
+            { key: "plant", label: "Plant" },
+            { key: "stock", label: "Stock", render: (v) => (
+              <span style={{ color: v < 10 ? "#ef4444" : "inherit", fontWeight: v < 10 ? 700 : 400 }}>{v}</span>
+            ) },
+            { key: "uom", label: "UOM" },
+            { key: "lastUpdatedAt", label: "Last Updated" },
+            { key: "action", label: "Action" },
+          ]}
+          rows={inventory
+            .filter((item) => {
+              const q = search.toLowerCase();
+              return !q || item.name?.toLowerCase().includes(q) || item.plant?.toLowerCase().includes(q);
+            })
+            .map((item) => ({
+            id: item.id,
+            name: item.name,
+            plant: item.plant,
+            stock: item.stock,
+            uom: item.uom,
+            lastUpdatedAt: new Date(item.lastUpdatedAt).toLocaleDateString(),
+            action: selectedProduct === item.id ? (
+              <div>
+                <input
+                  type="number"
+                  placeholder="New stock"
+                  value={newStock}
+                  onChange={(e) => setNewStock(e.target.value)}
+                  style={{ width: "70px", marginRight: "0.5rem" }}
+                />
+                <button
+                  className="primary"
+                  style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}
+                  onClick={() => handleStockUpdate(item.id)}
+                >
+                  Save
+                </button>
+                <button
+                  className="primary"
+                  style={{ background: "linear-gradient(90deg, #ef4444, #b91c1c)", marginLeft: "0.5rem" }}
+                  onClick={() => setSelectedProduct(null)}
+                >
+                  Cancel
+                </button>
+              </div>
+            ) : (
+              <button
+                className="primary"
+                style={{ background: "linear-gradient(90deg, #f97316, #ea580c)" }}
+                onClick={() => setSelectedProduct(item.id)}
+              >
+                Update Stock
+              </button>
+            ),
+          }))}
+          emptyMessage="No inventory records available."
+        />
+      </Card>
+
+      <div className="grid mt-6">
+        <Card title="Low Stock Ratio">
+          <DonutProgress
+            value={inventory.filter((i) => i.stock < 10).length}
+            total={inventory.length}
+            colors={["#ef4444", "#1f2937"]}
+            label="Items below threshold"
+          />
+        </Card>
+        <Card title="Plant Coverage">
+          <DonutProgress
+            value={new Set(inventory.map(i => i.plant)).size}
+            total={Math.max(new Set(inventory.map(i => i.plant)).size, 1)}
+            colors={["#22c55e", "#1f2937"]}
+            label="Active plants"
+          />
+        </Card>
+      </div>
+    </div>
+  );
+}
+
+/* Helper: Aggregate stock by plant for the chart */
+const aggregateByPlant = (data) => {
+  const plantTotals = {};
+  data.forEach((item) => {
+    if (!plantTotals[item.plant]) plantTotals[item.plant] = 0;
+    plantTotals[item.plant] += item.stock;
+  });
+  return Object.keys(plantTotals).map((plant) => ({
+    plant,
+    totalStock: plantTotals[plant],
+  }));
+};
+
+/* (legacy local Card removed in favor of shared component) */
 </file>
 
 <file path="src/pages/Login.jsx">
@@ -2110,7 +2428,7 @@ export default function Login() {
 const styles = {
   page: {
     height: '100vh',
-    background: 'radial-gradient(circle at top, #1a1a2e 0%, #0f172a 50%, #000 100%)',
+    background: 'var(--bg-glow), var(--bg-base)',
     backgroundImage:
       'url("https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1920&q=80")',
     backgroundSize: 'cover',
@@ -2244,7 +2562,7 @@ export default function OTPVerify({ userId }) {
 const styles = {
   page: {
     height: '100vh',
-    background: 'radial-gradient(circle at top, #1a1a2e 0%, #0f172a 50%, #000 100%)',
+    background: 'var(--bg-glow), var(--bg-base)',
     backgroundImage:
       'url("https://images.unsplash.com/photo-1519681393784-d120267933ba?auto=format&fit=crop&w=1920&q=80")',
     backgroundSize: 'cover',
@@ -2308,379 +2626,35 @@ const styles = {
 };
 </file>
 
-<file path="src/pages/Reports.jsx">
-import React, { useState } from "react";
-import api from "../services/api";
-import { Button, TextField, MenuItem } from "@mui/material";
-import BarChartCard from "../components/BarChartCard";
-import PieChartCard from "../components/PieChartCard";
-import DashboardCard from "../components/DashboardCard";
-import { Download } from "@mui/icons-material";
+<file path="src/services/api.js">
+import axios from "axios";
 
-export default function Reports() {
-  const [reportType, setReportType] = useState("");
-  const [data, setData] = useState(null);
-  const [loading, setLoading] = useState(false);
-  const [filters, setFilters] = useState({
-    dealerId: "",
-    productGroup: "",
-    invoiceNumber: "",
-    startDate: "",
-    endDate: "",
-    status: "",
-  });
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
+  withCredentials: true,
+});
 
-  const handleFilterChange = (e) => {
-    setFilters({ ...filters, [e.target.name]: e.target.value });
-  };
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`; // ✅ backend expects this format
+  }
+  return config;
+});
 
-  const fetchReport = async () => {
-    if (!reportType) return alert("Please select a report type");
-    setLoading(true);
-    try {
-      const params = new URLSearchParams();
-      Object.entries(filters).forEach(([k, v]) => v && params.append(k, v));
-      const res = await api.get(`/reports/${reportType}?${params.toString()}`);
-      setData(res.data);
-    } catch (err) {
-      console.error("Error generating report:", err);
-      alert("Failed to generate report");
-    } finally {
-      setLoading(false);
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
     }
-  };
+    return Promise.reject(err);
+  }
+);
 
-  const exportReport = async (format) => {
-    if (!reportType) return alert("Please select a report type first");
-    const res = await api.get(`/reports/${reportType}?format=${format}`, {
-      responseType: "blob",
-    });
-    const blob = new Blob([res.data], {
-      type: format === "pdf" ? "application/pdf" : "application/vnd.ms-excel",
-    });
-    const url = window.URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.setAttribute("download", `${reportType}.${format}`);
-    document.body.appendChild(link);
-    link.click();
-    link.remove();
-  };
-
-  const downloadInvoicePDF = async (invoiceId) => {
-    try {
-      const res = await api.get(`/invoices/${invoiceId}/download`, {
-        responseType: "blob",
-      });
-      const blob = new Blob([res.data], { type: "application/pdf" });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.setAttribute("download", `invoice_${invoiceId}.pdf`);
-      document.body.appendChild(link);
-      link.click();
-      link.remove();
-    } catch (err) {
-      console.error("Error downloading invoice PDF:", err);
-      alert("Failed to download invoice copy");
-    }
-  };
-
-  const renderDashboard = () => {
-    if (!data) return null;
-
-    switch (reportType) {
-      /** ===========================
-       * Dealer Performance Report
-       ============================ */
-      case "dealer-performance":
-        return (
-          <>
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(3, 1fr)",
-                gap: "1rem",
-              }}
-            >
-              <DashboardCard
-                title="Total Invoices"
-                value={data.totalInvoices || 0}
-              />
-              <DashboardCard
-                title="Total Sales"
-                value={`₹${data.totalSales || 0}`}
-              />
-              <DashboardCard
-                title="Pending Amount"
-                value={`₹${data.pendingAmount || 0}`}
-              />
-            </div>
-
-            <div style={{ marginTop: "2rem" }}>
-              <BarChartCard
-                title="Dealer-wise Sales Performance"
-                data={(data?.invoices || []).map((inv) => ({
-                  name: inv?.dealer?.businessName || "Unknown Dealer",
-                  total: inv?.totalAmount || 0,
-                }))}
-                xKey="name"
-                yKey="total"
-              />
-            </div>
-
-            <div style={{ marginTop: "2rem" }}>
-              <PieChartCard
-                title="Product Group Sales Volume"
-                data={Object.entries(
-                  (data?.invoices || []).reduce((groups, inv) => {
-                    const group = inv?.productGroup || "Others";
-                    groups[group] =
-                      (groups[group] || 0) + (inv?.totalAmount || 0);
-                    return groups;
-                  }, {})
-                ).map(([name, value]) => ({ name, value }))}
-              />
-            </div>
-          </>
-        );
-
-      /** ===========================
-       * Account Statement Report
-       ============================ */
-      case "account-statement":
-        return (
-          <div style={{ marginTop: "2rem" }}>
-            <DashboardCard
-              title="Opening Balance"
-              value={`₹${data.openingBalance || 0}`}
-            />
-            <DashboardCard
-              title="Closing Balance"
-              value={`₹${data.closingBalance || 0}`}
-            />
-            <DashboardCard
-              title="Total Debit"
-              value={`₹${data.totalDebit || 0}`}
-            />
-            <DashboardCard
-              title="Total Credit"
-              value={`₹${data.totalCredit || 0}`}
-            />
-          </div>
-        );
-
-      /** ===========================
-       * Invoice Register Report
-       ============================ */
-      case "invoice-register":
-        return (
-          <div style={{ marginTop: "2rem" }}>
-            <h3 style={{ color: "#60a5fa" }}>Invoice Register</h3>
-
-            {/* Filters */}
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(5, 1fr)",
-                gap: "1rem",
-                marginTop: "1rem",
-              }}
-            >
-              <TextField
-                name="dealerId"
-                label="Dealer ID"
-                value={filters.dealerId}
-                onChange={handleFilterChange}
-                size="small"
-                InputProps={{
-                  style: { color: "#e2e8f0", backgroundColor: "#1e293b" },
-                }}
-              />
-              <TextField
-                name="productGroup"
-                label="Product Group"
-                value={filters.productGroup}
-                onChange={handleFilterChange}
-                size="small"
-                InputProps={{
-                  style: { color: "#e2e8f0", backgroundColor: "#1e293b" },
-                }}
-              />
-              <TextField
-                name="invoiceNumber"
-                label="Invoice #"
-                value={filters.invoiceNumber}
-                onChange={handleFilterChange}
-                size="small"
-                InputProps={{
-                  style: { color: "#e2e8f0", backgroundColor: "#1e293b" },
-                }}
-              />
-              <TextField
-                type="date"
-                name="startDate"
-                label="From"
-                value={filters.startDate}
-                onChange={handleFilterChange}
-                size="small"
-                InputLabelProps={{ shrink: true }}
-                InputProps={{
-                  style: { color: "#e2e8f0", backgroundColor: "#1e293b" },
-                }}
-              />
-              <TextField
-                type="date"
-                name="endDate"
-                label="To"
-                value={filters.endDate}
-                onChange={handleFilterChange}
-                size="small"
-                InputLabelProps={{ shrink: true }}
-                InputProps={{
-                  style: { color: "#e2e8f0", backgroundColor: "#1e293b" },
-                }}
-              />
-              <TextField
-                name="status"
-                select
-                label="Status"
-                value={filters.status}
-                onChange={handleFilterChange}
-                size="small"
-                InputProps={{
-                  style: { color: "#e2e8f0", backgroundColor: "#1e293b" },
-                }}
-              >
-                <MenuItem value="">All</MenuItem>
-                <MenuItem value="Paid">Paid</MenuItem>
-                <MenuItem value="Unpaid">Unpaid</MenuItem>
-              </TextField>
-            </div>
-
-            {/* Table */}
-            <table
-              style={{
-                width: "100%",
-                color: "#e2e8f0",
-                marginTop: "2rem",
-                borderCollapse: "collapse",
-              }}
-            >
-              <thead>
-                <tr style={{ backgroundColor: "#1e293b" }}>
-                  <th style={{ padding: "0.8rem" }}>Invoice #</th>
-                  <th>Date</th>
-                  <th>Dealer</th>
-                  <th>Product Group</th>
-                  <th>Amount</th>
-                  <th>Status</th>
-                  <th>Action</th>
-                </tr>
-              </thead>
-              <tbody>
-                {(data?.invoices || []).map((inv) => (
-                  <tr key={inv.id} style={{ borderBottom: "1px solid #334155" }}>
-                    <td>{inv.invoiceNumber}</td>
-                    <td>{new Date(inv.invoiceDate).toLocaleDateString()}</td>
-                    <td>{inv.dealer?.businessName || "N/A"}</td>
-                    <td>{inv.productGroup || "—"}</td>
-                    <td>₹{inv.totalAmount}</td>
-                    <td
-                      style={{
-                        color:
-                          inv.status === "Paid" ? "#22c55e" : "#facc15",
-                        fontWeight: 500,
-                      }}
-                    >
-                      {inv.status}
-                    </td>
-                    <td>
-                      <Button
-                        variant="outlined"
-                        size="small"
-                        sx={{
-                          color: "#60a5fa",
-                          borderColor: "#60a5fa",
-                          textTransform: "none",
-                        }}
-                        onClick={() => downloadInvoicePDF(inv.id)}
-                      >
-                        Download PDF
-                      </Button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        );
-
-      default:
-        return null;
-    }
-  };
-
-  return (
-    <div style={{ padding: "2rem" }}>
-      <h2 style={{ color: "#60a5fa" }}>Reports Dashboard</h2>
-      <p style={{ color: "#94a3b8" }}>
-        Select a report type to view insights and export data.
-      </p>
-
-      <div
-        style={{ margin: "1.5rem 0", display: "flex", alignItems: "center" }}
-      >
-        <select
-          style={{
-            padding: "0.5rem 1rem",
-            borderRadius: "8px",
-            marginRight: "1rem",
-            background: "#1e293b",
-            color: "white",
-            border: "1px solid #334155",
-          }}
-          value={reportType}
-          onChange={(e) => setReportType(e.target.value)}
-        >
-          <option value="">Select Report Type</option>
-          <option value="dealer-performance">Dealer Performance</option>
-          <option value="account-statement">Account Statement</option>
-          <option value="invoice-register">Invoice Register</option>
-        </select>
-
-        <Button
-          variant="contained"
-          onClick={fetchReport}
-          disabled={loading}
-          sx={{ bgcolor: "#3b82f6", borderRadius: "8px", mr: 2 }}
-        >
-          {loading ? "Generating..." : "Generate"}
-        </Button>
-
-        <Button
-          variant="outlined"
-          onClick={() => exportReport("pdf")}
-          sx={{ color: "white", borderColor: "#3b82f6", mr: 1 }}
-          startIcon={<Download />}
-        >
-          PDF
-        </Button>
-
-        <Button
-          variant="outlined"
-          onClick={() => exportReport("excel")}
-          sx={{ color: "white", borderColor: "#3b82f6" }}
-          startIcon={<Download />}
-        >
-          Excel
-        </Button>
-      </div>
-
-      {renderDashboard()}
-    </div>
-  );
-}
+export default api;
 </file>
 
 <file path="src/App.jsx">
@@ -2767,7 +2741,7 @@ export default function Sidebar() {
     <aside
       style={{
         width: "240px",
-        background: "rgba(15, 23, 42, 0.7)",
+        background: "rgba(12, 12, 14, 0.78)",
         backdropFilter: "blur(10px)",
         borderRight: "1px solid rgba(255,255,255,0.1)",
         color: "#cbd5e1",
@@ -2786,7 +2760,7 @@ export default function Sidebar() {
           paddingBottom: "1rem",
         }}
       >
-        <h3 style={{ color: "#60a5fa", fontWeight: "bold" }}>
+        <h3 style={{ color: "#f97316", fontWeight: "bold" }}>
           {user?.role?.toUpperCase() || "USER"}
         </h3>
       </div>
@@ -2797,30 +2771,30 @@ export default function Sidebar() {
           to={l.path}
           style={{
             textDecoration: "none",
-            color: pathname === l.path ? "#3b82f6" : "#e2e8f0",
+            color: pathname === l.path ? "#f97316" : "#e2e8f0",
             background:
               pathname === l.path
-                ? "linear-gradient(90deg, rgba(59,130,246,0.2), rgba(37,99,235,0.1))"
+                ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
                 : "transparent",
             fontWeight: pathname === l.path ? "bold" : "normal",
             padding: "0.75rem 1rem",
-            borderRadius: "8px",
+            borderRadius: 9999,
             margin: "0.25rem 0",
             transition: "all 0.3s ease",
             display: "block",
           }}
           onMouseEnter={(e) => {
             e.target.style.background =
-              "linear-gradient(90deg, rgba(59,130,246,0.15), rgba(37,99,235,0.05))";
-            e.target.style.color = "#60a5fa";
+              "linear-gradient(90deg, rgba(249,115,22,0.2), rgba(249,115,22,0.08))";
+            e.target.style.color = "#f97316";
           }}
           onMouseLeave={(e) => {
             e.target.style.background =
               pathname === l.path
-                ? "linear-gradient(90deg, rgba(59,130,246,0.2), rgba(37,99,235,0.1))"
+                ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
                 : "transparent";
             e.target.style.color =
-              pathname === l.path ? "#3b82f6" : "#e2e8f0";
+              pathname === l.path ? "#f97316" : "#e2e8f0";
           }}
         >
           {l.label}
@@ -2831,18 +2805,1024 @@ export default function Sidebar() {
 }
 </file>
 
-<file path="src/pages/dashboards/DealerDashboard.jsx">
+<file path="src/pages/dashboards/ManagerDashboard.jsx">
+// src/pages/manager/ManagerDashboard.jsx
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
+import socket from "../../services/socket";
+import { useNavigate } from "react-router-dom";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import DataTable from "../../components/DataTable";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+import { toast } from "react-toastify";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
 } from "recharts";
+import "./ManagerDashboard.css";
+
+export default function ManagerDashboard() {
+  const navigate = useNavigate();
+  const [summary, setSummary] = useState({});
+  const [dealerPerformance, setDealerPerformance] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [summaryRes, perfRes, approvalsRes, msgRes, campRes] =
+          await Promise.all([
+            api.get("/reports/dealer-performance"),
+            api.get("/reports/territory"),
+            api.get("/reports/pending-approvals"),
+            api.get("/messages"),
+            api.get("/campaigns"),
+          ]);
+
+        setSummary(summaryRes.data || {});
+        setDealerPerformance(perfRes.data.report || []);
+        setPendingApprovals(approvalsRes.data || []);
+        setMessages(msgRes.data.messages || msgRes.data || []);
+        setCampaigns(campRes.data.campaigns || campRes.data || []);
+      } catch (err) {
+        console.error("Manager dashboard load error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  // Socket.io
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) socket.auth = { token };
+    socket.connect();
+
+    socket.on("document:new", (data) => {
+      toast.info(`📄 New document uploaded by Dealer ${data.dealerId}`);
+      setPendingApprovals((prev) => [
+        { dealerId: data.dealerId, documentType: "New Upload", createdAt: new Date() },
+        ...prev,
+      ]);
+    });
+
+    socket.on("message:new", (msg) => {
+      toast.success(`💬 Message from Dealer: ${msg.content}`);
+      setMessages((prev) => [msg, ...prev]);
+    });
+
+    socket.on("campaign:new", (campaign) => {
+      toast.info(`📢 New Campaign: ${campaign.title}`);
+      setCampaigns((prev) => [campaign, ...prev]);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
+  if (loading)
+    return (
+      <div className="loading-screen">
+        <div className="loading-text">Loading Manager Dashboard...</div>
+      </div>
+    );
+
+  return (
+    <div className="manager-dashboard">
+      <PageHeader
+        title="Regional Manager Dashboard"
+        subtitle="Monitor dealers, campaigns, and performance insights in real-time."
+      />
+
+      <Toolbar
+        right={[
+          <IconPillButton key="reports" icon="📊" label="Reports" onClick={() => navigate("/reports")} />,
+          <IconPillButton key="campaigns" icon="📢" label="Campaigns" tone="warning" onClick={() => navigate("/campaigns")} />,
+        ]}
+      >
+        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search dealers, campaigns..." />
+      </Toolbar>
+
+      <div className="summary-grid">
+        <StatCard title="Total Dealers" value={summary.totalInvoices || 0} icon="🏪" accent="#f97316" />
+        <StatCard title="Active Campaigns" value={campaigns.length} icon="📢" accent="#a78bfa" />
+        <StatCard title="Pending Approvals" value={pendingApprovals.length} icon="🕒" accent="#f59e0b" />
+        <StatCard title="New Messages" value={messages.length} icon="💬" accent="#22c55e" />
+      </div>
+
+      <Card title="Dealer Performance Overview" style={{ marginTop: "1.5rem" }}>
+        <ResponsiveContainer width="100%" height={350}>
+          <BarChart data={dealerPerformance}>
+            <defs>
+              <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#f97316" stopOpacity={0.85} />
+                <stop offset="95%" stopColor="#3d1e0f" stopOpacity={0.2} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+            <XAxis dataKey="businessName" stroke="#9ca3af" />
+            <YAxis stroke="#9ca3af" />
+            <Tooltip contentStyle={{ backgroundColor: "rgba(20,20,30,0.9)", borderRadius: "10px" }} />
+            <Legend />
+            <Bar dataKey="totalSales" fill="url(#colorSales)" barSize={16} radius={[8, 8, 0, 0]} />
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+
+      <Card title="Pending Approvals" style={{ marginTop: "1.5rem" }}>
+        <DataTable
+          columns={[
+            { key: "dealer", label: "Dealer" },
+            { key: "document", label: "Document" },
+            { key: "date", label: "Date" },
+            { key: "status", label: "Status" },
+          ]}
+          rows={pendingApprovals
+            .filter((a) => {
+              const q = search.toLowerCase();
+              return !q || a.dealerName?.toLowerCase().includes(q) || String(a.dealerId || "").includes(q);
+            })
+            .map((a) => ({
+              id: a.id || Math.random(),
+              dealer: a.dealerName || a.dealerId,
+              document: a.documentType || "Document",
+              date: new Date(a.createdAt).toLocaleDateString(),
+              status: "Pending",
+            }))}
+          emptyMessage="No pending approvals"
+        />
+      </Card>
+
+      <div className="dual-section" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem", marginTop: "1.5rem" }}>
+        <Card title="Recent Messages">
+          {messages.length > 0 ? (
+            <ul className="message-list">
+              {messages.slice(0, 5).map((msg) => (
+                <li key={msg.id} style={{ margin: "0.5rem 0", borderBottom: "1px dashed rgba(255,255,255,0.1)", paddingBottom: "0.5rem" }}>
+                  <strong>{msg.dealerName || `Dealer ${msg.senderId}`}</strong>: {msg.content}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p>No new messages</p>
+          )}
+        </Card>
+
+        <Card title="Active Campaigns">
+          {campaigns.length > 0 ? (
+            <div className="campaign-grid">
+              {campaigns.slice(0, 3).map((c) => (
+                <div key={c.id} className="campaign-card">
+                  <h4>{c.title}</h4>
+                  <p>{c.description}</p>
+                  <span>Valid till {new Date(c.endDate).toLocaleDateString()}</span>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <p>No campaigns running</p>
+          )}
+        </Card>
+      </div>
+
+      <div className="quick-actions" style={{ marginTop: "2rem", display: "flex", gap: "1rem", justifyContent: "center" }}>
+        <IconPillButton icon="📊" label="Reports" onClick={() => navigate("/reports")} />
+        <IconPillButton icon="💬" label="Messages" onClick={() => navigate("/messages")} tone="success" />
+        <IconPillButton icon="📢" label="Campaigns" onClick={() => navigate("/campaigns")} tone="warning" />
+      </div>
+    </div>
+  );
+}
+
+// (legacy SummaryCard removed in favor of shared StatCard)
+</file>
+
+<file path="src/pages/Reports.jsx">
+// src/pages/Reports.jsx
+import React, { useState, useEffect, useMemo } from "react";
+import api from "../services/api";
+import {
+  Box,
+  Grid,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  MenuItem,
+  Button,
+  CircularProgress,
+  IconButton,
+  Divider,
+} from "@mui/material";
+import { Download } from "@mui/icons-material";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell, Legend } from "recharts";
+import DashboardCard from "../components/DashboardCard";
+import BarChartCard from "../components/BarChartCard";
+import PieChartCard from "../components/PieChartCard";
+
+// Small helper for dark look
+const cardStyle = {
+  background: "#0f1724",
+  color: "#e6eef8",
+  borderRadius: 12,
+  boxShadow: "0 6px 18px rgba(2,6,23,0.6)",
+};
+
+const colors = ["#10b981", "#f97316", "#f59e0b", "#ef4444", "#a78bfa", "#06b6d4"];
+
+const REPORT_OPTIONS = [
+  { value: "", label: "Select Report Type" },
+  { value: "dealer-performance", label: "Dealer Performance" },
+  { value: "account-statement", label: "Account Statement" },
+  { value: "invoice-register", label: "Invoice Register" },
+  { value: "credit-debit-notes", label: "Credit / Debit Notes" },
+  { value: "outstanding-receivables", label: "Outstanding Receivables" },
+  { value: "territory", label: "Territory / Region" },
+  { value: "admin-summary", label: "Admin Summary" },
+  { value: "pending-approvals", label: "Pending Approvals" },
+];
+
+export default function Reports() {
+  const [reportType, setReportType] = useState("");
+  const [filters, setFilters] = useState({
+    dealerId: "",
+    productGroup: "",
+    invoiceNumber: "",
+    startDate: "",
+    endDate: "",
+    status: "",
+    reasonCode: "",
+    state: "",
+    territory: "",
+    region: "",
+  });
+  const [data, setData] = useState(null);
+  const [loading, setLoading] = useState(false);
+  const [exporting, setExporting] = useState(false);
+  const [error, setError] = useState("");
+
+  useEffect(() => {
+    // clear data when report changes
+    setData(null);
+    setError("");
+  }, [reportType]);
+
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
+    setFilters((prev) => ({ ...prev, [name]: value }));
+  };
+
+  const buildQuery = (extra = {}) => {
+    const params = new URLSearchParams();
+    Object.entries({ ...filters, ...extra }).forEach(([k, v]) => {
+      if (v !== "" && v !== null && v !== undefined) params.append(k, v);
+    });
+    return params.toString();
+  };
+
+  const endpointForType = (type) => {
+    // mapping kept consistent with backend routes
+    return type;
+  };
+
+  const fetchReport = async () => {
+    if (!reportType) {
+      setError("Pick a report from the dropdown.");
+      return;
+    }
+    setError("");
+    setLoading(true);
+    try {
+      const endpoint = endpointForType(reportType);
+      const q = buildQuery();
+      const res = await api.get(`/reports/${endpoint}${q ? `?${q}` : ""}`);
+      setData(res.data);
+    } catch (err) {
+      console.error("Error fetching report:", err);
+      setError("Failed to fetch report. Check console.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const exportReport = async (format = "pdf") => {
+    if (!reportType) {
+      setError("Select a report to export.");
+      return;
+    }
+    setExporting(true);
+    try {
+      const endpoint = endpointForType(reportType);
+      const q = buildQuery({ format });
+      const res = await api.get(`/reports/${endpoint}${q ? `?${q}` : ""}`, {
+        responseType: "blob",
+      });
+      const blob = new Blob([res.data], {
+        type: format === "pdf" ? "application/pdf" : "application/vnd.ms-excel",
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `${endpoint}.${format}`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Export error:", err);
+      setError("Export failed.");
+    } finally {
+      setExporting(false);
+    }
+  };
+
+  const downloadInvoicePDF = async (invoiceId) => {
+    try {
+      const res = await api.get(`/invoices/${invoiceId}/pdf`, { responseType: "blob" });
+      const blob = new Blob([res.data], { type: "application/pdf" });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `invoice_${invoiceId}.pdf`);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+    } catch (err) {
+      console.error("Error downloading invoice PDF:", err);
+      setError("Failed to download invoice copy");
+    }
+  };
+
+  // Derived small visual helpers
+  const dealerPerformanceChartData = useMemo(() => {
+    if (!data) return [];
+    // backend returns array of dealers or aggregated object depending on route - handle both
+    if (Array.isArray(data)) {
+      // array of dealer report objects
+      return data.map((d) => ({
+        name: d.dealerName || d.businessName || d.dealerName || "Unknown",
+        total: parseFloat(d.totalSales || 0),
+      }));
+    }
+    // if backend returns object with productGroups etc
+    return (data.dealers || []).map((d) => ({
+      name: d.dealerName || d.businessName || "Unknown",
+      total: parseFloat(d.totalSales || 0),
+    }));
+  }, [data]);
+
+  const outstandingPieData = useMemo(() => {
+    if (!data) return [];
+    const aging = data.aging || data;
+    if (!aging) return [];
+    if (Array.isArray(aging)) return [];
+    return Object.entries(aging).map(([k, v]) => ({ name: k, value: parseFloat(v || 0) }));
+  }, [data]);
+
+  // Main renderer for each report
+  const renderReportBody = () => {
+    if (!reportType) {
+      return (
+        <Card sx={{ mt: 3, ...cardStyle }}>
+          <CardContent>
+            <Typography variant="h6" color="inherit">
+              Pick a report to begin — we’ll fetch data from your backend.
+            </Typography>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (loading) {
+      return (
+        <Box sx={{ display: "flex", justifyContent: "center", mt: 4 }}>
+          <CircularProgress color="inherit" />
+        </Box>
+      );
+    }
+
+    if (error) {
+      return (
+        <Card sx={{ mt: 3, ...cardStyle }}>
+          <CardContent>
+            <Typography color="error">{error}</Typography>
+          </CardContent>
+        </Card>
+      );
+    }
+
+    if (!data) {
+      return null;
+    }
+
+    switch (reportType) {
+      case "dealer-performance":
+        return (
+          <Box sx={{ mt: 3 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <DashboardCard title="Total Dealers" value={data.length || data.dealers?.length || 0} />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <DashboardCard title="Total Sales" value={`₹${(Array.isArray(data) ? data.reduce((s, d) => s + (d.totalSales || 0), 0) : data.totalSales) || 0}`} />
+              </Grid>
+              <Grid item xs={12} md={4}>
+                <DashboardCard title="Pending Orders" value={`${data.pendingOrders || 0}`} />
+              </Grid>
+
+              <Grid item xs={12} md={8}>
+                <Card sx={{ p: 1, ...cardStyle }}>
+                  <CardContent>
+                    <Typography variant="subtitle1" gutterBottom color="#9fb6d9">Dealer-wise Sales</Typography>
+                    <div style={{ height: 320 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={dealerPerformanceChartData}>
+                          <XAxis dataKey="name" tick={{ fill: "#cfe9ff" }} />
+                          <YAxis tick={{ fill: "#cfe9ff" }} />
+                          <Tooltip />
+                          <Bar dataKey="total" fill="#f97316" radius={[6,6,0,0]} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} md={4}>
+                <Card sx={{ p: 1, ...cardStyle }}>
+                  <CardContent>
+                    <Typography variant="subtitle1" color="#9fb6d9">Product Group Sales</Typography>
+                    <div style={{ height: 220 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie
+                            data={Object.entries((data[0]?.productGroups || data[0]?.productGroups) || (data.productGroups || {})).map(([k, v]) => ({ name: k, value: v }))}
+                            dataKey="value"
+                            nameKey="name"
+                            innerRadius={40}
+                            outerRadius={80}
+                            label
+                          >
+                            {Object.entries((data[0]?.productGroups || data.productGroups || {})).map(([,], i) => (
+                              <Cell key={`cell-${i}`} fill={colors[i % colors.length]} />
+                            ))}
+                          </Pie>
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          </Box>
+        );
+
+      case "account-statement":
+        return (
+          <Box sx={{ mt: 3 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={3}>
+                <Card sx={{ ...cardStyle }}>
+                  <CardContent>
+                    <Typography variant="subtitle2" color="#9fb6d9">Opening Balance</Typography>
+                    <Typography variant="h6">₹{data.openingBalance || 0}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Card sx={{ ...cardStyle }}>
+                  <CardContent>
+                    <Typography variant="subtitle2" color="#9fb6d9">Closing Balance</Typography>
+                    <Typography variant="h6">₹{data.closingBalance || 0}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Card sx={{ ...cardStyle }}>
+                  <CardContent>
+                    <Typography variant="subtitle2" color="#9fb6d9">Total Debit</Typography>
+                    <Typography variant="h6">₹{data.totalDebit || 0}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <Card sx={{ ...cardStyle }}>
+                  <CardContent>
+                    <Typography variant="subtitle2" color="#9fb6d9">Total Credit</Typography>
+                    <Typography variant="h6">₹{data.totalCredit || 0}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Card sx={{ mt: 2, ...cardStyle }}>
+                  <CardContent>
+                    <Typography variant="h6" color="#9fb6d9">Statements</Typography>
+                    <Divider sx={{ my: 1, borderColor: "#1f2937" }} />
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", color: "#e6eef8", borderCollapse: "collapse" }}>
+                        <thead>
+                          <tr style={{ background: "#071028" }}>
+                            <th style={{ padding: 10 }}>Date</th>
+                            <th>Description</th>
+                            <th>Debit</th>
+                            <th>Credit</th>
+                            <th>Balance</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(data.statements || []).map((s) => (
+                            <tr key={s.id} style={{ borderBottom: "1px solid #1f2937" }}>
+                              <td style={{ padding: 8 }}>{new Date(s.statementDate).toLocaleDateString()}</td>
+                              <td>{s.description || s.documentType || "—"}</td>
+                              <td>₹{s.debitAmount}</td>
+                              <td>₹{s.creditAmount}</td>
+                              <td>₹{s.balance}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          </Box>
+        );
+
+      case "invoice-register":
+        return (
+          <Box sx={{ mt: 3 }}>
+            <Card sx={{ ...cardStyle }}>
+              <CardContent>
+                <Typography variant="h6" color="#9fb6d9">Invoice Register</Typography>
+                <Divider sx={{ my: 1, borderColor: "#1f2937" }} />
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", color: "#e6eef8", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "#071028" }}>
+                        <th style={{ padding: 10 }}>Invoice #</th>
+                        <th>Date</th>
+                        <th>Dealer</th>
+                        <th>Product Group</th>
+                        <th>Amount</th>
+                        <th>Status</th>
+                        <th>Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data.invoices || []).map((inv) => (
+                        <tr key={inv.id} style={{ borderBottom: "1px solid #1f2937" }}>
+                          <td style={{ padding: 8 }}>{inv.invoiceNumber}</td>
+                          <td>{inv.invoiceDate ? new Date(inv.invoiceDate).toLocaleDateString() : "—"}</td>
+                          <td>{inv.dealer?.businessName || "N/A"}</td>
+                          <td>{inv.productGroup || "—"}</td>
+                          <td>₹{inv.totalAmount}</td>
+                          <td style={{ color: inv.status === "Paid" ? "#10b981" : "#f59e0b", fontWeight: 600 }}>{inv.status}</td>
+                          <td>
+                            <Button variant="outlined" size="small" sx={{ color: "#f97316", borderColor: "#f97316", textTransform: "none" }} onClick={() => downloadInvoicePDF(inv.id)}>Download PDF</Button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </Box>
+        );
+
+      case "credit-debit-notes":
+        return (
+          <Box sx={{ mt: 3 }}>
+            <Card sx={{ ...cardStyle }}>
+              <CardContent>
+                <Typography variant="h6" color="#9fb6d9">Credit & Debit Notes</Typography>
+                <Divider sx={{ my: 1, borderColor: "#1f2937" }} />
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", color: "#e6eef8", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "#071028" }}>
+                        <th style={{ padding: 10 }}>Note #</th>
+                        <th>Date</th>
+                        <th>Dealer</th>
+                        <th>Type</th>
+                        <th>Amount</th>
+                        <th>Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data.notes || []).map((n) => (
+                        <tr key={n.id} style={{ borderBottom: "1px solid #1f2937" }}>
+                          <td style={{ padding: 8 }}>{n.noteNumber}</td>
+                          <td>{n.noteDate ? new Date(n.noteDate).toLocaleDateString() : "—"}</td>
+                          <td>{n.dealer?.businessName || "N/A"}</td>
+                          <td style={{ textTransform: "capitalize" }}>{n.noteType}</td>
+                          <td>₹{n.amount}</td>
+                          <td>{n.reasonCode || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+
+                <Box sx={{ display: "flex", gap: 2, mt: 2 }}>
+                  <Card sx={{ p: 1, flex: 1, ...cardStyle }}>
+                    <CardContent>
+                      <Typography variant="subtitle2" color="#9fb6d9">Total Credit</Typography>
+                      <Typography variant="h6">₹{data.totalCredit || 0}</Typography>
+                    </CardContent>
+                  </Card>
+                  <Card sx={{ p: 1, flex: 1, ...cardStyle }}>
+                    <CardContent>
+                      <Typography variant="subtitle2" color="#9fb6d9">Total Debit</Typography>
+                      <Typography variant="h6">₹{data.totalDebit || 0}</Typography>
+                    </CardContent>
+                  </Card>
+                </Box>
+              </CardContent>
+            </Card>
+          </Box>
+        );
+
+      case "outstanding-receivables":
+        return (
+          <Box sx={{ mt: 3 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={4}>
+                <Card sx={{ ...cardStyle }}>
+                  <CardContent>
+                    <Typography variant="subtitle2" color="#9fb6d9">Total Outstanding</Typography>
+                    <Typography variant="h5">₹{data.totalOutstanding || 0}</Typography>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12} md={8}>
+                <Card sx={{ ...cardStyle }}>
+                  <CardContent>
+                    <Typography variant="subtitle1" color="#9fb6d9">Aging</Typography>
+                    <div style={{ height: 240 }}>
+                      <ResponsiveContainer width="100%" height="100%">
+                        <PieChart>
+                          <Pie data={outstandingPieData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={80} label>
+                            {outstandingPieData.map((entry, idx) => (
+                              <Cell key={`cell-${idx}`} fill={colors[idx % colors.length]} />
+                            ))}
+                          </Pie>
+                          <Tooltip />
+                          <Legend />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Grid>
+
+              <Grid item xs={12}>
+                <Card sx={{ ...cardStyle }}>
+                  <CardContent>
+                    <Typography variant="h6" color="#9fb6d9">Invoices</Typography>
+                    <Divider sx={{ my: 1, borderColor: "#1f2937" }} />
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", color: "#e6eef8", borderCollapse: "collapse" }}>
+                        <thead>
+                          <tr style={{ background: "#071028" }}>
+                            <th style={{ padding: 10 }}>Invoice #</th>
+                            <th>Dealer</th>
+                            <th>Due Date</th>
+                            <th>Balance</th>
+                            <th>Days Past Due</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {(data.invoices || []).map((inv) => {
+                            const daysPast = inv.dueDate ? Math.floor((new Date() - new Date(inv.dueDate)) / (1000 * 60 * 60 * 24)) : 0;
+                            return (
+                              <tr key={inv.id} style={{ borderBottom: "1px solid #1f2937" }}>
+                                <td style={{ padding: 8 }}>{inv.invoiceNumber}</td>
+                                <td>{inv.dealer?.businessName || "N/A"}</td>
+                                <td>{inv.dueDate ? new Date(inv.dueDate).toLocaleDateString() : "—"}</td>
+                                <td>₹{inv.balanceAmount}</td>
+                                <td>{daysPast}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  </CardContent>
+                </Card>
+              </Grid>
+            </Grid>
+          </Box>
+        );
+
+      case "territory":
+        return (
+          <Box sx={{ mt: 3 }}>
+            <Card sx={{ ...cardStyle }}>
+              <CardContent>
+                <Typography variant="h6" color="#9fb6d9">Territory / Region Report</Typography>
+                <Divider sx={{ my: 1, borderColor: "#1f2937" }} />
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", color: "#e6eef8", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "#071028" }}>
+                        <th style={{ padding: 10 }}>Dealer Code</th>
+                        <th>Business</th>
+                        <th>State</th>
+                        <th>Territory</th>
+                        <th>Region</th>
+                        <th>Total Sales</th>
+                        <th>Outstanding</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data.report || []).map((r) => (
+                        <tr key={r.dealerCode || r.businessName} style={{ borderBottom: "1px solid #1f2937" }}>
+                          <td style={{ padding: 8 }}>{r.dealerCode}</td>
+                          <td>{r.businessName}</td>
+                          <td>{r.state}</td>
+                          <td>{r.territory}</td>
+                          <td>{r.region}</td>
+                          <td>₹{r.totalSales}</td>
+                          <td>₹{r.outstanding}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </Box>
+        );
+
+      case "admin-summary":
+        return (
+          <Box sx={{ mt: 3 }}>
+            <Grid container spacing={2}>
+              <Grid item xs={12} md={3}>
+                <DashboardCard title="Active Campaigns" value={data.activeCampaigns || 0} />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <DashboardCard title="Total Dealers" value={data.totalDealers || 0} />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <DashboardCard title="Blocked Dealers" value={data.blockedDealers || 0} />
+              </Grid>
+              <Grid item xs={12} md={3}>
+                <DashboardCard title="Pending Documents" value={data.pendingDocuments || 0} />
+              </Grid>
+              <Grid item xs={12} md={3} sx={{ mt: 2 }}>
+                <DashboardCard title="Pending Pricing" value={data.pendingPricing || 0} />
+              </Grid>
+              <Grid item xs={12} md={3} sx={{ mt: 2 }}>
+                <DashboardCard title="Total Invoices" value={data.totalInvoices || 0} />
+              </Grid>
+              <Grid item xs={12} md={3} sx={{ mt: 2 }}>
+                <DashboardCard title="Total Outstanding" value={`₹${data.totalOutstanding || 0}`} />
+              </Grid>
+            </Grid>
+          </Box>
+        );
+
+      case "pending-approvals":
+        return (
+          <Box sx={{ mt: 3 }}>
+            <Card sx={{ ...cardStyle }}>
+              <CardContent>
+                <Typography variant="h6" color="#9fb6d9">Pending Approvals</Typography>
+                <Divider sx={{ my: 1, borderColor: "#1f2937" }} />
+                <div style={{ overflowX: "auto" }}>
+                  <table style={{ width: "100%", color: "#e6eef8", borderCollapse: "collapse" }}>
+                    <thead>
+                      <tr style={{ background: "#071028" }}>
+                        <th style={{ padding: 10 }}>ID</th>
+                        <th>Dealer</th>
+                        <th>Document Type</th>
+                        <th>Created At</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(data || []).map((p) => (
+                        <tr key={p.id} style={{ borderBottom: "1px solid #1f2937" }}>
+                          <td style={{ padding: 8 }}>{p.id}</td>
+                          <td>{p.dealerName}</td>
+                          <td>{p.documentType}</td>
+                          <td>{new Date(p.createdAt).toLocaleString()}</td>
+                          <td>{p.status}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </CardContent>
+            </Card>
+          </Box>
+        );
+
+      default:
+        return (
+          <Card sx={{ mt: 3, ...cardStyle }}>
+            <CardContent>
+              <Typography>Report view not implemented yet.</Typography>
+            </CardContent>
+          </Card>
+        );
+    }
+  };
+
+  // UI filters area - keep compact and dynamic per report
+  const renderFilters = () => {
+    // show date range for most reports
+    return (
+      <Grid container spacing={1} alignItems="center" sx={{ mt: 2 }}>
+        {/* Dealer Id */}
+        <Grid item xs={12} sm={3} md={2}>
+          <TextField
+            name="dealerId"
+            value={filters.dealerId}
+            onChange={handleFilterChange}
+            placeholder="Dealer ID"
+            label="Dealer ID"
+            size="small"
+            variant="filled"
+            sx={{ background: "#0b1220", borderRadius: 1, "& .MuiFilledInput-root": { color: "#e6eef8" } }}
+            fullWidth
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={3} md={2}>
+          <TextField
+            name="productGroup"
+            value={filters.productGroup}
+            onChange={handleFilterChange}
+            placeholder="Product Group"
+            label="Product Group"
+            size="small"
+            variant="filled"
+            sx={{ background: "#0b1220", borderRadius: 1, "& .MuiFilledInput-root": { color: "#e6eef8" } }}
+            fullWidth
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={3} md={2}>
+          <TextField
+            name="invoiceNumber"
+            value={filters.invoiceNumber}
+            onChange={handleFilterChange}
+            placeholder="Invoice #"
+            label="Invoice #"
+            size="small"
+            variant="filled"
+            sx={{ background: "#0b1220", borderRadius: 1, "& .MuiFilledInput-root": { color: "#e6eef8" } }}
+            fullWidth
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={3} md={2}>
+          <TextField
+            type="date"
+            name="startDate"
+            label="From"
+            value={filters.startDate}
+            onChange={handleFilterChange}
+            size="small"
+            InputLabelProps={{ shrink: true }}
+            variant="filled"
+            sx={{ background: "#0b1220", borderRadius: 1, "& .MuiFilledInput-root": { color: "#e6eef8" } }}
+            fullWidth
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={3} md={2}>
+          <TextField
+            type="date"
+            name="endDate"
+            label="To"
+            value={filters.endDate}
+            onChange={handleFilterChange}
+            size="small"
+            InputLabelProps={{ shrink: true }}
+            variant="filled"
+            sx={{ background: "#0b1220", borderRadius: 1, "& .MuiFilledInput-root": { color: "#e6eef8" } }}
+            fullWidth
+          />
+        </Grid>
+
+        <Grid item xs={12} sm={3} md={2}>
+          <TextField
+            select
+            name="status"
+            label="Status"
+            value={filters.status}
+            onChange={handleFilterChange}
+            size="small"
+            variant="filled"
+            sx={{ background: "#0b1220", borderRadius: 1, "& .MuiFilledInput-root": { color: "#e6eef8" } }}
+            fullWidth
+          >
+            <MenuItem value="">All</MenuItem>
+            <MenuItem value="Paid">Paid</MenuItem>
+            <MenuItem value="Unpaid">Unpaid</MenuItem>
+            <MenuItem value="Pending">Pending</MenuItem>
+            <MenuItem value="Delivered">Delivered</MenuItem>
+          </TextField>
+        </Grid>
+      </Grid>
+    );
+  };
+
+  return (
+    <Box sx={{ p: 3 }}>
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Box>
+          <Typography variant="h5" sx={{ color: "#dbeafe", fontWeight: 700 }}>
+            Reports Dashboard
+          </Typography>
+          <Typography variant="body2" sx={{ color: "#93c5fd" }}>
+            Select a report, apply filters and generate beautiful manager-ready visuals.
+          </Typography>
+        </Box>
+
+        <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+          <TextField
+            select
+            value={reportType}
+            onChange={(e) => setReportType(e.target.value)}
+            size="small"
+            sx={{
+              minWidth: 220,
+              background: "#0b1220",
+              "& .MuiInputBase-input": { color: "#e6eef8" },
+              borderRadius: 1,
+            }}
+          >
+            {REPORT_OPTIONS.map((o) => (
+              <MenuItem key={o.value} value={o.value}>
+                {o.label}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <Button variant="contained" sx={{ bgcolor: "#f97316" }} onClick={fetchReport} disabled={loading}>
+            {loading ? "Generating..." : "Generate"}
+          </Button>
+
+          <Button variant="outlined" sx={{ color: "#e6eef8", borderColor: "#f97316" }} onClick={() => exportReport("pdf")} startIcon={<Download />} disabled={exporting}>
+            PDF
+          </Button>
+          <Button variant="outlined" sx={{ color: "#e6eef8", borderColor: "#f97316" }} onClick={() => exportReport("excel")} startIcon={<Download />} disabled={exporting}>
+            Excel
+          </Button>
+        </Box>
+      </Box>
+
+      {/* Filters */}
+      {renderFilters()}
+
+      {/* Main Report Body */}
+      {renderReportBody()}
+    </Box>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/DealerDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import socket from "../../services/socket";
+import { toast } from "react-toastify";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+import "./ManagerDashboard.css"; // ✅ reuse same CSS
 
 export default function DealerDashboard() {
   const [summary, setSummary] = useState({});
@@ -2852,27 +3832,26 @@ export default function DealerDashboard() {
   const [trend, setTrend] = useState([]);
   const [loading, setLoading] = useState(true);
 
+  // 📊 Fetch data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const summaryRes = await api.get("/reports/dealer-performance");
+        const [summaryRes, invoiceRes, promoRes, docRes, trendRes] = await Promise.all([
+          api.get("/reports/dealer-performance"),
+          api.get("/invoices"),
+          api.get("/campaigns/active"),
+          api.get("/documents"),
+          api.get("/reports/dealer-performance?trend=true"),
+        ]);
+
         setSummary(summaryRes.data);
-
-        const invoiceRes = await api.get("/invoices");
-        setInvoices(invoiceRes.data.invoices || invoiceRes.data);
-
-        const promoRes = await api.get("/campaigns/active");
-        setPromotions(promoRes.data);
-
-        const docRes = await api.get("/documents");
+        setInvoices(invoiceRes.data.invoices || []);
+        setPromotions(promoRes.data || []);
         setDocuments(docRes.data.documents || []);
-
-
-        const trendRes = await api.get("/reports/dealer-performance?trend=true");
         setTrend(trendRes.data.trend || []);
       } catch (err) {
-        console.error("Error loading dealer dashboard:", err);
+        console.error("Dealer dashboard error:", err);
       } finally {
         setLoading(false);
       }
@@ -2880,271 +3859,186 @@ export default function DealerDashboard() {
     fetchData();
   }, []);
 
+  // ⚡ Socket events
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) socket.auth = { token };
+    socket.connect();
+
+    socket.on("promotion:new", (promo) => {
+      toast.success(`🎉 New promotion: ${promo.title}`);
+      setPromotions((prev) => [promo, ...prev]);
+    });
+
+    socket.on("document:update", (doc) => {
+      toast.info(`📄 Document ${doc.status}`);
+      setDocuments((prev) =>
+        prev.map((d) => (d.id === doc.id ? { ...d, status: doc.status } : d))
+      );
+    });
+
+    socket.on("notification:update", (notif) => {
+      toast.info(`🔔 ${notif.message || "New update"}`);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
+
   if (loading)
     return (
-      <div style={styles.loading}>
-        <p style={{ color: "#94a3b8" }}>Loading dashboard...</p>
+      <div className="loading-screen">
+        <div className="loading-text">Loading Dealer Dashboard...</div>
       </div>
     );
 
   return (
-    <div style={styles.page}>
+    <div className="manager-dashboard">
       {/* HEADER */}
-      <div style={styles.header}>
-        <h2 style={styles.title}>Dealer Dashboard</h2>
-        <p style={styles.subtitle}>
+      <header className="dashboard-header">
+        <h1>Dealer Dashboard</h1>
+        <p>
           Welcome back,{" "}
-          <strong style={{ color: "#60a5fa" }}>
-            {summary.dealerName || "Dealer"}
-          </strong>{" "}
-          — stay on top of your performance and updates.
+          <span style={{ color: "#f97316" }}>{summary.dealerName || "Dealer"}</span> — your latest
+          performance overview and business updates.
         </p>
+      </header>
+
+      {/* SUMMARY */}
+      <div className="summary-grid">
+        <SummaryCard title="Total Sales" value={`₹${summary.totalSales || 0}`} color="#f97316" />
+        <SummaryCard title="Invoices" value={summary.totalInvoices || 0} color="#ff4fd8" />
+        <SummaryCard title="Outstanding" value={`₹${summary.outstanding || 0}`} color="#ffd54f" />
+        <SummaryCard title="Active Promotions" value={promotions.length} color="#4fff85" />
       </div>
 
-      {/* SUMMARY CARDS */}
-      <div style={styles.cardGrid}>
-        <Card title="Total Sales" value={`₹${summary.totalSales || 0}`} icon="💰" />
-        <Card title="Total Invoices" value={summary.totalInvoices || 0} icon="🧾" />
-        <Card title="Pending Deliveries" value={summary.pendingDeliveries || 0} icon="🚚" />
-        <Card title="Outstanding Amount" value={`₹${summary.outstanding || 0}`} icon="📉" />
-      </div>
-
-      {/* SALES TREND */}
-      <div style={styles.sectionCard}>
-        <h3 style={styles.sectionTitle}>Sales Trend (Last 6 Months)</h3>
-        {trend.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={trend}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.08)" />
-              <XAxis dataKey="month" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip />
-              <Line type="monotone" dataKey="sales" stroke="#3b82f6" strokeWidth={2} />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <p style={styles.muted}>No trend data available</p>
-        )}
+      {/* CHART */}
+      <div className="chart-card">
+        <h2>Sales vs Outstanding (Last 6 Months)</h2>
+        <ResponsiveContainer width="100%" height={350}>
+          <BarChart data={trend}>
+            <defs>
+              <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#f97316" stopOpacity={0.85} />
+                <stop offset="95%" stopColor="#3d1e0f" stopOpacity={0.2} />
+              </linearGradient>
+              <linearGradient id="outstandingGradient" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="5%" stopColor="#ff4fd8" stopOpacity={0.8} />
+                <stop offset="95%" stopColor="#3b003b" stopOpacity={0.2} />
+              </linearGradient>
+            </defs>
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
+            <XAxis dataKey="month" stroke="#9ca3af" />
+            <YAxis stroke="#9ca3af" />
+            <Tooltip contentStyle={{ backgroundColor: "rgba(20,20,30,0.9)", borderRadius: "10px" }} />
+            <Legend />
+            <Bar dataKey="sales" fill="url(#salesGradient)" barSize={16} radius={[8, 8, 0, 0]} />
+            <Bar
+              dataKey="outstanding"
+              fill="url(#outstandingGradient)"
+              barSize={16}
+              radius={[8, 8, 0, 0]}
+            />
+          </BarChart>
+        </ResponsiveContainer>
       </div>
 
       {/* RECENT INVOICES */}
-      <div style={styles.sectionCard}>
-        <h3 style={styles.sectionTitle}>Recent Invoices</h3>
-        <table style={styles.table}>
-          <thead>
-            <tr style={styles.tableHeader}>
-              <th>Invoice #</th>
-              <th>Date</th>
-              <th>Amount</th>
-              <th>Status</th>
-              <th>Action</th>
-            </tr>
-          </thead>
-          <tbody>
-            {invoices.slice(0, 5).map((i) => (
-              <tr key={i.id} style={styles.tableRow}>
-                <td>{i.invoiceNumber}</td>
-                <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
-                <td>₹{i.totalAmount}</td>
-                <td
-                  style={{
-                    color: i.status === "Paid" ? "#22c55e" : "#facc15",
-                  }}
-                >
-                  {i.status}
-                </td>
-                <td style={styles.action}>Download</td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-
-      {/* ACTIVE PROMOTIONS */}
-      <div style={styles.sectionCard}>
-        <h3 style={styles.sectionTitle}>Active Promotions</h3>
-        {promotions.length > 0 ? (
-          <div style={styles.cardGrid}>
-            {promotions.map((promo) => (
-              <div key={promo.id} style={styles.smallCard}>
-                <h4 style={{ color: "#60a5fa" }}>{promo.title}</h4>
-                <p style={styles.muted}>{promo.description}</p>
-                <p style={styles.small}>
-                  Valid till: {new Date(promo.validTill).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p style={styles.muted}>No active promotions</p>
-        )}
-      </div>
-
-      {/* DOCUMENTS */}
-      <div style={styles.sectionCard}>
-        <h3 style={styles.sectionTitle}>Uploaded Documents</h3>
-        {documents.length > 0 ? (
-          <table style={styles.table}>
+      <div className="glass-card">
+        <h2>Recent Invoices</h2>
+        {invoices.length > 0 ? (
+          <table className="custom-table">
             <thead>
-              <tr style={styles.tableHeader}>
-                <th>File Name</th>
-                <th>Type</th>
+              <tr>
+                <th>Invoice #</th>
+                <th>Date</th>
+                <th>Amount</th>
                 <th>Status</th>
-                <th>Uploaded On</th>
               </tr>
             </thead>
             <tbody>
-              {documents.map((doc) => (
-                <tr key={doc.id} style={styles.tableRow}>
-                  <td>{doc.fileName}</td>
-                  <td>{doc.documentType}</td>
-                  <td
-                    style={{
-                      color:
-                        doc.status === "Approved"
-                          ? "#22c55e"
-                          : doc.status === "Rejected"
-                          ? "#ef4444"
-                          : "#facc15",
-                    }}
-                  >
-                    {doc.status}
+              {invoices.slice(0, 5).map((i) => (
+                <tr key={i.id}>
+                  <td>{i.invoiceNumber}</td>
+                  <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
+                  <td>₹{i.totalAmount}</td>
+                  <td className={i.status === "Paid" ? "status-approved" : "status-pending"}>
+                    {i.status}
                   </td>
-                  <td>{new Date(doc.createdAt).toLocaleDateString()}</td>
                 </tr>
               ))}
             </tbody>
           </table>
         ) : (
-          <p style={styles.muted}>No documents uploaded yet</p>
+          <p>No invoices found</p>
         )}
       </div>
 
-      {/* QUICK ACTIONS */}
-      <div style={styles.actionRow}>
-        <button style={styles.primaryBtn}>Upload New License</button>
-        <button
-          style={{
-            ...styles.primaryBtn,
-            background: "linear-gradient(90deg, #22c55e, #16a34a)",
-          }}
-        >
-          Download Statement
-        </button>
-        <button
-          style={{
-            ...styles.primaryBtn,
-            background: "linear-gradient(90deg, #facc15, #eab308)",
-          }}
-        >
-          Contact TM
-        </button>
+      {/* DOCUMENTS */}
+      <div className="glass-card">
+        <h2>Uploaded Documents</h2>
+        {documents.length > 0 ? (
+          <table className="custom-table">
+            <thead>
+              <tr>
+                <th>File</th>
+                <th>Type</th>
+                <th>Status</th>
+                <th>Uploaded</th>
+              </tr>
+            </thead>
+            <tbody>
+              {documents.slice(0, 5).map((d) => (
+                <tr key={d.id}>
+                  <td>{d.fileName}</td>
+                  <td>{d.documentType}</td>
+                  <td className={`status-${d.status || "pending"}`}>{d.status}</td>
+                  <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p>No uploaded documents</p>
+        )}
+      </div>
+
+      {/* PROMOTIONS */}
+      <div className="glass-card">
+        <h2>Active Promotions</h2>
+        {promotions.length > 0 ? (
+          <div className="campaign-grid">
+            {promotions.slice(0, 3).map((promo) => (
+              <div key={promo.id} className="campaign-card">
+                <h3>{promo.title}</h3>
+                <p>{promo.description}</p>
+                <span>Valid till {new Date(promo.validTill).toLocaleDateString()}</span>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <p>No active promotions</p>
+        )}
+      </div>
+
+      {/* ACTIONS */}
+      <div className="quick-actions">
+        <button>📤 Upload Document</button>
+        <button>📑 View Statements</button>
+        <button>💬 Contact Manager</button>
       </div>
     </div>
   );
 }
 
-// Reusable Card
-const Card = ({ title, value, icon }) => (
-  <div style={styles.card}>
-    <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
-      <span style={{ fontSize: "1.5rem" }}>{icon}</span>
-      <h4 style={{ margin: 0 }}>{title}</h4>
-    </div>
-    <p style={styles.cardValue}>{value}</p>
+// 📦 Reuse summary card
+const SummaryCard = ({ title, value, color }) => (
+  <div className="summary-card" style={{ borderColor: color, boxShadow: `0 0 15px ${color}55` }}>
+    <h4>{title}</h4>
+    <p style={{ color }}>{value}</p>
   </div>
 );
-
-// 🎨 Inline Styles
-const styles = {
-  page: {
-    minHeight: "100vh",
-    background:
-      "radial-gradient(circle at top left, #0f172a, #020617 70%)",
-    color: "#e2e8f0",
-    fontFamily: "'Poppins', sans-serif",
-    padding: "2rem",
-  },
-  header: { marginBottom: "2rem" },
-  title: { fontSize: "2rem", color: "#f1f5f9", margin: 0 },
-  subtitle: { color: "#94a3b8", fontSize: "0.9rem" },
-  cardGrid: {
-    display: "grid",
-    gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-    gap: "1.5rem",
-    marginTop: "1.5rem",
-  },
-  card: {
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "16px",
-    padding: "1.5rem",
-    boxShadow: "0 4px 25px rgba(0,0,0,0.4)",
-    transition: "all 0.3s ease",
-  },
-  cardValue: {
-    fontSize: "1.8rem",
-    fontWeight: "bold",
-    color: "#3b82f6",
-    marginTop: "0.5rem",
-  },
-  sectionCard: {
-    background: "rgba(255,255,255,0.04)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "16px",
-    padding: "1.5rem",
-    marginTop: "2rem",
-    boxShadow: "0 4px 25px rgba(0,0,0,0.3)",
-  },
-  sectionTitle: { marginBottom: "1rem", color: "#f1f5f9" },
-  muted: { color: "#94a3b8" },
-  small: { fontSize: "0.8rem", color: "#64748b" },
-  smallCard: {
-    background: "rgba(255,255,255,0.05)",
-    border: "1px solid rgba(255,255,255,0.08)",
-    borderRadius: "12px",
-    padding: "1rem",
-  },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    marginTop: "1rem",
-    color: "#e2e8f0",
-  },
-  tableHeader: {
-    textAlign: "left",
-    borderBottom: "1px solid rgba(255,255,255,0.1)",
-    color: "#94a3b8",
-  },
-  tableRow: {
-    borderBottom: "1px solid rgba(255,255,255,0.05)",
-  },
-  action: {
-    color: "#3b82f6",
-    cursor: "pointer",
-  },
-  actionRow: {
-    display: "flex",
-    gap: "1rem",
-    marginTop: "2rem",
-  },
-  primaryBtn: {
-    border: "none",
-    borderRadius: "8px",
-    padding: "0.8rem 1.5rem",
-    color: "#fff",
-    cursor: "pointer",
-    background: "linear-gradient(90deg, #2563eb, #1d4ed8)",
-    transition: "all 0.3s ease",
-  },
-  loading: {
-    height: "100vh",
-    display: "flex",
-    justifyContent: "center",
-    alignItems: "center",
-    background: "radial-gradient(circle at top left, #0f172a, #020617 70%)",
-  },
-};
 </file>
 
 <file path="package.json">
@@ -3168,11 +4062,13 @@ const styles = {
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.552.0",
     "react": "^19.1.1",
+    "react-countup": "^6.5.3",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.65.0",
     "react-router-dom": "^7.9.5",
     "react-toastify": "^11.0.5",
-    "recharts": "^3.3.0"
+    "recharts": "^3.3.0",
+    "socket.io-client": "^4.8.1"
   },
   "devDependencies": {
     "@eslint/js": "^9.36.0",

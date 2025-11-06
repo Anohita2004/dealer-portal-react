@@ -83,7 +83,7 @@ export default function InventoryDashboard() {
       </Toolbar>
 
       <div className="grid mt-4">
-        <StatCard title="Total Products" value={inventory.length} icon="📦" accent="#3b82f6" />
+        <StatCard title="Total Products" value={inventory.length} icon="📦" accent="#f97316" />
         <StatCard title="Active Plants" value={new Set(inventory.map(i => i.plant)).size} icon="🏭" accent="#22c55e" />
         <StatCard title="Low Stock Items" value={inventory.filter(i => i.stock < 10).length} icon="⚠️" accent="#ef4444" />
         <StatCard title="Total Stock" value={inventory.reduce((sum, i) => sum + i.stock, 0)} icon="📊" accent="#a78bfa" />
@@ -97,7 +97,7 @@ export default function InventoryDashboard() {
               <XAxis dataKey="plant" stroke="#94a3b8" />
               <YAxis stroke="#94a3b8" />
               <Tooltip />
-              <Bar dataKey="totalStock" fill="#3b82f6" name="Total Stock" />
+              <Bar dataKey="totalStock" fill="#f97316" name="Total Stock" />
             </BarChart>
           </ResponsiveContainer>
         ) : (
@@ -156,7 +156,7 @@ export default function InventoryDashboard() {
             ) : (
               <button
                 className="primary"
-                style={{ background: "linear-gradient(90deg, #3b82f6, #2563eb)" }}
+                style={{ background: "linear-gradient(90deg, #f97316, #ea580c)" }}
                 onClick={() => setSelectedProduct(item.id)}
               >
                 Update Stock

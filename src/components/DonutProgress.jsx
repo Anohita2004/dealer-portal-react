@@ -1,7 +1,7 @@
 import React from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
 
-export default function DonutProgress({ value = 0, total = 100, colors = ["#3b82f6", "#1f2937"], center, label }) {
+export default function DonutProgress({ value = 0, total = 100, colors = ["#f97316", "#1f2937"], center, label }) {
   const safeTotal = total <= 0 ? 1 : total;
   const percent = Math.max(0, Math.min(100, Math.round((value / safeTotal) * 100)));
   const data = [

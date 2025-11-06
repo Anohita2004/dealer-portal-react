@@ -93,7 +93,7 @@ export default function AccountsDashboard() {
       </Toolbar>
 
       <div className="grid mt-4">
-        <StatCard title="Total Invoices" value={summary.invoices} icon="🧾" accent="#3b82f6" />
+        <StatCard title="Total Invoices" value={summary.invoices} icon="🧾" accent="#f97316" />
         <StatCard title="Total Credit Notes" value={`₹${summary.creditNotes}`} icon="📈" accent="#22c55e" />
         <StatCard title="Total Debit Notes" value={`₹${summary.debitNotes}`} icon="📉" accent="#ef4444" />
         <StatCard title="Outstanding (₹)" value={summary.outstanding} icon="💰" accent="#a78bfa" />
@@ -108,7 +108,7 @@ export default function AccountsDashboard() {
               <YAxis stroke="#94a3b8" />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="total" stroke="#3b82f6" name="Total Invoices" />
+              <Line type="monotone" dataKey="total" stroke="#f97316" name="Total Invoices" />
               <Line type="monotone" dataKey="paid" stroke="#22c55e" name="Paid Amount" />
             </LineChart>
           </ResponsiveContainer>
@@ -183,7 +183,7 @@ export default function AccountsDashboard() {
         <button
           className="primary"
           onClick={() => navigate("/invoices")}
-          style={{ background: "linear-gradient(90deg, #3b82f6, #2563eb)" }}
+          style={{ background: "linear-gradient(90deg, #f97316, #ea580c)" }}
         >
           🧾 View Invoices
         </button>

@@ -10,7 +10,7 @@ import {
 } from "recharts";
 
 export default function PieChartCard({ title, data = [] }) {
-  const COLORS = ["#3b82f6", "#22c55e", "#f97316", "#ef4444", "#8b5cf6"];
+  const COLORS = ["#f97316", "#22c55e", "#a78bfa", "#ef4444", "#06b6d4"];
 
   // ✅ Ensure data is always an array in the correct format
   const chartData = Array.isArray(data)
@@ -28,7 +28,7 @@ export default function PieChartCard({ title, data = [] }) {
           borderRadius: 3,
           boxShadow: 2,
           p: 2,
-          backgroundColor: "#0f172a",
+          backgroundColor: "rgba(255,255,255,0.04)",
           color: "#94a3b8",
           textAlign: "center",
         }}
@@ -47,7 +47,7 @@ export default function PieChartCard({ title, data = [] }) {
         borderRadius: 3,
         boxShadow: 2,
         p: 2,
-        backgroundColor: "#1e293b",
+        backgroundColor: "rgba(255,255,255,0.04)",
         color: "#e2e8f0",
       }}
     >
@@ -76,8 +76,8 @@ export default function PieChartCard({ title, data = [] }) {
             </Pie>
             <Tooltip
               contentStyle={{
-                backgroundColor: "#0f172a",
-                border: "1px solid #334155",
+                backgroundColor: "rgba(12,12,14,0.9)",
+                border: "1px solid rgba(255,255,255,0.08)",
                 color: "#e2e8f0",
               }}
             />

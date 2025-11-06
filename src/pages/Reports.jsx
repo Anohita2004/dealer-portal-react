@@ -28,7 +28,7 @@ const cardStyle = {
   boxShadow: "0 6px 18px rgba(2,6,23,0.6)",
 };
 
-const colors = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#7c3aed", "#06b6d4"];
+const colors = ["#10b981", "#f97316", "#f59e0b", "#ef4444", "#a78bfa", "#06b6d4"];
 
 const REPORT_OPTIONS = [
   { value: "", label: "Select Report Type" },
@@ -239,7 +239,7 @@ export default function Reports() {
                           <XAxis dataKey="name" tick={{ fill: "#cfe9ff" }} />
                           <YAxis tick={{ fill: "#cfe9ff" }} />
                           <Tooltip />
-                          <Bar dataKey="total" fill="#3b82f6" radius={[6,6,0,0]} />
+                          <Bar dataKey="total" fill="#f97316" radius={[6,6,0,0]} />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
@@ -380,7 +380,7 @@ export default function Reports() {
                           <td>₹{inv.totalAmount}</td>
                           <td style={{ color: inv.status === "Paid" ? "#10b981" : "#f59e0b", fontWeight: 600 }}>{inv.status}</td>
                           <td>
-                            <Button variant="outlined" size="small" sx={{ color: "#60a5fa", borderColor: "#60a5fa", textTransform: "none" }} onClick={() => downloadInvoicePDF(inv.id)}>Download PDF</Button>
+                            <Button variant="outlined" size="small" sx={{ color: "#f97316", borderColor: "#f97316", textTransform: "none" }} onClick={() => downloadInvoicePDF(inv.id)}>Download PDF</Button>
                           </td>
                         </tr>
                       ))}
@@ -767,14 +767,14 @@ export default function Reports() {
             ))}
           </TextField>
 
-          <Button variant="contained" sx={{ bgcolor: "#2563eb" }} onClick={fetchReport} disabled={loading}>
+          <Button variant="contained" sx={{ bgcolor: "#f97316" }} onClick={fetchReport} disabled={loading}>
             {loading ? "Generating..." : "Generate"}
           </Button>
 
-          <Button variant="outlined" sx={{ color: "#e6eef8", borderColor: "#2563eb" }} onClick={() => exportReport("pdf")} startIcon={<Download />} disabled={exporting}>
+          <Button variant="outlined" sx={{ color: "#e6eef8", borderColor: "#f97316" }} onClick={() => exportReport("pdf")} startIcon={<Download />} disabled={exporting}>
             PDF
           </Button>
-          <Button variant="outlined" sx={{ color: "#e6eef8", borderColor: "#2563eb" }} onClick={() => exportReport("excel")} startIcon={<Download />} disabled={exporting}>
+          <Button variant="outlined" sx={{ color: "#e6eef8", borderColor: "#f97316" }} onClick={() => exportReport("excel")} startIcon={<Download />} disabled={exporting}>
             Excel
           </Button>
         </Box>

@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function StatCard({ title, value, icon, accent = "#3b82f6" }) {
+export default function StatCard({ title, value, icon, accent = "#f97316" }) {
   return (
     <div
       className="card hover-glow"

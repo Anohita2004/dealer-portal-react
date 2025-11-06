@@ -9,15 +9,13 @@ export default function Layout() {
       style={{
         minHeight: "100vh",
         display: "flex",
-        background: "linear-gradient(135deg, #0f172a, #1e293b, #0f172a)",
-        color: "#f8fafc",
+        background: "var(--bg-glow), var(--bg-base)",
+        color: "var(--text-color)",
         overflow: "hidden",
       }}
     >
-      {/* Sidebar */}
       <Sidebar />
 
-      {/* Main Content Area */}
       <div
         style={{
           flex: 1,
@@ -26,30 +24,27 @@ export default function Layout() {
           backdropFilter: "blur(8px)",
         }}
       >
-        {/* Navbar */}
         <Navbar />
 
-        {/* Page Content */}
         <main
           style={{
             flex: 1,
             overflowY: "auto",
             padding: "2rem",
-            background:
-              "radial-gradient(circle at top left, rgba(255,255,255,0.03), rgba(0,0,0,0.3))",
+            background: "transparent",
             borderTopLeftRadius: "1.5rem",
-            boxShadow: "inset 0 0 20px rgba(255,255,255,0.05)",
           }}
         >
           <div
             style={{
-              background: "rgba(255,255,255,0.03)",
-              borderRadius: "16px",
+              background: "var(--card-bg)",
+              borderRadius: "20px",
+              border: "1px solid var(--card-border)",
               padding: "2rem",
-              boxShadow:
-                "0 4px 20px rgba(0,0,0,0.4), inset 0 0 10px rgba(255,255,255,0.05)",
-              backdropFilter: "blur(10px)",
               minHeight: "85vh",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+              backdropFilter: "blur(12px)",
+              color: "var(--text-color)",
             }}
           >
             <Outlet />
@@ -59,4 +54,3 @@ export default function Layout() {
     </div>
   );
 }
-

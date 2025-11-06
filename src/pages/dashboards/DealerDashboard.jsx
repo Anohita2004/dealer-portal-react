@@ -90,14 +90,14 @@ export default function DealerDashboard() {
         <h1>Dealer Dashboard</h1>
         <p>
           Welcome back,{" "}
-          <span style={{ color: "#00d8ff" }}>{summary.dealerName || "Dealer"}</span> — your latest
+          <span style={{ color: "#f97316" }}>{summary.dealerName || "Dealer"}</span> — your latest
           performance overview and business updates.
         </p>
       </header>
 
       {/* SUMMARY */}
       <div className="summary-grid">
-        <SummaryCard title="Total Sales" value={`₹${summary.totalSales || 0}`} color="#00d8ff" />
+        <SummaryCard title="Total Sales" value={`₹${summary.totalSales || 0}`} color="#f97316" />
         <SummaryCard title="Invoices" value={summary.totalInvoices || 0} color="#ff4fd8" />
         <SummaryCard title="Outstanding" value={`₹${summary.outstanding || 0}`} color="#ffd54f" />
         <SummaryCard title="Active Promotions" value={promotions.length} color="#4fff85" />
@@ -110,8 +110,8 @@ export default function DealerDashboard() {
           <BarChart data={trend}>
             <defs>
               <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#00d8ff" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="#003366" stopOpacity={0.2} />
+                <stop offset="5%" stopColor="#f97316" stopOpacity={0.85} />
+                <stop offset="95%" stopColor="#3d1e0f" stopOpacity={0.2} />
               </linearGradient>
               <linearGradient id="outstandingGradient" x1="0" y1="0" x2="0" y2="1">
                 <stop offset="5%" stopColor="#ff4fd8" stopOpacity={0.8} />
