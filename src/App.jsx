@@ -11,6 +11,12 @@ import Admin from "./pages/Admin";
 import ProtectedRoute from './components/ProtectedRoute';
 import Layout from './components/Layout';
 import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
+import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
+import AccountsInvoices from "./pages/accounts/AccountsInvoices";
+import AccountsNotes from "./pages/accounts/AccountsNotes";
+import AccountsReports from "./pages/accounts/AccountsReports";
+
+
 // ✅ When Layout is inside ProtectedRoute, all child routes share Navbar & Sidebar
 function App() {
   return (
@@ -38,6 +44,12 @@ function App() {
             <Route path="reports" element={<Reports />} />
             <Route path="admin" element={<Admin />} />
             <Route path="inventory" element={<InventoryDashboard />} />
+            <Route path="accounts" element={<AccountsDashboard />} />
+            <Route path="accounts/invoices" element={<AccountsInvoices />} />
+<Route path="accounts/notes" element={<AccountsNotes />} />
+<Route path="accounts/reports" element={<AccountsReports />} />
+
+
             {/* 🔜 Add Campaigns, Reports, Admin here */}
           </Route>
         </Routes>

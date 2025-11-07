@@ -1,202 +1,299 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import api from "../../services/api";
-import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../../context/AuthContext";
 import PageHeader from "../../components/PageHeader";
-import StatCard from "../../components/StatCard";
-import Card from "../../components/Card";
-import DataTable from "../../components/DataTable";
 import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
-import DonutProgress from "../../components/DonutProgress";
+import DataTable from "../../components/DataTable";
+import { toast } from "react-toastify";
 import {
-  LineChart,
-  Line,
+  BarChart,
+  Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 
 export default function AccountsDashboard() {
-  const navigate = useNavigate();
+  const { user } = useContext(AuthContext);
   const [summary, setSummary] = useState({});
   const [statements, setStatements] = useState([]);
-  const [financialData, setFinancialData] = useState([]);
-  const [pendingReconciliations, setPendingReconciliations] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [invoices, setInvoices] = useState([]);
+  const [reconciliation, setReconciliation] = useState([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // 🎨 Role color theme
+  const roleTheme = {
+    dealer: { color: "#3b82f6", bg: "#eff6ff" },
+    manager: { color: "#f59e0b", bg: "#fff7ed" },
+    accounts: { color: "#22c55e", bg: "#f0fdf4" },
+    admin: { color: "#8b5cf6", bg: "#f5f3ff" },
+  };
+  const theme = roleTheme[user?.role] || { color: "#6b7280", bg: "#f9fafb" };
+  const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
+
+  // 📡 Fetch accounts data
+  const fetchData = async () => {
+    try {
+      setLoading(true);
+      const [summaryRes, stmtRes, invRes, recRes] = await Promise.all([
+        api.get("/accounts/summary"),
+        api.get("/accounts/statements"),
+        api.get("/accounts/invoices"),
+        api.get("/accounts/reconciliation"),
+      ]);
+
+      setSummary(summaryRes.data || {});
+      setStatements(stmtRes.data?.statements || []);
+      setInvoices(invRes.data?.invoices || []);
+      setReconciliation(recRes.data?.pending || []);
+    } catch (err) {
+      toast.error("Failed to load accounts data");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-
-        // Fetch invoices & financial summary
-        const invoiceRes = await api.get("/reports/invoice-register");
-        const creditRes = await api.get("/reports/credit-debit-notes");
-        const outstandingRes = await api.get("/reports/outstanding-receivables");
-        const dealerRes = await api.get("/dealers");
-
-        // Summaries
-        setSummary({
-          invoices: invoiceRes.data.invoices?.length || 0,
-          creditNotes: creditRes.data.totalCredit || 0,
-          debitNotes: creditRes.data.totalDebit || 0,
-          outstanding: outstandingRes.data.totalOutstanding || 0,
-          totalDealers: dealerRes.data.total || 0,
-        });
-
-        // Financial performance over time
-        const monthlyData = invoiceRes.data.invoices
-          ?.slice(0, 10)
-          .map((inv) => ({
-            month: new Date(inv.invoiceDate).toLocaleString("default", { month: "short" }),
-            total: inv.totalAmount,
-            paid: inv.paidAmount,
-          })) || [];
-        setFinancialData(monthlyData);
-
-        // Account statements
-        const statementRes = await api.get("/reports/account-statement");
-        setStatements(statementRes.data.statements || []);
-
-        // Pending reconciliations (unpaid invoices)
-        setPendingReconciliations(outstandingRes.data.invoices || []);
-      } catch (err) {
-        console.error("Error fetching accounts dashboard:", err);
-      } finally {
-        setLoading(false);
-      }
-    })();
+    fetchData();
   }, []);
 
-  if (loading)
-    return <div className="center text-center" style={{ height: "80vh" }}>Loading accounts dashboard...</div>;
+  // 🔍 Filter search
+  const filtered = statements.filter((item) =>
+    item.description?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // 📊 Chart Data
+  const barData =
+    invoices.map((inv) => ({
+      month: new Date(inv.invoiceDate).toLocaleString("default", { month: "short" }),
+      total: inv.totalAmount,
+      paid: inv.paidAmount,
+    })) || [];
+
+  const pieData = [
+    { name: "Paid", value: invoices.reduce((s, i) => s + i.paidAmount, 0) },
+    {
+      name: "Outstanding",
+      value: invoices.reduce((s, i) => s + (i.totalAmount - i.paidAmount), 0),
+    },
+  ];
+
+  // 💾 Export as Excel or PDF
+  const handleExport = async (format) => {
+    try {
+      const response = await api.get(`/accounts/export?format=${format}`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `accounts_${new Date().toISOString().slice(0, 10)}.${format}`
+      );
+      document.body.appendChild(link);
+      link.click();
+    } catch (err) {
+      toast.error("Export failed");
+    }
+  };
+
+  // 🧱 Table Columns
+  const columns = [
+    { key: "date", label: "Date" },
+    { key: "documentNumber", label: "Doc #" },
+    { key: "debitAmount", label: "Debit" },
+    { key: "creditAmount", label: "Credit" },
+    { key: "balance", label: "Balance" },
+  ];
 
   return (
-    <div style={{ padding: "2rem" }}>
+    <div style={{ padding: "1rem", background: theme.bg, minHeight: "100vh" }}>
       <PageHeader
         title="Accounts Dashboard"
-        subtitle="Manage invoices, financial statements, and ensure accurate reconciliation."
+        subtitle={`Financial insights — role: ${user?.role?.toUpperCase()}`}
+        actions={[
+          (user?.role !== "dealer") && (
+            <IconPillButton
+              key="pdf"
+              label="Export PDF"
+              icon="📄"
+              onClick={() => handleExport("pdf")}
+            />
+          ),
+          (user?.role !== "dealer") && (
+            <IconPillButton
+              key="excel"
+              label="Export Excel"
+              icon="📊"
+              onClick={() => handleExport("xlsx")}
+              tone="success"
+            />
+          ),
+        ].filter(Boolean)}
       />
 
-      <Toolbar
-        right={[
-          <IconPillButton key="new" icon="➕" label="New" tone="primary" onClick={() => navigate("/invoices")} />,
-          <IconPillButton key="export" icon="⬇️" label="Export" tone="success" onClick={() => navigate("/reports")} />,
-        ]}
+      <div
+        style={{
+          background: theme.color,
+          color: "white",
+          padding: "0.5rem 1rem",
+          borderRadius: "10px",
+          display: "inline-block",
+          marginBottom: "1rem",
+        }}
       >
-        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search invoices, dealers..." />
+        Logged in as <strong>{user?.role?.toUpperCase()}</strong>
+      </div>
+
+      <Toolbar>
+        <SearchInput
+          placeholder="Search by description or doc number..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
       </Toolbar>
 
-      <div className="grid mt-4">
-        <StatCard title="Total Invoices" value={summary.invoices} icon="🧾" accent="#f97316" />
-        <StatCard title="Total Credit Notes" value={`₹${summary.creditNotes}`} icon="📈" accent="#22c55e" />
-        <StatCard title="Total Debit Notes" value={`₹${summary.debitNotes}`} icon="📉" accent="#ef4444" />
-        <StatCard title="Outstanding (₹)" value={summary.outstanding} icon="💰" accent="#a78bfa" />
+      {/* 🔹 Summary Cards */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "1rem",
+          marginTop: "1.2rem",
+        }}
+      >
+        <div className="card">
+          🧾 <b>{summary.totalInvoices || 0}</b> Invoices
+        </div>
+        <div className="card">
+          📈 ₹{summary.totalCredit || 0} Credit Notes
+        </div>
+        <div className="card">
+          📉 ₹{summary.totalDebit || 0} Debit Notes
+        </div>
+        <div className="card">
+          💰 ₹{summary.totalOutstanding || 0} Outstanding
+        </div>
       </div>
 
-      <Card title="Financial Performance Overview" style={{ marginTop: "1.5rem" }}>
-        {financialData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={financialData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="month" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
+      {/* 📊 Charts Row */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr",
+          gap: "1.5rem",
+          marginTop: "2rem",
+        }}
+      >
+        <div
+          style={{
+            background: "white",
+            padding: "1rem",
+            borderRadius: "12px",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+          }}
+        >
+          <h4 style={{ color: "#111827", marginBottom: "1rem" }}>
+            📆 Monthly Invoice Trends
+          </h4>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={barData}>
+              <XAxis dataKey="month" />
+              <YAxis />
               <Tooltip />
               <Legend />
-              <Line type="monotone" dataKey="total" stroke="#f97316" name="Total Invoices" />
-              <Line type="monotone" dataKey="paid" stroke="#22c55e" name="Paid Amount" />
-            </LineChart>
+              <Bar dataKey="total" fill={theme.color} name="Total Invoices" />
+              <Bar dataKey="paid" fill="#22c55e" name="Paid Amount" />
+            </BarChart>
           </ResponsiveContainer>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No financial data available</p>
-        )}
-      </Card>
+        </div>
 
-      <div className="grid mt-6">
-        <Card title="Outstanding Ratio">
-          <DonutProgress
-            value={financialData.reduce((s, d) => s + (d.total - d.paid), 0)}
-            total={financialData.reduce((s, d) => s + d.total, 0)}
-            colors={["#ef4444", "#1f2937"]}
-            label="Outstanding vs Total"
-          />
-        </Card>
-        <Card title="Paid Ratio">
-          <DonutProgress
-            value={financialData.reduce((s, d) => s + d.paid, 0)}
-            total={financialData.reduce((s, d) => s + d.total, 0)}
-            colors={["#22c55e", "#1f2937"]}
-            label="Paid vs Total"
-          />
-        </Card>
+        <div
+          style={{
+            background: "white",
+            padding: "1rem",
+            borderRadius: "12px",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+          }}
+        >
+          <h4 style={{ color: "#111827", marginBottom: "1rem" }}>
+            💼 Payment Distribution
+          </h4>
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                outerRadius={100}
+                label
+              >
+                {pieData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
       </div>
 
-      <Card title="Recent Account Statements" style={{ marginTop: "1.5rem" }}>
-        <DataTable
-          columns={[
-            { key: "dealer", label: "Dealer" },
-            { key: "date", label: "Date" },
-            { key: "debitAmount", label: "Debit" },
-            { key: "creditAmount", label: "Credit" },
-            { key: "balance", label: "Balance" },
-          ]}
-          rows={statements.slice(0, 5).map((stmt) => ({
-            id: stmt.id,
-            dealer: stmt.dealer?.businessName || "N/A",
-            date: new Date(stmt.statementDate).toLocaleDateString(),
-            debitAmount: stmt.debitAmount,
-            creditAmount: stmt.creditAmount,
-            balance: stmt.balance,
-          }))}
-          emptyMessage="No recent account statements"
-        />
-      </Card>
+      {/* 🧾 Account Statements Table */}
+      <div
+        style={{
+          background: "white",
+          borderRadius: "12px",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+          marginTop: "2rem",
+          padding: "1rem",
+        }}
+      >
+        <h4 style={{ color: "#111827", marginBottom: "1rem" }}>
+          📋 Recent Account Statements
+        </h4>
+        {loading ? (
+          <p style={{ color: "#9ca3af" }}>Loading statements...</p>
+        ) : (
+          <DataTable columns={columns} rows={filtered.slice(0, 8)} />
+        )}
+      </div>
 
-      <Card title="Pending Reconciliation" style={{ marginTop: "1.5rem" }}>
-        <DataTable
-          columns={[
-            { key: "invoiceNumber", label: "Invoice #" },
-            { key: "dealer", label: "Dealer" },
-            { key: "dueDate", label: "Due Date" },
-            { key: "balanceAmount", label: "Balance" },
-          ]}
-          rows={pendingReconciliations.slice(0, 5).map((inv) => ({
-            id: inv.id,
-            invoiceNumber: inv.invoiceNumber,
-            dealer: inv.dealer?.businessName || "N/A",
-            dueDate: new Date(inv.dueDate).toLocaleDateString(),
-            balanceAmount: inv.balanceAmount,
-          }))}
-          emptyMessage="All reconciliations are up-to-date!"
-        />
-      </Card>
-
-      <div className="mt-6 flex" style={{ gap: "1rem" }}>
-        <button className="primary" onClick={() => navigate("/reports")}>
-          📊 Generate Financial Reports
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/invoices")}
-          style={{ background: "linear-gradient(90deg, #f97316, #ea580c)" }}
+      {/* 🔸 Reconciliation Section */}
+      <div
+        style={{
+          marginTop: "2rem",
+          display: "flex",
+          gap: "1rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <div
+          style={{
+            background: reconciliation.length ? "#fee2e2" : "#dcfce7",
+            padding: "1rem",
+            borderRadius: "12px",
+            flex: 1,
+            minWidth: "220px",
+          }}
         >
-          🧾 View Invoices
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/reports")}
-          style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}
-        >
-          💼 View Credit/Debit Notes
-        </button>
+          <h4>🔁 Reconciliation Status</h4>
+          <p>
+            {reconciliation.length
+              ? `${reconciliation.length} invoice(s) pending reconciliation`
+              : "All accounts are reconciled ✅"}
+          </p>
+        </div>
       </div>
     </div>
   );
 }
-
-// (Stat cards moved to shared component)
