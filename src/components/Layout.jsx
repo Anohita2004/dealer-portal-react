@@ -7,21 +7,21 @@ export default function Layout() {
   return (
     <div
       style={{
+        display: "flex",
         minHeight: "100vh",
         background: "var(--bg-glow), var(--bg-base)",
         color: "var(--text-color)",
       }}
     >
-      {/* ✅ Fixed sidebar */}
+      {/* ✅ Sidebar - now flexible height */}
       <Sidebar />
 
-      {/* ✅ Main content shifted right */}
+      {/* ✅ Main section (Navbar + dashboard) */}
       <div
         style={{
-          marginLeft: "240px",
+          flex: 1,
           display: "flex",
           flexDirection: "column",
-          minHeight: "100vh",
         }}
       >
         <Navbar />
@@ -30,7 +30,7 @@ export default function Layout() {
           style={{
             flex: 1,
             padding: "2rem",
-            overflowY: "auto",
+            overflowX: "hidden",
           }}
         >
           <div
@@ -39,9 +39,9 @@ export default function Layout() {
               borderRadius: "20px",
               border: "1px solid var(--card-border)",
               padding: "2rem",
-              minHeight: "85vh",
               boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
               backdropFilter: "blur(12px)",
+              minHeight: "calc(100vh - 100px)", // subtracts navbar height
             }}
           >
             <Outlet />

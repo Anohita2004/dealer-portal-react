@@ -1,0 +1,66 @@
+/* ========== OVERALL LAYOUT ========== */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  background: var(--bg-glow), var(--bg-base);
+  color: var(--text-color);
+  overflow: hidden;
+}
+
+/* ========== SIDEBAR ========== */
+.app-layout aside {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 240px;
+  transition: width 0.3s ease;
+  z-index: 1000;
+}
+
+/* ========== MAIN CONTENT AREA ========== */
+.main-content {
+  flex: 1;
+  margin-left: 240px;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ========== NAVBAR ========== */
+.main-content nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* ========== MAIN PAGE CONTENT ========== */
+.page-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  background: var(--bg-base);
+}
+
+/* ========== CONTENT WRAPPER (DASHBOARDS) ========== */
+.content-wrapper {
+  background: var(--card-bg);
+  border-radius: 20px;
+  border: 1px solid var(--card-border);
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(12px);
+  min-height: calc(100vh - 110px); /* adjusts for navbar height */
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 900px) {
+  .app-layout aside {
+    width: 70px;
+  }
+
+  .main-content {
+    margin-left: 70px;
+  }
+}

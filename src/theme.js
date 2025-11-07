@@ -130,7 +130,7 @@ export default function getTheme(mode = "dark") {
         styleOverrides: {
           root: {
             background: isDark
-              ? "rgba(12,12,14,0.75)"
+              ? "rgba(26, 26, 31, 0.75)"
               : "rgba(255,255,255,0.8)",
             backdropFilter: "blur(14px)",
             color: isDark ? "#f8fafc" : "#1e293b",

@@ -46,6 +46,7 @@ index.html
 package.json
 public/vite.svg
 README.md
+robynne-o-HOrhCnQsxnQ-unsplash.jpg
 src/App.css
 src/App.jsx
 src/assets/react.svg
@@ -56,13 +57,16 @@ src/components/DashboardCard.jsx
 src/components/DataTable.jsx
 src/components/DonutProgress.jsx
 src/components/EmptyState.jsx
+src/components/FileUpload.jsx
 src/components/IconPillButton.jsx
 src/components/Layout.jsx
 src/components/Navbar.jsx
 src/components/PageHeader.jsx
+src/components/Pagination.jsx
 src/components/PieChartCard.jsx
 src/components/ProtectedRoute.jsx
 src/components/SearchInput.jsx
+src/components/Sidebar.css
 src/components/Sidebar.jsx
 src/components/SparklineMini.jsx
 src/components/StatCard.jsx
@@ -81,6 +85,7 @@ src/pages/dashboards/InventoryDashboard.jsx
 src/pages/dashboards/ManagerDashboard.css
 src/pages/dashboards/ManagerDashboard.jsx
 src/pages/Documents.jsx
+src/pages/InvoiceDetail.jsx
 src/pages/Invoices.jsx
 src/pages/Login.jsx
 src/pages/OTPVerify.jsx
@@ -88,34 +93,12 @@ src/pages/Reports.jsx
 src/services/api.js
 src/services/socket.js
 src/theme.js
+src/utils/formatters.js
 vite.config.js
 </directory_structure>
 
 <files>
 This section contains the contents of the repository's files.
-
-<file path="src/context/ThemeContext.jsx">
-import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
-
-const ThemeModeContext = createContext({ mode: "dark", toggle: () => {} });
-
-export function ThemeModeProvider({ children }) {
-  const [mode, setMode] = useState(() => localStorage.getItem("ui-mode") || "dark");
-
-  useEffect(() => {
-    localStorage.setItem("ui-mode", mode);
-    document.documentElement.setAttribute("data-theme", mode);
-  }, [mode]);
-
-  const value = useMemo(() => ({ mode, toggle: () => setMode((m) => (m === "dark" ? "light" : "dark")) }), [mode]);
-
-  return <ThemeModeContext.Provider value={value}>{children}</ThemeModeContext.Provider>;
-}
-
-export function useThemeMode() {
-  return useContext(ThemeModeContext);
-}
-</file>
 
 <file path=".gitignore">
 # Logs
@@ -473,6 +456,244 @@ export default function DataTable({ columns, rows, emptyMessage = "No data avail
 }
 </file>
 
+<file path="src/components/EmptyState.jsx">
+import React from "react";
+
+export default function EmptyState({ icon = "🔍", title = "No data", description }) {
+  return (
+    <div style={{ textAlign: "center", padding: "1.5rem", color: "#94a3b8" }}>
+      <div style={{ fontSize: "2rem" }}>{icon}</div>
+      <div style={{ fontWeight: 600, marginTop: "0.25rem", color: "#cbd5e1" }}>{title}</div>
+      {description && <div style={{ marginTop: "0.25rem" }}>{description}</div>}
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/SearchInput.jsx">
+import React from "react";
+
+export default function SearchInput({ placeholder = "Search", value, onChange, style }) {
+  return (
+    <div
+      style={{
+        display: "flex",
+        alignItems: "center",
+        gap: "0.5rem",
+        padding: "0.6rem 0.9rem",
+        borderRadius: 9999,
+        background: "rgba(255,255,255,0.06)",
+        border: "1px solid rgba(255,255,255,0.08)",
+        boxShadow: "inset 0 0 10px rgba(0,0,0,0.2)",
+        color: "#cbd5e1",
+        ...style,
+      }}
+    >
+      <span style={{ opacity: 0.8 }}>🔎</span>
+      <input
+        value={value}
+        onChange={onChange}
+        placeholder={placeholder}
+        style={{
+          outline: "none",
+          border: "none",
+          background: "transparent",
+          color: "#e2e8f0",
+          width: "100%",
+        }}
+      />
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/Sidebar.css">
+.sidebar {
+  width: 240px;
+  height: 100vh;
+  padding: 1.5rem 1rem;
+  background: var(--sidebar-bg, var(--card-bg));
+  border-right: 1px solid var(--card-border);
+  display: flex;
+  flex-direction: column;
+  position: fixed;
+  left: 0;
+  top: 0;
+}
+
+.sidebar-header {
+  padding-bottom: 1rem;
+  border-bottom: 1px solid var(--card-border);
+  margin-bottom: 1.25rem;
+  text-align: center;
+}
+
+.sidebar-header h3 {
+  color: var(--accent);
+  font-weight: 700;
+  letter-spacing: 0.5px;
+}
+
+/* ✅ Navigation */
+.sidebar-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+/* ✅ Clean nav item */
+.sidebar-link {
+  display: block;
+  padding: 0.7rem 1rem;
+  margin: 0.1rem 0;
+  border-radius: 0.6rem;
+  color: var(--text-color);
+  text-decoration: none;
+  font-weight: 500;
+  transition: background 0.2s ease, color 0.2s ease;
+}
+
+/* ✅ Hover */
+.sidebar-link:hover {
+  background: var(--hover-bg);
+  color: var(--accent);
+}
+
+/* ✅ Active item */
+.sidebar-link.active {
+  background: var(--accent-bg);
+  color: var(--accent);
+  font-weight: 600;
+}
+
+/* ✅ Light/Dark Theme Variables */
+:root {
+  /* Light theme */
+  --sidebar-bg: #f8f9fc;
+  --card-bg: #ffffff;
+  --card-border: #e5e7eb;
+  --hover-bg: #f3f4f6;
+  --accent: #f97316;
+  --accent-bg: rgba(249, 115, 22, 0.15);
+  --text-color: #111827;
+}
+
+[data-theme="dark"] {
+  --sidebar-bg: #0f0f11;
+  --card-bg: #1a1a1c;
+  --card-border: #2c2c2f;
+  --hover-bg: rgba(255, 255, 255, 0.06);
+  --accent-bg: rgba(249, 115, 22, 0.18);
+  --text-color: #e5e7eb;
+}
+</file>
+
+<file path="src/components/Toolbar.jsx">
+import React from "react";
+
+export default function Toolbar({ children, right }) {
+  return (
+    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", marginBottom: "0.75rem" }}>
+      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>{children}</div>
+      {right && <div style={{ display: "flex", gap: "0.5rem" }}>{right}</div>}
+    </div>
+  );
+}
+</file>
+
+<file path="src/context/AuthContext.jsx">
+import React, { createContext, useState } from "react";
+import api from "../services/api";
+
+export const AuthContext = createContext();
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")) || null);
+
+  const login = async (username, password) => {
+    const res = await api.post("/auth/login", { username, password });
+    // 👇 return the backend response to the Login component
+    return res.data;
+  };
+
+  const verifyOTP = async (userId, otp) => {
+    const res = await api.post("/auth/verify-otp", { userId, otp });
+    const { token, user } = res.data;
+
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+    setUser(user);
+    return user;
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, login, verifyOTP, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+</file>
+
+<file path="src/context/ThemeContext.jsx">
+import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
+
+const ThemeModeContext = createContext({ mode: "dark", toggle: () => {} });
+
+export function ThemeModeProvider({ children }) {
+  const [mode, setMode] = useState(() => localStorage.getItem("ui-mode") || "dark");
+
+  useEffect(() => {
+    localStorage.setItem("ui-mode", mode);
+    document.documentElement.setAttribute("data-theme", mode);
+  }, [mode]);
+
+  const value = useMemo(() => ({ mode, toggle: () => setMode((m) => (m === "dark" ? "light" : "dark")) }), [mode]);
+
+  return <ThemeModeContext.Provider value={value}>{children}</ThemeModeContext.Provider>;
+}
+
+export function useThemeMode() {
+  return useContext(ThemeModeContext);
+}
+</file>
+
+<file path="src/services/socket.js">
+// src/services/socket.js
+import { io } from "socket.io-client";
+
+const socket = io(import.meta.env.VITE_API_URL.replace("/api", ""), {
+  transports: ["websocket"],
+  auth: {
+    token: localStorage.getItem("token"), // JWT from backend auth
+  },
+  reconnection: true,
+});
+
+export default socket;
+</file>
+
+<file path="vite.config.js">
+import { defineConfig } from 'vite'
+import react from '@vitejs/plugin-react'
+
+// https://vite.dev/config/
+export default defineConfig({
+  plugins: [
+    react({
+      babel: {
+        plugins: [['babel-plugin-react-compiler']],
+      },
+    }),
+  ],
+})
+</file>
+
 <file path="src/components/DonutProgress.jsx">
 import React from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
@@ -510,20 +731,6 @@ export default function DonutProgress({ value = 0, total = 100, colors = ["#f973
         <div style={{ fontSize: "1.6rem", fontWeight: 700, color: "#e2e8f0" }}>{percent}%</div>
         {center}
       </div>
-    </div>
-  );
-}
-</file>
-
-<file path="src/components/EmptyState.jsx">
-import React from "react";
-
-export default function EmptyState({ icon = "🔍", title = "No data", description }) {
-  return (
-    <div style={{ textAlign: "center", padding: "1.5rem", color: "#94a3b8" }}>
-      <div style={{ fontSize: "2rem" }}>{icon}</div>
-      <div style={{ fontWeight: 600, marginTop: "0.25rem", color: "#cbd5e1" }}>{title}</div>
-      {description && <div style={{ marginTop: "0.25rem" }}>{description}</div>}
     </div>
   );
 }
@@ -580,40 +787,19 @@ export default function PageHeader({ title, subtitle, actions }) {
 }
 </file>
 
-<file path="src/components/SearchInput.jsx">
-import React from "react";
+<file path="src/components/ProtectedRoute.jsx">
+import React, { useContext } from 'react';
+import { Navigate } from 'react-router-dom';
+import { AuthContext } from '../context/AuthContext';
 
-export default function SearchInput({ placeholder = "Search", value, onChange, style }) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: "0.5rem",
-        padding: "0.6rem 0.9rem",
-        borderRadius: 9999,
-        background: "rgba(255,255,255,0.06)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow: "inset 0 0 10px rgba(0,0,0,0.2)",
-        color: "#cbd5e1",
-        ...style,
-      }}
-    >
-      <span style={{ opacity: 0.8 }}>🔎</span>
-      <input
-        value={value}
-        onChange={onChange}
-        placeholder={placeholder}
-        style={{
-          outline: "none",
-          border: "none",
-          background: "transparent",
-          color: "#e2e8f0",
-          width: "100%",
-        }}
-      />
-    </div>
-  );
+export default function ProtectedRoute({ children, roles = [] }) {
+  const { user } = useContext(AuthContext);
+  if (!user) return <Navigate to="/login" replace />;
+
+  if (roles.length && !roles.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+  return children;
 }
 </file>
 
@@ -662,282 +848,86 @@ export default function StatCard({ title, value, icon, accent = "#f97316" }) {
 }
 </file>
 
-<file path="src/components/Toolbar.jsx">
-import React from "react";
+<file path="src/pages/Admin.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
 
-export default function Toolbar({ children, right }) {
+export default function Admin() {
+  const [dealers, setDealers] = useState([]);
+
+  const fetchDealers = async () => {
+    const res = await api.get("/dealers");
+    setDealers(res.data.dealers || res.data);
+  };
+
+  const toggleActive = async (id, active) => {
+    await api.put(`/dealers/${id}`, { active: !active });
+    fetchDealers();
+  };
+
+  useEffect(() => { fetchDealers(); }, []);
+
   return (
-    <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: "1rem", marginBottom: "0.75rem" }}>
-      <div style={{ display: "flex", gap: "0.5rem", alignItems: "center" }}>{children}</div>
-      {right && <div style={{ display: "flex", gap: "0.5rem" }}>{right}</div>}
+    <div>
+      <h2>Dealer Management</h2>
+      <table border="1" cellPadding="8">
+        <thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Action</th></tr></thead>
+        <tbody>
+          {dealers.map(d => (
+            <tr key={d.id}>
+              <td>{d.id}</td>
+              <td>{d.name}</td>
+              <td>{d.active ? "Active" : "Blocked"}</td>
+              <td><button onClick={() => toggleActive(d.id, d.active)}>{d.active ? "Block" : "Unblock"}</button></td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
 </file>
 
-<file path="src/context/AuthContext.jsx">
-import React, { createContext, useState } from "react";
+<file path="src/pages/Campaigns.jsx">
+import React, { useEffect, useState } from "react";
 import api from "../services/api";
 
-export const AuthContext = createContext();
+export default function Campaigns() {
+  const [campaigns, setCampaigns] = useState([]);
+  const [newCampaign, setNewCampaign] = useState({ title: "", description: "", active: true });
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")) || null);
-
-  const login = async (username, password) => {
-    const res = await api.post("/auth/login", { username, password });
-    // 👇 return the backend response to the Login component
-    return res.data;
+  const fetchCampaigns = async () => {
+    const res = await api.get("/campaigns");
+    setCampaigns(res.data.campaigns || res.data);
   };
 
-  const verifyOTP = async (userId, otp) => {
-    const res = await api.post("/auth/verify-otp", { userId, otp });
-    const { token, user } = res.data;
+  useEffect(() => { fetchCampaigns(); }, []);
 
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-    setUser(user);
-    return user;
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
+  const addCampaign = async (e) => {
+    e.preventDefault();
+    await api.post("/campaigns", newCampaign);
+    setNewCampaign({ title: "", description: "", active: true });
+    fetchCampaigns();
   };
 
   return (
-    <AuthContext.Provider value={{ user, login, verifyOTP, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-</file>
+    <div>
+      <h2>Campaigns</h2>
+      <form onSubmit={addCampaign}>
+        <input placeholder="Title" value={newCampaign.title} onChange={e => setNewCampaign({...newCampaign, title: e.target.value})}/>
+        <input placeholder="Description" value={newCampaign.description} onChange={e => setNewCampaign({...newCampaign, description: e.target.value})}/>
+        <label>
+          Active: 
+          <input type="checkbox" checked={newCampaign.active} onChange={e => setNewCampaign({...newCampaign, active: e.target.checked})}/>
+        </label>
+        <button type="submit">Add</button>
+      </form>
 
-<file path="src/pages/dashboards/ManagerDashboard.css">
-.manager-dashboard {
-  background: radial-gradient(circle at 20% 0%, rgba(249, 115, 22, 0.05), transparent 40%),
-    linear-gradient(135deg, #0b0d10, #141216 80%);
-  min-height: 100vh;
-  color: #e5e7eb;
-  padding: 2rem;
-  font-family: "Inter", sans-serif;
-}
-
-.dashboard-header h1 {
-  font-size: 2rem;
-  color: #f97316;
-  margin-bottom: 0.3rem;
-}
-
-.dashboard-header p {
-  color: #9ca3af;
-}
-
-.summary-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1rem;
-  margin-top: 2rem;
-}
-
-.summary-card {
-  backdrop-filter: blur(10px);
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid transparent;
-  border-radius: 16px;
-  padding: 1.2rem;
-  text-align: center;
-  transition: 0.3s;
-}
-
-.summary-card:hover {
-  transform: translateY(-3px);
-  background: rgba(255, 255, 255, 0.08);
-}
-
-.chart-card,
-.glass-card {
-  margin-top: 2rem;
-  padding: 1.5rem;
-  border-radius: 20px;
-  backdrop-filter: blur(12px);
-  background: rgba(255, 255, 255, 0.05);
-  box-shadow: inset 0 0 15px rgba(255, 255, 255, 0.03);
-}
-
-.chart-card h2,
-.glass-card h2 {
-  color: #f97316;
-  margin-bottom: 1rem;
-}
-
-.custom-table {
-  width: 100%;
-  border-collapse: collapse;
-}
-
-.custom-table th,
-.custom-table td {
-  padding: 0.7rem;
-  text-align: left;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-}
-
-.status-pending {
-  color: #facc15;
-}
-
-.dual-section {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-  gap: 1.5rem;
-  margin-top: 2rem;
-}
-
-.message-list li {
-  margin: 0.5rem 0;
-  border-bottom: 1px dashed rgba(255, 255, 255, 0.1);
-  padding-bottom: 0.5rem;
-}
-
-.campaign-card {
-  padding: 1rem;
-  border-radius: 12px;
-  background: rgba(255, 255, 255, 0.05);
-  margin-bottom: 1rem;
-  transition: 0.3s;
-}
-
-.campaign-card:hover {
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.quick-actions {
-  margin-top: 2.5rem;
-  display: flex;
-  gap: 1rem;
-  justify-content: center;
-}
-
-.quick-actions button {
-  background: linear-gradient(90deg, #f97316, #ea580c);
-  border: none;
-  padding: 0.8rem 1.5rem;
-  border-radius: 8px;
-  font-weight: 600;
-  cursor: pointer;
-  transition: 0.3s;
-  color: white;
-}
-
-.quick-actions button:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 0 12px #f97316;
-}
-
-.loading-screen {
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  height: 100vh;
-  background: #0f1114;
-  color: #f97316;
-  font-size: 1.3rem;
-  letter-spacing: 0.5px;
-}
-</file>
-
-<file path="src/services/socket.js">
-// src/services/socket.js
-import { io } from "socket.io-client";
-
-const socket = io(import.meta.env.VITE_API_URL.replace("/api", ""), {
-  transports: ["websocket"],
-  auth: {
-    token: localStorage.getItem("token"), // JWT from backend auth
-  },
-  reconnection: true,
-});
-
-export default socket;
-</file>
-
-<file path="vite.config.js">
-import { defineConfig } from 'vite'
-import react from '@vitejs/plugin-react'
-
-// https://vite.dev/config/
-export default defineConfig({
-  plugins: [
-    react({
-      babel: {
-        plugins: [['babel-plugin-react-compiler']],
-      },
-    }),
-  ],
-})
-</file>
-
-<file path="src/components/Layout.jsx">
-import React from "react";
-import Navbar from "./Navbar";
-import Sidebar from "./Sidebar";
-import { Outlet } from "react-router-dom";
-
-export default function Layout() {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        display: "flex",
-        background: "var(--bg-glow), var(--bg-base)",
-        color: "#f8fafc",
-        overflow: "hidden",
-      }}
-    >
-      {/* Sidebar */}
-      <Sidebar />
-
-      {/* Main Content Area */}
-      <div
-        style={{
-          flex: 1,
-          display: "flex",
-          flexDirection: "column",
-          backdropFilter: "blur(8px)",
-        }}
-      >
-        {/* Navbar */}
-        <Navbar />
-
-        {/* Page Content */}
-        <main
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: "2rem",
-            background:
-              "radial-gradient(circle at top left, rgba(255,255,255,0.03), rgba(0,0,0,0.3))",
-            borderTopLeftRadius: "1.5rem",
-            boxShadow: "inset 0 0 20px rgba(255,255,255,0.05)",
-          }}
-        >
-          <div
-            style={{
-              background: "rgba(255,255,255,0.035)",
-              borderRadius: "20px",
-              padding: "2rem",
-              boxShadow:
-                "0 4px 28px rgba(0,0,0,0.5), inset 0 0 10px rgba(255,255,255,0.05)",
-              backdropFilter: "blur(10px)",
-              minHeight: "85vh",
-            }}
-          >
-            <Outlet />
-          </div>
-        </main>
-      </div>
+      <ul>
+        {campaigns.map(c => (
+          <li key={c.id}>{c.title} — {c.active ? "Active" : "Inactive"}</li>
+        ))}
+      </ul>
     </div>
   );
 }
@@ -1036,22 +1026,6 @@ export default function PieChartCard({ title, data = [] }) {
 }
 </file>
 
-<file path="src/components/ProtectedRoute.jsx">
-import React, { useContext } from 'react';
-import { Navigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
-
-export default function ProtectedRoute({ children, roles = [] }) {
-  const { user } = useContext(AuthContext);
-  if (!user) return <Navigate to="/login" replace />;
-
-  if (roles.length && !roles.includes(user.role)) {
-    return <Navigate to="/unauthorized" replace />;
-  }
-  return children;
-}
-</file>
-
 <file path="src/main.jsx">
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
@@ -1080,270 +1054,862 @@ createRoot(document.getElementById('root')).render(
 )
 </file>
 
-<file path="src/pages/Admin.jsx">
-import React, { useEffect, useState } from "react";
-import api from "../services/api";
+<file path="src/pages/Dashboard.jsx">
+import React, { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
+import DealerDashboard from "./dashboards/DealerDashboard";
+import ManagerDashboard from "./dashboards/ManagerDashboard";
+import AdminDashboard from "./dashboards/AdminDashboard";
+import AccountsDashboard from "./dashboards/AccountsDashboard";
+import InventoryDashboard from "./dashboards/InventoryDashboard";
 
-export default function Admin() {
-  const [dealers, setDealers] = useState([]);
+export default function Dashboard() {
+  const { user } = useContext(AuthContext);
 
-  const fetchDealers = async () => {
-    const res = await api.get("/dealers");
-    setDealers(res.data.dealers || res.data);
-  };
+  if (!user) return <p>Loading user...</p>;
 
-  const toggleActive = async (id, active) => {
-    await api.put(`/dealers/${id}`, { active: !active });
-    fetchDealers();
-  };
-
-  useEffect(() => { fetchDealers(); }, []);
-
-  return (
-    <div>
-      <h2>Dealer Management</h2>
-      <table border="1" cellPadding="8">
-        <thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Action</th></tr></thead>
-        <tbody>
-          {dealers.map(d => (
-            <tr key={d.id}>
-              <td>{d.id}</td>
-              <td>{d.name}</td>
-              <td>{d.active ? "Active" : "Blocked"}</td>
-              <td><button onClick={() => toggleActive(d.id, d.active)}>{d.active ? "Block" : "Unblock"}</button></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
+  switch (user.role?.toLowerCase()) {
+    case "dealer":
+      return <DealerDashboard />;
+    case "tm":
+    case "am":
+      return <ManagerDashboard />;
+    case "admin":
+      return <AdminDashboard />;
+    case "accounts":
+      return <AccountsDashboard />;
+    case "inventory":
+      return <InventoryDashboard />;
+    default:
+      return <p>No dashboard available for role: {user.role}</p>;
+  }
 }
 </file>
 
-<file path="src/pages/Campaigns.jsx">
-import React, { useEffect, useState } from "react";
-import api from "../services/api";
+<file path="src/pages/dashboards/ManagerDashboard.css">
+/* ManagerDashboard.css - theme aware, uses CSS variables from index.css */
 
-export default function Campaigns() {
-  const [campaigns, setCampaigns] = useState([]);
-  const [newCampaign, setNewCampaign] = useState({ title: "", description: "", active: true });
+.manager-dashboard {
+  min-height: 100%;
+  padding: 1.25rem;
+  font-family: "Inter", sans-serif;
+  color: var(--text-color);
+}
 
-  const fetchCampaigns = async () => {
-    const res = await api.get("/campaigns");
-    setCampaigns(res.data.campaigns || res.data);
-  };
+/* top-level grid: left main and right sidebar */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 70% 30%;
+  gap: 1.25rem;
+  margin-top: 1rem;
+}
 
-  useEffect(() => { fetchCampaigns(); }, []);
+/* left column */
+.left-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1.25rem;
+}
 
-  const addCampaign = async (e) => {
-    e.preventDefault();
-    await api.post("/campaigns", newCampaign);
-    setNewCampaign({ title: "", description: "", active: true });
-    fetchCampaigns();
-  };
+/* KPI row (compact cards) */
+.kpi-row {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 0.75rem;
+}
 
-  return (
-    <div>
-      <h2>Campaigns</h2>
-      <form onSubmit={addCampaign}>
-        <input placeholder="Title" value={newCampaign.title} onChange={e => setNewCampaign({...newCampaign, title: e.target.value})}/>
-        <input placeholder="Description" value={newCampaign.description} onChange={e => setNewCampaign({...newCampaign, description: e.target.value})}/>
-        <label>
-          Active: 
-          <input type="checkbox" checked={newCampaign.active} onChange={e => setNewCampaign({...newCampaign, active: e.target.checked})}/>
-        </label>
-        <button type="submit">Add</button>
-      </form>
+/* main chart card */
+.main-chart-card {
+  padding: 1rem;
+}
 
-      <ul>
-        {campaigns.map(c => (
-          <li key={c.id}>{c.title} — {c.active ? "Active" : "Inactive"}</li>
-        ))}
-      </ul>
-    </div>
-  );
+/* right column (sidebar) */
+.right-col {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* side compact KPIs */
+.side-kpis {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.6rem;
+}
+
+.mini-kpi {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  padding: 0.7rem;
+  border-radius: 12px;
+  text-align: left;
+  box-shadow: 0 6px 18px rgba(0,0,0,0.06);
+}
+
+.mini-kpi-title {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  margin-bottom: 0.25rem;
+}
+
+.mini-kpi-value {
+  font-weight: 700;
+  font-size: 1.25rem;
+  color: var(--text-color);
+}
+
+/* side cards */
+.side-card {
+  padding: 0.6rem;
+}
+
+/* campaign preview */
+.campaign-preview {
+  padding: 0.6rem 0;
+  border-bottom: 1px solid var(--card-border);
+  cursor: pointer;
+}
+
+/* message list */
+.message-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.message-list li {
+  padding: 0.5rem 0;
+  border-bottom: 1px dashed var(--card-border);
+}
+
+/* small responsive tweaks */
+@media (max-width: 1100px) {
+  .dashboard-grid {
+    grid-template-columns: 1fr;
+  }
+  .kpi-row {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+@media (max-width: 600px) {
+  .kpi-row {
+    grid-template-columns: 1fr;
+  }
 }
 </file>
 
 <file path="src/pages/Documents.jsx">
-import React, { useEffect, useState } from 'react';
-import api from '../services/api';
+// Upgraded Documents.jsx with all enhancements
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
+import { FiUpload, FiDownload, FiTrash2, FiFileText, FiImage, FiFile, FiSearch } from "react-icons/fi";
 
-export default function Documents(){
+export default function Documents() {
   const [files, setFiles] = useState([]);
-  const [file, setFile] = useState(null);
+  const [selectedFiles, setSelectedFiles] = useState([]);
+  const [preview, setPreview] = useState(null);
+  const [dragOver, setDragOver] = useState(false);
+  const [progress, setProgress] = useState({});
+  const [search, setSearch] = useState("");
+  const [filter, setFilter] = useState("all");
 
-  const fetchDocs = async ()=> {
-    const res = await api.get('/documents');
+  const fetchDocs = async () => {
+    const res = await api.get("/documents");
     setFiles(res.data.documents || res.data);
   };
 
-  useEffect(()=>{ fetchDocs(); },[]);
+  useEffect(() => {
+    fetchDocs();
+  }, []);
 
-  const upload = async (e) => {
+  const handleFileSelection = (e) => {
+    const list = Array.from(e.target.files);
+    setSelectedFiles(list);
+    setPreview(list.length === 1 ? URL.createObjectURL(list[0]) : null);
+  };
+
+  const handleDrop = (e) => {
     e.preventDefault();
-    if (!file) return alert('Select file');
-    const form = new FormData();
-    form.append('file', file);
-    form.append('documentType', 'other');
-    const res = await api.post('/documents', form, { headers: {'Content-Type':'multipart/form-data'}});
-    alert('Uploaded');
-    setFile(null);
+    setDragOver(false);
+    const dropped = Array.from(e.dataTransfer.files);
+    setSelectedFiles(dropped);
+    setPreview(dropped.length === 1 ? URL.createObjectURL(dropped[0]) : null);
+  };
+
+  const upload = async () => {
+    if (!selectedFiles.length) return;
+
+    const newProgress = {};
+    const uploads = selectedFiles.map(async (file) => {
+      const form = new FormData();
+      form.append("file", file);
+      form.append("documentType", "other");
+
+      return api.post("/documents", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+        onUploadProgress: (p) => {
+          newProgress[file.name] = Math.round((p.loaded * 100) / p.total);
+          setProgress({ ...newProgress });
+        },
+      });
+    });
+
+    await Promise.all(uploads);
+    setSelectedFiles([]);
+    setPreview(null);
+    setProgress({});
     fetchDocs();
   };
 
-  const download = async (id) => {
-    const res = await api.get(`/documents/${id}/download`, { responseType: 'blob' });
+  const download = async (id, name) => {
+    const res = await api.get(`/documents/${id}/download`, { responseType: "blob" });
     const url = window.URL.createObjectURL(new Blob([res.data]));
-    const a = document.createElement('a'); a.href = url; a.download = 'document';
-    document.body.appendChild(a); a.click(); a.remove();
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = name;
+    a.click();
   };
 
-  return (
-    <div style={{padding:20}}>
-      <h2>Documents</h2>
-      <form onSubmit={upload}>
-        <input type="file" onChange={e=>setFile(e.target.files[0])} />
-        <button type="submit">Upload</button>
-      </form>
+  const remove = async (id) => {
+    if (!window.confirm("Delete this document?")) return;
+    await api.delete(`/documents/${id}`);
+    fetchDocs();
+  };
 
-      <h3>Files</h3>
-      <ul>
-        {files.map(f => (
-          <li key={f.id}>
-            {f.documentName} - <button onClick={()=>download(f.id)}>Download</button>
-          </li>
+  const iconFor = (name) => {
+    const ext = name.split(".").pop().toLowerCase();
+    if (["jpg", "png", "jpeg", "gif"].includes(ext)) return <FiImage size={24} />;
+    if (["pdf"].includes(ext)) return <FiFileText size={24} />;
+    return <FiFile size={24} />;
+  };
+
+  const filtered = files.filter((f) => {
+    const matchesSearch = f.documentName.toLowerCase().includes(search.toLowerCase());
+    const matchesFilter = filter === "all" || f.documentType === filter;
+    return matchesSearch && matchesFilter;
+  });
+
+  return (
+    <div style={{ padding: "2rem", color: "var(--text-color)" }}>
+      <h1 style={{ marginBottom: "1rem", fontSize: "1.8rem", fontWeight: 600 }}>Documents</h1>
+
+      {/* Search + Filter */}
+      <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem" }}>
+        <div style={{ position: "relative", flex: 1 }}>
+          <FiSearch style={{ position: "absolute", top: 10, left: 10, opacity: 0.5 }} />
+          <input
+            placeholder="Search documents..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            style={{ width: "100%", padding: "0.7rem 2.5rem", borderRadius: 10 }}
+          />
+        </div>
+
+        <select
+          value={filter}
+          onChange={(e) => setFilter(e.target.value)}
+          style={{ padding: "0.7rem", borderRadius: 10 }}
+        >
+          <option value="all">All</option>
+          <option value="invoice">Invoices</option>
+          <option value="document">Documents</option>
+          <option value="other">Other</option>
+        </select>
+      </div>
+
+      {/* Upload Zone */}
+      <div
+        onDragOver={(e) => {
+          e.preventDefault();
+          setDragOver(true);
+        }}
+        onDragLeave={() => setDragOver(false)}
+        onDrop={handleDrop}
+        style={{
+          border: dragOver ? "2px dashed #f97316" : "2px dashed var(--card-border)",
+          padding: "2rem",
+          borderRadius: 15,
+          textAlign: "center",
+          marginBottom: "2rem",
+        }}
+      >
+        <FiUpload size={40} style={{ opacity: 0.7 }} />
+        <p>Drag & Drop files here or click to select</p>
+        <input type="file" multiple style={{ display: "none" }} id="fileInput" onChange={handleFileSelection} />
+        <button onClick={() => document.getElementById("fileInput").click()}>Choose Files</button>
+      </div>
+
+      {/* Preview + Upload */}
+      {selectedFiles.length > 0 && (
+        <div style={{ marginBottom: "2rem", padding: "1rem", borderRadius: 10, background: "var(--card-bg)" }}>
+          <h3>Selected Files</h3>
+
+          {preview && (
+            <img src={preview} alt="preview" style={{ maxHeight: 120, marginBottom: "1rem", borderRadius: 8 }} />
+          )}
+
+          {selectedFiles.map((f) => (
+            <div key={f.name} style={{ marginBottom: "0.5rem" }}>
+              {f.name}
+              {progress[f.name] && <div style={{ height: 6, background: "#333", borderRadius: 4 }}>
+                <div style={{ width: `${progress[f.name]}%`, height: "100%", background: "#f97316", borderRadius: 4 }}></div>
+              </div>}
+            </div>
+          ))}
+
+          <button onClick={upload} style={{ marginTop: "1rem" }}>Upload All</button>
+        </div>
+      )}
+
+      {/* File Grid */}
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(250px, 1fr))", gap: "1rem" }}>
+        {filtered.map((f) => (
+          <div key={f.id} style={{ padding: "1.2rem", borderRadius: 12, background: "var(--card-bg)", border: "1px solid var(--card-border)" }}>
+            <div style={{ marginBottom: "1rem" }}>{iconFor(f.documentName)}</div>
+
+            <h4 style={{ marginBottom: "0.5rem" }}>{f.documentName}</h4>
+            <p style={{ opacity: 0.7, fontSize: "0.85rem" }}>{f.documentType}</p>
+
+            <div style={{ marginTop: "1rem", display: "flex", gap: "0.5rem" }}>
+              <button onClick={() => download(f.id, f.documentName)}><FiDownload /></button>
+              <button onClick={() => remove(f.id)}><FiTrash2 /></button>
+            </div>
+          </div>
         ))}
-      </ul>
+      </div>
     </div>
   );
 }
 </file>
 
 <file path="src/pages/Invoices.jsx">
-import React, { useEffect, useState } from 'react';
-import api from '../services/api';
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
+import { Download, Search, FileText } from "lucide-react";
 
-export default function Invoices(){
+export default function Invoices() {
   const [invoices, setInvoices] = useState([]);
-  useEffect(()=>{
-    (async ()=>{
-      const res = await api.get('/invoices');
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    (async () => {
+      const res = await api.get("/invoices");
       setInvoices(res.data.invoices || res.data);
     })();
-  },[]);
+  }, []);
 
   const downloadPdf = async (id, invoiceNumber) => {
     try {
-      const res = await api.get(`/invoices/${id}/pdf`, { responseType: 'blob' });
+      const res = await api.get(`/invoices/${id}/pdf`, { responseType: "blob" });
       const url = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement('a');
-      a.href = url; a.download = `invoice-${invoiceNumber}.pdf`;
-      document.body.appendChild(a); a.click();
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `invoice-${invoiceNumber}.pdf`;
+      document.body.appendChild(a);
+      a.click();
       a.remove();
     } catch (err) {
       console.error(err);
-      alert('Failed to download PDF');
+      alert("Failed to download PDF");
     }
   };
 
+  const filtered = invoices.filter((i) => {
+    const q = search.toLowerCase();
+    return (
+      i.invoiceNumber?.toString()?.includes(q) ||
+      i.status?.toLowerCase()?.includes(q) ||
+      i.totalAmount?.toString()?.includes(q)
+    );
+  });
+
   return (
-    <div style={{padding:20}}>
-      <h2>Invoices</h2>
-      <table border="1" cellPadding="8">
-        <thead><tr><th>#</th><th>Invoice No</th><th>Date</th><th>Total</th><th>Status</th><th>Action</th></tr></thead>
-        <tbody>
-          {invoices.map(i => (
-            <tr key={i.id}>
-              <td>{i.invoiceNumber}</td>
-              <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
-              <td>₹{i.totalAmount}</td>
-              <td>{i.status}</td>
-              <td><button onClick={()=>downloadPdf(i.id, i.invoiceNumber)}>Download PDF</button></td>
+    <div style={{ padding: "2rem" }}>
+      {/* HEADER */}
+      <div style={{ marginBottom: "1.5rem" }}>
+        <h2 style={{ fontSize: "1.7rem", marginBottom: "0.5rem" }}>Invoices</h2>
+        <p style={{ opacity: 0.7 }}>
+          View, filter, and download your invoices.
+        </p>
+      </div>
+
+      {/* SEARCH BAR */}
+      <div
+        style={{
+          marginBottom: "1.5rem",
+          display: "flex",
+          alignItems: "center",
+          gap: "0.5rem",
+          background: "var(--card-bg)",
+          border: "1px solid var(--card-border)",
+          padding: "0.7rem 1rem",
+          borderRadius: "12px",
+        }}
+      >
+        <Search size={18} />
+        <input
+          type="text"
+          placeholder="Search invoices..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            flex: 1,
+            background: "transparent",
+            border: "none",
+            outline: "none",
+            color: "var(--text-color)",
+            fontSize: "1rem",
+          }}
+        />
+      </div>
+
+      {/* INVOICE TABLE */}
+      <div
+        style={{
+          borderRadius: "14px",
+          border: "1px solid var(--card-border)",
+          background: "var(--card-bg)",
+          overflow: "hidden",
+          boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
+        }}
+      >
+        <table
+          style={{
+            width: "100%",
+            borderCollapse: "collapse",
+          }}
+        >
+          <thead
+            style={{
+              background: "rgba(255,255,255,0.05)",
+              textAlign: "left",
+            }}
+          >
+            <tr>
+              {["Invoice #", "Date", "Amount", "Status", "Action"].map((head) => (
+                <th
+                  key={head}
+                  style={{
+                    padding: "1rem",
+                    fontSize: "0.9rem",
+                    fontWeight: 600,
+                    borderBottom: "1px solid var(--card-border)",
+                  }}
+                >
+                  {head}
+                </th>
+              ))}
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
+
+          <tbody>
+            {filtered.length === 0 && (
+              <tr>
+                <td
+                  colSpan={5}
+                  style={{
+                    textAlign: "center",
+                    padding: "2rem",
+                    opacity: 0.6,
+                  }}
+                >
+                  <FileText size={18} style={{ marginRight: 6 }} />
+                  No invoices found
+                </td>
+              </tr>
+            )}
+
+            {filtered.map((i) => (
+              <tr
+                key={i.id}
+                style={{
+                  borderBottom: "1px solid var(--card-border)",
+                  transition: "background 0.2s",
+                }}
+                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
+                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
+              >
+                <td style={{ padding: "1rem" }}>{i.invoiceNumber}</td>
+
+                <td style={{ padding: "1rem" }}>
+                  {new Date(i.invoiceDate).toLocaleDateString()}
+                </td>
+
+                <td style={{ padding: "1rem", fontWeight: 600 }}>
+                  ₹{i.totalAmount}
+                </td>
+
+                <td style={{ padding: "1rem" }}>
+                  <span
+                    style={{
+                      padding: "4px 10px",
+                      borderRadius: "20px",
+                      fontSize: "0.8rem",
+                      fontWeight: 600,
+                      color:
+                        i.status === "Paid"
+                          ? "#16a34a"
+                          : i.status === "Pending"
+                          ? "#f59e0b"
+                          : "#ef4444",
+                      background:
+                        i.status === "Paid"
+                          ? "rgba(22,163,74,0.15)"
+                          : i.status === "Pending"
+                          ? "rgba(245,158,11,0.15)"
+                          : "rgba(239,68,68,0.15)",
+                    }}
+                  >
+                    {i.status}
+                  </span>
+                </td>
+
+                <td style={{ padding: "1rem" }}>
+                  <button
+                    onClick={() => downloadPdf(i.id, i.invoiceNumber)}
+                    style={{
+                      display: "flex",
+                      alignItems: "center",
+                      gap: "6px",
+                      background:
+                        "linear-gradient(90deg, var(--accent), var(--accent-dark))",
+                      padding: "0.45rem 0.9rem",
+                      color: "#fff",
+                      borderRadius: "8px",
+                      border: "none",
+                      cursor: "pointer",
+                      fontSize: "0.85rem",
+                      fontWeight: 600,
+                      boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
+                    }}
+                  >
+                    <Download size={16} />
+                    PDF
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
     </div>
   );
 }
 </file>
 
+<file path="src/services/api.js">
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
+  withCredentials: true,
+});
+
+api.interceptors.request.use((config) => {
+  const token = localStorage.getItem("token");
+  if (token) {
+    config.headers.Authorization = `Bearer ${token}`; // ✅ backend expects this format
+  }
+  return config;
+});
+
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    if (err.response?.status === 401) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.location.href = "/login";
+    }
+    return Promise.reject(err);
+  }
+);
+
+export default api;
+</file>
+
 <file path="src/theme.js">
 import { createTheme } from "@mui/material/styles";
 
-export function getTheme(mode = "dark") {
+export default function getTheme(mode = "dark") {
   const isDark = mode === "dark";
+
   return createTheme({
     palette: {
-      mode: isDark ? "dark" : "light",
+      mode,
+      primary: {
+        main: "#f97316", // glowing amber accent
+      },
+      secondary: {
+        main: "#a78bfa", // lavender accent
+      },
       background: {
-        default: isDark ? "#0b0d10" : "#0e0f12",
-        paper: isDark ? "#0b1222" : "#12161c",
+        default: isDark ? "#0b0d10" : "#f9fafb",
+        paper: isDark
+          ? "rgba(255,255,255,0.04)"
+          : "rgba(255,255,255,0.9)",
       },
-      primary: { main: isDark ? "#f97316" : "#f97316" },
-      secondary: { main: isDark ? "#a78bfa" : "#a78bfa" },
-      success: { main: "#22c55e" },
-      error: { main: "#ef4444" },
-      warning: { main: "#f59e0b" },
-      info: { main: "#60a5fa" },
       text: {
-        primary: isDark ? "#e2e8f0" : "#e5e7eb",
-        secondary: isDark ? "#94a3b8" : "#a1a1aa",
+        primary: isDark ? "#f8fafc" : "#1e293b",
+        secondary: isDark ? "#94a3b8" : "#475569",
       },
+      divider: isDark
+        ? "rgba(255,255,255,0.08)"
+        : "rgba(0,0,0,0.08)",
     },
-    shape: { borderRadius: 20 },
+
     typography: {
-      fontFamily: "'Poppins', 'Inter', sans-serif",
+      fontFamily: "'Inter', 'Poppins', sans-serif",
+      allVariants: {
+        transition: "color 0.3s ease",
+      },
       h1: { fontWeight: 700 },
       h2: { fontWeight: 700 },
       h3: { fontWeight: 600 },
       h4: { fontWeight: 600 },
       h5: { fontWeight: 600 },
+      h6: { fontWeight: 500 },
       body1: { lineHeight: 1.6 },
     },
+
+    shape: { borderRadius: 20 },
+
     components: {
+      // 🌙 Cards with glass effect
       MuiCard: {
         styleOverrides: {
           root: {
             borderRadius: 20,
-            background: "rgba(255,255,255,0.04)",
-            boxShadow:
-              "0 10px 30px rgba(0,0,0,0.35), inset 0 0 10px rgba(255,255,255,0.04)",
-            transition: "0.3s ease",
+            background: isDark
+              ? "rgba(255,255,255,0.05)"
+              : "rgba(255,255,255,0.8)",
+            backdropFilter: "blur(12px)",
+            border: isDark
+              ? "1px solid rgba(255,255,255,0.08)"
+              : "1px solid rgba(0,0,0,0.08)",
+            boxShadow: isDark
+              ? "0 10px 30px rgba(0,0,0,0.4), inset 0 0 10px rgba(255,255,255,0.03)"
+              : "0 6px 20px rgba(0,0,0,0.15)",
+            transition: "all 0.3s ease",
             "&:hover": {
-              transform: "translateY(-3px)",
-              boxShadow:
-                "0 16px 40px rgba(0,0,0,0.45), inset 0 0 10px rgba(255,255,255,0.06)",
+              transform: "translateY(-4px)",
+              boxShadow: isDark
+                ? "0 16px 40px rgba(249,115,22,0.4)"
+                : "0 12px 24px rgba(249,115,22,0.3)",
             },
           },
         },
       },
+
+      // ✨ Buttons (rounded glowing gradients)
       MuiButton: {
         styleOverrides: {
           root: {
-            borderRadius: 10,
+            borderRadius: 12,
             textTransform: "none",
             fontWeight: 600,
-            paddingInline: 16,
-            paddingBlock: 8,
+            paddingInline: 18,
+            paddingBlock: 10,
+            background:
+              "linear-gradient(90deg, #f97316, #ea580c)",
+            color: "#fff",
+            boxShadow: "0 4px 20px rgba(249,115,22,0.3)",
+            "&:hover": {
+              boxShadow: "0 6px 25px rgba(249,115,22,0.4)",
+              transform: "translateY(-2px)",
+            },
           },
         },
       },
+
+      // 📊 Table cells (subtle borders + glow headers)
       MuiTableCell: {
         styleOverrides: {
-          head: { fontWeight: 700 },
+          head: {
+            fontWeight: 700,
+            background: isDark
+              ? "rgba(249,115,22,0.1)"
+              : "rgba(249,115,22,0.15)",
+            color: "#fbbf24",
+          },
+          root: {
+            borderBottom: isDark
+              ? "1px solid rgba(255,255,255,0.08)"
+              : "1px solid rgba(0,0,0,0.08)",
+          },
+        },
+      },
+
+      // 🧱 Paper (glass backgrounds for menus/dialogs)
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            background: isDark
+              ? "rgba(30,30,32,0.9)"
+              : "rgba(255,255,255,0.85)",
+            backdropFilter: "blur(10px)",
+            borderRadius: 20,
+            border: isDark
+              ? "1px solid rgba(255,255,255,0.08)"
+              : "1px solid rgba(0,0,0,0.08)",
+          },
+        },
+      },
+
+      // 🧭 AppBar / Navbar consistency
+      MuiAppBar: {
+        styleOverrides: {
+          root: {
+            background: isDark
+              ? "rgba(12,12,14,0.75)"
+              : "rgba(255,255,255,0.8)",
+            backdropFilter: "blur(14px)",
+            color: isDark ? "#f8fafc" : "#1e293b",
+            boxShadow: isDark
+              ? "0 4px 24px rgba(0,0,0,0.5)"
+              : "0 4px 24px rgba(0,0,0,0.1)",
+          },
+        },
+      },
+
+      // 🔘 Inputs / TextFields
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: 12,
+            background: isDark
+              ? "rgba(255,255,255,0.06)"
+              : "rgba(0,0,0,0.03)",
+            "& fieldset": {
+              borderColor: isDark
+                ? "rgba(255,255,255,0.1)"
+                : "rgba(0,0,0,0.1)",
+            },
+            "&:hover fieldset": {
+              borderColor: "#f97316",
+            },
+          },
+          input: {
+            color: isDark ? "#e2e8f0" : "#1e293b",
+          },
         },
       },
     },
   });
 }
+</file>
 
-export default getTheme;
+<file path="src/App.jsx">
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Invoices from './pages/Invoices';
+import Documents from './pages/Documents';
+import Campaigns from "./pages/Campaigns";
+import Reports from "./pages/Reports";
+import Admin from "./pages/Admin";
+import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout';
+import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
+// ✅ When Layout is inside ProtectedRoute, all child routes share Navbar & Sidebar
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public route */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Protected routes grouped inside Layout */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            {/* All pages with the sidebar/navbar go here */}
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="invoices" element={<Invoices />} />
+            <Route path="documents" element={<Documents />} />
+            <Route path="campaigns" element={<Campaigns />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="admin" element={<Admin />} />
+            <Route path="inventory" element={<InventoryDashboard />} />
+            {/* 🔜 Add Campaigns, Reports, Admin here */}
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+
+export default App;
+</file>
+
+<file path="src/components/Layout.jsx">
+import React from "react";
+import Navbar from "./Navbar";
+import Sidebar from "./Sidebar";
+import { Outlet } from "react-router-dom";
+
+export default function Layout() {
+  return (
+    <div
+      style={{
+        minHeight: "100vh",
+        background: "var(--bg-glow), var(--bg-base)",
+        color: "var(--text-color)",
+      }}
+    >
+      {/* ✅ Fixed sidebar */}
+      <Sidebar />
+
+      {/* ✅ Main content shifted right */}
+      <div
+        style={{
+          marginLeft: "240px",
+          display: "flex",
+          flexDirection: "column",
+          minHeight: "100vh",
+        }}
+      >
+        <Navbar />
+
+        <main
+          style={{
+            flex: 1,
+            padding: "2rem",
+            overflowY: "auto",
+          }}
+        >
+          <div
+            style={{
+              background: "var(--card-bg)",
+              borderRadius: "20px",
+              border: "1px solid var(--card-border)",
+              padding: "2rem",
+              minHeight: "85vh",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+              backdropFilter: "blur(12px)",
+            }}
+          >
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
 </file>
 
 <file path="src/components/Navbar.jsx">
-import React, { useContext, useState } from "react";
+/*import React, { useContext, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { Link, useNavigate } from "react-router-dom";
 import SearchInput from "./SearchInput";
@@ -1419,76 +1985,216 @@ export default function Navbar() {
       </div>
     </nav>
   );
+}*/
+import React, { useContext, useState } from "react";
+import { AuthContext } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useThemeMode } from "../context/ThemeContext";
+import SearchInput from "./SearchInput";
+import { IconButton, Tooltip, Avatar } from "@mui/material";
+import { WbSunny, DarkMode, Notifications, AddCircleOutline } from "@mui/icons-material";
+
+export default function Navbar() {
+  const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const { mode, toggle } = useThemeMode();
+  const [globalSearch, setGlobalSearch] = useState("");
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  return (
+    <nav
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0.75rem 1.5rem",
+        backdropFilter: "blur(14px)",
+        background:
+          mode === "dark"
+            ? "rgba(12,12,14,0.75)"
+            : "rgba(255,255,255,0.8)",
+        borderBottom:
+          mode === "dark"
+            ? "1px solid rgba(255,255,255,0.06)"
+            : "1px solid rgba(0,0,0,0.08)",
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+        boxShadow: mode === "dark"
+          ? "0 4px 24px rgba(0,0,0,0.4)"
+          : "0 4px 20px rgba(0,0,0,0.1)",
+      }}
+    >
+      {/* Search Bar */}
+      <div style={{ flex: 1, maxWidth: 500 }}>
+        <SearchInput
+          placeholder="Search modules, dealers..."
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+        />
+      </div>
+
+      {/* Right-side Controls */}
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "1rem",
+        }}
+      >
+        <Tooltip title="Create New">
+          <IconButton
+            sx={{
+              color: "#f97316",
+              transition: "0.3s",
+              "&:hover": {
+                transform: "scale(1.1)",
+                color: "#fb923c",
+              },
+            }}
+            onClick={() => navigate("/invoices")}
+          >
+            <AddCircleOutline />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="Notifications">
+          <IconButton
+            sx={{
+              color: mode === "dark" ? "#f8fafc" : "#1e293b",
+              "&:hover": {
+                color: "#f97316",
+              },
+            }}
+          >
+            <Notifications />
+          </IconButton>
+        </Tooltip>
+
+        <Tooltip title="Toggle Theme">
+          <IconButton
+            onClick={toggle}
+            sx={{
+              color: mode === "dark" ? "#fbbf24" : "#0f172a",
+              "&:hover": { color: "#f97316" },
+            }}
+          >
+            {mode === "dark" ? <WbSunny /> : <DarkMode />}
+          </IconButton>
+        </Tooltip>
+
+        {user && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            <Avatar
+              sx={{
+                width: 36,
+                height: 36,
+                bgcolor: "#f97316",
+                fontWeight: 600,
+              }}
+            >
+              {user.name ? user.name[0].toUpperCase() : "U"}
+            </Avatar>
+            <div style={{ fontSize: "0.9rem", color: "#cbd5e1" }}>
+              <strong>{user.name || "User"}</strong>
+            </div>
+          </div>
+        )}
+
+        <Tooltip title="Logout">
+          <IconButton
+            onClick={handleLogout}
+            sx={{
+              color: "#ef4444",
+              "&:hover": { transform: "scale(1.1)" },
+            }}
+          >
+            🚪
+          </IconButton>
+        </Tooltip>
+      </div>
+    </nav>
+  );
 }
 </file>
 
 <file path="src/index.css">
-/* 🌌 Modern Glass Dashboard Theme with theme variables */
-
+/* ✅ Global Theme Variables */
 :root {
+  /* Dark Mode (default) */
   --bg-base: linear-gradient(135deg, #0b0d10, #141216);
   --bg-glow: radial-gradient(circle at 20% 0%, rgba(249, 115, 22, 0.06), transparent 35%);
+
+  --text-color: #e2e8f0;
+  --text-muted: #94a3b8;
+
   --accent: #f97316;
+
+  --sidebar-bg: rgba(30, 41, 59, 0.85);
+  --sidebar-text: #cbd5e1;
+
+  --navbar-bg: rgba(12, 12, 14, 0.75);
+
+  --card-bg: rgba(255, 255, 255, 0.06);
+  --card-border: rgba(255, 255, 255, 0.1);
 }
 
+/* ✅ Light Mode Overrides */
 [data-theme="light"] {
-  --bg-base: linear-gradient(135deg, #0e0f12, #12161c);
-  --bg-glow: radial-gradient(circle at 80% 0%, rgba(249, 115, 22, 0.08), transparent 40%);
+  --bg-base: linear-gradient(135deg, #f5f7fa, #e4e7eb);
+  --bg-glow: radial-gradient(circle at 80% 0%, rgba(249, 115, 22, 0.12), transparent 40%);
+
+  --text-color: #1f2937;
+  --text-muted: #4b5563;
+
   --accent: #f97316;
+
+  --sidebar-bg: rgba(255, 255, 255, 0.85);
+  --sidebar-text: #1f2937;
+
+  --navbar-bg: rgba(255, 255, 255, 0.65);
+
+  --card-bg: rgba(255, 255, 255, 0.7);
+  --card-border: rgba(0, 0, 0, 0.15);
 }
 
+/* ✅ Body */
 body {
   margin: 0;
   font-family: "Inter", "Segoe UI", sans-serif;
   background: var(--bg-glow), var(--bg-base);
-  color: #e2e8f0;
+  color: var(--text-color);
   min-height: 100vh;
   overflow-x: hidden;
 }
 
-/* 🔹 NAVBAR */
+/* ✅ Navbar */
 nav {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 1rem 2rem;
-  background: rgba(12, 12, 14, 0.75);
-  backdrop-filter: blur(12px);
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  color: #fff;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
+  padding: 0.9rem 1.5rem;
+  background: var(--navbar-bg);
+  backdrop-filter: blur(14px);
+  border-bottom: 1px solid var(--card-border);
+  color: var(--text-color);
+  box-shadow: 0 4px 24px rgba(0,0,0,0.25);
 }
 
-nav strong {
-  font-size: 1.3rem;
-  color: #f97316;
-}
-
-nav button {
-  background: linear-gradient(90deg, #f97316, #ea580c);
-  color: white;
-  border: none;
-  padding: 0.6rem 1.2rem;
-  border-radius: 10px;
-  cursor: pointer;
-  font-weight: 500;
-  transition: 0.3s;
-}
-
-nav button:hover {
-  background: linear-gradient(90deg, #ea580c, #c2410c);
-}
-
-/* 🔹 SIDEBAR */
+/* ✅ Sidebar */
 aside {
   width: 240px;
-  background: rgba(30, 41, 59, 0.85);
-  color: #cbd5e1;
+  background: var(--sidebar-bg);
+  color: var(--sidebar-text);
   backdrop-filter: blur(10px);
   padding: 2rem 1rem;
-  border-right: 1px solid rgba(255, 255, 255, 0.1);
+  border-right: 1px solid var(--card-border);
   height: 100vh;
-  box-shadow: inset -2px 0 10px rgba(0, 0, 0, 0.2);
+  box-shadow: inset -2px 0 10px rgba(0,0,0,0.1);
 }
 
 aside a {
@@ -1497,7 +2203,7 @@ aside a {
   padding: 0.75rem 1rem;
   margin-bottom: 0.5rem;
   border-radius: 10px;
-  color: #cbd5e1;
+  color: inherit;
   text-decoration: none;
   transition: 0.3s;
   font-weight: 500;
@@ -1505,147 +2211,52 @@ aside a {
 
 aside a:hover {
   background: rgba(249, 115, 22, 0.15);
-  color: #f97316;
+  color: var(--accent);
   transform: translateX(3px);
 }
 
 aside a.active {
   background: linear-gradient(90deg, #f97316, #ea580c);
-  color: white;
+  color: white !important;
   box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
 }
 
-/* 🔹 MAIN CONTAINER */
-main {
-  flex: 1;
-  padding: 2rem;
-  background: rgba(255, 255, 255, 0.03);
-  border-top-left-radius: 20px;
-  backdrop-filter: blur(10px);
-}
-
-/* 🔹 CARDS */
+/* ✅ Cards */
 .card {
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--card-bg);
   border-radius: 20px;
   padding: 1.5rem;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-  border: 1px solid rgba(255, 255, 255, 0.08);
-  transition: all 0.3s ease;
+  border: 1px solid var(--card-border);
+  box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  transition: 0.3s;
 }
 
 .card:hover {
-  transform: translateY(-5px);
+  transform: translateY(-4px);
   box-shadow: 0 0 15px rgba(249, 115, 22, 0.4);
 }
 
-/* 🔹 TABLE */
-table {
-  width: 100%;
-  border-collapse: collapse;
-  color: #e2e8f0;
-}
-
+/* ✅ Tables */
 th,
 td {
   padding: 12px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--card-border);
+  color: var(--text-color);
 }
 
 th {
-  text-align: left;
   background: rgba(249, 115, 22, 0.1);
-  color: #fbbf24;
+  color: var(--accent);
 }
 
-tr:hover {
-  background: rgba(255, 255, 255, 0.05);
-}
-
-/* 🔹 HEADINGS */
-h2, h3 {
-  color: #f97316;
+/* ✅ Headings */
+h2, h3, h4 {
+  color: var(--accent);
   font-weight: 600;
 }
 
-/* 🔹 QUICK ACTION BUTTONS */
-button.primary {
-  background: linear-gradient(90deg, #f97316, #ea580c);
-  border: none;
-  padding: 0.6rem 1.2rem;
-  color: white;
-  border-radius: 10px;
-  cursor: pointer;
-  transition: 0.3s;
-}
-
-button.primary:hover {
-  box-shadow: 0 0 15px rgba(249, 115, 22, 0.45);
-  transform: scale(1.05);
-}
-
-/* 🔹 FLEX UTILITIES */
-.flex {
-  display: flex;
-}
-
-.grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-  gap: 1.5rem;
-}
-
-.center {
-  display: flex;
-  justify-content: center;
-  align-items: center;
-}
-
-.text-center {
-  text-align: center;
-}
-
-.mt-2 { margin-top: 0.5rem; }
-.mt-4 { margin-top: 1rem; }
-.mt-6 { margin-top: 1.5rem; }
-
-/* Glowing Hover */
-.hover-glow:hover {
-  box-shadow: 0 0 20px rgba(249, 115, 22, 0.5);
-  transition: 0.3s;
-}
-</file>
-
-<file path="src/pages/Dashboard.jsx">
-import React, { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
-import DealerDashboard from "./dashboards/DealerDashboard";
-import ManagerDashboard from "./dashboards/ManagerDashboard";
-import AdminDashboard from "./dashboards/AdminDashboard";
-import AccountsDashboard from "./dashboards/AccountsDashboard";
-import InventoryDashboard from "./dashboards/InventoryDashboard";
-
-export default function Dashboard() {
-  const { user } = useContext(AuthContext);
-
-  if (!user) return <p>Loading user...</p>;
-
-  switch (user.role?.toLowerCase()) {
-    case "dealer":
-      return <DealerDashboard />;
-    case "tm":
-    case "am":
-      return <ManagerDashboard />;
-    case "admin":
-      return <AdminDashboard />;
-    case "accounts":
-      return <AccountsDashboard />;
-    case "inventory":
-      return <InventoryDashboard />;
-    default:
-      return <p>No dashboard available for role: {user.role}</p>;
-  }
-}
+/* ✅ Utility */
+.text-muted { color: var(--text-muted); }
 </file>
 
 <file path="src/pages/dashboards/AccountsDashboard.jsx">
@@ -1851,513 +2462,6 @@ export default function AccountsDashboard() {
 }
 
 // (Stat cards moved to shared component)
-</file>
-
-<file path="src/pages/dashboards/AdminDashboard.jsx">
-import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import socket from "../../services/socket"; // ✅ new import
-import { useNavigate } from "react-router-dom";
-import PageHeader from "../../components/PageHeader";
-import StatCard from "../../components/StatCard";
-import Card from "../../components/Card";
-import DataTable from "../../components/DataTable";
-import Toolbar from "../../components/Toolbar";
-import SearchInput from "../../components/SearchInput";
-import IconPillButton from "../../components/IconPillButton";
-import { toast } from "react-toastify";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-
-export default function AdminDashboard() {
-  const navigate = useNavigate();
-  const [summary, setSummary] = useState({});
-  const [approvals, setApprovals] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
-  const [dealerActivity, setDealerActivity] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-
-  // 📊 Initial data fetch
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-
-        // 1️⃣ Dealer performance summary
-        const performanceRes = await api.get("/reports/dealer-performance");
-        const invoices = performanceRes.data?.invoices || [];
-        const totalSales = performanceRes.data?.totalSales || 0;
-        const dealers = new Set(invoices.map((i) => i.dealerId)).size;
-
-        setSummary({
-          activeCampaigns: 0,
-          dealers,
-          pendingApprovals: 0,
-          blockedDealers: 2,
-          totalSales,
-        });
-
-        // 2️⃣ Campaigns
-        const campaignRes = await api.get("/campaigns");
-        setCampaigns(campaignRes.data.campaigns || campaignRes.data);
-        setSummary((prev) => ({
-          ...prev,
-          activeCampaigns: campaignRes.data.campaigns?.length || 0,
-        }));
-
-        // 3️⃣ Dealer activity trend
-        const monthly = {};
-        invoices.forEach((i) => {
-          const month = new Date(i.invoiceDate).toLocaleString("default", {
-            month: "short",
-          });
-          monthly[month] = monthly[month] || {
-            dealersOnboarded: 0,
-            blockedDealers: 0,
-          };
-          monthly[month].dealersOnboarded += 1;
-        });
-        const dealerTrend = Object.keys(monthly).map((m) => ({
-          month: m,
-          dealersOnboarded: monthly[m].dealersOnboarded,
-          blockedDealers: Math.floor(Math.random() * 3),
-        }));
-        setDealerActivity(dealerTrend);
-
-        // 4️⃣ Pending approvals
-        const approvalRes = await api.get("/documents");
-        setApprovals(approvalRes.data.documents || []);
-        setSummary((prev) => ({
-          ...prev,
-          pendingApprovals: approvalRes.data.documents?.length || 0,
-        }));
-      } catch (e) {
-        console.error("Error fetching admin dashboard:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  // ⚡ Real-time socket connection
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) socket.auth = { token };
-    socket.connect();
-
-    socket.on("connect", () => console.log("✅ Admin socket connected"));
-
-    // 🆕 Dealer uploads a new document → Add to approvals
-    socket.on("document:new", (data) => {
-      toast.info(`📄 New document uploaded by Dealer ${data.dealerId}`);
-      setApprovals((prev) => [
-        {
-          id: data.id || Date.now(),
-          dealerName: data.dealerName || `Dealer ${data.dealerId}`,
-          documentType: data.documentType || "Document",
-          createdAt: new Date(),
-          status: "pending",
-        },
-        ...prev,
-      ]);
-      setSummary((prev) => ({
-        ...prev,
-        pendingApprovals: prev.pendingApprovals + 1,
-      }));
-    });
-
-    // ✅ A document was approved/rejected elsewhere
-    socket.on("document:pending:update", () => {
-      toast.info("🔁 Document approval status updated");
-      api.get("/documents").then((res) => {
-        setApprovals(res.data.documents || []);
-        setSummary((prev) => ({
-          ...prev,
-          pendingApprovals: res.data.documents?.length || 0,
-        }));
-      });
-    });
-
-    // 📨 A new campaign was pushed
-    socket.on("campaign:new", (campaign) => {
-      toast.success(`📢 New campaign launched: ${campaign.title}`);
-      setCampaigns((prev) => [campaign, ...prev]);
-      setSummary((prev) => ({
-        ...prev,
-        activeCampaigns: (prev.activeCampaigns || 0) + 1,
-      }));
-    });
-
-    // 🔔 General system notifications
-    socket.on("notification:update", (notif) => {
-      toast.info(`🔔 ${notif.message || "System update received"}`);
-    });
-
-    return () => {
-      socket.off("document:new");
-      socket.off("document:pending:update");
-      socket.off("campaign:new");
-      socket.off("notification:update");
-      socket.disconnect();
-    };
-  }, []);
-
-  // ✅ Handle approve/reject buttons
-  const handleApproval = async (id, action) => {
-    try {
-      await api.patch(`/documents/${id}/status`, { action });
-      toast.success(`Document ${action}d successfully`);
-      setApprovals((prev) => prev.filter((doc) => doc.id !== id));
-      setSummary((prev) => ({
-        ...prev,
-        pendingApprovals: prev.pendingApprovals - 1,
-      }));
-    } catch (err) {
-      toast.error(`Failed to ${action} document`);
-      console.error(err);
-    }
-  };
-
-  if (loading)
-    return (
-      <div className="center text-center" style={{ height: "80vh" }}>
-        Loading admin dashboard...
-      </div>
-    );
-
-  return (
-    <div style={{ padding: "2rem" }}>
-      <PageHeader
-        title="Administrator Dashboard"
-        subtitle="Manage campaigns, dealer approvals, and monitor business operations."
-      />
-
-      <Toolbar
-        right={[
-          <IconPillButton key="new-camp" icon="➕" label="New Campaign" onClick={() => navigate("/campaigns")} />,
-          <IconPillButton key="manage" icon="⚙️" label="Manage Dealers" tone="warning" onClick={() => navigate("/admin")} />,
-        ]}
-      >
-        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search dealers, campaigns..." />
-      </Toolbar>
-
-      <div className="grid mt-4">
-        <StatCard title="Active Campaigns" value={summary.activeCampaigns || 0} icon="📢" accent="#a78bfa" />
-        <StatCard title="Registered Dealers" value={summary.dealers || 0} icon="🏪" accent="#f97316" />
-        <StatCard title="Pending Approvals" value={summary.pendingApprovals || 0} icon="🕒" accent="#f59e0b" />
-        <StatCard title="Blocked Dealers" value={summary.blockedDealers || 0} icon="🚫" accent="#ef4444" />
-      </div>
-
-      <Card title="Dealer Activity (Last 6 Months)" style={{ marginTop: "1.5rem" }}>
-        {dealerActivity.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={dealerActivity}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-              <XAxis dataKey="month" stroke="#6b7280" />
-              <YAxis stroke="#6b7280" />
-              <Tooltip />
-              <Bar dataKey="dealersOnboarded" fill="#f97316" name="Dealers Onboarded" />
-              <Bar dataKey="blockedDealers" fill="#ef4444" name="Blocked Dealers" />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No dealer activity data available</p>
-        )}
-      </Card>
-
-      <Card title="Pending Approvals" style={{ marginTop: "1.5rem" }}>
-        <DataTable
-          columns={[
-            { key: "dealer", label: "Dealer" },
-            { key: "documentType", label: "Document Type" },
-            { key: "uploadedOn", label: "Uploaded On" },
-            { key: "action", label: "Action" },
-          ]}
-          rows={approvals
-            .filter((a) => {
-              const q = search.toLowerCase();
-              return !q || a.dealerName?.toLowerCase().includes(q) || a.documentType?.toLowerCase().includes(q);
-            })
-            .slice(0, 10)
-            .map((a) => ({
-              id: a.id,
-              dealer: a.dealerName,
-              documentType: a.documentType,
-              uploadedOn: new Date(a.createdAt).toLocaleDateString(),
-              action: (
-                <div>
-                  <button
-                    className="primary"
-                    style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)", marginRight: "0.5rem" }}
-                    onClick={() => handleApproval(a.id, "approve")}
-                  >
-                    Approve
-                  </button>
-                  <button
-                    className="primary"
-                    style={{ background: "linear-gradient(90deg, #ef4444, #b91c1c)" }}
-                    onClick={() => handleApproval(a.id, "reject")}
-                  >
-                    Reject
-                  </button>
-                </div>
-              ),
-            }))}
-          emptyMessage="No pending approvals"
-        />
-      </Card>
-
-      <Card title="Active Campaigns" style={{ marginTop: "1.5rem" }}>
-        {campaigns.length > 0 ? (
-          <div className="grid">
-            {campaigns.slice(0, 4).map((c) => (
-              <div
-                key={c.id}
-                className="card hover-glow"
-                style={{ cursor: "pointer" }}
-                onClick={() => navigate(`/campaigns/${c.id}`)}
-              >
-                <h4 style={{ color: "#f97316" }}>{c.title}</h4>
-                <p style={{ color: "#6b7280" }}>{c.description}</p>
-                <p style={{ fontSize: "0.8rem", color: "#9ca3af" }}>
-                  Valid till: {new Date(c.endDate).toLocaleDateString()}
-                </p>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No active campaigns</p>
-        )}
-      </Card>
-
-      <div className="mt-6 flex" style={{ gap: "1rem" }}>
-        <IconPillButton icon="➕" label="Create Campaign" onClick={() => navigate("/campaigns")} />
-        <IconPillButton icon="⚙️" label="Manage Dealers" tone="warning" onClick={() => navigate("/admin")} />
-        <IconPillButton icon="📊" label="View Reports" onClick={() => navigate("/reports")} />
-      </div>
-    </div>
-  );
-}
-
-// (legacy local Card removed in favor of shared components)
-</file>
-
-<file path="src/pages/dashboards/InventoryDashboard.jsx">
-import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import PageHeader from "../../components/PageHeader";
-import StatCard from "../../components/StatCard";
-import Card from "../../components/Card";
-import DataTable from "../../components/DataTable";
-import Toolbar from "../../components/Toolbar";
-import SearchInput from "../../components/SearchInput";
-import IconPillButton from "../../components/IconPillButton";
-import DonutProgress from "../../components/DonutProgress";
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
-
-export default function InventoryDashboard() {
-  const [inventory, setInventory] = useState([]);
-  const [summary, setSummary] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [newStock, setNewStock] = useState("");
-  const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    const fetchInventory = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get("/inventory");
-        setInventory(res.data.inventory || []);
-        setSummary(res.data.summary || {});
-      } catch (err) {
-        console.error("Error fetching inventory:", err);
-        setError("Failed to load inventory data.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchInventory();
-  }, []);
-
-  const handleStockUpdate = async (id) => {
-    if (!newStock || isNaN(newStock)) {
-      alert("Enter a valid number for stock.");
-      return;
-    }
-    try {
-      await api.patch(`/inventory/${id}`, { stock: parseInt(newStock) });
-      alert("Stock updated successfully!");
-      const res = await api.get("/inventory");
-      setInventory(res.data.inventory || []);
-      setSelectedProduct(null);
-      setNewStock("");
-    } catch (err) {
-      console.error("Error updating stock:", err);
-      alert("Failed to update stock.");
-    }
-  };
-
-  if (loading)
-    return <div className="center text-center" style={{ height: "80vh" }}>Loading inventory dashboard...</div>;
-  if (error) return <p className="error">{error}</p>;
-
-  return (
-    <div style={{ padding: "2rem" }}>
-      <PageHeader
-        title="Inventory Dashboard"
-        subtitle="Monitor stock across plants and ensure real-time SAP visibility."
-      />
-
-      <Toolbar
-        right={[
-          <IconPillButton key="adjust" icon="📝" label="Bulk Adjust" tone="warning" onClick={() => {}} />,
-          <IconPillButton key="export" icon="⬇️" label="Export" tone="success" onClick={() => {}} />,
-        ]}
-      >
-        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search products or plants..." />
-      </Toolbar>
-
-      <div className="grid mt-4">
-        <StatCard title="Total Products" value={inventory.length} icon="📦" accent="#f97316" />
-        <StatCard title="Active Plants" value={new Set(inventory.map(i => i.plant)).size} icon="🏭" accent="#22c55e" />
-        <StatCard title="Low Stock Items" value={inventory.filter(i => i.stock < 10).length} icon="⚠️" accent="#ef4444" />
-        <StatCard title="Total Stock" value={inventory.reduce((sum, i) => sum + i.stock, 0)} icon="📊" accent="#a78bfa" />
-      </div>
-
-      <Card title="Stock Overview by Plant" style={{ marginTop: "1.5rem" }}>
-        {inventory.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <BarChart data={aggregateByPlant(inventory)}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="plant" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip />
-              <Bar dataKey="totalStock" fill="#f97316" name="Total Stock" />
-            </BarChart>
-          </ResponsiveContainer>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No inventory data available</p>
-        )}
-      </Card>
-
-      <Card title="Product Inventory Details" style={{ marginTop: "1.5rem" }}>
-        <DataTable
-          columns={[
-            { key: "name", label: "Product" },
-            { key: "plant", label: "Plant" },
-            { key: "stock", label: "Stock", render: (v) => (
-              <span style={{ color: v < 10 ? "#ef4444" : "inherit", fontWeight: v < 10 ? 700 : 400 }}>{v}</span>
-            ) },
-            { key: "uom", label: "UOM" },
-            { key: "lastUpdatedAt", label: "Last Updated" },
-            { key: "action", label: "Action" },
-          ]}
-          rows={inventory
-            .filter((item) => {
-              const q = search.toLowerCase();
-              return !q || item.name?.toLowerCase().includes(q) || item.plant?.toLowerCase().includes(q);
-            })
-            .map((item) => ({
-            id: item.id,
-            name: item.name,
-            plant: item.plant,
-            stock: item.stock,
-            uom: item.uom,
-            lastUpdatedAt: new Date(item.lastUpdatedAt).toLocaleDateString(),
-            action: selectedProduct === item.id ? (
-              <div>
-                <input
-                  type="number"
-                  placeholder="New stock"
-                  value={newStock}
-                  onChange={(e) => setNewStock(e.target.value)}
-                  style={{ width: "70px", marginRight: "0.5rem" }}
-                />
-                <button
-                  className="primary"
-                  style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}
-                  onClick={() => handleStockUpdate(item.id)}
-                >
-                  Save
-                </button>
-                <button
-                  className="primary"
-                  style={{ background: "linear-gradient(90deg, #ef4444, #b91c1c)", marginLeft: "0.5rem" }}
-                  onClick={() => setSelectedProduct(null)}
-                >
-                  Cancel
-                </button>
-              </div>
-            ) : (
-              <button
-                className="primary"
-                style={{ background: "linear-gradient(90deg, #f97316, #ea580c)" }}
-                onClick={() => setSelectedProduct(item.id)}
-              >
-                Update Stock
-              </button>
-            ),
-          }))}
-          emptyMessage="No inventory records available."
-        />
-      </Card>
-
-      <div className="grid mt-6">
-        <Card title="Low Stock Ratio">
-          <DonutProgress
-            value={inventory.filter((i) => i.stock < 10).length}
-            total={inventory.length}
-            colors={["#ef4444", "#1f2937"]}
-            label="Items below threshold"
-          />
-        </Card>
-        <Card title="Plant Coverage">
-          <DonutProgress
-            value={new Set(inventory.map(i => i.plant)).size}
-            total={Math.max(new Set(inventory.map(i => i.plant)).size, 1)}
-            colors={["#22c55e", "#1f2937"]}
-            label="Active plants"
-          />
-        </Card>
-      </div>
-    </div>
-  );
-}
-
-/* Helper: Aggregate stock by plant for the chart */
-const aggregateByPlant = (data) => {
-  const plantTotals = {};
-  data.forEach((item) => {
-    if (!plantTotals[item.plant]) plantTotals[item.plant] = 0;
-    plantTotals[item.plant] += item.stock;
-  });
-  return Object.keys(plantTotals).map((plant) => ({
-    plant,
-    totalStock: plantTotals[plant],
-  }));
-};
-
-/* (legacy local Card removed in favor of shared component) */
 </file>
 
 <file path="src/pages/Login.jsx">
@@ -2626,191 +2730,12 @@ const styles = {
 };
 </file>
 
-<file path="src/services/api.js">
-import axios from "axios";
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
-  withCredentials: true,
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`; // ✅ backend expects this format
-  }
-  return config;
-});
-
-api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
-    }
-    return Promise.reject(err);
-  }
-);
-
-export default api;
-</file>
-
-<file path="src/App.jsx">
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Invoices from './pages/Invoices';
-import Documents from './pages/Documents';
-import Campaigns from "./pages/Campaigns";
-import Reports from "./pages/Reports";
-import Admin from "./pages/Admin";
-import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
-import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
-// ✅ When Layout is inside ProtectedRoute, all child routes share Navbar & Sidebar
-function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public route */}
-          <Route path="/login" element={<Login />} />
-
-          {/* Protected routes grouped inside Layout */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            {/* All pages with the sidebar/navbar go here */}
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="invoices" element={<Invoices />} />
-            <Route path="documents" element={<Documents />} />
-            <Route path="campaigns" element={<Campaigns />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="admin" element={<Admin />} />
-            <Route path="inventory" element={<InventoryDashboard />} />
-            {/* 🔜 Add Campaigns, Reports, Admin here */}
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-  );
-}
-
-export default App;
-</file>
-
-<file path="src/components/Sidebar.jsx">
-import React, { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { Link, useLocation } from "react-router-dom";
-
-export default function Sidebar() {
-  const { user } = useContext(AuthContext);
-  const { pathname } = useLocation();
-
-  const baseLinks = [{ path: "/dashboard", label: "Dashboard" }];
-  const roleLinks = {
-    dealer: [
-      { path: "/invoices", label: "Invoices" },
-      { path: "/documents", label: "Documents" },
-    ],
-    tm: [{ path: "/reports", label: "Reports" }],
-    am: [{ path: "/reports", label: "Reports" }],
-    admin: [
-      { path: "/campaigns", label: "Campaigns" },
-      { path: "/admin", label: "Dealer Management" },
-      { path: "/reports", label: "Reports" },
-    ],
-    accounts: [{ path: "/reports", label: "Accounts Reports" }],
-    inventory: [{ path: "/inventory", label: "Stock View" }],
-  };
-
-  const links = [...baseLinks, ...(roleLinks[user?.role?.toLowerCase()] || [])];
-
-  return (
-    <aside
-      style={{
-        width: "240px",
-        background: "rgba(12, 12, 14, 0.78)",
-        backdropFilter: "blur(10px)",
-        borderRight: "1px solid rgba(255,255,255,0.1)",
-        color: "#cbd5e1",
-        padding: "2rem 1rem",
-        display: "flex",
-        flexDirection: "column",
-        height: "100vh",
-        boxShadow: "4px 0 20px rgba(0,0,0,0.4)",
-      }}
-    >
-      <div
-        style={{
-          textAlign: "center",
-          marginBottom: "2rem",
-          borderBottom: "1px solid rgba(255,255,255,0.1)",
-          paddingBottom: "1rem",
-        }}
-      >
-        <h3 style={{ color: "#f97316", fontWeight: "bold" }}>
-          {user?.role?.toUpperCase() || "USER"}
-        </h3>
-      </div>
-
-      {links.map((l) => (
-        <Link
-          key={l.path}
-          to={l.path}
-          style={{
-            textDecoration: "none",
-            color: pathname === l.path ? "#f97316" : "#e2e8f0",
-            background:
-              pathname === l.path
-                ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
-                : "transparent",
-            fontWeight: pathname === l.path ? "bold" : "normal",
-            padding: "0.75rem 1rem",
-            borderRadius: 9999,
-            margin: "0.25rem 0",
-            transition: "all 0.3s ease",
-            display: "block",
-          }}
-          onMouseEnter={(e) => {
-            e.target.style.background =
-              "linear-gradient(90deg, rgba(249,115,22,0.2), rgba(249,115,22,0.08))";
-            e.target.style.color = "#f97316";
-          }}
-          onMouseLeave={(e) => {
-            e.target.style.background =
-              pathname === l.path
-                ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
-                : "transparent";
-            e.target.style.color =
-              pathname === l.path ? "#f97316" : "#e2e8f0";
-          }}
-        >
-          {l.label}
-        </Link>
-      ))}
-    </aside>
-  );
-}
-</file>
-
-<file path="src/pages/dashboards/ManagerDashboard.jsx">
-// src/pages/manager/ManagerDashboard.jsx
+<file path="src/pages/dashboards/AdminDashboard.jsx">
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
 import socket from "../../services/socket";
 import { useNavigate } from "react-router-dom";
+
 import PageHeader from "../../components/PageHeader";
 import StatCard from "../../components/StatCard";
 import Card from "../../components/Card";
@@ -2818,7 +2743,9 @@ import DataTable from "../../components/DataTable";
 import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
+
 import { toast } from "react-toastify";
+
 import {
   BarChart,
   Bar,
@@ -2827,191 +2754,602 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
-  Legend,
 } from "recharts";
-import "./ManagerDashboard.css";
 
-export default function ManagerDashboard() {
+export default function AdminDashboard() {
   const navigate = useNavigate();
+
   const [summary, setSummary] = useState({});
-  const [dealerPerformance, setDealerPerformance] = useState([]);
-  const [pendingApprovals, setPendingApprovals] = useState([]);
-  const [messages, setMessages] = useState([]);
+  const [approvals, setApprovals] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
+  const [dealerActivity, setDealerActivity] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
+  // ✅ Load dashboard data
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [summaryRes, perfRes, approvalsRes, msgRes, campRes] =
-          await Promise.all([
-            api.get("/reports/dealer-performance"),
-            api.get("/reports/territory"),
-            api.get("/reports/pending-approvals"),
-            api.get("/messages"),
-            api.get("/campaigns"),
-          ]);
+        const performanceRes = await api.get("/reports/dealer-performance");
+        const invoices = performanceRes.data?.invoices || [];
 
-        setSummary(summaryRes.data || {});
-        setDealerPerformance(perfRes.data.report || []);
-        setPendingApprovals(approvalsRes.data || []);
-        setMessages(msgRes.data.messages || msgRes.data || []);
-        setCampaigns(campRes.data.campaigns || campRes.data || []);
-      } catch (err) {
-        console.error("Manager dashboard load error:", err);
+        const totalSales = performanceRes.data?.totalSales || 0;
+        const dealers = new Set(invoices.map((i) => i.dealerId)).size;
+
+        setSummary({
+          activeCampaigns: 0,
+          dealers,
+          pendingApprovals: 0,
+          blockedDealers: 2,
+          totalSales,
+        });
+
+        // ✅ Campaigns
+        const campaignRes = await api.get("/campaigns");
+        setCampaigns(campaignRes.data.campaigns || campaignRes.data);
+        setSummary((prev) => ({
+          ...prev,
+          activeCampaigns: campaignRes.data.campaigns?.length || 0,
+        }));
+
+        // ✅ Dealer activity by month
+        const monthly = {};
+        invoices.forEach((i) => {
+          const m = new Date(i.invoiceDate).toLocaleString("default", {
+            month: "short",
+          });
+          monthly[m] = monthly[m] || { dealersOnboarded: 0, blockedDealers: 0 };
+          monthly[m].dealersOnboarded += 1;
+        });
+
+        setDealerActivity(
+          Object.keys(monthly).map((m) => ({
+            month: m,
+            dealersOnboarded: monthly[m].dealersOnboarded,
+            blockedDealers: Math.floor(Math.random() * 3),
+          }))
+        );
+
+        // ✅ Pending approvals
+        const approvalRes = await api.get("/documents");
+        setApprovals(approvalRes.data.documents || []);
+        setSummary((prev) => ({
+          ...prev,
+          pendingApprovals: approvalRes.data.documents?.length || 0,
+        }));
+      } catch (e) {
+        console.error("Admin dashboard fetch error:", e);
       } finally {
         setLoading(false);
       }
     };
+
     loadData();
   }, []);
 
-  // Socket.io
+  // ✅ Real-time updates
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) socket.auth = { token };
     socket.connect();
 
+    socket.on("connect", () => console.log("✅ Admin socket connected"));
+
+    // New Document Uploaded
     socket.on("document:new", (data) => {
       toast.info(`📄 New document uploaded by Dealer ${data.dealerId}`);
-      setPendingApprovals((prev) => [
-        { dealerId: data.dealerId, documentType: "New Upload", createdAt: new Date() },
+
+      setApprovals((prev) => [
+        {
+          id: data.id || Date.now(),
+          dealerName: data.dealerName || `Dealer ${data.dealerId}`,
+          documentType: data.documentType || "Document",
+          createdAt: new Date(),
+        },
         ...prev,
       ]);
+
+      setSummary((prev) => ({
+        ...prev,
+        pendingApprovals: prev.pendingApprovals + 1,
+      }));
     });
 
-    socket.on("message:new", (msg) => {
-      toast.success(`💬 Message from Dealer: ${msg.content}`);
-      setMessages((prev) => [msg, ...prev]);
+    socket.on("document:pending:update", () => {
+      api.get("/documents").then((res) => {
+        setApprovals(res.data.documents || []);
+        setSummary((prev) => ({
+          ...prev,
+          pendingApprovals: res.data.documents?.length || 0,
+        }));
+      });
     });
 
     socket.on("campaign:new", (campaign) => {
-      toast.info(`📢 New Campaign: ${campaign.title}`);
+      toast.success(`📢 New campaign launched: ${campaign.title}`);
       setCampaigns((prev) => [campaign, ...prev]);
     });
 
-    return () => {
-      socket.disconnect();
-    };
+    return () => socket.disconnect();
   }, []);
+
+  // ✅ Approve/Reject actions
+  const handleApproval = async (id, action) => {
+    try {
+      await api.patch(`/documents/${id}/status`, { action });
+      toast.success(`Document ${action}d`);
+
+      setApprovals((prev) => prev.filter((doc) => doc.id !== id));
+      setSummary((prev) => ({
+        ...prev,
+        pendingApprovals: prev.pendingApprovals - 1,
+      }));
+    } catch {
+      toast.error(`Failed to ${action} document`);
+    }
+  };
 
   if (loading)
     return (
-      <div className="loading-screen">
-        <div className="loading-text">Loading Manager Dashboard...</div>
+      <div className="center text-center" style={{ height: "80vh" }}>
+        Loading admin dashboard...
       </div>
     );
 
   return (
-    <div className="manager-dashboard">
+  <div style={{ padding: "1.5rem", color: "var(--text-color)" }}>
+
+    {/* ✅ Page Header */}
+    <PageHeader
+      title="Administrator Dashboard"
+      subtitle="Overview of your system activity, dealer performance, and approvals."
+    />
+
+    {/* ✅ TOP CONTROL BAR like reference UI */}
+    <Toolbar
+      left={[
+        <SearchInput
+          key="search"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          placeholder="Search dealers, campaigns..."
+        />,
+      ]}
+      right={[
+        <IconPillButton key="date" icon="📅" label="This Month" />,
+        <IconPillButton key="filter" icon="⚙️" label="Filter" />,
+        <IconPillButton
+          key="new-camp"
+          icon="➕"
+          label="New Campaign"
+          onClick={() => navigate("/campaigns")}
+        />,
+        <IconPillButton
+          key="manage"
+          icon="🧩"
+          tone="warning"
+          label="Manage Dealers"
+          onClick={() => navigate("/admin")}
+        />,
+      ]}
+    />
+
+    {/* ✅ 2-COLUMN WRAPPER */}
+    <div className="dashboard-grid" style={{
+      display: "grid",
+      gridTemplateColumns: "70% 30%",
+      gap: "1.5rem",
+      marginTop: "1.5rem"
+    }}>
+
+      {/* ✅ LEFT COLUMN */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+
+        {/* ✅ SALES CHART (Main card) */}
+        <Card title="Dealer Activity Overview" subtitle="Last 6 months">
+          <ResponsiveContainer width="100%" height={260}>
+            <BarChart data={dealerActivity}>
+              <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
+              <XAxis dataKey="month" stroke="var(--text-muted)" />
+              <YAxis stroke="var(--text-muted)" />
+              <Tooltip
+                contentStyle={{
+                  background: "var(--card-bg)",
+                  border: "1px solid var(--card-border)",
+                  color: "var(--text-color)",
+                }}
+              />
+              <Bar dataKey="dealersOnboarded" fill="var(--accent)" />
+              <Bar dataKey="blockedDealers" fill="var(--text-muted)" />
+            </BarChart>
+          </ResponsiveContainer>
+        </Card>
+
+        {/* ✅ 2 SMALLER CARDS (like "Market demand" + "Time order tracking") */}
+        <div className="grid" style={{ display: "grid", gap: "1.5rem", gridTemplateColumns: "1fr 1fr" }}>
+          
+          <Card title="Market Demand">
+            <div style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "1rem" }}>
+              {summary.activeCampaigns}
+            </div>
+            <p className="text-muted">Active campaigns currently running.</p>
+          </Card>
+
+          <Card title="New Dealers This Month">
+            <div style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "1rem" }}>
+              {summary.dealers}
+            </div>
+            <p className="text-muted">Dealers onboarded in recent invoices.</p>
+          </Card>
+
+        </div>
+
+      </div>
+
+      {/* ✅ RIGHT COLUMN (KPIs + Approvals + Campaigns) */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+
+        {/* ✅ KPI GRID */}
+        <div className="grid" style={{ display: "grid", gap: "1rem", gridTemplateColumns: "1fr 1fr" }}>
+          <StatCard title="Total Dealers" value={summary.dealers || 0} icon="🏪" />
+          <StatCard title="Pending Approvals" value={summary.pendingApprovals || 0} icon="🕒" />
+          <StatCard title="Blocked Dealers" value={summary.blockedDealers || 0} icon="🚫" />
+          <StatCard title="Active Campaigns" value={summary.activeCampaigns || 0} icon="📢" />
+        </div>
+
+        {/* ✅ Pending Approvals (Condensed list) */}
+        <Card title="Pending Approvals">
+          <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+            {approvals.slice(0, 5).map((a) => (
+              <div key={a.id} style={{
+                padding: "0.7rem 0",
+                borderBottom: "1px solid var(--card-border)",
+                display: "flex",
+                justifyContent: "space-between"
+              }}>
+                <div>
+                  <div style={{ fontWeight: 600 }}>{a.dealerName}</div>
+                  <div className="text-muted" style={{ fontSize: "0.85rem" }}>{a.documentType}</div>
+                </div>
+
+                <div style={{ display: "flex", gap: "0.3rem" }}>
+                  <button className="btn-success" onClick={() => handleApproval(a.id, "approve")}>✔</button>
+                  <button className="btn-danger" onClick={() => handleApproval(a.id, "reject")}>✖</button>
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+        {/* ✅ Campaign Previews */}
+        <Card title="Active Campaigns">
+          <div style={{ maxHeight: "200px", overflowY: "auto" }}>
+            {campaigns.slice(0, 4).map((c) => (
+              <div
+                key={c.id}
+                onClick={() => navigate(`/campaigns/${c.id}`)}
+                style={{
+                  padding: "0.7rem 0",
+                  borderBottom: "1px solid var(--card-border)",
+                  cursor: "pointer"
+                }}
+              >
+                <div style={{ fontWeight: 600, color: "var(--accent)" }}>{c.title}</div>
+                <div className="text-muted" style={{ fontSize: "0.8rem" }}>
+                  {c.description}
+                </div>
+              </div>
+            ))}
+          </div>
+        </Card>
+
+      </div>
+
+    </div>
+
+  </div>
+);
+
+}
+</file>
+
+<file path="src/pages/dashboards/InventoryDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import DataTable from "../../components/DataTable";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+import DonutProgress from "../../components/DonutProgress";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+export default function InventoryDashboard() {
+  const [inventory, setInventory] = useState([]);
+  const [summary, setSummary] = useState({});
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState("");
+  const [selectedProduct, setSelectedProduct] = useState(null);
+  const [newStock, setNewStock] = useState("");
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const fetchInventory = async () => {
+      try {
+        setLoading(true);
+        const res = await api.get("/inventory");
+        setInventory(res.data.inventory || []);
+        setSummary(res.data.summary || {});
+      } catch (err) {
+        console.error("Error fetching inventory:", err);
+        setError("Failed to load inventory data.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchInventory();
+  }, []);
+
+  const handleStockUpdate = async (id) => {
+    if (!newStock || isNaN(newStock)) {
+      alert("Enter a valid number for stock.");
+      return;
+    }
+    try {
+      await api.patch(`/inventory/${id}`, { stock: parseInt(newStock) });
+      const res = await api.get("/inventory");
+      setInventory(res.data.inventory || []);
+      setSelectedProduct(null);
+      setNewStock("");
+    } catch (err) {
+      console.error("Error updating stock:", err);
+    }
+  };
+
+  if (loading)
+    return (
+      <div className="center text-center" style={{ height: "80vh" }}>
+        Loading inventory dashboard...
+      </div>
+    );
+  if (error) return <p className="error">{error}</p>;
+
+  return (
+    <div style={{ padding: "1.5rem" }}>
+      {/* ✅ Header */}
       <PageHeader
-        title="Regional Manager Dashboard"
-        subtitle="Monitor dealers, campaigns, and performance insights in real-time."
+        title="Inventory Dashboard"
+        subtitle="Monitor product stock, plant capacity, and reorder risks."
       />
 
+      {/* ✅ Unified Toolbar */}
       <Toolbar
-        right={[
-          <IconPillButton key="reports" icon="📊" label="Reports" onClick={() => navigate("/reports")} />,
-          <IconPillButton key="campaigns" icon="📢" label="Campaigns" tone="warning" onClick={() => navigate("/campaigns")} />,
+        left={[
+          <SearchInput
+            key="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search products or plants..."
+          />,
         ]}
+        right={[
+          <IconPillButton
+            key="adjust"
+            icon="📝"
+            label="Bulk Adjust"
+            tone="warning"
+            onClick={() => {}}
+          />,
+          <IconPillButton
+            key="export"
+            icon="⬇️"
+            label="Export"
+            tone="success"
+            onClick={() => {}}
+          />,
+        ]}
+      />
+
+      {/* ✅ 2-Column Modern Dashboard Layout */}
+      <div
+        className="dashboard-grid"
+        style={{
+          display: "grid",
+          gridTemplateColumns: "70% 30%",
+          gap: "1.5rem",
+          marginTop: "1.5rem",
+        }}
       >
-        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search dealers, campaigns..." />
-      </Toolbar>
+        {/* ✅ LEFT COLUMN */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          {/* ✅ Main Chart */}
+          <Card title="Stock Overview by Plant">
+            {inventory.length > 0 ? (
+              <ResponsiveContainer width="100%" height={280}>
+                <BarChart data={aggregateByPlant(inventory)}>
+                  <CartesianGrid
+                    strokeDasharray="3 3"
+                    stroke="var(--card-border)"
+                  />
+                  <XAxis dataKey="plant" stroke="var(--text-muted)" />
+                  <YAxis stroke="var(--text-muted)" />
+                  <Tooltip
+                    contentStyle={{
+                      background: "var(--card-bg)",
+                      border: "1px solid var(--card-border)",
+                      color: "var(--text-color)",
+                    }}
+                  />
+                  <Bar
+                    dataKey="totalStock"
+                    fill="var(--accent)"
+                    barSize={20}
+                    radius={[6, 6, 0, 0]}
+                  />
+                </BarChart>
+              </ResponsiveContainer>
+            ) : (
+              <p style={{ color: "#94a3b8" }}>No inventory data available</p>
+            )}
+          </Card>
 
-      <div className="summary-grid">
-        <StatCard title="Total Dealers" value={summary.totalInvoices || 0} icon="🏪" accent="#f97316" />
-        <StatCard title="Active Campaigns" value={campaigns.length} icon="📢" accent="#a78bfa" />
-        <StatCard title="Pending Approvals" value={pendingApprovals.length} icon="🕒" accent="#f59e0b" />
-        <StatCard title="New Messages" value={messages.length} icon="💬" accent="#22c55e" />
-      </div>
+          {/* ✅ Table */}
+          <Card title="Product Inventory Details">
+            <DataTable
+              columns={[
+                { key: "name", label: "Product" },
+                { key: "plant", label: "Plant" },
+                {
+                  key: "stock",
+                  label: "Stock",
+                  render: (v) => (
+                    <span
+                      style={{
+                        color: v < 10 ? "#ef4444" : "inherit",
+                        fontWeight: v < 10 ? 700 : 400,
+                      }}
+                    >
+                      {v}
+                    </span>
+                  ),
+                },
+                { key: "uom", label: "UOM" },
+                { key: "lastUpdatedAt", label: "Last Updated" },
+                { key: "action", label: "Action" },
+              ]}
+              rows={inventory
+                .filter((item) => {
+                  const q = search.toLowerCase();
+                  const name = item?.name?.toString().toLowerCase() || "";
+                  const plant = item?.plant?.toString().toLowerCase() || "";
+                  return q === "" || name.includes(q) || plant.includes(q);
+                })
+                .map((item) => ({
+                  id: item.id,
+                  name: item.name || "—",
+                  plant: item.plant || "—",
+                  stock: item.stock ?? 0,
+                  uom: item.uom || "—",
+                  lastUpdatedAt: item.lastUpdatedAt
+                    ? new Date(item.lastUpdatedAt).toLocaleDateString()
+                    : "—",
 
-      <Card title="Dealer Performance Overview" style={{ marginTop: "1.5rem" }}>
-        <ResponsiveContainer width="100%" height={350}>
-          <BarChart data={dealerPerformance}>
-            <defs>
-              <linearGradient id="colorSales" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f97316" stopOpacity={0.85} />
-                <stop offset="95%" stopColor="#3d1e0f" stopOpacity={0.2} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis dataKey="businessName" stroke="#9ca3af" />
-            <YAxis stroke="#9ca3af" />
-            <Tooltip contentStyle={{ backgroundColor: "rgba(20,20,30,0.9)", borderRadius: "10px" }} />
-            <Legend />
-            <Bar dataKey="totalSales" fill="url(#colorSales)" barSize={16} radius={[8, 8, 0, 0]} />
-          </BarChart>
-        </ResponsiveContainer>
-      </Card>
+                  action:
+                    selectedProduct === item.id ? (
+                      <div style={{ display: "flex", gap: ".5rem" }}>
+                        <input
+                          type="number"
+                          value={newStock}
+                          onChange={(e) => setNewStock(e.target.value)}
+                          style={{ width: "70px" }}
+                        />
+                        <button className="primary" onClick={() => handleStockUpdate(item.id)}>
+                          Save
+                        </button>
+                        <button
+                          className="primary danger"
+                          onClick={() => setSelectedProduct(null)}
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    ) : (
+                      <button
+                        className="primary"
+                        onClick={() => setSelectedProduct(item.id)}
+                      >
+                        Update
+                      </button>
+                    ),
+                }))}
+              emptyMessage="No inventory records available."
+            />
+          </Card>
+        </div>
 
-      <Card title="Pending Approvals" style={{ marginTop: "1.5rem" }}>
-        <DataTable
-          columns={[
-            { key: "dealer", label: "Dealer" },
-            { key: "document", label: "Document" },
-            { key: "date", label: "Date" },
-            { key: "status", label: "Status" },
-          ]}
-          rows={pendingApprovals
-            .filter((a) => {
-              const q = search.toLowerCase();
-              return !q || a.dealerName?.toLowerCase().includes(q) || String(a.dealerId || "").includes(q);
-            })
-            .map((a) => ({
-              id: a.id || Math.random(),
-              dealer: a.dealerName || a.dealerId,
-              document: a.documentType || "Document",
-              date: new Date(a.createdAt).toLocaleDateString(),
-              status: "Pending",
-            }))}
-          emptyMessage="No pending approvals"
-        />
-      </Card>
+        {/* ✅ RIGHT COLUMN */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          {/* ✅ KPI Grid */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "1rem",
+            }}
+          >
+            <StatCard
+              title="Total Products"
+              value={inventory.length}
+              icon="📦"
+            />
+            <StatCard
+              title="Active Plants"
+              value={new Set(inventory.map((i) => i.plant)).size}
+              icon="🏭"
+            />
+            <StatCard
+              title="Low Stock Items"
+              value={inventory.filter((i) => i.stock < 10).length}
+              icon="⚠️"
+            />
+            <StatCard
+              title="Total Stock"
+              value={inventory.reduce((sum, i) => sum + i.stock, 0)}
+              icon="📊"
+            />
+          </div>
 
-      <div className="dual-section" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: "1.5rem", marginTop: "1.5rem" }}>
-        <Card title="Recent Messages">
-          {messages.length > 0 ? (
-            <ul className="message-list">
-              {messages.slice(0, 5).map((msg) => (
-                <li key={msg.id} style={{ margin: "0.5rem 0", borderBottom: "1px dashed rgba(255,255,255,0.1)", paddingBottom: "0.5rem" }}>
-                  <strong>{msg.dealerName || `Dealer ${msg.senderId}`}</strong>: {msg.content}
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p>No new messages</p>
-          )}
-        </Card>
+          {/* ✅ Donut Cards */}
+          <Card title="Low Stock Ratio">
+            <DonutProgress
+              value={inventory.filter((i) => i.stock < 10).length}
+              total={inventory.length}
+              label="Items below threshold"
+            />
+          </Card>
 
-        <Card title="Active Campaigns">
-          {campaigns.length > 0 ? (
-            <div className="campaign-grid">
-              {campaigns.slice(0, 3).map((c) => (
-                <div key={c.id} className="campaign-card">
-                  <h4>{c.title}</h4>
-                  <p>{c.description}</p>
-                  <span>Valid till {new Date(c.endDate).toLocaleDateString()}</span>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <p>No campaigns running</p>
-          )}
-        </Card>
-      </div>
+          <Card title="Plant Coverage">
+            <DonutProgress
+              value={new Set(inventory.map((i) => i.plant)).size}
+              total={Math.max(new Set(inventory.map((i) => i.plant)).size, 1)}
+              label="Active plants"
+            />
+          </Card>
 
-      <div className="quick-actions" style={{ marginTop: "2rem", display: "flex", gap: "1rem", justifyContent: "center" }}>
-        <IconPillButton icon="📊" label="Reports" onClick={() => navigate("/reports")} />
-        <IconPillButton icon="💬" label="Messages" onClick={() => navigate("/messages")} tone="success" />
-        <IconPillButton icon="📢" label="Campaigns" onClick={() => navigate("/campaigns")} tone="warning" />
+          {/* ✅ Quick Actions */}
+          <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+            <IconPillButton label="Bulk Adjust" icon="📝" tone="warning" />
+            <IconPillButton label="Export" icon="⬇️" tone="success" />
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-// (legacy SummaryCard removed in favor of shared StatCard)
+/* Helper: Aggregate stock by plant for the chart */
+const aggregateByPlant = (data) => {
+  const plantTotals = {};
+  data.forEach((item) => {
+    if (!plantTotals[item.plant]) plantTotals[item.plant] = 0;
+    plantTotals[item.plant] += item.stock;
+  });
+  return Object.keys(plantTotals).map((plant) => ({
+    plant,
+    totalStock: plantTotals[plant],
+  }));
+};
 </file>
 
 <file path="src/pages/Reports.jsx">
@@ -3807,11 +4145,23 @@ export default function Reports() {
 }
 </file>
 
-<file path="src/pages/dashboards/DealerDashboard.jsx">
+<file path="src/pages/dashboards/ManagerDashboard.jsx">
+// src/pages/dashboards/ManagerDashboard.jsx
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
 import socket from "../../services/socket";
+import { useNavigate } from "react-router-dom";
+
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import DataTable from "../../components/DataTable";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+
 import { toast } from "react-toastify";
+
 import {
   BarChart,
   Bar,
@@ -3822,7 +4172,478 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
-import "./ManagerDashboard.css"; // ✅ reuse same CSS
+
+import "./ManagerDashboard.css";
+
+export default function ManagerDashboard() {
+  const navigate = useNavigate();
+  const [summary, setSummary] = useState({});
+  const [dealerPerformance, setDealerPerformance] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const [summaryRes, perfRes, approvalsRes, msgRes, campRes] =
+          await Promise.all([
+            api.get("/reports/dealer-performance"),
+            api.get("/reports/territory"),
+            api.get("/reports/pending-approvals"),
+            api.get("/messages"),
+            api.get("/campaigns"),
+          ]);
+
+        setSummary(summaryRes.data || {});
+        setDealerPerformance(perfRes.data.report || []);
+        setPendingApprovals(approvalsRes.data || []);
+        setMessages(msgRes.data.messages || msgRes.data || []);
+        setCampaigns(campRes.data.campaigns || campRes.data || []);
+      } catch (err) {
+        console.error("Manager dashboard load error:", err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  // Socket.io realtime hooks
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) socket.auth = { token };
+    socket.connect();
+
+    socket.on("document:new", (data) => {
+      toast.info(`📄 New document uploaded by Dealer ${data.dealerId}`);
+      setPendingApprovals((prev) => [
+        {
+          id: data.id || Date.now(),
+          dealerName: data.dealerName || `Dealer ${data.dealerId}`,
+          documentType: data.documentType || "Upload",
+          createdAt: new Date(),
+        },
+        ...prev,
+      ]);
+    });
+
+    socket.on("message:new", (msg) => {
+      toast.success(`💬 Message from Dealer: ${msg.content}`);
+      setMessages((prev) => [msg, ...prev]);
+    });
+
+    socket.on("campaign:new", (campaign) => {
+      toast.info(`📢 New Campaign: ${campaign.title}`);
+      setCampaigns((prev) => [campaign, ...prev]);
+    });
+
+    return () => socket.disconnect();
+  }, []);
+
+  if (loading)
+    return (
+      <div className="loading-screen">
+        <div className="loading-text">Loading Manager Dashboard...</div>
+      </div>
+    );
+
+  return (
+    <div className="manager-dashboard" style={{ color: "var(--text-color)" }}>
+      <PageHeader
+        title="Regional Manager Dashboard"
+        subtitle="Monitor dealers, campaigns, and performance insights in real-time."
+      />
+
+      <Toolbar
+        left={[
+          <SearchInput
+            key="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search dealers, campaigns..."
+          />,
+        ]}
+        right={[
+          <IconPillButton key="reports" icon="📊" label="Reports" onClick={() => navigate("/reports")} />,
+          <IconPillButton key="campaigns" icon="📢" label="Campaigns" tone="warning" onClick={() => navigate("/campaigns")} />,
+        ]}
+      />
+
+      {/* 2-column grid */}
+      <div className="dashboard-grid">
+        {/* Left Column - Main charts & lists */}
+        <div className="left-col">
+          <div className="kpi-row">
+            <StatCard title="Total Dealers" value={summary.totalDealers || summary.totalInvoices || 0} icon="🏪" />
+            <StatCard title="Active Campaigns" value={campaigns.length} icon="📢" />
+            <StatCard title="Pending Approvals" value={pendingApprovals.length} icon="🕒" />
+            <StatCard title="New Messages" value={messages.length} icon="💬" />
+          </div>
+
+          <Card title="Dealer Performance Overview" className="main-chart-card">
+            <ResponsiveContainer width="100%" height={340}>
+              <BarChart data={dealerPerformance}>
+                <defs>
+                  <linearGradient id="mgrColorSales" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.85} />
+                    <stop offset="95%" stopColor="rgba(0,0,0,0.15)" stopOpacity={0.15} />
+                  </linearGradient>
+                </defs>
+
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
+                <XAxis dataKey="businessName" stroke="var(--text-muted)" interval={0} tick={{ fontSize: 12 }} />
+                <YAxis stroke="var(--text-muted)" />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--card-bg)",
+                    border: "1px solid var(--card-border)",
+                    color: "var(--text-color)",
+                  }}
+                />
+                <Legend />
+                <Bar dataKey="totalSales" fill="url(#mgrColorSales)" barSize={16} radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+
+          <Card title="Pending Approvals" style={{ marginTop: "1rem" }}>
+            <DataTable
+              columns={[
+                { key: "dealer", label: "Dealer" },
+                { key: "document", label: "Document" },
+                { key: "date", label: "Date" },
+                { key: "status", label: "Status" },
+              ]}
+              rows={pendingApprovals
+                .filter((a) => {
+                  const q = search.toLowerCase();
+                  return !q || (a.dealerName || "").toLowerCase().includes(q) || String(a.dealerId || "").includes(q);
+                })
+                .slice(0, 8)
+                .map((a) => ({
+                  id: a.id || Math.random(),
+                  dealer: a.dealerName || a.dealerId,
+                  document: a.documentType || "Document",
+                  date: new Date(a.createdAt).toLocaleDateString(),
+                  status: "Pending",
+                }))}
+              emptyMessage="No pending approvals"
+            />
+          </Card>
+        </div>
+
+        {/* Right Column - Compact KPIs, messages, campaigns */}
+        <aside className="right-col">
+          <div className="side-kpis">
+            <div className="mini-kpi"> 
+              <div className="mini-kpi-title">Total Sales</div>
+              <div className="mini-kpi-value">₹ {summary.totalSales || 0}</div>
+            </div>
+
+            <div className="mini-kpi">
+              <div className="mini-kpi-title">Active Dealers</div>
+              <div className="mini-kpi-value">{summary.activeDealers || summary.totalDealers || 0}</div>
+            </div>
+
+            <div className="mini-kpi">
+              <div className="mini-kpi-title">Pending</div>
+              <div className="mini-kpi-value">{pendingApprovals.length}</div>
+            </div>
+
+            <div className="mini-kpi">
+              <div className="mini-kpi-title">Campaigns</div>
+              <div className="mini-kpi-value">{campaigns.length}</div>
+            </div>
+          </div>
+
+          <Card title="Recent Messages" className="side-card" style={{ marginTop: "1rem" }}>
+            <div style={{ maxHeight: 220, overflowY: "auto" }}>
+              {messages.length > 0 ? (
+                <ul className="message-list">
+                  {messages.slice(0, 6).map((msg) => (
+                    <li key={msg.id}>
+                      <div style={{ fontWeight: 600 }}>{msg.dealerName || `Dealer ${msg.senderId}`}</div>
+                      <div className="text-muted" style={{ fontSize: 13 }}>{msg.content}</div>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="text-muted">No new messages</p>
+              )}
+            </div>
+          </Card>
+
+          <Card title="Active Campaigns" className="side-card" style={{ marginTop: "1rem" }}>
+            <div style={{ maxHeight: 220, overflowY: "auto" }}>
+              {campaigns.length > 0 ? (
+                campaigns.slice(0, 6).map((c) => (
+                  <div key={c.id} className="campaign-preview" onClick={() => navigate(`/campaigns/${c.id}`)}>
+                    <div style={{ fontWeight: 700, color: "var(--accent)" }}>{c.title}</div>
+                    <div className="text-muted" style={{ fontSize: 13 }}>{c.description}</div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted">No campaigns running</p>
+              )}
+            </div>
+          </Card>
+
+          <div style={{ marginTop: "1rem", display: "flex", gap: "0.6rem", justifyContent: "center" }}>
+            <IconPillButton icon="📊" label="Reports" onClick={() => navigate("/reports")} />
+            <IconPillButton icon="💬" label="Messages" tone="success" onClick={() => navigate("/messages")} />
+          </div>
+        </aside>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/Sidebar.jsx">
+import React, { useContext, useState } from "react";
+import { AuthContext } from "../context/AuthContext";
+import { Link, useLocation } from "react-router-dom";
+import {
+  FaHome,
+  FaFileInvoice,
+  FaFileAlt,
+  FaChartBar,
+  FaCogs,
+  FaUsers,
+  FaWarehouse,
+  FaBars,
+} from "react-icons/fa";
+
+export default function Sidebar() {
+  const { user } = useContext(AuthContext);
+  const { pathname } = useLocation();
+
+  const [collapsed, setCollapsed] = useState(false);
+
+  const role = user?.role?.toLowerCase() || "user";
+
+  const baseLinks = [{ path: "/dashboard", label: "Dashboard", icon: <FaHome /> }];
+
+  const roleLinks = {
+    dealer: [
+      { path: "/invoices", label: "Invoices", icon: <FaFileInvoice /> },
+      { path: "/documents", label: "Documents", icon: <FaFileAlt /> },
+    ],
+    tm: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
+    am: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
+    admin: [
+      { path: "/campaigns", label: "Campaigns", icon: <FaCogs /> },
+      { path: "/admin", label: "Dealer Mgmt", icon: <FaUsers /> },
+      { path: "/reports", label: "Reports", icon: <FaChartBar /> },
+    ],
+    accounts: [{ path: "/reports", label: "Accounts Reports", icon: <FaChartBar /> }],
+    inventory: [{ path: "/inventory", label: "Stock View", icon: <FaWarehouse /> }],
+  };
+
+  const links = [...baseLinks, ...(roleLinks[role] || [])];
+
+  return (
+    <aside
+      style={{
+        width: collapsed ? "70px" : "240px",
+        height: "100vh",
+        position: "fixed",
+        left: 0,
+        top: 0,
+        background: "var(--sidebar-bg)",
+        backdropFilter: "blur(14px)",
+        borderRight: "1px solid var(--card-border)",
+        padding: "1rem",
+        display: "flex",
+        flexDirection: "column",
+        transition: "0.3s ease",
+        zIndex: 1000,
+        overflow: "hidden",
+      }}
+    >
+      {/* SIDEBAR HEADER + TOGGLE */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: collapsed ? "center" : "space-between",
+          alignItems: "center",
+          marginBottom: "2rem",
+          paddingBottom: "1rem",
+          borderBottom: "1px solid var(--card-border)",
+        }}
+      >
+        {!collapsed && (
+          <h3 style={{ color: "#f97316", fontWeight: "700" }}>
+            {role.toUpperCase()}
+          </h3>
+        )}
+
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          style={{
+            background: "var(--card-bg)",
+            border: "1px solid var(--card-border)",
+            borderRadius: "8px",
+            padding: "0.5rem",
+            cursor: "pointer",
+            color: "var(--text-color)",
+          }}
+        >
+          <FaBars />
+        </button>
+      </div>
+
+      {/* NAV LINKS */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        {links.map((l) => {
+          const active = pathname === l.path;
+
+          return (
+            <div style={{ position: "relative" }} key={l.path}>
+              <Link
+                to={l.path}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: collapsed ? "0" : "0.75rem",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "10px",
+                  color: active ? "#f97316" : "var(--text-color)",
+                  textDecoration: "none",
+                  background: active
+                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
+                    : "transparent",
+                  fontWeight: active ? "600" : "400",
+                  transition: "0.25s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background =
+                    "linear-gradient(90deg, rgba(249,115,22,0.15), rgba(249,115,22,0.05))";
+                  e.target.style.color = "#f97316";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = active
+                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
+                    : "transparent";
+                  e.target.style.color = active ? "#f97316" : "var(--text-color)";
+                }}
+              >
+                <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
+
+                {!collapsed && <span>{l.label}</span>}
+              </Link>
+
+              {/* ✅ Tooltip when collapsed */}
+              {collapsed && (
+                <div className="sidebar-tooltip">{l.label}</div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+
+      {/* ✅ Tooltip styles */}
+      <style>
+        {`
+            .sidebar-tooltip {
+                position: absolute;
+                left: 80px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: var(--card-bg);
+                padding: 6px 10px;
+                border-radius: 6px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: 0.2s ease;
+                color: var(--text-color);
+                border: 1px solid var(--card-border);
+            }
+            a:hover + .sidebar-tooltip {
+                opacity: 1;
+            }
+        `}
+      </style>
+    </aside>
+  );
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "dealer-portal-react",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.5",
+    "@mui/material": "^7.3.4",
+    "axios": "^1.13.1",
+    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.552.0",
+    "react": "^19.1.1",
+    "react-countup": "^6.5.3",
+    "react-dom": "^19.1.1",
+    "react-hook-form": "^7.65.0",
+    "react-icons": "^5.5.0",
+    "react-router-dom": "^7.9.5",
+    "react-toastify": "^11.0.5",
+    "recharts": "^3.3.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.21",
+    "babel-plugin-react-compiler": "^19.1.0-rc.3",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.22",
+    "globals": "^16.4.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.16",
+    "vite": "^7.1.7"
+  }
+}
+</file>
+
+<file path="src/pages/dashboards/DealerDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import socket from "../../services/socket";
+import { toast } from "react-toastify";
+import Card from "../../components/Card";
+import StatCard from "../../components/StatCard";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
 
 export default function DealerDashboard() {
   const [summary, setSummary] = useState({});
@@ -3831,19 +4652,21 @@ export default function DealerDashboard() {
   const [documents, setDocuments] = useState([]);
   const [trend, setTrend] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
 
-  // 📊 Fetch data
+  // ✅ Fetch Data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [summaryRes, invoiceRes, promoRes, docRes, trendRes] = await Promise.all([
-          api.get("/reports/dealer-performance"),
-          api.get("/invoices"),
-          api.get("/campaigns/active"),
-          api.get("/documents"),
-          api.get("/reports/dealer-performance?trend=true"),
-        ]);
+        const [summaryRes, invoiceRes, promoRes, docRes, trendRes] =
+          await Promise.all([
+            api.get("/reports/dealer-performance"),
+            api.get("/invoices"),
+            api.get("/campaigns/active"),
+            api.get("/documents"),
+            api.get("/reports/dealer-performance?trend=true"),
+          ]);
 
         setSummary(summaryRes.data);
         setInvoices(invoiceRes.data.invoices || []);
@@ -3859,7 +4682,7 @@ export default function DealerDashboard() {
     fetchData();
   }, []);
 
-  // ⚡ Socket events
+  // ✅ Socket Events
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) socket.auth = { token };
@@ -3894,198 +4717,218 @@ export default function DealerDashboard() {
     );
 
   return (
-    <div className="manager-dashboard">
-      {/* HEADER */}
-      <header className="dashboard-header">
-        <h1>Dealer Dashboard</h1>
-        <p>
+    <div style={{ padding: "1.5rem" }}>
+      {/* ✅ Header */}
+      <header style={{ marginBottom: "1.5rem" }}>
+        <h1 style={{ marginBottom: ".3rem" }}>Dealer Dashboard</h1>
+        <p className="text-muted">
           Welcome back,{" "}
-          <span style={{ color: "#f97316" }}>{summary.dealerName || "Dealer"}</span> — your latest
-          performance overview and business updates.
+          <span style={{ color: "var(--accent)", fontWeight: 600 }}>
+            {summary.dealerName || "Dealer"}
+          </span>
+          — here is your latest performance overview.
         </p>
       </header>
 
-      {/* SUMMARY */}
-      <div className="summary-grid">
-        <SummaryCard title="Total Sales" value={`₹${summary.totalSales || 0}`} color="#f97316" />
-        <SummaryCard title="Invoices" value={summary.totalInvoices || 0} color="#ff4fd8" />
-        <SummaryCard title="Outstanding" value={`₹${summary.outstanding || 0}`} color="#ffd54f" />
-        <SummaryCard title="Active Promotions" value={promotions.length} color="#4fff85" />
-      </div>
+      {/* ✅ Toolbar */}
+      <Toolbar
+        left={[
+          <SearchInput
+            key="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search invoices, documents..."
+          />,
+        ]}
+        right={[
+          <IconPillButton key="upload" icon="📤" label="Upload Document" />,
+          <IconPillButton key="promo" icon="🎉" label="Promotions" tone="warning" />,
+        ]}
+      />
 
-      {/* CHART */}
-      <div className="chart-card">
-        <h2>Sales vs Outstanding (Last 6 Months)</h2>
-        <ResponsiveContainer width="100%" height={350}>
-          <BarChart data={trend}>
-            <defs>
-              <linearGradient id="salesGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f97316" stopOpacity={0.85} />
-                <stop offset="95%" stopColor="#3d1e0f" stopOpacity={0.2} />
-              </linearGradient>
-              <linearGradient id="outstandingGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#ff4fd8" stopOpacity={0.8} />
-                <stop offset="95%" stopColor="#3b003b" stopOpacity={0.2} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-            <XAxis dataKey="month" stroke="#9ca3af" />
-            <YAxis stroke="#9ca3af" />
-            <Tooltip contentStyle={{ backgroundColor: "rgba(20,20,30,0.9)", borderRadius: "10px" }} />
-            <Legend />
-            <Bar dataKey="sales" fill="url(#salesGradient)" barSize={16} radius={[8, 8, 0, 0]} />
-            <Bar
-              dataKey="outstanding"
-              fill="url(#outstandingGradient)"
-              barSize={16}
-              radius={[8, 8, 0, 0]}
+      {/* ✅ 2 Column Layout */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "70% 30%",
+          gap: "1.5rem",
+          marginTop: "1.5rem",
+        }}
+      >
+        {/* ✅ LEFT COLUMN */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          {/* ✅ Sales Chart */}
+          <Card title="Sales vs Outstanding (Last 6 Months)">
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={trend}>
+                <defs>
+                  <linearGradient id="sales" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.9} />
+                    <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.2} />
+                  </linearGradient>
+                </defs>
+
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
+                <XAxis dataKey="month" stroke="var(--text-muted)" />
+                <YAxis stroke="var(--text-muted)" />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--card-bg)",
+                    border: "1px solid var(--card-border)",
+                    color: "var(--text-color)",
+                  }}
+                />
+                <Legend />
+                <Bar
+                  dataKey="sales"
+                  fill="url(#sales)"
+                  barSize={18}
+                  radius={[6, 6, 0, 0]}
+                />
+                <Bar
+                  dataKey="outstanding"
+                  fill="var(--text-muted)"
+                  barSize={18}
+                  radius={[6, 6, 0, 0]}
+                />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+
+          {/* ✅ Recent Invoices */}
+          <Card title="Recent Invoices">
+            {invoices.length > 0 ? (
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>Invoice #</th>
+                    <th>Date</th>
+                    <th>Amount</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.slice(0, 5).map((i) => (
+                    <tr key={i.id}>
+                      <td>{i.invoiceNumber}</td>
+                      <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
+                      <td>₹{i.totalAmount}</td>
+                      <td
+                        className={
+                          i.status === "Paid" ? "status-approved" : "status-pending"
+                        }
+                      >
+                        {i.status}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>No invoices found</p>
+            )}
+          </Card>
+
+          {/* ✅ Uploaded Documents */}
+          <Card title="Uploaded Documents">
+            {documents.length > 0 ? (
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>File</th>
+                    <th>Type</th>
+                    <th>Status</th>
+                    <th>Uploaded</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {documents.slice(0, 5).map((d) => (
+                    <tr key={d.id}>
+                      <td>{d.fileName}</td>
+                      <td>{d.documentType}</td>
+                      <td className={`status-${d.status || "pending"}`}>{d.status}</td>
+                      <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>No uploaded documents</p>
+            )}
+          </Card>
+        </div>
+
+        {/* ✅ RIGHT COLUMN */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          {/* ✅ KPIs */}
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: "1rem",
+            }}
+          >
+            <StatCard
+              title="Total Sales"
+              value={`₹${summary.totalSales || 0}`}
+              icon="💰"
             />
-          </BarChart>
-        </ResponsiveContainer>
-      </div>
-
-      {/* RECENT INVOICES */}
-      <div className="glass-card">
-        <h2>Recent Invoices</h2>
-        {invoices.length > 0 ? (
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>Invoice #</th>
-                <th>Date</th>
-                <th>Amount</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {invoices.slice(0, 5).map((i) => (
-                <tr key={i.id}>
-                  <td>{i.invoiceNumber}</td>
-                  <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
-                  <td>₹{i.totalAmount}</td>
-                  <td className={i.status === "Paid" ? "status-approved" : "status-pending"}>
-                    {i.status}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No invoices found</p>
-        )}
-      </div>
-
-      {/* DOCUMENTS */}
-      <div className="glass-card">
-        <h2>Uploaded Documents</h2>
-        {documents.length > 0 ? (
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>File</th>
-                <th>Type</th>
-                <th>Status</th>
-                <th>Uploaded</th>
-              </tr>
-            </thead>
-            <tbody>
-              {documents.slice(0, 5).map((d) => (
-                <tr key={d.id}>
-                  <td>{d.fileName}</td>
-                  <td>{d.documentType}</td>
-                  <td className={`status-${d.status || "pending"}`}>{d.status}</td>
-                  <td>{new Date(d.createdAt).toLocaleDateString()}</td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No uploaded documents</p>
-        )}
-      </div>
-
-      {/* PROMOTIONS */}
-      <div className="glass-card">
-        <h2>Active Promotions</h2>
-        {promotions.length > 0 ? (
-          <div className="campaign-grid">
-            {promotions.slice(0, 3).map((promo) => (
-              <div key={promo.id} className="campaign-card">
-                <h3>{promo.title}</h3>
-                <p>{promo.description}</p>
-                <span>Valid till {new Date(promo.validTill).toLocaleDateString()}</span>
-              </div>
-            ))}
+            <StatCard title="Invoices" value={summary.totalInvoices || 0} icon="🧾" />
+            <StatCard
+              title="Outstanding"
+              value={`₹${summary.outstanding || 0}`}
+              icon="⚠️"
+            />
+            <StatCard
+              title="Promotions"
+              value={promotions.length}
+              icon="🎉"
+            />
           </div>
-        ) : (
-          <p>No active promotions</p>
-        )}
-      </div>
 
-      {/* ACTIONS */}
-      <div className="quick-actions">
-        <button>📤 Upload Document</button>
-        <button>📑 View Statements</button>
-        <button>💬 Contact Manager</button>
+          {/* ✅ Promotions */}
+          <Card title="Active Promotions">
+            {promotions.length > 0 ? (
+              <div
+                style={{
+                  display: "grid",
+                  gap: "1rem",
+                }}
+              >
+                {promotions.slice(0, 3).map((promo) => (
+                  <div
+                    key={promo.id}
+                    style={{
+                      padding: ".7rem",
+                      borderBottom: "1px solid var(--card-border)",
+                    }}
+                  >
+                    <h4 style={{ color: "var(--accent)" }}>{promo.title}</h4>
+                    <p className="text-muted">{promo.description}</p>
+                    <small className="text-muted">
+                      Valid till {new Date(promo.validTill).toLocaleDateString()}
+                    </small>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <p>No active promotions</p>
+            )}
+          </Card>
+
+          {/* ✅ Quick Actions */}
+          <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+            <IconPillButton icon="📤" label="Upload Document" />
+            <IconPillButton icon="📑" label="View Statements" />
+            <IconPillButton icon="💬" label="Contact Manager" tone="success" />
+          </div>
+        </div>
       </div>
     </div>
   );
 }
 
-// 📦 Reuse summary card
-const SummaryCard = ({ title, value, color }) => (
-  <div className="summary-card" style={{ borderColor: color, boxShadow: `0 0 15px ${color}55` }}>
-    <h4>{title}</h4>
-    <p style={{ color }}>{value}</p>
-  </div>
-);
-</file>
-
-<file path="package.json">
-{
-  "name": "dealer-portal-react",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^7.3.5",
-    "@mui/material": "^7.3.4",
-    "axios": "^1.13.1",
-    "framer-motion": "^12.23.24",
-    "lucide-react": "^0.552.0",
-    "react": "^19.1.1",
-    "react-countup": "^6.5.3",
-    "react-dom": "^19.1.1",
-    "react-hook-form": "^7.65.0",
-    "react-router-dom": "^7.9.5",
-    "react-toastify": "^11.0.5",
-    "recharts": "^3.3.0",
-    "socket.io-client": "^4.8.1"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "@types/react": "^19.1.16",
-    "@types/react-dom": "^19.1.9",
-    "@vitejs/plugin-react": "^5.0.4",
-    "autoprefixer": "^10.4.21",
-    "babel-plugin-react-compiler": "^19.1.0-rc.3",
-    "eslint": "^9.36.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.22",
-    "globals": "^16.4.0",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.16",
-    "vite": "^7.1.7"
-  }
-}
+// ✅ nothing below here needs changes
 </file>
 
 </files>

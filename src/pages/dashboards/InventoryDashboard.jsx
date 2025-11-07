@@ -17,6 +17,7 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from "recharts";
+import "./DashboardLayout.css";
 
 export default function InventoryDashboard() {
   const [inventory, setInventory] = useState([]);
@@ -63,20 +64,20 @@ export default function InventoryDashboard() {
   if (loading)
     return (
       <div className="center text-center" style={{ height: "80vh" }}>
-        Loading inventory dashboard...
+        Loading Inventory Dashboard...
       </div>
     );
   if (error) return <p className="error">{error}</p>;
 
   return (
-    <div style={{ padding: "1.5rem" }}>
-      {/* ✅ Header */}
+    <div className="dashboard-container">
+      {/* HEADER */}
       <PageHeader
         title="Inventory Dashboard"
-        subtitle="Monitor product stock, plant capacity, and reorder risks."
+        subtitle="Monitor stock, plant capacity, and restock trends."
       />
 
-      {/* ✅ Unified Toolbar */}
+      {/* TOOLBAR */}
       <Toolbar
         left={[
           <SearchInput
@@ -87,44 +88,29 @@ export default function InventoryDashboard() {
           />,
         ]}
         right={[
-          <IconPillButton
-            key="adjust"
-            icon="📝"
-            label="Bulk Adjust"
-            tone="warning"
-            onClick={() => {}}
-          />,
-          <IconPillButton
-            key="export"
-            icon="⬇️"
-            label="Export"
-            tone="success"
-            onClick={() => {}}
-          />,
+          <IconPillButton key="adjust" icon="📝" label="Bulk Adjust" tone="warning" />,
+          <IconPillButton key="export" icon="⬇️" label="Export" tone="success" />,
         ]}
       />
 
-      {/* ✅ 2-Column Modern Dashboard Layout */}
-      <div
-        className="dashboard-grid"
-        style={{
-          display: "grid",
-          gridTemplateColumns: "70% 30%",
-          gap: "1.5rem",
-          marginTop: "1.5rem",
-        }}
-      >
-        {/* ✅ LEFT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* ✅ Main Chart */}
-          <Card title="Stock Overview by Plant">
+      {/* KPI ROW */}
+      <div className="stat-grid">
+        <StatCard title="Total Products" value={inventory.length} icon="📦" />
+        <StatCard title="Active Plants" value={new Set(inventory.map((i) => i.plant)).size} icon="🏭" />
+        <StatCard title="Low Stock Items" value={inventory.filter((i) => i.stock < 10).length} icon="⚠️" />
+        <StatCard title="Total Stock" value={inventory.reduce((sum, i) => sum + i.stock, 0)} icon="📊" />
+      </div>
+
+      {/* DASHBOARD GRID */}
+      <div className="dashboard-grid">
+        {/* LEFT COLUMN */}
+        <div className="column">
+          {/* CHART */}
+          <Card title="Stock Overview by Plant" className="chart-card">
             {inventory.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
+              <ResponsiveContainer width="100%" height="100%">
                 <BarChart data={aggregateByPlant(inventory)}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--card-border)"
-                  />
+                  <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
                   <XAxis dataKey="plant" stroke="var(--text-muted)" />
                   <YAxis stroke="var(--text-muted)" />
                   <Tooltip
@@ -134,21 +120,16 @@ export default function InventoryDashboard() {
                       color: "var(--text-color)",
                     }}
                   />
-                  <Bar
-                    dataKey="totalStock"
-                    fill="var(--accent)"
-                    barSize={20}
-                    radius={[6, 6, 0, 0]}
-                  />
+                  <Bar dataKey="totalStock" fill="var(--accent)" barSize={14} radius={[5, 5, 0, 0]} />
                 </BarChart>
               </ResponsiveContainer>
             ) : (
-              <p style={{ color: "#94a3b8" }}>No inventory data available</p>
+              <p className="text-muted">No inventory data available</p>
             )}
           </Card>
 
-          {/* ✅ Table */}
-          <Card title="Product Inventory Details">
+          {/* TABLE */}
+          <Card title="Product Inventory">
             <DataTable
               columns={[
                 { key: "name", label: "Product" },
@@ -159,8 +140,8 @@ export default function InventoryDashboard() {
                   render: (v) => (
                     <span
                       style={{
-                        color: v < 10 ? "#ef4444" : "inherit",
-                        fontWeight: v < 10 ? 700 : 400,
+                        color: v < 10 ? "var(--danger)" : "inherit",
+                        fontWeight: v < 10 ? 600 : 400,
                       }}
                     >
                       {v}
@@ -168,15 +149,17 @@ export default function InventoryDashboard() {
                   ),
                 },
                 { key: "uom", label: "UOM" },
-                { key: "lastUpdatedAt", label: "Last Updated" },
+                { key: "lastUpdatedAt", label: "Updated" },
                 { key: "action", label: "Action" },
               ]}
               rows={inventory
                 .filter((item) => {
                   const q = search.toLowerCase();
-                  const name = item?.name?.toString().toLowerCase() || "";
-                  const plant = item?.plant?.toString().toLowerCase() || "";
-                  return q === "" || name.includes(q) || plant.includes(q);
+                  return (
+                    q === "" ||
+                    item.name?.toLowerCase().includes(q) ||
+                    item.plant?.toLowerCase().includes(q)
+                  );
                 })
                 .map((item) => ({
                   id: item.id,
@@ -187,74 +170,37 @@ export default function InventoryDashboard() {
                   lastUpdatedAt: item.lastUpdatedAt
                     ? new Date(item.lastUpdatedAt).toLocaleDateString()
                     : "—",
-
                   action:
                     selectedProduct === item.id ? (
-                      <div style={{ display: "flex", gap: ".5rem" }}>
+                      <div style={{ display: "flex", gap: ".4rem" }}>
                         <input
                           type="number"
                           value={newStock}
                           onChange={(e) => setNewStock(e.target.value)}
-                          style={{ width: "70px" }}
+                          style={{ width: "60px" }}
                         />
-                        <button className="primary" onClick={() => handleStockUpdate(item.id)}>
+                        <button className="primary small" onClick={() => handleStockUpdate(item.id)}>
                           Save
                         </button>
-                        <button
-                          className="primary danger"
-                          onClick={() => setSelectedProduct(null)}
-                        >
-                          Cancel
+                        <button className="danger small" onClick={() => setSelectedProduct(null)}>
+                          ✖
                         </button>
                       </div>
                     ) : (
-                      <button
-                        className="primary"
-                        onClick={() => setSelectedProduct(item.id)}
-                      >
-                        Update
+                      <button className="primary small" onClick={() => setSelectedProduct(item.id)}>
+                        Edit
                       </button>
                     ),
                 }))}
-              emptyMessage="No inventory records available."
+              emptyMessage="No inventory records found."
             />
           </Card>
         </div>
 
-        {/* ✅ RIGHT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* ✅ KPI Grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "1rem",
-            }}
-          >
-            <StatCard
-              title="Total Products"
-              value={inventory.length}
-              icon="📦"
-            />
-            <StatCard
-              title="Active Plants"
-              value={new Set(inventory.map((i) => i.plant)).size}
-              icon="🏭"
-            />
-            <StatCard
-              title="Low Stock Items"
-              value={inventory.filter((i) => i.stock < 10).length}
-              icon="⚠️"
-            />
-            <StatCard
-              title="Total Stock"
-              value={inventory.reduce((sum, i) => sum + i.stock, 0)}
-              icon="📊"
-            />
-          </div>
-
-          {/* ✅ Donut Cards */}
-          <Card title="Low Stock Ratio">
+        {/* RIGHT COLUMN */}
+        <div className="column">
+          {/* DONUT CHARTS */}
+          <Card title="Low Stock Ratio" compact>
             <DonutProgress
               value={inventory.filter((i) => i.stock < 10).length}
               total={inventory.length}
@@ -262,7 +208,7 @@ export default function InventoryDashboard() {
             />
           </Card>
 
-          <Card title="Plant Coverage">
+          <Card title="Plant Coverage" compact>
             <DonutProgress
               value={new Set(inventory.map((i) => i.plant)).size}
               total={Math.max(new Set(inventory.map((i) => i.plant)).size, 1)}
@@ -270,8 +216,8 @@ export default function InventoryDashboard() {
             />
           </Card>
 
-          {/* ✅ Quick Actions */}
-          <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
+          {/* QUICK ACTIONS */}
+          <div className="quick-actions">
             <IconPillButton label="Bulk Adjust" icon="📝" tone="warning" />
             <IconPillButton label="Export" icon="⬇️" tone="success" />
           </div>
@@ -281,7 +227,7 @@ export default function InventoryDashboard() {
   );
 }
 
-/* Helper: Aggregate stock by plant for the chart */
+/* Helper: Aggregate stock by plant */
 const aggregateByPlant = (data) => {
   const plantTotals = {};
   data.forEach((item) => {

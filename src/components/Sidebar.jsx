@@ -44,22 +44,18 @@ export default function Sidebar() {
     <aside
       style={{
         width: collapsed ? "70px" : "240px",
-        height: "100vh",
-        position: "fixed",
-        left: 0,
-        top: 0,
         background: "var(--sidebar-bg)",
         backdropFilter: "blur(14px)",
         borderRight: "1px solid var(--card-border)",
         padding: "1rem",
         display: "flex",
         flexDirection: "column",
-        transition: "0.3s ease",
-        zIndex: 1000,
-        overflow: "hidden",
+        transition: "width 0.3s ease",
+        overflowY: "auto",
+        overflowX: "hidden",
       }}
     >
-      {/* SIDEBAR HEADER + TOGGLE */}
+      {/* HEADER + TOGGLE */}
       <div
         style={{
           display: "flex",
@@ -127,20 +123,16 @@ export default function Sidebar() {
                 }}
               >
                 <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
-
                 {!collapsed && <span>{l.label}</span>}
               </Link>
 
-              {/* ✅ Tooltip when collapsed */}
-              {collapsed && (
-                <div className="sidebar-tooltip">{l.label}</div>
-              )}
+              {/* Tooltip when collapsed */}
+              {collapsed && <div className="sidebar-tooltip">{l.label}</div>}
             </div>
           );
         })}
       </div>
 
-      {/* ✅ Tooltip styles */}
       <style>
         {`
             .sidebar-tooltip {
@@ -167,3 +159,4 @@ export default function Sidebar() {
     </aside>
   );
 }
+

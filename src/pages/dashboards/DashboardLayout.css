@@ -1,0 +1,136 @@
+/* ========== THEME-AWARE COMPACT DASHBOARD LAYOUT ========== */
+.dashboard-container {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.dashboard-header {
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-header h1 {
+  font-size: 1.1rem;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+}
+
+.dashboard-header p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* GRID STRUCTURE */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  width: 100%;
+}
+
+.dashboard-grid .column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* CARD & COMPONENT STYLING */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  box-shadow: var(--card-shadow);
+  transition: 0.25s ease;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.card h2,
+.card h3 {
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.text-muted {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* STAT CARDS */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.8rem;
+}
+
+.stat-card {
+  text-align: center;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  border-radius: 10px;
+  padding: 0.7rem;
+}
+
+.stat-card h3 {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.stat-card p {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* TABLES */
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.custom-table th,
+.custom-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.custom-table th {
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+/* BUTTON ROWS */
+.quick-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+/* CHART */
+.recharts-wrapper {
+  font-size: 0.75rem;
+}
+
+/* COMPACT CARD HEIGHTS */
+.chart-card {
+  height: 230px;
+}
+
+/* THEME-INHERITED COLORS */
+[data-theme="dark"] {
+  --card-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] {
+  --card-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
+}

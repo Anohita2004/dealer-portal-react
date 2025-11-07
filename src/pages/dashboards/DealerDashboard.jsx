@@ -7,7 +7,6 @@ import StatCard from "../../components/StatCard";
 import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
-
 import {
   BarChart,
   Bar,
@@ -18,6 +17,7 @@ import {
   ResponsiveContainer,
   Legend,
 } from "recharts";
+import "./DashboardLayout.css";
 
 export default function DealerDashboard() {
   const [summary, setSummary] = useState({});
@@ -78,62 +78,59 @@ export default function DealerDashboard() {
       toast.info(`🔔 ${notif.message || "New update"}`);
     });
 
-    return () => {
-      socket.disconnect();
-    };
+    return () => socket.disconnect();
   }, []);
 
   if (loading)
     return (
-      <div className="loading-screen">
-        <div className="loading-text">Loading Dealer Dashboard...</div>
+      <div className="center text-center" style={{ height: "80vh" }}>
+        Loading Dealer Dashboard...
       </div>
     );
 
   return (
-    <div style={{ padding: "1.5rem" }}>
-      {/* ✅ Header */}
-      <header style={{ marginBottom: "1.5rem" }}>
-        <h1 style={{ marginBottom: ".3rem" }}>Dealer Dashboard</h1>
-        <p className="text-muted">
+    <div className="dashboard-container">
+      {/* HEADER */}
+      <header className="dashboard-header">
+        <h1>Dealer Dashboard</h1>
+        <p>
           Welcome back,{" "}
           <span style={{ color: "var(--accent)", fontWeight: 600 }}>
             {summary.dealerName || "Dealer"}
           </span>
-          — here is your latest performance overview.
         </p>
       </header>
 
-      {/* ✅ Toolbar */}
+      {/* TOOLBAR */}
       <Toolbar
         left={[
           <SearchInput
             key="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search invoices, documents..."
+            placeholder="Search invoices or documents..."
           />,
         ]}
         right={[
-          <IconPillButton key="upload" icon="📤" label="Upload Document" />,
+          <IconPillButton key="upload" icon="📤" label="Upload" />,
           <IconPillButton key="promo" icon="🎉" label="Promotions" tone="warning" />,
         ]}
       />
 
-      {/* ✅ 2 Column Layout */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "70% 30%",
-          gap: "1.5rem",
-          marginTop: "1.5rem",
-        }}
-      >
-        {/* ✅ LEFT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* ✅ Sales Chart */}
-          <Card title="Sales vs Outstanding (Last 6 Months)">
-            <ResponsiveContainer width="100%" height={300}>
+      {/* KPI SUMMARY */}
+      <div className="stat-grid">
+        <StatCard title="Total Sales" value={`₹${summary.totalSales || 0}`} icon="💰" />
+        <StatCard title="Invoices" value={summary.totalInvoices || 0} icon="🧾" />
+        <StatCard title="Outstanding" value={`₹${summary.outstanding || 0}`} icon="⚠️" />
+        <StatCard title="Promotions" value={promotions.length} icon="🎉" />
+      </div>
+
+      {/* MAIN GRID */}
+      <div className="dashboard-grid">
+        {/* LEFT COLUMN */}
+        <div className="column">
+          <Card title="Sales vs Outstanding (Last 6 Months)" className="chart-card">
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={trend}>
                 <defs>
                   <linearGradient id="sales" x1="0" y1="0" x2="0" y2="1">
@@ -153,153 +150,94 @@ export default function DealerDashboard() {
                   }}
                 />
                 <Legend />
-                <Bar
-                  dataKey="sales"
-                  fill="url(#sales)"
-                  barSize={18}
-                  radius={[6, 6, 0, 0]}
-                />
-                <Bar
-                  dataKey="outstanding"
-                  fill="var(--text-muted)"
-                  barSize={18}
-                  radius={[6, 6, 0, 0]}
-                />
+                <Bar dataKey="sales" fill="url(#sales)" barSize={12} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="outstanding" fill="var(--text-muted)" barSize={12} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
 
-          {/* ✅ Recent Invoices */}
-          <Card title="Recent Invoices">
-            {invoices.length > 0 ? (
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th>Invoice #</th>
-                    <th>Date</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.slice(0, 5).map((i) => (
-                    <tr key={i.id}>
-                      <td>{i.invoiceNumber}</td>
-                      <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
-                      <td>₹{i.totalAmount}</td>
-                      <td
-                        className={
-                          i.status === "Paid" ? "status-approved" : "status-pending"
-                        }
-                      >
-                        {i.status}
-                      </td>
+          <div className="stat-grid">
+            {/* INVOICES */}
+            <Card title="Recent Invoices">
+              {invoices.length ? (
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Date</th>
+                      <th>₹</th>
+                      <th>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p>No invoices found</p>
-            )}
-          </Card>
+                  </thead>
+                  <tbody>
+                    {invoices.slice(0, 4).map((i) => (
+                      <tr key={i.id}>
+                        <td>{i.invoiceNumber}</td>
+                        <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
+                        <td>{i.totalAmount}</td>
+                        <td className={i.status === "Paid" ? "status-approved" : "status-pending"}>
+                          {i.status}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-muted">No invoices found</p>
+              )}
+            </Card>
 
-          {/* ✅ Uploaded Documents */}
-          <Card title="Uploaded Documents">
-            {documents.length > 0 ? (
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th>File</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Uploaded</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {documents.slice(0, 5).map((d) => (
-                    <tr key={d.id}>
-                      <td>{d.fileName}</td>
-                      <td>{d.documentType}</td>
-                      <td className={`status-${d.status || "pending"}`}>{d.status}</td>
-                      <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+            {/* DOCUMENTS */}
+            <Card title="Documents">
+              {documents.length ? (
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>File</th>
+                      <th>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p>No uploaded documents</p>
-            )}
-          </Card>
+                  </thead>
+                  <tbody>
+                    {documents.slice(0, 4).map((d) => (
+                      <tr key={d.id}>
+                        <td>{d.fileName}</td>
+                        <td className={`status-${d.status || "pending"}`}>{d.status}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-muted">No uploaded docs</p>
+              )}
+            </Card>
+          </div>
         </div>
 
-        {/* ✅ RIGHT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* ✅ KPIs */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "1rem",
-            }}
-          >
-            <StatCard
-              title="Total Sales"
-              value={`₹${summary.totalSales || 0}`}
-              icon="💰"
-            />
-            <StatCard title="Invoices" value={summary.totalInvoices || 0} icon="🧾" />
-            <StatCard
-              title="Outstanding"
-              value={`₹${summary.outstanding || 0}`}
-              icon="⚠️"
-            />
-            <StatCard
-              title="Promotions"
-              value={promotions.length}
-              icon="🎉"
-            />
-          </div>
-
-          {/* ✅ Promotions */}
+        {/* RIGHT COLUMN */}
+        <div className="column">
           <Card title="Active Promotions">
-            {promotions.length > 0 ? (
-              <div
-                style={{
-                  display: "grid",
-                  gap: "1rem",
-                }}
-              >
-                {promotions.slice(0, 3).map((promo) => (
-                  <div
-                    key={promo.id}
-                    style={{
-                      padding: ".7rem",
-                      borderBottom: "1px solid var(--card-border)",
-                    }}
-                  >
-                    <h4 style={{ color: "var(--accent)" }}>{promo.title}</h4>
-                    <p className="text-muted">{promo.description}</p>
-                    <small className="text-muted">
-                      Valid till {new Date(promo.validTill).toLocaleDateString()}
-                    </small>
-                  </div>
-                ))}
-              </div>
+            {promotions.length ? (
+              promotions.slice(0, 3).map((promo) => (
+                <div key={promo.id} style={{ padding: "0.4rem 0", borderBottom: "1px solid var(--card-border)" }}>
+                  <strong style={{ color: "var(--accent)" }}>{promo.title}</strong>
+                  <p className="text-muted">{promo.description}</p>
+                  <small className="text-muted">
+                    Till {new Date(promo.validTill).toLocaleDateString()}
+                  </small>
+                </div>
+              ))
             ) : (
-              <p>No active promotions</p>
+              <p className="text-muted">No active promotions</p>
             )}
           </Card>
 
-          {/* ✅ Quick Actions */}
-          <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
-            <IconPillButton icon="📤" label="Upload Document" />
-            <IconPillButton icon="📑" label="View Statements" />
-            <IconPillButton icon="💬" label="Contact Manager" tone="success" />
+          <div className="quick-actions">
+            <IconPillButton icon="📤" label="Upload" />
+            <IconPillButton icon="📑" label="Statements" />
+            <IconPillButton icon="💬" label="Contact" tone="success" />
           </div>
         </div>
       </div>
     </div>
   );
 }
-
-// ✅ nothing below here needs changes
