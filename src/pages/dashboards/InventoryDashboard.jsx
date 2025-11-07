@@ -7,7 +7,6 @@ import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
 import DataTable from "../../components/DataTable";
 import { toast } from "react-toastify";
-import "./DashboardLayout.css";
 import {
   BarChart,
   Bar,
@@ -28,16 +27,25 @@ export default function InventoryDashboard() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // 🎨 Colors for charts
+  // 🎨 Define theme per role
+  const roleTheme = {
+    dealer: { color: "#3b82f6", bg: "#eff6ff" },
+    manager: { color: "#f59e0b", bg: "#fff7ed" },
+    inventory: { color: "#22c55e", bg: "#f0fdf4" },
+    admin: { color: "#8b5cf6", bg: "#f5f3ff" },
+  };
+
+  const theme = roleTheme[user?.role] || { color: "#6b7280", bg: "#f9fafb" };
+
   const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
 
-  // 📡 Fetch inventory
+  // 📡 Fetch inventory data
   const fetchInventory = async () => {
     try {
       setLoading(true);
       const res = await api.get("/inventory/summary");
-      setInventory(res.data.inventory);
-      setSummary(res.data.summary);
+      setInventory(res.data.inventory || []);
+      setSummary(res.data.summary || {});
     } catch (err) {
       toast.error("Failed to load inventory data");
     } finally {
@@ -94,47 +102,56 @@ export default function InventoryDashboard() {
     }
   };
 
+  // 🔍 Filter search
   const filtered = inventory.filter((item) =>
     item.product.toLowerCase().includes(search.toLowerCase())
   );
 
+  // 🧱 Table columns (role-aware)
   const columns = [
-    { key: "id", label: "ID" },
     { key: "product", label: "Product" },
     { key: "available", label: "Available" },
-    { key: "plant", label: "Plant" },
-    { key: "reorderLevel", label: "Reorder Level" },
-    { key: "updatedAt", label: "Last Updated" },
-    user?.role === "inventory" || user?.role === "admin"
-      ? {
-          key: "actions",
-          label: "Actions",
-          render: (_, row) => (
-            <button
-              onClick={() => handleDelete(row.id)}
-              style={{
-                border: "none",
-                padding: "6px 10px",
-                background: "#ef4444",
-                color: "white",
-                borderRadius: 6,
-                cursor: "pointer",
-              }}
-            >
-              Delete
-            </button>
-          ),
-        }
-      : null,
+    (user?.role === "manager" || user?.role === "inventory" || user?.role === "admin") && {
+      key: "plant",
+      label: "Plant",
+    },
+    (user?.role === "inventory" || user?.role === "admin") && {
+      key: "reorderLevel",
+      label: "Reorder Level",
+    },
+    (user?.role === "inventory" || user?.role === "admin") && {
+      key: "updatedAt",
+      label: "Last Updated",
+    },
+    (user?.role === "inventory" || user?.role === "admin") && {
+      key: "actions",
+      label: "Actions",
+      render: (_, row) => (
+        <button
+          onClick={() => handleDelete(row.id)}
+          style={{
+            border: "none",
+            padding: "6px 10px",
+            background: "#ef4444",
+            color: "white",
+            borderRadius: 6,
+            cursor: "pointer",
+          }}
+        >
+          Delete
+        </button>
+      ),
+    },
   ].filter(Boolean);
 
-  // 🧠 Derived chart data
+  // 📊 Derived data for charts
   const lowStockCount = inventory.filter(
-    (i) => i.available < i.reorderLevel
+    (i) => i.reorderLevel && i.available < i.reorderLevel
   ).length;
 
   const plantWiseData = Object.values(
     inventory.reduce((acc, cur) => {
+      if (!cur.plant) return acc;
       acc[cur.plant] = acc[cur.plant] || { name: cur.plant, total: 0 };
       acc[cur.plant].total += cur.available;
       return acc;
@@ -142,24 +159,28 @@ export default function InventoryDashboard() {
   );
 
   return (
-    <div style={{ padding: "1rem" }}>
+    <div style={{ padding: "1rem", background: theme.bg, minHeight: "100vh" }}>
       <PageHeader
         title="Inventory Dashboard"
-        subtitle="Manage, visualize, and monitor stock levels"
+        subtitle={`Monitor stock and performance — role: ${user?.role?.toUpperCase()}`}
         actions={[
-          <IconPillButton
-            key="pdf"
-            label="Export PDF"
-            icon="📄"
-            onClick={() => handleExport("pdf")}
-          />,
-          <IconPillButton
-            key="excel"
-            label="Export Excel"
-            icon="📊"
-            onClick={() => handleExport("excel")}
-            tone="success"
-          />,
+          (user?.role !== "dealer") && (
+            <IconPillButton
+              key="pdf"
+              label="Export PDF"
+              icon="📄"
+              onClick={() => handleExport("pdf")}
+            />
+          ),
+          (user?.role !== "dealer") && (
+            <IconPillButton
+              key="excel"
+              label="Export Excel"
+              icon="📊"
+              onClick={() => handleExport("excel")}
+              tone="success"
+            />
+          ),
           (user?.role === "inventory" || user?.role === "admin") && (
             <IconPillButton
               key="add"
@@ -169,18 +190,31 @@ export default function InventoryDashboard() {
               tone="warning"
             />
           ),
-        ]}
+        ].filter(Boolean)}
       />
+
+      <div
+        style={{
+          background: theme.color,
+          color: "white",
+          padding: "0.6rem 1rem",
+          borderRadius: 10,
+          display: "inline-block",
+          marginBottom: "1rem",
+        }}
+      >
+        Logged in as <strong>{user?.role?.toUpperCase()}</strong>
+      </div>
 
       <Toolbar>
         <SearchInput
-          placeholder="Search by product"
+          placeholder="Search product"
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </Toolbar>
 
-      {/* 💹 Charts Section */}
+      {/* 🎨 Charts */}
       {!loading && inventory.length > 0 && (
         <div
           style={{
@@ -198,54 +232,62 @@ export default function InventoryDashboard() {
               boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
             }}
           >
-            <h4 style={{ marginBottom: "1rem" }}>📦 Stock Levels by Product</h4>
+            <h4 style={{ marginBottom: "1rem", color: "#111827" }}>
+              📦 Stock Levels by Product
+            </h4>
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={inventory}>
                 <XAxis dataKey="product" />
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="available" fill="#3b82f6" name="Available Stock" />
-                <Bar
-                  dataKey="reorderLevel"
-                  fill="#f97316"
-                  name="Reorder Level"
-                />
+                <Bar dataKey="available" fill={theme.color} name="Available Stock" />
+                {(user?.role === "inventory" || user?.role === "admin") && (
+                  <Bar
+                    dataKey="reorderLevel"
+                    fill="#f97316"
+                    name="Reorder Level"
+                  />
+                )}
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          <div
-            style={{
-              background: "white",
-              padding: "1rem",
-              borderRadius: "12px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
-            }}
-          >
-            <h4 style={{ marginBottom: "1rem" }}>🏭 Stock by Plant</h4>
-            <ResponsiveContainer width="100%" height={300}>
-              <PieChart>
-                <Pie
-                  data={plantWiseData}
-                  dataKey="total"
-                  nameKey="name"
-                  outerRadius={100}
-                  fill="#8884d8"
-                  label
-                >
-                  {plantWiseData.map((_, index) => (
-                    <Cell key={index} fill={COLORS[index % COLORS.length]} />
-                  ))}
-                </Pie>
-                <Tooltip />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
+          {(user?.role !== "dealer") && (
+            <div
+              style={{
+                background: "white",
+                padding: "1rem",
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+              }}
+            >
+              <h4 style={{ marginBottom: "1rem", color: "#111827" }}>
+                🏭 Stock by Plant
+              </h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={plantWiseData}
+                    dataKey="total"
+                    nameKey="name"
+                    outerRadius={100}
+                    fill={theme.color}
+                    label
+                  >
+                    {plantWiseData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
         </div>
       )}
 
-      {/* 🧾 Data Table */}
+      {/* 📋 Table */}
       <div style={{ marginTop: "2rem" }}>
         {loading ? (
           <p style={{ color: "#9ca3af" }}>Loading inventory...</p>
@@ -254,26 +296,25 @@ export default function InventoryDashboard() {
         )}
       </div>
 
-      {/* 🔔 Summary Section */}
+      {/* 📈 Summary Cards */}
       <div
         style={{
           marginTop: "2rem",
           display: "flex",
-          justifyContent: "space-between",
-          gap: "1rem",
           flexWrap: "wrap",
+          gap: "1rem",
         }}
       >
         <div
           style={{
-            background: "#f1f5f9",
+            background: "white",
             padding: "1rem",
             borderRadius: "12px",
             flex: 1,
             minWidth: "200px",
           }}
         >
-          <h4>📊 Summary</h4>
+          <h4 style={{ color: theme.color }}>📊 Summary</h4>
           <p>Total Dealers: {summary.totalDealers}</p>
           <p>Active Campaigns: {summary.activeCampaigns}</p>
           <p>Total Invoices: {summary.totalInvoices}</p>

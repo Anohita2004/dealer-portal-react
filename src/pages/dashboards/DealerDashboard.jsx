@@ -16,6 +16,9 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 import "./DashboardLayout.css";
 
@@ -25,21 +28,25 @@ export default function DealerDashboard() {
   const [promotions, setPromotions] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [trend, setTrend] = useState([]);
+  const [inventory, setInventory] = useState([]); // 👀 visible stock data
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // ✅ Fetch Data
+  const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
+
+  // ✅ Fetch Dealer Data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [summaryRes, invoiceRes, promoRes, docRes, trendRes] =
+        const [summaryRes, invoiceRes, promoRes, docRes, trendRes, inventoryRes] =
           await Promise.all([
             api.get("/reports/dealer-performance"),
             api.get("/invoices"),
             api.get("/campaigns/active"),
             api.get("/documents"),
             api.get("/reports/dealer-performance?trend=true"),
+            api.get("/inventory/summary"), // fetch visible stock for dealers
           ]);
 
         setSummary(summaryRes.data);
@@ -47,6 +54,7 @@ export default function DealerDashboard() {
         setPromotions(promoRes.data || []);
         setDocuments(docRes.data.documents || []);
         setTrend(trendRes.data.trend || []);
+        setInventory(inventoryRes.data.inventory || []);
       } catch (err) {
         console.error("Dealer dashboard error:", err);
       } finally {
@@ -88,14 +96,17 @@ export default function DealerDashboard() {
       </div>
     );
 
+  // 🎨 Dealer theme (blue accents)
+  const accent = "#3b82f6";
+
   return (
-    <div className="dashboard-container">
+    <div className="dashboard-container" style={{ background: "#f9fafb" }}>
       {/* HEADER */}
       <header className="dashboard-header">
         <h1>Dealer Dashboard</h1>
         <p>
           Welcome back,{" "}
-          <span style={{ color: "var(--accent)", fontWeight: 600 }}>
+          <span style={{ color: accent, fontWeight: 600 }}>
             {summary.dealerName || "Dealer"}
           </span>
         </p>
@@ -113,15 +124,32 @@ export default function DealerDashboard() {
         ]}
         right={[
           <IconPillButton key="upload" icon="📤" label="Upload" />,
-          <IconPillButton key="promo" icon="🎉" label="Promotions" tone="warning" />,
+          <IconPillButton
+            key="promo"
+            icon="🎉"
+            label="Promotions"
+            tone="warning"
+          />,
         ]}
       />
 
       {/* KPI SUMMARY */}
       <div className="stat-grid">
-        <StatCard title="Total Sales" value={`₹${summary.totalSales || 0}`} icon="💰" />
-        <StatCard title="Invoices" value={summary.totalInvoices || 0} icon="🧾" />
-        <StatCard title="Outstanding" value={`₹${summary.outstanding || 0}`} icon="⚠️" />
+        <StatCard
+          title="Total Sales"
+          value={`₹${summary.totalSales || 0}`}
+          icon="💰"
+        />
+        <StatCard
+          title="Invoices"
+          value={summary.totalInvoices || 0}
+          icon="🧾"
+        />
+        <StatCard
+          title="Outstanding"
+          value={`₹${summary.outstanding || 0}`}
+          icon="⚠️"
+        />
         <StatCard title="Promotions" value={promotions.length} icon="🎉" />
       </div>
 
@@ -129,35 +157,67 @@ export default function DealerDashboard() {
       <div className="dashboard-grid">
         {/* LEFT COLUMN */}
         <div className="column">
-          <Card title="Sales vs Outstanding (Last 6 Months)" className="chart-card">
+          {/* Sales Trend Chart */}
+          <Card
+            title="Sales vs Outstanding (Last 6 Months)"
+            className="chart-card"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={trend}>
-                <defs>
-                  <linearGradient id="sales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.9} />
-                    <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.2} />
-                  </linearGradient>
-                </defs>
-
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="month" stroke="var(--text-muted)" />
-                <YAxis stroke="var(--text-muted)" />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
                 <Tooltip
                   contentStyle={{
-                    background: "var(--card-bg)",
-                    border: "1px solid var(--card-border)",
-                    color: "var(--text-color)",
+                    background: "#fff",
+                    border: "1px solid #e5e7eb",
+                    color: "#111827",
                   }}
                 />
                 <Legend />
-                <Bar dataKey="sales" fill="url(#sales)" barSize={12} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="outstanding" fill="var(--text-muted)" barSize={12} radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="sales"
+                  fill={accent}
+                  barSize={12}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="outstanding"
+                  fill="#93c5fd"
+                  barSize={12}
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </Card>
 
+          {/* Inventory Visibility for Dealers */}
+          <Card title="Stock Availability">
+            {inventory.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={inventory}
+                    dataKey="available"
+                    nameKey="product"
+                    outerRadius={100}
+                    fill={accent}
+                    label
+                  >
+                    {inventory.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-muted">No inventory data available</p>
+            )}
+          </Card>
+
+          {/* Invoices & Docs */}
           <div className="stat-grid">
-            {/* INVOICES */}
             <Card title="Recent Invoices">
               {invoices.length ? (
                 <table className="custom-table">
@@ -173,9 +233,17 @@ export default function DealerDashboard() {
                     {invoices.slice(0, 4).map((i) => (
                       <tr key={i.id}>
                         <td>{i.invoiceNumber}</td>
-                        <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
+                        <td>
+                          {new Date(i.invoiceDate).toLocaleDateString()}
+                        </td>
                         <td>{i.totalAmount}</td>
-                        <td className={i.status === "Paid" ? "status-approved" : "status-pending"}>
+                        <td
+                          className={
+                            i.status === "Paid"
+                              ? "status-approved"
+                              : "status-pending"
+                          }
+                        >
                           {i.status}
                         </td>
                       </tr>
@@ -187,7 +255,6 @@ export default function DealerDashboard() {
               )}
             </Card>
 
-            {/* DOCUMENTS */}
             <Card title="Documents">
               {documents.length ? (
                 <table className="custom-table">
@@ -201,7 +268,11 @@ export default function DealerDashboard() {
                     {documents.slice(0, 4).map((d) => (
                       <tr key={d.id}>
                         <td>{d.fileName}</td>
-                        <td className={`status-${d.status || "pending"}`}>{d.status}</td>
+                        <td
+                          className={`status-${d.status || "pending"}`}
+                        >
+                          {d.status}
+                        </td>
                       </tr>
                     ))}
                   </tbody>
@@ -218,8 +289,14 @@ export default function DealerDashboard() {
           <Card title="Active Promotions">
             {promotions.length ? (
               promotions.slice(0, 3).map((promo) => (
-                <div key={promo.id} style={{ padding: "0.4rem 0", borderBottom: "1px solid var(--card-border)" }}>
-                  <strong style={{ color: "var(--accent)" }}>{promo.title}</strong>
+                <div
+                  key={promo.id}
+                  style={{
+                    padding: "0.4rem 0",
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
+                >
+                  <strong style={{ color: accent }}>{promo.title}</strong>
                   <p className="text-muted">{promo.description}</p>
                   <small className="text-muted">
                     Till {new Date(promo.validTill).toLocaleDateString()}
