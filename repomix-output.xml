@@ -59,6 +59,7 @@ src/components/DonutProgress.jsx
 src/components/EmptyState.jsx
 src/components/FileUpload.jsx
 src/components/IconPillButton.jsx
+src/components/Layout.css
 src/components/Layout.jsx
 src/components/Navbar.jsx
 src/components/PageHeader.jsx
@@ -75,11 +76,15 @@ src/context/AuthContext.jsx
 src/context/ThemeContext.jsx
 src/index.css
 src/main.jsx
+src/pages/accounts/AccountsInvoices.jsx
+src/pages/accounts/AccountsNotes.jsx
+src/pages/accounts/AccountsReports.jsx
 src/pages/Admin.jsx
 src/pages/Campaigns.jsx
 src/pages/Dashboard.jsx
 src/pages/dashboards/AccountsDashboard.jsx
 src/pages/dashboards/AdminDashboard.jsx
+src/pages/dashboards/DashboardLayout.css
 src/pages/dashboards/DealerDashboard.jsx
 src/pages/dashboards/InventoryDashboard.jsx
 src/pages/dashboards/ManagerDashboard.css
@@ -470,6 +475,75 @@ export default function EmptyState({ icon = "🔍", title = "No data", descripti
 }
 </file>
 
+<file path="src/components/Layout.css">
+/* ========== OVERALL LAYOUT ========== */
+.app-layout {
+  display: flex;
+  height: 100vh;
+  background: var(--bg-glow), var(--bg-base);
+  color: var(--text-color);
+  overflow: hidden;
+}
+
+/* ========== SIDEBAR ========== */
+.app-layout aside {
+  position: fixed;
+  left: 0;
+  top: 0;
+  bottom: 0;
+  width: 240px;
+  transition: width 0.3s ease;
+  z-index: 1000;
+}
+
+/* ========== MAIN CONTENT AREA ========== */
+.main-content {
+  flex: 1;
+  margin-left: 240px;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+  overflow: hidden;
+}
+
+/* ========== NAVBAR ========== */
+.main-content nav {
+  position: sticky;
+  top: 0;
+  z-index: 100;
+}
+
+/* ========== MAIN PAGE CONTENT ========== */
+.page-content {
+  flex: 1;
+  overflow-y: auto;
+  padding: 2rem;
+  background: var(--bg-base);
+}
+
+/* ========== CONTENT WRAPPER (DASHBOARDS) ========== */
+.content-wrapper {
+  background: var(--card-bg);
+  border-radius: 20px;
+  border: 1px solid var(--card-border);
+  padding: 2rem;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+  backdrop-filter: blur(12px);
+  min-height: calc(100vh - 110px); /* adjusts for navbar height */
+}
+
+/* ========== RESPONSIVE ========== */
+@media (max-width: 900px) {
+  .app-layout aside {
+    width: 70px;
+  }
+
+  .main-content {
+    margin-left: 70px;
+  }
+}
+</file>
+
 <file path="src/components/SearchInput.jsx">
 import React from "react";
 
@@ -660,6 +734,283 @@ export function ThemeModeProvider({ children }) {
 
 export function useThemeMode() {
   return useContext(ThemeModeContext);
+}
+</file>
+
+<file path="src/pages/accounts/AccountsInvoices.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import Card from "../../components/Card";
+import DataTable from "../../components/DataTable";
+
+export default function AccountsInvoices() {
+  const [invoices, setInvoices] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get("/accounts/invoices");
+        setInvoices(res.data.invoices || []);
+      } catch (err) {
+        console.error("Failed to load invoices:", err);
+      }
+    })();
+  }, []);
+
+  return (
+    <div style={{ padding: "2rem" }}>
+      <h1>🧾 All Invoices</h1>
+      <Card>
+        <DataTable
+          columns={[
+            { key: "invoiceNumber", label: "Invoice #" },
+            { key: "invoiceDate", label: "Date" },
+            { key: "totalAmount", label: "Total (₹)" },
+            { key: "paidAmount", label: "Paid (₹)" },
+            { key: "status", label: "Status" },
+          ]}
+          rows={invoices.map((inv) => ({
+            id: inv.id,
+            invoiceNumber: inv.invoiceNumber,
+            invoiceDate: new Date(inv.invoiceDate).toLocaleDateString(),
+            totalAmount: inv.totalAmount,
+            paidAmount: inv.paidAmount,
+            status: inv.status,
+          }))}
+          emptyMessage="No invoices found"
+        />
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/accounts/AccountsNotes.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import Card from "../../components/Card";
+import DataTable from "../../components/DataTable";
+
+export default function AccountsNotes() {
+  const [notes, setNotes] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get("/accounts/notes");
+        setNotes(res.data.notes || []);
+      } catch (err) {
+        console.error("Failed to load credit/debit notes:", err);
+      }
+    })();
+  }, []);
+
+  return (
+    <div style={{ padding: "2rem" }}>
+      <h1>💼 Credit & Debit Notes</h1>
+      <Card>
+        <DataTable
+          columns={[
+            { key: "noteNumber", label: "Note #" },
+            { key: "noteType", label: "Type" },
+            { key: "noteDate", label: "Date" },
+            { key: "amount", label: "Amount (₹)" },
+            { key: "status", label: "Status" },
+          ]}
+          rows={notes.map((n) => ({
+            id: n.id,
+            noteNumber: n.noteNumber,
+            noteType: n.noteType,
+            noteDate: new Date(n.noteDate).toLocaleDateString(),
+            amount: n.amount,
+            status: n.status,
+          }))}
+          emptyMessage="No credit/debit notes available"
+        />
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/accounts/AccountsReports.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import Card from "../../components/Card";
+import {
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer,
+} from "recharts";
+
+export default function AccountsReports() {
+  const [report, setReport] = useState([]);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get("/accounts/dealer-reports");
+        setReport(res.data.dealers || []);
+      } catch (err) {
+        console.error("Failed to load dealer reports:", err);
+      }
+    })();
+  }, []);
+
+  return (
+    <div style={{ padding: "2rem" }}>
+      <h1>📊 Dealer Financial Reports</h1>
+      <Card>
+        <ResponsiveContainer width="100%" height={350}>
+          <BarChart data={report}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis dataKey="dealer" />
+            <YAxis />
+            <Tooltip />
+            <Bar dataKey="sales" fill="#3b82f6" name="Sales" />
+            <Bar dataKey="paid" fill="#22c55e" name="Paid" />
+          </BarChart>
+        </ResponsiveContainer>
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/DashboardLayout.css">
+/* ========== THEME-AWARE COMPACT DASHBOARD LAYOUT ========== */
+.dashboard-container {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.dashboard-header {
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-header h1 {
+  font-size: 1.1rem;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+}
+
+.dashboard-header p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* GRID STRUCTURE */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  width: 100%;
+}
+
+.dashboard-grid .column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* CARD & COMPONENT STYLING */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  box-shadow: var(--card-shadow);
+  transition: 0.25s ease;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.card h2,
+.card h3 {
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.text-muted {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* STAT CARDS */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.8rem;
+}
+
+.stat-card {
+  text-align: center;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  border-radius: 10px;
+  padding: 0.7rem;
+}
+
+.stat-card h3 {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.stat-card p {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* TABLES */
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.custom-table th,
+.custom-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.custom-table th {
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+/* BUTTON ROWS */
+.quick-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+/* CHART */
+.recharts-wrapper {
+  font-size: 0.75rem;
+}
+
+/* COMPACT CARD HEIGHTS */
+.chart-card {
+  height: 230px;
+}
+
+/* THEME-INHERITED COLORS */
+[data-theme="dark"] {
+  --card-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] {
+  --card-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
 }
 </file>
 
@@ -1629,285 +1980,6 @@ api.interceptors.response.use(
 export default api;
 </file>
 
-<file path="src/theme.js">
-import { createTheme } from "@mui/material/styles";
-
-export default function getTheme(mode = "dark") {
-  const isDark = mode === "dark";
-
-  return createTheme({
-    palette: {
-      mode,
-      primary: {
-        main: "#f97316", // glowing amber accent
-      },
-      secondary: {
-        main: "#a78bfa", // lavender accent
-      },
-      background: {
-        default: isDark ? "#0b0d10" : "#f9fafb",
-        paper: isDark
-          ? "rgba(255,255,255,0.04)"
-          : "rgba(255,255,255,0.9)",
-      },
-      text: {
-        primary: isDark ? "#f8fafc" : "#1e293b",
-        secondary: isDark ? "#94a3b8" : "#475569",
-      },
-      divider: isDark
-        ? "rgba(255,255,255,0.08)"
-        : "rgba(0,0,0,0.08)",
-    },
-
-    typography: {
-      fontFamily: "'Inter', 'Poppins', sans-serif",
-      allVariants: {
-        transition: "color 0.3s ease",
-      },
-      h1: { fontWeight: 700 },
-      h2: { fontWeight: 700 },
-      h3: { fontWeight: 600 },
-      h4: { fontWeight: 600 },
-      h5: { fontWeight: 600 },
-      h6: { fontWeight: 500 },
-      body1: { lineHeight: 1.6 },
-    },
-
-    shape: { borderRadius: 20 },
-
-    components: {
-      // 🌙 Cards with glass effect
-      MuiCard: {
-        styleOverrides: {
-          root: {
-            borderRadius: 20,
-            background: isDark
-              ? "rgba(255,255,255,0.05)"
-              : "rgba(255,255,255,0.8)",
-            backdropFilter: "blur(12px)",
-            border: isDark
-              ? "1px solid rgba(255,255,255,0.08)"
-              : "1px solid rgba(0,0,0,0.08)",
-            boxShadow: isDark
-              ? "0 10px 30px rgba(0,0,0,0.4), inset 0 0 10px rgba(255,255,255,0.03)"
-              : "0 6px 20px rgba(0,0,0,0.15)",
-            transition: "all 0.3s ease",
-            "&:hover": {
-              transform: "translateY(-4px)",
-              boxShadow: isDark
-                ? "0 16px 40px rgba(249,115,22,0.4)"
-                : "0 12px 24px rgba(249,115,22,0.3)",
-            },
-          },
-        },
-      },
-
-      // ✨ Buttons (rounded glowing gradients)
-      MuiButton: {
-        styleOverrides: {
-          root: {
-            borderRadius: 12,
-            textTransform: "none",
-            fontWeight: 600,
-            paddingInline: 18,
-            paddingBlock: 10,
-            background:
-              "linear-gradient(90deg, #f97316, #ea580c)",
-            color: "#fff",
-            boxShadow: "0 4px 20px rgba(249,115,22,0.3)",
-            "&:hover": {
-              boxShadow: "0 6px 25px rgba(249,115,22,0.4)",
-              transform: "translateY(-2px)",
-            },
-          },
-        },
-      },
-
-      // 📊 Table cells (subtle borders + glow headers)
-      MuiTableCell: {
-        styleOverrides: {
-          head: {
-            fontWeight: 700,
-            background: isDark
-              ? "rgba(249,115,22,0.1)"
-              : "rgba(249,115,22,0.15)",
-            color: "#fbbf24",
-          },
-          root: {
-            borderBottom: isDark
-              ? "1px solid rgba(255,255,255,0.08)"
-              : "1px solid rgba(0,0,0,0.08)",
-          },
-        },
-      },
-
-      // 🧱 Paper (glass backgrounds for menus/dialogs)
-      MuiPaper: {
-        styleOverrides: {
-          root: {
-            background: isDark
-              ? "rgba(30,30,32,0.9)"
-              : "rgba(255,255,255,0.85)",
-            backdropFilter: "blur(10px)",
-            borderRadius: 20,
-            border: isDark
-              ? "1px solid rgba(255,255,255,0.08)"
-              : "1px solid rgba(0,0,0,0.08)",
-          },
-        },
-      },
-
-      // 🧭 AppBar / Navbar consistency
-      MuiAppBar: {
-        styleOverrides: {
-          root: {
-            background: isDark
-              ? "rgba(12,12,14,0.75)"
-              : "rgba(255,255,255,0.8)",
-            backdropFilter: "blur(14px)",
-            color: isDark ? "#f8fafc" : "#1e293b",
-            boxShadow: isDark
-              ? "0 4px 24px rgba(0,0,0,0.5)"
-              : "0 4px 24px rgba(0,0,0,0.1)",
-          },
-        },
-      },
-
-      // 🔘 Inputs / TextFields
-      MuiOutlinedInput: {
-        styleOverrides: {
-          root: {
-            borderRadius: 12,
-            background: isDark
-              ? "rgba(255,255,255,0.06)"
-              : "rgba(0,0,0,0.03)",
-            "& fieldset": {
-              borderColor: isDark
-                ? "rgba(255,255,255,0.1)"
-                : "rgba(0,0,0,0.1)",
-            },
-            "&:hover fieldset": {
-              borderColor: "#f97316",
-            },
-          },
-          input: {
-            color: isDark ? "#e2e8f0" : "#1e293b",
-          },
-        },
-      },
-    },
-  });
-}
-</file>
-
-<file path="src/App.jsx">
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Invoices from './pages/Invoices';
-import Documents from './pages/Documents';
-import Campaigns from "./pages/Campaigns";
-import Reports from "./pages/Reports";
-import Admin from "./pages/Admin";
-import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
-import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
-// ✅ When Layout is inside ProtectedRoute, all child routes share Navbar & Sidebar
-function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public route */}
-          <Route path="/login" element={<Login />} />
-
-          {/* Protected routes grouped inside Layout */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            {/* All pages with the sidebar/navbar go here */}
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="invoices" element={<Invoices />} />
-            <Route path="documents" element={<Documents />} />
-            <Route path="campaigns" element={<Campaigns />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="admin" element={<Admin />} />
-            <Route path="inventory" element={<InventoryDashboard />} />
-            {/* 🔜 Add Campaigns, Reports, Admin here */}
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-  );
-}
-
-export default App;
-</file>
-
-<file path="src/components/Layout.jsx">
-import React from "react";
-import Navbar from "./Navbar";
-import Sidebar from "./Sidebar";
-import { Outlet } from "react-router-dom";
-
-export default function Layout() {
-  return (
-    <div
-      style={{
-        minHeight: "100vh",
-        background: "var(--bg-glow), var(--bg-base)",
-        color: "var(--text-color)",
-      }}
-    >
-      {/* ✅ Fixed sidebar */}
-      <Sidebar />
-
-      {/* ✅ Main content shifted right */}
-      <div
-        style={{
-          marginLeft: "240px",
-          display: "flex",
-          flexDirection: "column",
-          minHeight: "100vh",
-        }}
-      >
-        <Navbar />
-
-        <main
-          style={{
-            flex: 1,
-            padding: "2rem",
-            overflowY: "auto",
-          }}
-        >
-          <div
-            style={{
-              background: "var(--card-bg)",
-              borderRadius: "20px",
-              border: "1px solid var(--card-border)",
-              padding: "2rem",
-              minHeight: "85vh",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-              backdropFilter: "blur(12px)",
-            }}
-          >
-            <Outlet />
-          </div>
-        </main>
-      </div>
-    </div>
-  );
-}
-</file>
-
 <file path="src/components/Navbar.jsx">
 /*import React, { useContext, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
@@ -2259,211 +2331,6 @@ h2, h3, h4 {
 .text-muted { color: var(--text-muted); }
 </file>
 
-<file path="src/pages/dashboards/AccountsDashboard.jsx">
-import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import { useNavigate } from "react-router-dom";
-import PageHeader from "../../components/PageHeader";
-import StatCard from "../../components/StatCard";
-import Card from "../../components/Card";
-import DataTable from "../../components/DataTable";
-import Toolbar from "../../components/Toolbar";
-import SearchInput from "../../components/SearchInput";
-import IconPillButton from "../../components/IconPillButton";
-import DonutProgress from "../../components/DonutProgress";
-import {
-  LineChart,
-  Line,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-} from "recharts";
-
-export default function AccountsDashboard() {
-  const navigate = useNavigate();
-  const [summary, setSummary] = useState({});
-  const [statements, setStatements] = useState([]);
-  const [financialData, setFinancialData] = useState([]);
-  const [pendingReconciliations, setPendingReconciliations] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-
-  useEffect(() => {
-    (async () => {
-      try {
-        setLoading(true);
-
-        // Fetch invoices & financial summary
-        const invoiceRes = await api.get("/reports/invoice-register");
-        const creditRes = await api.get("/reports/credit-debit-notes");
-        const outstandingRes = await api.get("/reports/outstanding-receivables");
-        const dealerRes = await api.get("/dealers");
-
-        // Summaries
-        setSummary({
-          invoices: invoiceRes.data.invoices?.length || 0,
-          creditNotes: creditRes.data.totalCredit || 0,
-          debitNotes: creditRes.data.totalDebit || 0,
-          outstanding: outstandingRes.data.totalOutstanding || 0,
-          totalDealers: dealerRes.data.total || 0,
-        });
-
-        // Financial performance over time
-        const monthlyData = invoiceRes.data.invoices
-          ?.slice(0, 10)
-          .map((inv) => ({
-            month: new Date(inv.invoiceDate).toLocaleString("default", { month: "short" }),
-            total: inv.totalAmount,
-            paid: inv.paidAmount,
-          })) || [];
-        setFinancialData(monthlyData);
-
-        // Account statements
-        const statementRes = await api.get("/reports/account-statement");
-        setStatements(statementRes.data.statements || []);
-
-        // Pending reconciliations (unpaid invoices)
-        setPendingReconciliations(outstandingRes.data.invoices || []);
-      } catch (err) {
-        console.error("Error fetching accounts dashboard:", err);
-      } finally {
-        setLoading(false);
-      }
-    })();
-  }, []);
-
-  if (loading)
-    return <div className="center text-center" style={{ height: "80vh" }}>Loading accounts dashboard...</div>;
-
-  return (
-    <div style={{ padding: "2rem" }}>
-      <PageHeader
-        title="Accounts Dashboard"
-        subtitle="Manage invoices, financial statements, and ensure accurate reconciliation."
-      />
-
-      <Toolbar
-        right={[
-          <IconPillButton key="new" icon="➕" label="New" tone="primary" onClick={() => navigate("/invoices")} />,
-          <IconPillButton key="export" icon="⬇️" label="Export" tone="success" onClick={() => navigate("/reports")} />,
-        ]}
-      >
-        <SearchInput value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search invoices, dealers..." />
-      </Toolbar>
-
-      <div className="grid mt-4">
-        <StatCard title="Total Invoices" value={summary.invoices} icon="🧾" accent="#f97316" />
-        <StatCard title="Total Credit Notes" value={`₹${summary.creditNotes}`} icon="📈" accent="#22c55e" />
-        <StatCard title="Total Debit Notes" value={`₹${summary.debitNotes}`} icon="📉" accent="#ef4444" />
-        <StatCard title="Outstanding (₹)" value={summary.outstanding} icon="💰" accent="#a78bfa" />
-      </div>
-
-      <Card title="Financial Performance Overview" style={{ marginTop: "1.5rem" }}>
-        {financialData.length > 0 ? (
-          <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={financialData}>
-              <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.1)" />
-              <XAxis dataKey="month" stroke="#94a3b8" />
-              <YAxis stroke="#94a3b8" />
-              <Tooltip />
-              <Legend />
-              <Line type="monotone" dataKey="total" stroke="#f97316" name="Total Invoices" />
-              <Line type="monotone" dataKey="paid" stroke="#22c55e" name="Paid Amount" />
-            </LineChart>
-          </ResponsiveContainer>
-        ) : (
-          <p style={{ color: "#94a3b8" }}>No financial data available</p>
-        )}
-      </Card>
-
-      <div className="grid mt-6">
-        <Card title="Outstanding Ratio">
-          <DonutProgress
-            value={financialData.reduce((s, d) => s + (d.total - d.paid), 0)}
-            total={financialData.reduce((s, d) => s + d.total, 0)}
-            colors={["#ef4444", "#1f2937"]}
-            label="Outstanding vs Total"
-          />
-        </Card>
-        <Card title="Paid Ratio">
-          <DonutProgress
-            value={financialData.reduce((s, d) => s + d.paid, 0)}
-            total={financialData.reduce((s, d) => s + d.total, 0)}
-            colors={["#22c55e", "#1f2937"]}
-            label="Paid vs Total"
-          />
-        </Card>
-      </div>
-
-      <Card title="Recent Account Statements" style={{ marginTop: "1.5rem" }}>
-        <DataTable
-          columns={[
-            { key: "dealer", label: "Dealer" },
-            { key: "date", label: "Date" },
-            { key: "debitAmount", label: "Debit" },
-            { key: "creditAmount", label: "Credit" },
-            { key: "balance", label: "Balance" },
-          ]}
-          rows={statements.slice(0, 5).map((stmt) => ({
-            id: stmt.id,
-            dealer: stmt.dealer?.businessName || "N/A",
-            date: new Date(stmt.statementDate).toLocaleDateString(),
-            debitAmount: stmt.debitAmount,
-            creditAmount: stmt.creditAmount,
-            balance: stmt.balance,
-          }))}
-          emptyMessage="No recent account statements"
-        />
-      </Card>
-
-      <Card title="Pending Reconciliation" style={{ marginTop: "1.5rem" }}>
-        <DataTable
-          columns={[
-            { key: "invoiceNumber", label: "Invoice #" },
-            { key: "dealer", label: "Dealer" },
-            { key: "dueDate", label: "Due Date" },
-            { key: "balanceAmount", label: "Balance" },
-          ]}
-          rows={pendingReconciliations.slice(0, 5).map((inv) => ({
-            id: inv.id,
-            invoiceNumber: inv.invoiceNumber,
-            dealer: inv.dealer?.businessName || "N/A",
-            dueDate: new Date(inv.dueDate).toLocaleDateString(),
-            balanceAmount: inv.balanceAmount,
-          }))}
-          emptyMessage="All reconciliations are up-to-date!"
-        />
-      </Card>
-
-      <div className="mt-6 flex" style={{ gap: "1rem" }}>
-        <button className="primary" onClick={() => navigate("/reports")}>
-          📊 Generate Financial Reports
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/invoices")}
-          style={{ background: "linear-gradient(90deg, #f97316, #ea580c)" }}
-        >
-          🧾 View Invoices
-        </button>
-        <button
-          className="primary"
-          onClick={() => navigate("/reports")}
-          style={{ background: "linear-gradient(90deg, #22c55e, #16a34a)" }}
-        >
-          💼 View Credit/Debit Notes
-        </button>
-      </div>
-    </div>
-  );
-}
-
-// (Stat cards moved to shared component)
-</file>
-
 <file path="src/pages/Login.jsx">
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
@@ -2730,626 +2597,597 @@ const styles = {
 };
 </file>
 
-<file path="src/pages/dashboards/AdminDashboard.jsx">
-import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import socket from "../../services/socket";
-import { useNavigate } from "react-router-dom";
+<file path="src/theme.js">
+import { createTheme } from "@mui/material/styles";
 
-import PageHeader from "../../components/PageHeader";
-import StatCard from "../../components/StatCard";
-import Card from "../../components/Card";
-import DataTable from "../../components/DataTable";
-import Toolbar from "../../components/Toolbar";
-import SearchInput from "../../components/SearchInput";
-import IconPillButton from "../../components/IconPillButton";
+export default function getTheme(mode = "dark") {
+  const isDark = mode === "dark";
 
-import { toast } from "react-toastify";
+  return createTheme({
+    palette: {
+      mode,
+      primary: {
+        main: "#f97316", // glowing amber accent
+      },
+      secondary: {
+        main: "#a78bfa", // lavender accent
+      },
+      background: {
+        default: isDark ? "#0b0d10" : "#f9fafb",
+        paper: isDark
+          ? "rgba(255,255,255,0.04)"
+          : "rgba(255,255,255,0.9)",
+      },
+      text: {
+        primary: isDark ? "#f8fafc" : "#1e293b",
+        secondary: isDark ? "#94a3b8" : "#475569",
+      },
+      divider: isDark
+        ? "rgba(255,255,255,0.08)"
+        : "rgba(0,0,0,0.08)",
+    },
 
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-} from "recharts";
+    typography: {
+      fontFamily: "'Inter', 'Poppins', sans-serif",
+      allVariants: {
+        transition: "color 0.3s ease",
+      },
+      h1: { fontWeight: 700 },
+      h2: { fontWeight: 700 },
+      h3: { fontWeight: 600 },
+      h4: { fontWeight: 600 },
+      h5: { fontWeight: 600 },
+      h6: { fontWeight: 500 },
+      body1: { lineHeight: 1.6 },
+    },
 
-export default function AdminDashboard() {
-  const navigate = useNavigate();
+    shape: { borderRadius: 20 },
 
-  const [summary, setSummary] = useState({});
-  const [approvals, setApprovals] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
-  const [dealerActivity, setDealerActivity] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-
-  // ✅ Load dashboard data
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-        const performanceRes = await api.get("/reports/dealer-performance");
-        const invoices = performanceRes.data?.invoices || [];
-
-        const totalSales = performanceRes.data?.totalSales || 0;
-        const dealers = new Set(invoices.map((i) => i.dealerId)).size;
-
-        setSummary({
-          activeCampaigns: 0,
-          dealers,
-          pendingApprovals: 0,
-          blockedDealers: 2,
-          totalSales,
-        });
-
-        // ✅ Campaigns
-        const campaignRes = await api.get("/campaigns");
-        setCampaigns(campaignRes.data.campaigns || campaignRes.data);
-        setSummary((prev) => ({
-          ...prev,
-          activeCampaigns: campaignRes.data.campaigns?.length || 0,
-        }));
-
-        // ✅ Dealer activity by month
-        const monthly = {};
-        invoices.forEach((i) => {
-          const m = new Date(i.invoiceDate).toLocaleString("default", {
-            month: "short",
-          });
-          monthly[m] = monthly[m] || { dealersOnboarded: 0, blockedDealers: 0 };
-          monthly[m].dealersOnboarded += 1;
-        });
-
-        setDealerActivity(
-          Object.keys(monthly).map((m) => ({
-            month: m,
-            dealersOnboarded: monthly[m].dealersOnboarded,
-            blockedDealers: Math.floor(Math.random() * 3),
-          }))
-        );
-
-        // ✅ Pending approvals
-        const approvalRes = await api.get("/documents");
-        setApprovals(approvalRes.data.documents || []);
-        setSummary((prev) => ({
-          ...prev,
-          pendingApprovals: approvalRes.data.documents?.length || 0,
-        }));
-      } catch (e) {
-        console.error("Admin dashboard fetch error:", e);
-      } finally {
-        setLoading(false);
-      }
-    };
-
-    loadData();
-  }, []);
-
-  // ✅ Real-time updates
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) socket.auth = { token };
-    socket.connect();
-
-    socket.on("connect", () => console.log("✅ Admin socket connected"));
-
-    // New Document Uploaded
-    socket.on("document:new", (data) => {
-      toast.info(`📄 New document uploaded by Dealer ${data.dealerId}`);
-
-      setApprovals((prev) => [
-        {
-          id: data.id || Date.now(),
-          dealerName: data.dealerName || `Dealer ${data.dealerId}`,
-          documentType: data.documentType || "Document",
-          createdAt: new Date(),
+    components: {
+      // 🌙 Cards with glass effect
+      MuiCard: {
+        styleOverrides: {
+          root: {
+            borderRadius: 20,
+            background: isDark
+              ? "rgba(255,255,255,0.05)"
+              : "rgba(255,255,255,0.8)",
+            backdropFilter: "blur(12px)",
+            border: isDark
+              ? "1px solid rgba(255,255,255,0.08)"
+              : "1px solid rgba(0,0,0,0.08)",
+            boxShadow: isDark
+              ? "0 10px 30px rgba(0,0,0,0.4), inset 0 0 10px rgba(255,255,255,0.03)"
+              : "0 6px 20px rgba(0,0,0,0.15)",
+            transition: "all 0.3s ease",
+            "&:hover": {
+              transform: "translateY(-4px)",
+              boxShadow: isDark
+                ? "0 16px 40px rgba(249,115,22,0.4)"
+                : "0 12px 24px rgba(249,115,22,0.3)",
+            },
+          },
         },
-        ...prev,
-      ]);
+      },
 
-      setSummary((prev) => ({
-        ...prev,
-        pendingApprovals: prev.pendingApprovals + 1,
-      }));
-    });
+      // ✨ Buttons (rounded glowing gradients)
+      MuiButton: {
+        styleOverrides: {
+          root: {
+            borderRadius: 12,
+            textTransform: "none",
+            fontWeight: 600,
+            paddingInline: 18,
+            paddingBlock: 10,
+            background:
+              "linear-gradient(90deg, #f97316, #ea580c)",
+            color: "#fff",
+            boxShadow: "0 4px 20px rgba(249,115,22,0.3)",
+            "&:hover": {
+              boxShadow: "0 6px 25px rgba(249,115,22,0.4)",
+              transform: "translateY(-2px)",
+            },
+          },
+        },
+      },
 
-    socket.on("document:pending:update", () => {
-      api.get("/documents").then((res) => {
-        setApprovals(res.data.documents || []);
-        setSummary((prev) => ({
-          ...prev,
-          pendingApprovals: res.data.documents?.length || 0,
-        }));
-      });
-    });
+      // 📊 Table cells (subtle borders + glow headers)
+      MuiTableCell: {
+        styleOverrides: {
+          head: {
+            fontWeight: 700,
+            background: isDark
+              ? "rgba(249,115,22,0.1)"
+              : "rgba(249,115,22,0.15)",
+            color: "#fbbf24",
+          },
+          root: {
+            borderBottom: isDark
+              ? "1px solid rgba(255,255,255,0.08)"
+              : "1px solid rgba(0,0,0,0.08)",
+          },
+        },
+      },
 
-    socket.on("campaign:new", (campaign) => {
-      toast.success(`📢 New campaign launched: ${campaign.title}`);
-      setCampaigns((prev) => [campaign, ...prev]);
-    });
+      // 🧱 Paper (glass backgrounds for menus/dialogs)
+      MuiPaper: {
+        styleOverrides: {
+          root: {
+            background: isDark
+              ? "rgba(30,30,32,0.9)"
+              : "rgba(255,255,255,0.85)",
+            backdropFilter: "blur(10px)",
+            borderRadius: 20,
+            border: isDark
+              ? "1px solid rgba(255,255,255,0.08)"
+              : "1px solid rgba(0,0,0,0.08)",
+          },
+        },
+      },
 
-    return () => socket.disconnect();
-  }, []);
+      // 🧭 AppBar / Navbar consistency
+      MuiAppBar: {
+        styleOverrides: {
+          root: {
+            background: isDark
+              ? "rgba(26, 26, 31, 0.75)"
+              : "rgba(255,255,255,0.8)",
+            backdropFilter: "blur(14px)",
+            color: isDark ? "#f8fafc" : "#1e293b",
+            boxShadow: isDark
+              ? "0 4px 24px rgba(0,0,0,0.5)"
+              : "0 4px 24px rgba(0,0,0,0.1)",
+          },
+        },
+      },
 
-  // ✅ Approve/Reject actions
-  const handleApproval = async (id, action) => {
-    try {
-      await api.patch(`/documents/${id}/status`, { action });
-      toast.success(`Document ${action}d`);
-
-      setApprovals((prev) => prev.filter((doc) => doc.id !== id));
-      setSummary((prev) => ({
-        ...prev,
-        pendingApprovals: prev.pendingApprovals - 1,
-      }));
-    } catch {
-      toast.error(`Failed to ${action} document`);
-    }
-  };
-
-  if (loading)
-    return (
-      <div className="center text-center" style={{ height: "80vh" }}>
-        Loading admin dashboard...
-      </div>
-    );
-
-  return (
-  <div style={{ padding: "1.5rem", color: "var(--text-color)" }}>
-
-    {/* ✅ Page Header */}
-    <PageHeader
-      title="Administrator Dashboard"
-      subtitle="Overview of your system activity, dealer performance, and approvals."
-    />
-
-    {/* ✅ TOP CONTROL BAR like reference UI */}
-    <Toolbar
-      left={[
-        <SearchInput
-          key="search"
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          placeholder="Search dealers, campaigns..."
-        />,
-      ]}
-      right={[
-        <IconPillButton key="date" icon="📅" label="This Month" />,
-        <IconPillButton key="filter" icon="⚙️" label="Filter" />,
-        <IconPillButton
-          key="new-camp"
-          icon="➕"
-          label="New Campaign"
-          onClick={() => navigate("/campaigns")}
-        />,
-        <IconPillButton
-          key="manage"
-          icon="🧩"
-          tone="warning"
-          label="Manage Dealers"
-          onClick={() => navigate("/admin")}
-        />,
-      ]}
-    />
-
-    {/* ✅ 2-COLUMN WRAPPER */}
-    <div className="dashboard-grid" style={{
-      display: "grid",
-      gridTemplateColumns: "70% 30%",
-      gap: "1.5rem",
-      marginTop: "1.5rem"
-    }}>
-
-      {/* ✅ LEFT COLUMN */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-
-        {/* ✅ SALES CHART (Main card) */}
-        <Card title="Dealer Activity Overview" subtitle="Last 6 months">
-          <ResponsiveContainer width="100%" height={260}>
-            <BarChart data={dealerActivity}>
-              <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-              <XAxis dataKey="month" stroke="var(--text-muted)" />
-              <YAxis stroke="var(--text-muted)" />
-              <Tooltip
-                contentStyle={{
-                  background: "var(--card-bg)",
-                  border: "1px solid var(--card-border)",
-                  color: "var(--text-color)",
-                }}
-              />
-              <Bar dataKey="dealersOnboarded" fill="var(--accent)" />
-              <Bar dataKey="blockedDealers" fill="var(--text-muted)" />
-            </BarChart>
-          </ResponsiveContainer>
-        </Card>
-
-        {/* ✅ 2 SMALLER CARDS (like "Market demand" + "Time order tracking") */}
-        <div className="grid" style={{ display: "grid", gap: "1.5rem", gridTemplateColumns: "1fr 1fr" }}>
-          
-          <Card title="Market Demand">
-            <div style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "1rem" }}>
-              {summary.activeCampaigns}
-            </div>
-            <p className="text-muted">Active campaigns currently running.</p>
-          </Card>
-
-          <Card title="New Dealers This Month">
-            <div style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "1rem" }}>
-              {summary.dealers}
-            </div>
-            <p className="text-muted">Dealers onboarded in recent invoices.</p>
-          </Card>
-
-        </div>
-
-      </div>
-
-      {/* ✅ RIGHT COLUMN (KPIs + Approvals + Campaigns) */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-
-        {/* ✅ KPI GRID */}
-        <div className="grid" style={{ display: "grid", gap: "1rem", gridTemplateColumns: "1fr 1fr" }}>
-          <StatCard title="Total Dealers" value={summary.dealers || 0} icon="🏪" />
-          <StatCard title="Pending Approvals" value={summary.pendingApprovals || 0} icon="🕒" />
-          <StatCard title="Blocked Dealers" value={summary.blockedDealers || 0} icon="🚫" />
-          <StatCard title="Active Campaigns" value={summary.activeCampaigns || 0} icon="📢" />
-        </div>
-
-        {/* ✅ Pending Approvals (Condensed list) */}
-        <Card title="Pending Approvals">
-          <div style={{ maxHeight: "200px", overflowY: "auto" }}>
-            {approvals.slice(0, 5).map((a) => (
-              <div key={a.id} style={{
-                padding: "0.7rem 0",
-                borderBottom: "1px solid var(--card-border)",
-                display: "flex",
-                justifyContent: "space-between"
-              }}>
-                <div>
-                  <div style={{ fontWeight: 600 }}>{a.dealerName}</div>
-                  <div className="text-muted" style={{ fontSize: "0.85rem" }}>{a.documentType}</div>
-                </div>
-
-                <div style={{ display: "flex", gap: "0.3rem" }}>
-                  <button className="btn-success" onClick={() => handleApproval(a.id, "approve")}>✔</button>
-                  <button className="btn-danger" onClick={() => handleApproval(a.id, "reject")}>✖</button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-        {/* ✅ Campaign Previews */}
-        <Card title="Active Campaigns">
-          <div style={{ maxHeight: "200px", overflowY: "auto" }}>
-            {campaigns.slice(0, 4).map((c) => (
-              <div
-                key={c.id}
-                onClick={() => navigate(`/campaigns/${c.id}`)}
-                style={{
-                  padding: "0.7rem 0",
-                  borderBottom: "1px solid var(--card-border)",
-                  cursor: "pointer"
-                }}
-              >
-                <div style={{ fontWeight: 600, color: "var(--accent)" }}>{c.title}</div>
-                <div className="text-muted" style={{ fontSize: "0.8rem" }}>
-                  {c.description}
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-
-      </div>
-
-    </div>
-
-  </div>
-);
-
+      // 🔘 Inputs / TextFields
+      MuiOutlinedInput: {
+        styleOverrides: {
+          root: {
+            borderRadius: 12,
+            background: isDark
+              ? "rgba(255,255,255,0.06)"
+              : "rgba(0,0,0,0.03)",
+            "& fieldset": {
+              borderColor: isDark
+                ? "rgba(255,255,255,0.1)"
+                : "rgba(0,0,0,0.1)",
+            },
+            "&:hover fieldset": {
+              borderColor: "#f97316",
+            },
+          },
+          input: {
+            color: isDark ? "#e2e8f0" : "#1e293b",
+          },
+        },
+      },
+    },
+  });
 }
 </file>
 
-<file path="src/pages/dashboards/InventoryDashboard.jsx">
-import React, { useEffect, useState } from "react";
+<file path="src/App.jsx">
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Invoices from './pages/Invoices';
+import Documents from './pages/Documents';
+import Campaigns from "./pages/Campaigns";
+import Reports from "./pages/Reports";
+import Admin from "./pages/Admin";
+import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout';
+import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
+import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
+import AccountsInvoices from "./pages/accounts/AccountsInvoices";
+import AccountsNotes from "./pages/accounts/AccountsNotes";
+import AccountsReports from "./pages/accounts/AccountsReports";
+
+
+// ✅ When Layout is inside ProtectedRoute, all child routes share Navbar & Sidebar
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public route */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Protected routes grouped inside Layout */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            {/* All pages with the sidebar/navbar go here */}
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="invoices" element={<Invoices />} />
+            <Route path="documents" element={<Documents />} />
+            <Route path="campaigns" element={<Campaigns />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="admin" element={<Admin />} />
+            <Route path="inventory" element={<InventoryDashboard />} />
+            <Route path="accounts" element={<AccountsDashboard />} />
+            <Route path="accounts/invoices" element={<AccountsInvoices />} />
+<Route path="accounts/notes" element={<AccountsNotes />} />
+<Route path="accounts/reports" element={<AccountsReports />} />
+
+
+            {/* 🔜 Add Campaigns, Reports, Admin here */}
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+
+export default App;
+</file>
+
+<file path="src/components/Layout.jsx">
+import React from "react";
+import Navbar from "./Navbar";
+import Sidebar from "./Sidebar";
+import { Outlet } from "react-router-dom";
+
+export default function Layout() {
+  return (
+    <div
+      style={{
+        display: "flex",
+        minHeight: "100vh",
+        background: "var(--bg-glow), var(--bg-base)",
+        color: "var(--text-color)",
+      }}
+    >
+      {/* ✅ Sidebar - now flexible height */}
+      <Sidebar />
+
+      {/* ✅ Main section (Navbar + dashboard) */}
+      <div
+        style={{
+          flex: 1,
+          display: "flex",
+          flexDirection: "column",
+        }}
+      >
+        <Navbar />
+
+        <main
+          style={{
+            flex: 1,
+            padding: "2rem",
+            overflowX: "hidden",
+          }}
+        >
+          <div
+            style={{
+              background: "var(--card-bg)",
+              borderRadius: "20px",
+              border: "1px solid var(--card-border)",
+              padding: "2rem",
+              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
+              backdropFilter: "blur(12px)",
+              minHeight: "calc(100vh - 100px)", // subtracts navbar height
+            }}
+          >
+            <Outlet />
+          </div>
+        </main>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/AccountsDashboard.jsx">
+import React, { useEffect, useState, useContext } from "react";
 import api from "../../services/api";
+import { AuthContext } from "../../context/AuthContext";
 import PageHeader from "../../components/PageHeader";
-import StatCard from "../../components/StatCard";
-import Card from "../../components/Card";
-import DataTable from "../../components/DataTable";
 import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
-import DonutProgress from "../../components/DonutProgress";
+import DataTable from "../../components/DataTable";
+import { toast } from "react-toastify";
 import {
   BarChart,
   Bar,
   XAxis,
   YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 
-export default function InventoryDashboard() {
-  const [inventory, setInventory] = useState([]);
+export default function AccountsDashboard() {
+  const { user } = useContext(AuthContext);
   const [summary, setSummary] = useState({});
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [selectedProduct, setSelectedProduct] = useState(null);
-  const [newStock, setNewStock] = useState("");
+  const [statements, setStatements] = useState([]);
+  const [invoices, setInvoices] = useState([]);
+  const [reconciliation, setReconciliation] = useState([]);
   const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    const fetchInventory = async () => {
-      try {
-        setLoading(true);
-        const res = await api.get("/inventory");
-        setInventory(res.data.inventory || []);
-        setSummary(res.data.summary || {});
-      } catch (err) {
-        console.error("Error fetching inventory:", err);
-        setError("Failed to load inventory data.");
-      } finally {
-        setLoading(false);
-      }
-    };
-    fetchInventory();
-  }, []);
+  // 🎨 Role color theme
+  const roleTheme = {
+    dealer: { color: "#3b82f6", bg: "#eff6ff" },
+    manager: { color: "#f59e0b", bg: "#fff7ed" },
+    accounts: { color: "#22c55e", bg: "#f0fdf4" },
+    admin: { color: "#8b5cf6", bg: "#f5f3ff" },
+  };
+  const theme = roleTheme[user?.role] || { color: "#6b7280", bg: "#f9fafb" };
+  const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
 
-  const handleStockUpdate = async (id) => {
-    if (!newStock || isNaN(newStock)) {
-      alert("Enter a valid number for stock.");
-      return;
-    }
+  // 📡 Fetch accounts data
+  const fetchData = async () => {
     try {
-      await api.patch(`/inventory/${id}`, { stock: parseInt(newStock) });
-      const res = await api.get("/inventory");
-      setInventory(res.data.inventory || []);
-      setSelectedProduct(null);
-      setNewStock("");
+      setLoading(true);
+      const [summaryRes, stmtRes, invRes, recRes] = await Promise.all([
+        api.get("/accounts/summary"),
+        api.get("/accounts/statements"),
+        api.get("/accounts/invoices"),
+        api.get("/accounts/reconciliation"),
+      ]);
+
+      setSummary(summaryRes.data || {});
+      setStatements(stmtRes.data?.statements || []);
+      setInvoices(invRes.data?.invoices || []);
+      setReconciliation(recRes.data?.pending || []);
     } catch (err) {
-      console.error("Error updating stock:", err);
+      toast.error("Failed to load accounts data");
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (loading)
-    return (
-      <div className="center text-center" style={{ height: "80vh" }}>
-        Loading inventory dashboard...
-      </div>
-    );
-  if (error) return <p className="error">{error}</p>;
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // 🔍 Filter search
+  const filtered = statements.filter((item) =>
+    item.description?.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // 📊 Chart Data
+  const barData =
+    invoices.map((inv) => ({
+      month: new Date(inv.invoiceDate).toLocaleString("default", { month: "short" }),
+      total: inv.totalAmount,
+      paid: inv.paidAmount,
+    })) || [];
+
+  const pieData = [
+    { name: "Paid", value: invoices.reduce((s, i) => s + i.paidAmount, 0) },
+    {
+      name: "Outstanding",
+      value: invoices.reduce((s, i) => s + (i.totalAmount - i.paidAmount), 0),
+    },
+  ];
+
+  // 💾 Export as Excel or PDF
+  const handleExport = async (format) => {
+    try {
+      const response = await api.get(`/accounts/export?format=${format}`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `accounts_${new Date().toISOString().slice(0, 10)}.${format}`
+      );
+      document.body.appendChild(link);
+      link.click();
+    } catch (err) {
+      toast.error("Export failed");
+    }
+  };
+
+  // 🧱 Table Columns
+  const columns = [
+    { key: "date", label: "Date" },
+    { key: "documentNumber", label: "Doc #" },
+    { key: "debitAmount", label: "Debit" },
+    { key: "creditAmount", label: "Credit" },
+    { key: "balance", label: "Balance" },
+  ];
 
   return (
-    <div style={{ padding: "1.5rem" }}>
-      {/* ✅ Header */}
+    <div style={{ padding: "1rem", background: theme.bg, minHeight: "100vh" }}>
       <PageHeader
-        title="Inventory Dashboard"
-        subtitle="Monitor product stock, plant capacity, and reorder risks."
+        title="Accounts Dashboard"
+        subtitle={`Financial insights — role: ${user?.role?.toUpperCase()}`}
+        actions={[
+          (user?.role !== "dealer") && (
+            <IconPillButton
+              key="pdf"
+              label="Export PDF"
+              icon="📄"
+              onClick={() => handleExport("pdf")}
+            />
+          ),
+          (user?.role !== "dealer") && (
+            <IconPillButton
+              key="excel"
+              label="Export Excel"
+              icon="📊"
+              onClick={() => handleExport("xlsx")}
+              tone="success"
+            />
+          ),
+        ].filter(Boolean)}
       />
 
-      {/* ✅ Unified Toolbar */}
-      <Toolbar
-        left={[
-          <SearchInput
-            key="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search products or plants..."
-          />,
-        ]}
-        right={[
-          <IconPillButton
-            key="adjust"
-            icon="📝"
-            label="Bulk Adjust"
-            tone="warning"
-            onClick={() => {}}
-          />,
-          <IconPillButton
-            key="export"
-            icon="⬇️"
-            label="Export"
-            tone="success"
-            onClick={() => {}}
-          />,
-        ]}
-      />
-
-      {/* ✅ 2-Column Modern Dashboard Layout */}
       <div
-        className="dashboard-grid"
         style={{
-          display: "grid",
-          gridTemplateColumns: "70% 30%",
-          gap: "1.5rem",
-          marginTop: "1.5rem",
+          background: theme.color,
+          color: "white",
+          padding: "0.5rem 1rem",
+          borderRadius: "10px",
+          display: "inline-block",
+          marginBottom: "1rem",
         }}
       >
-        {/* ✅ LEFT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* ✅ Main Chart */}
-          <Card title="Stock Overview by Plant">
-            {inventory.length > 0 ? (
-              <ResponsiveContainer width="100%" height={280}>
-                <BarChart data={aggregateByPlant(inventory)}>
-                  <CartesianGrid
-                    strokeDasharray="3 3"
-                    stroke="var(--card-border)"
-                  />
-                  <XAxis dataKey="plant" stroke="var(--text-muted)" />
-                  <YAxis stroke="var(--text-muted)" />
-                  <Tooltip
-                    contentStyle={{
-                      background: "var(--card-bg)",
-                      border: "1px solid var(--card-border)",
-                      color: "var(--text-color)",
-                    }}
-                  />
-                  <Bar
-                    dataKey="totalStock"
-                    fill="var(--accent)"
-                    barSize={20}
-                    radius={[6, 6, 0, 0]}
-                  />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : (
-              <p style={{ color: "#94a3b8" }}>No inventory data available</p>
-            )}
-          </Card>
+        Logged in as <strong>{user?.role?.toUpperCase()}</strong>
+      </div>
 
-          {/* ✅ Table */}
-          <Card title="Product Inventory Details">
-            <DataTable
-              columns={[
-                { key: "name", label: "Product" },
-                { key: "plant", label: "Plant" },
-                {
-                  key: "stock",
-                  label: "Stock",
-                  render: (v) => (
-                    <span
-                      style={{
-                        color: v < 10 ? "#ef4444" : "inherit",
-                        fontWeight: v < 10 ? 700 : 400,
-                      }}
-                    >
-                      {v}
-                    </span>
-                  ),
-                },
-                { key: "uom", label: "UOM" },
-                { key: "lastUpdatedAt", label: "Last Updated" },
-                { key: "action", label: "Action" },
-              ]}
-              rows={inventory
-                .filter((item) => {
-                  const q = search.toLowerCase();
-                  const name = item?.name?.toString().toLowerCase() || "";
-                  const plant = item?.plant?.toString().toLowerCase() || "";
-                  return q === "" || name.includes(q) || plant.includes(q);
-                })
-                .map((item) => ({
-                  id: item.id,
-                  name: item.name || "—",
-                  plant: item.plant || "—",
-                  stock: item.stock ?? 0,
-                  uom: item.uom || "—",
-                  lastUpdatedAt: item.lastUpdatedAt
-                    ? new Date(item.lastUpdatedAt).toLocaleDateString()
-                    : "—",
+      <Toolbar>
+        <SearchInput
+          placeholder="Search by description or doc number..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </Toolbar>
 
-                  action:
-                    selectedProduct === item.id ? (
-                      <div style={{ display: "flex", gap: ".5rem" }}>
-                        <input
-                          type="number"
-                          value={newStock}
-                          onChange={(e) => setNewStock(e.target.value)}
-                          style={{ width: "70px" }}
-                        />
-                        <button className="primary" onClick={() => handleStockUpdate(item.id)}>
-                          Save
-                        </button>
-                        <button
-                          className="primary danger"
-                          onClick={() => setSelectedProduct(null)}
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    ) : (
-                      <button
-                        className="primary"
-                        onClick={() => setSelectedProduct(item.id)}
-                      >
-                        Update
-                      </button>
-                    ),
-                }))}
-              emptyMessage="No inventory records available."
-            />
-          </Card>
+      {/* 🔹 Summary Cards */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))",
+          gap: "1rem",
+          marginTop: "1.2rem",
+        }}
+      >
+        <div className="card">
+          🧾 <b>{summary.totalInvoices || 0}</b> Invoices
+        </div>
+        <div className="card">
+          📈 ₹{summary.totalCredit || 0} Credit Notes
+        </div>
+        <div className="card">
+          📉 ₹{summary.totalDebit || 0} Debit Notes
+        </div>
+        <div className="card">
+          💰 ₹{summary.totalOutstanding || 0} Outstanding
+        </div>
+      </div>
+
+      {/* 📊 Charts Row */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr",
+          gap: "1.5rem",
+          marginTop: "2rem",
+        }}
+      >
+        <div
+          style={{
+            background: "white",
+            padding: "1rem",
+            borderRadius: "12px",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+          }}
+        >
+          <h4 style={{ color: "#111827", marginBottom: "1rem" }}>
+            📆 Monthly Invoice Trends
+          </h4>
+          <ResponsiveContainer width="100%" height={280}>
+            <BarChart data={barData}>
+              <XAxis dataKey="month" />
+              <YAxis />
+              <Tooltip />
+              <Legend />
+              <Bar dataKey="total" fill={theme.color} name="Total Invoices" />
+              <Bar dataKey="paid" fill="#22c55e" name="Paid Amount" />
+            </BarChart>
+          </ResponsiveContainer>
         </div>
 
-        {/* ✅ RIGHT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* ✅ KPI Grid */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "1rem",
-            }}
-          >
-            <StatCard
-              title="Total Products"
-              value={inventory.length}
-              icon="📦"
-            />
-            <StatCard
-              title="Active Plants"
-              value={new Set(inventory.map((i) => i.plant)).size}
-              icon="🏭"
-            />
-            <StatCard
-              title="Low Stock Items"
-              value={inventory.filter((i) => i.stock < 10).length}
-              icon="⚠️"
-            />
-            <StatCard
-              title="Total Stock"
-              value={inventory.reduce((sum, i) => sum + i.stock, 0)}
-              icon="📊"
-            />
-          </div>
+        <div
+          style={{
+            background: "white",
+            padding: "1rem",
+            borderRadius: "12px",
+            boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+          }}
+        >
+          <h4 style={{ color: "#111827", marginBottom: "1rem" }}>
+            💼 Payment Distribution
+          </h4>
+          <ResponsiveContainer width="100%" height={280}>
+            <PieChart>
+              <Pie
+                data={pieData}
+                dataKey="value"
+                nameKey="name"
+                outerRadius={100}
+                label
+              >
+                {pieData.map((_, i) => (
+                  <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                ))}
+              </Pie>
+              <Tooltip />
+              <Legend />
+            </PieChart>
+          </ResponsiveContainer>
+        </div>
+      </div>
 
-          {/* ✅ Donut Cards */}
-          <Card title="Low Stock Ratio">
-            <DonutProgress
-              value={inventory.filter((i) => i.stock < 10).length}
-              total={inventory.length}
-              label="Items below threshold"
-            />
-          </Card>
+      {/* 🧾 Account Statements Table */}
+      <div
+        style={{
+          background: "white",
+          borderRadius: "12px",
+          boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+          marginTop: "2rem",
+          padding: "1rem",
+        }}
+      >
+        <h4 style={{ color: "#111827", marginBottom: "1rem" }}>
+          📋 Recent Account Statements
+        </h4>
+        {loading ? (
+          <p style={{ color: "#9ca3af" }}>Loading statements...</p>
+        ) : (
+          <DataTable columns={columns} rows={filtered.slice(0, 8)} />
+        )}
+      </div>
 
-          <Card title="Plant Coverage">
-            <DonutProgress
-              value={new Set(inventory.map((i) => i.plant)).size}
-              total={Math.max(new Set(inventory.map((i) => i.plant)).size, 1)}
-              label="Active plants"
-            />
-          </Card>
-
-          {/* ✅ Quick Actions */}
-          <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
-            <IconPillButton label="Bulk Adjust" icon="📝" tone="warning" />
-            <IconPillButton label="Export" icon="⬇️" tone="success" />
-          </div>
+      {/* 🔸 Reconciliation Section */}
+      <div
+        style={{
+          marginTop: "2rem",
+          display: "flex",
+          gap: "1rem",
+          flexWrap: "wrap",
+        }}
+      >
+        <div
+          style={{
+            background: reconciliation.length ? "#fee2e2" : "#dcfce7",
+            padding: "1rem",
+            borderRadius: "12px",
+            flex: 1,
+            minWidth: "220px",
+          }}
+        >
+          <h4>🔁 Reconciliation Status</h4>
+          <p>
+            {reconciliation.length
+              ? `${reconciliation.length} invoice(s) pending reconciliation`
+              : "All accounts are reconciled ✅"}
+          </p>
         </div>
       </div>
     </div>
   );
 }
-
-/* Helper: Aggregate stock by plant for the chart */
-const aggregateByPlant = (data) => {
-  const plantTotals = {};
-  data.forEach((item) => {
-    if (!plantTotals[item.plant]) plantTotals[item.plant] = 0;
-    plantTotals[item.plant] += item.stock;
-  });
-  return Object.keys(plantTotals).map((plant) => ({
-    plant,
-    totalStock: plantTotals[plant],
-  }));
-};
 </file>
 
 <file path="src/pages/Reports.jsx">
@@ -4145,6 +3983,237 @@ export default function Reports() {
 }
 </file>
 
+<file path="src/pages/dashboards/AdminDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import { useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
+
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+} from "recharts";
+
+import "./DashboardLayout.css";
+
+export default function AdminDashboard() {
+  const navigate = useNavigate();
+  const [summary, setSummary] = useState({});
+  const [approvals, setApprovals] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [dealerActivity, setDealerActivity] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+        const perf = await api.get("/reports/dealer-performance");
+        const invoices = perf.data?.invoices || [];
+        const totalSales = perf.data?.totalSales || 0;
+        const dealers = new Set(invoices.map((i) => i.dealerId)).size;
+
+        const campaignRes = await api.get("/campaigns");
+        const activeCampaigns = campaignRes.data.campaigns?.length || 0;
+        setCampaigns(campaignRes.data.campaigns || campaignRes.data);
+
+        const docs = await api.get("/documents");
+        const approvals = docs.data.documents || [];
+
+        const monthly = {};
+        invoices.forEach((i) => {
+          const m = new Date(i.invoiceDate).toLocaleString("default", { month: "short" });
+          monthly[m] = monthly[m] || { dealersOnboarded: 0, blockedDealers: 0 };
+          monthly[m].dealersOnboarded += 1;
+        });
+
+        setDealerActivity(
+          Object.keys(monthly).map((m) => ({
+            month: m,
+            dealersOnboarded: monthly[m].dealersOnboarded,
+            blockedDealers: Math.floor(Math.random() * 3),
+          }))
+        );
+
+        setSummary({
+          dealers,
+          totalSales,
+          activeCampaigns,
+          blockedDealers: 2,
+          pendingApprovals: approvals.length,
+        });
+        setApprovals(approvals);
+      } catch (e) {
+        console.error("Admin dashboard fetch error:", e);
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  const handleApproval = async (id, action) => {
+    toast.info(`Dealer ${action === "approve" ? "approved ✅" : "rejected ❌"}`);
+    setApprovals((prev) => prev.filter((a) => a.id !== id));
+  };
+
+  if (loading)
+    return (
+      <div className="center text-center" style={{ height: "80vh" }}>
+        Loading Admin Dashboard...
+      </div>
+    );
+
+  return (
+    <div className="dashboard-container">
+      {/* HEADER */}
+      <PageHeader title="Admin Dashboard" subtitle="Quick overview of dealer performance & campaigns." />
+
+      {/* TOOLBAR */}
+      <Toolbar
+        left={[
+          <SearchInput
+            key="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search dealers or campaigns..."
+          />,
+        ]}
+        right={[
+          <IconPillButton
+            key="new-camp"
+            icon="➕"
+            label="Campaigns"
+            onClick={() => navigate("/campaigns")}
+          />,
+          <IconPillButton
+            key="manage"
+            icon="🧩"
+            tone="warning"
+            label="Manage Dealers"
+            onClick={() => navigate("/admin")}
+          />,
+        ]}
+      />
+
+      {/* KPI SUMMARY */}
+      <div className="stat-grid">
+        <StatCard title="Total Dealers" value={summary.dealers || 0} icon="🏪" />
+        <StatCard title="Pending Approvals" value={summary.pendingApprovals || 0} icon="🕒" />
+        <StatCard title="Blocked Dealers" value={summary.blockedDealers || 0} icon="🚫" />
+        <StatCard title="Active Campaigns" value={summary.activeCampaigns || 0} icon="📢" />
+      </div>
+
+      {/* MAIN GRID */}
+      <div className="dashboard-grid">
+        {/* LEFT COLUMN */}
+        <div className="column">
+          <Card title="Dealer Activity (Last 6 Months)" className="chart-card">
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={dealerActivity}>
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
+                <XAxis dataKey="month" stroke="var(--text-muted)" />
+                <YAxis stroke="var(--text-muted)" />
+                <Tooltip
+                  contentStyle={{
+                    background: "var(--card-bg)",
+                    border: "1px solid var(--card-border)",
+                    color: "var(--text-color)",
+                  }}
+                />
+                <Bar dataKey="dealersOnboarded" fill="var(--accent)" barSize={12} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="blockedDealers" fill="var(--text-muted)" barSize={12} radius={[4, 4, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+
+          <div className="stat-grid">
+            <Card title="Market Demand" compact>
+              <h2>{summary.activeCampaigns}</h2>
+              <p className="text-muted small">Active campaigns</p>
+            </Card>
+            <Card title="New Dealers" compact>
+              <h2>{summary.dealers}</h2>
+              <p className="text-muted small">Recently onboarded</p>
+            </Card>
+          </div>
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <div className="column">
+          <Card title="Pending Approvals">
+            {approvals.slice(0, 4).length ? (
+              approvals.slice(0, 4).map((a) => (
+                <div
+                  key={a.id}
+                  className="approval-item"
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    borderBottom: "1px solid var(--card-border)",
+                    padding: "0.5rem 0",
+                  }}
+                >
+                  <div>
+                    <strong>{a.dealerName}</strong>
+                    <div className="text-muted small">{a.documentType}</div>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.3rem" }}>
+                    <button className="btn-success" onClick={() => handleApproval(a.id, "approve")}>
+                      ✔
+                    </button>
+                    <button className="btn-danger" onClick={() => handleApproval(a.id, "reject")}>
+                      ✖
+                    </button>
+                  </div>
+                </div>
+              ))
+            ) : (
+              <p className="text-muted">No pending approvals</p>
+            )}
+          </Card>
+
+          <Card title="Active Campaigns">
+            {campaigns.slice(0, 4).length ? (
+              campaigns.slice(0, 4).map((c) => (
+                <div
+                  key={c.id}
+                  onClick={() => navigate(`/campaigns/${c.id}`)}
+                  style={{
+                    cursor: "pointer",
+                    borderBottom: "1px solid var(--card-border)",
+                    padding: "0.5rem 0",
+                  }}
+                >
+                  <strong style={{ color: "var(--accent)" }}>{c.title}</strong>
+                  <p className="text-muted small">{c.description}</p>
+                </div>
+              ))
+            ) : (
+              <p className="text-muted">No active campaigns</p>
+            )}
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
 <file path="src/pages/dashboards/ManagerDashboard.jsx">
 // src/pages/dashboards/ManagerDashboard.jsx
 import React, { useEffect, useState } from "react";
@@ -4159,7 +4228,6 @@ import DataTable from "../../components/DataTable";
 import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
-
 import { toast } from "react-toastify";
 
 import {
@@ -4171,6 +4239,9 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
 
 import "./ManagerDashboard.css";
@@ -4182,20 +4253,25 @@ export default function ManagerDashboard() {
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [messages, setMessages] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
+  const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+
+  const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
+  const accent = "#3b82f6";
 
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [summaryRes, perfRes, approvalsRes, msgRes, campRes] =
+        const [summaryRes, perfRes, approvalsRes, msgRes, campRes, invRes] =
           await Promise.all([
             api.get("/reports/dealer-performance"),
             api.get("/reports/territory"),
             api.get("/reports/pending-approvals"),
             api.get("/messages"),
             api.get("/campaigns"),
+            api.get("/inventory/summary"),
           ]);
 
         setSummary(summaryRes.data || {});
@@ -4203,8 +4279,10 @@ export default function ManagerDashboard() {
         setPendingApprovals(approvalsRes.data || []);
         setMessages(msgRes.data.messages || msgRes.data || []);
         setCampaigns(campRes.data.campaigns || campRes.data || []);
+        setInventory(invRes.data.inventory || []);
       } catch (err) {
         console.error("Manager dashboard load error:", err);
+        toast.error("Failed to load dashboard data");
       } finally {
         setLoading(false);
       }
@@ -4212,7 +4290,7 @@ export default function ManagerDashboard() {
     loadData();
   }, []);
 
-  // Socket.io realtime hooks
+  // ✅ Realtime updates
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) socket.auth = { token };
@@ -4251,11 +4329,18 @@ export default function ManagerDashboard() {
       </div>
     );
 
+  // 🔍 Stock health classification
+  const lowStock = inventory.filter((i) => i.available < 20);
+  const mediumStock = inventory.filter(
+    (i) => i.available >= 20 && i.available < 100
+  );
+  const highStock = inventory.filter((i) => i.available >= 100);
+
   return (
     <div className="manager-dashboard" style={{ color: "var(--text-color)" }}>
       <PageHeader
         title="Regional Manager Dashboard"
-        subtitle="Monitor dealers, campaigns, and performance insights in real-time."
+        subtitle="Monitor dealers, campaigns, and inventory performance in real-time."
       />
 
       <Toolbar
@@ -4268,48 +4353,137 @@ export default function ManagerDashboard() {
           />,
         ]}
         right={[
-          <IconPillButton key="reports" icon="📊" label="Reports" onClick={() => navigate("/reports")} />,
-          <IconPillButton key="campaigns" icon="📢" label="Campaigns" tone="warning" onClick={() => navigate("/campaigns")} />,
+          <IconPillButton
+            key="reports"
+            icon="📊"
+            label="Reports"
+            onClick={() => navigate("/reports")}
+          />,
+          <IconPillButton
+            key="campaigns"
+            icon="📢"
+            label="Campaigns"
+            tone="warning"
+            onClick={() => navigate("/campaigns")}
+          />,
         ]}
       />
 
-      {/* 2-column grid */}
       <div className="dashboard-grid">
-        {/* Left Column - Main charts & lists */}
+        {/* LEFT COLUMN */}
         <div className="left-col">
           <div className="kpi-row">
-            <StatCard title="Total Dealers" value={summary.totalDealers || summary.totalInvoices || 0} icon="🏪" />
-            <StatCard title="Active Campaigns" value={campaigns.length} icon="📢" />
-            <StatCard title="Pending Approvals" value={pendingApprovals.length} icon="🕒" />
+            <StatCard
+              title="Total Dealers"
+              value={summary.totalDealers || 0}
+              icon="🏪"
+            />
+            <StatCard
+              title="Active Campaigns"
+              value={campaigns.length}
+              icon="📢"
+            />
+            <StatCard
+              title="Pending Approvals"
+              value={pendingApprovals.length}
+              icon="🕒"
+            />
             <StatCard title="New Messages" value={messages.length} icon="💬" />
           </div>
 
-          <Card title="Dealer Performance Overview" className="main-chart-card">
-            <ResponsiveContainer width="100%" height={340}>
-              <BarChart data={dealerPerformance}>
-                <defs>
-                  <linearGradient id="mgrColorSales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.85} />
-                    <stop offset="95%" stopColor="rgba(0,0,0,0.15)" stopOpacity={0.15} />
-                  </linearGradient>
-                </defs>
+          {/* 🔔 Critical Low Stock Alert */}
+          {lowStock.length > 0 && (
+            <div
+              className="alert-banner"
+              style={{
+                background: "#fee2e2",
+                color: "#b91c1c",
+                padding: "0.75rem",
+                borderRadius: "8px",
+                marginBottom: "1rem",
+                textAlign: "center",
+                fontWeight: 500,
+              }}
+            >
+              ⚠️ {lowStock.length} products are critically low on stock!
+            </div>
+          )}
 
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="businessName" stroke="var(--text-muted)" interval={0} tick={{ fontSize: 12 }} />
-                <YAxis stroke="var(--text-muted)" />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--card-bg)",
-                    border: "1px solid var(--card-border)",
-                    color: "var(--text-color)",
-                  }}
-                />
+          {/* 📊 Stock Health Summary */}
+          <Card title="Stock Health Overview" style={{ marginBottom: "1rem" }}>
+            {inventory.length ? (
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-around",
+                  textAlign: "center",
+                }}
+              >
+                <div>
+                  <h3 style={{ color: "#ef4444" }}>{lowStock.length}</h3>
+                  <p className="text-muted">Low Stock</p>
+                </div>
+                <div>
+                  <h3 style={{ color: "#facc15" }}>{mediumStock.length}</h3>
+                  <p className="text-muted">Moderate</p>
+                </div>
+                <div>
+                  <h3 style={{ color: "#10b981" }}>{highStock.length}</h3>
+                  <p className="text-muted">Healthy</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-muted">No inventory data available</p>
+            )}
+          </Card>
+
+          {/* 📈 Dealer Performance Chart */}
+          <Card
+            title="Top 5 Dealers by Sales"
+            className="main-chart-card"
+            style={{ marginBottom: "1rem" }}
+          >
+            <ResponsiveContainer width="100%" height={340}>
+              <BarChart
+                data={dealerPerformance.slice(0, 5)}
+                margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
+              >
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="businessName" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
+                <Tooltip />
                 <Legend />
-                <Bar dataKey="totalSales" fill="url(#mgrColorSales)" barSize={16} radius={[8, 8, 0, 0]} />
+                <Bar dataKey="totalSales" fill={accent} radius={[8, 8, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
 
+          {/* 🥧 Inventory Overview */}
+          <Card title="Inventory Overview (Top 5 Products)">
+            {inventory.length > 0 ? (
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={inventory.slice(0, 5)}
+                    dataKey="available"
+                    nameKey="product"
+                    outerRadius={100}
+                    fill={accent}
+                    label
+                  >
+                    {inventory.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-muted">No inventory data available</p>
+            )}
+          </Card>
+
+          {/* 🧾 Pending Approvals Table */}
           <Card title="Pending Approvals" style={{ marginTop: "1rem" }}>
             <DataTable
               columns={[
@@ -4321,7 +4495,11 @@ export default function ManagerDashboard() {
               rows={pendingApprovals
                 .filter((a) => {
                   const q = search.toLowerCase();
-                  return !q || (a.dealerName || "").toLowerCase().includes(q) || String(a.dealerId || "").includes(q);
+                  return (
+                    !q ||
+                    (a.dealerName || "").toLowerCase().includes(q) ||
+                    String(a.dealerId || "").includes(q)
+                  );
                 })
                 .slice(0, 8)
                 .map((a) => ({
@@ -4336,17 +4514,21 @@ export default function ManagerDashboard() {
           </Card>
         </div>
 
-        {/* Right Column - Compact KPIs, messages, campaigns */}
+        {/* RIGHT COLUMN */}
         <aside className="right-col">
           <div className="side-kpis">
-            <div className="mini-kpi"> 
+            <div className="mini-kpi">
               <div className="mini-kpi-title">Total Sales</div>
-              <div className="mini-kpi-value">₹ {summary.totalSales || 0}</div>
+              <div className="mini-kpi-value">
+                ₹ {summary.totalSales || 0}
+              </div>
             </div>
 
             <div className="mini-kpi">
               <div className="mini-kpi-title">Active Dealers</div>
-              <div className="mini-kpi-value">{summary.activeDealers || summary.totalDealers || 0}</div>
+              <div className="mini-kpi-value">
+                {summary.activeDealers || summary.totalDealers || 0}
+              </div>
             </div>
 
             <div className="mini-kpi">
@@ -4360,14 +4542,23 @@ export default function ManagerDashboard() {
             </div>
           </div>
 
-          <Card title="Recent Messages" className="side-card" style={{ marginTop: "1rem" }}>
+          {/* 💬 Recent Messages */}
+          <Card
+            title="Recent Messages"
+            className="side-card"
+            style={{ marginTop: "1rem" }}
+          >
             <div style={{ maxHeight: 220, overflowY: "auto" }}>
               {messages.length > 0 ? (
                 <ul className="message-list">
                   {messages.slice(0, 6).map((msg) => (
                     <li key={msg.id}>
-                      <div style={{ fontWeight: 600 }}>{msg.dealerName || `Dealer ${msg.senderId}`}</div>
-                      <div className="text-muted" style={{ fontSize: 13 }}>{msg.content}</div>
+                      <div style={{ fontWeight: 600 }}>
+                        {msg.dealerName || `Dealer ${msg.senderId}`}
+                      </div>
+                      <div className="text-muted" style={{ fontSize: 13 }}>
+                        {msg.content}
+                      </div>
                     </li>
                   ))}
                 </ul>
@@ -4377,13 +4568,26 @@ export default function ManagerDashboard() {
             </div>
           </Card>
 
-          <Card title="Active Campaigns" className="side-card" style={{ marginTop: "1rem" }}>
+          {/* 📢 Active Campaigns */}
+          <Card
+            title="Active Campaigns"
+            className="side-card"
+            style={{ marginTop: "1rem" }}
+          >
             <div style={{ maxHeight: 220, overflowY: "auto" }}>
               {campaigns.length > 0 ? (
                 campaigns.slice(0, 6).map((c) => (
-                  <div key={c.id} className="campaign-preview" onClick={() => navigate(`/campaigns/${c.id}`)}>
-                    <div style={{ fontWeight: 700, color: "var(--accent)" }}>{c.title}</div>
-                    <div className="text-muted" style={{ fontSize: 13 }}>{c.description}</div>
+                  <div
+                    key={c.id}
+                    className="campaign-preview"
+                    onClick={() => navigate(`/campaigns/${c.id}`)}
+                  >
+                    <div style={{ fontWeight: 700, color: accent }}>
+                      {c.title}
+                    </div>
+                    <div className="text-muted" style={{ fontSize: 13 }}>
+                      {c.description}
+                    </div>
                   </div>
                 ))
               ) : (
@@ -4391,15 +4595,58 @@ export default function ManagerDashboard() {
               )}
             </div>
           </Card>
-
-          <div style={{ marginTop: "1rem", display: "flex", gap: "0.6rem", justifyContent: "center" }}>
-            <IconPillButton icon="📊" label="Reports" onClick={() => navigate("/reports")} />
-            <IconPillButton icon="💬" label="Messages" tone="success" onClick={() => navigate("/messages")} />
-          </div>
         </aside>
       </div>
     </div>
   );
+}
+</file>
+
+<file path="package.json">
+{
+  "name": "dealer-portal-react",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@mui/icons-material": "^7.3.5",
+    "@mui/material": "^7.3.4",
+    "axios": "^1.13.1",
+    "framer-motion": "^12.23.24",
+    "lucide-react": "^0.552.0",
+    "react": "^19.1.1",
+    "react-countup": "^6.5.3",
+    "react-dom": "^19.1.1",
+    "react-hook-form": "^7.65.0",
+    "react-icons": "^5.5.0",
+    "react-router-dom": "^7.9.5",
+    "react-toastify": "^11.0.5",
+    "recharts": "^3.3.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.21",
+    "babel-plugin-react-compiler": "^19.1.0-rc.3",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.22",
+    "globals": "^16.4.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.16",
+    "vite": "^7.1.7"
+  }
 }
 </file>
 
@@ -4450,22 +4697,18 @@ export default function Sidebar() {
     <aside
       style={{
         width: collapsed ? "70px" : "240px",
-        height: "100vh",
-        position: "fixed",
-        left: 0,
-        top: 0,
         background: "var(--sidebar-bg)",
         backdropFilter: "blur(14px)",
         borderRight: "1px solid var(--card-border)",
         padding: "1rem",
         display: "flex",
         flexDirection: "column",
-        transition: "0.3s ease",
-        zIndex: 1000,
-        overflow: "hidden",
+        transition: "width 0.3s ease",
+        overflowY: "auto",
+        overflowX: "hidden",
       }}
     >
-      {/* SIDEBAR HEADER + TOGGLE */}
+      {/* HEADER + TOGGLE */}
       <div
         style={{
           display: "flex",
@@ -4533,20 +4776,16 @@ export default function Sidebar() {
                 }}
               >
                 <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
-
                 {!collapsed && <span>{l.label}</span>}
               </Link>
 
-              {/* ✅ Tooltip when collapsed */}
-              {collapsed && (
-                <div className="sidebar-tooltip">{l.label}</div>
-              )}
+              {/* Tooltip when collapsed */}
+              {collapsed && <div className="sidebar-tooltip">{l.label}</div>}
             </div>
           );
         })}
       </div>
 
-      {/* ✅ Tooltip styles */}
       <style>
         {`
             .sidebar-tooltip {
@@ -4575,51 +4814,347 @@ export default function Sidebar() {
 }
 </file>
 
-<file path="package.json">
-{
-  "name": "dealer-portal-react",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@mui/icons-material": "^7.3.5",
-    "@mui/material": "^7.3.4",
-    "axios": "^1.13.1",
-    "framer-motion": "^12.23.24",
-    "lucide-react": "^0.552.0",
-    "react": "^19.1.1",
-    "react-countup": "^6.5.3",
-    "react-dom": "^19.1.1",
-    "react-hook-form": "^7.65.0",
-    "react-icons": "^5.5.0",
-    "react-router-dom": "^7.9.5",
-    "react-toastify": "^11.0.5",
-    "recharts": "^3.3.0",
-    "socket.io-client": "^4.8.1"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "@types/react": "^19.1.16",
-    "@types/react-dom": "^19.1.9",
-    "@vitejs/plugin-react": "^5.0.4",
-    "autoprefixer": "^10.4.21",
-    "babel-plugin-react-compiler": "^19.1.0-rc.3",
-    "eslint": "^9.36.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.22",
-    "globals": "^16.4.0",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.16",
-    "vite": "^7.1.7"
-  }
+<file path="src/pages/dashboards/InventoryDashboard.jsx">
+import React, { useEffect, useState, useContext } from "react";
+import api from "../../services/api";
+import { AuthContext } from "../../context/AuthContext";
+import PageHeader from "../../components/PageHeader";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+import DataTable from "../../components/DataTable";
+import { toast } from "react-toastify";
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  Tooltip,
+  PieChart,
+  Pie,
+  Cell,
+  ResponsiveContainer,
+  Legend,
+} from "recharts";
+
+export default function InventoryDashboard() {
+  const { user } = useContext(AuthContext);
+  const [inventory, setInventory] = useState([]);
+  const [summary, setSummary] = useState({});
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  // 🎨 Define theme per role
+  const roleTheme = {
+    dealer: { color: "#3b82f6", bg: "#eff6ff" },
+    manager: { color: "#f59e0b", bg: "#fff7ed" },
+    inventory: { color: "#22c55e", bg: "#f0fdf4" },
+    admin: { color: "#8b5cf6", bg: "#f5f3ff" },
+  };
+
+  const theme = roleTheme[user?.role] || { color: "#6b7280", bg: "#f9fafb" };
+
+  const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
+
+  // 📡 Fetch inventory data
+  const fetchInventory = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/inventory/summary");
+      setInventory(res.data.inventory || []);
+      setSummary(res.data.summary || {});
+    } catch (err) {
+      toast.error("Failed to load inventory data");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchInventory();
+  }, []);
+
+  const handleExport = async (format) => {
+    try {
+      const response = await api.get(`/inventory/export?format=${format}`, {
+        responseType: "blob",
+      });
+      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute(
+        "download",
+        `inventory_${new Date().toISOString().slice(0, 10)}.${format === "pdf" ? "pdf" : "xlsx"}`
+      );
+      document.body.appendChild(link);
+      link.click();
+    } catch (err) {
+      toast.error("Export failed");
+    }
+  };
+
+  const handleAddMockItem = async () => {
+    try {
+      const mock = {
+        product: "New Product",
+        available: Math.floor(Math.random() * 100),
+        plant: "Chennai",
+        reorderLevel: 10,
+      };
+      const res = await api.post("/inventory", mock);
+      toast.success("Item added");
+      setInventory((prev) => [...prev, res.data.item]);
+    } catch (err) {
+      toast.error("Failed to add item");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    try {
+      await api.delete(`/inventory/${id}`);
+      toast.success("Item deleted");
+      setInventory((prev) => prev.filter((i) => i.id !== id));
+    } catch (err) {
+      toast.error("Failed to delete item");
+    }
+  };
+
+  // 🔍 Filter search
+  const filtered = inventory.filter((item) =>
+    item.product.toLowerCase().includes(search.toLowerCase())
+  );
+
+  // 🧱 Table columns (role-aware)
+  const columns = [
+    { key: "product", label: "Product" },
+    { key: "available", label: "Available" },
+    (user?.role === "manager" || user?.role === "inventory" || user?.role === "admin") && {
+      key: "plant",
+      label: "Plant",
+    },
+    (user?.role === "inventory" || user?.role === "admin") && {
+      key: "reorderLevel",
+      label: "Reorder Level",
+    },
+    (user?.role === "inventory" || user?.role === "admin") && {
+      key: "updatedAt",
+      label: "Last Updated",
+    },
+    (user?.role === "inventory" || user?.role === "admin") && {
+      key: "actions",
+      label: "Actions",
+      render: (_, row) => (
+        <button
+          onClick={() => handleDelete(row.id)}
+          style={{
+            border: "none",
+            padding: "6px 10px",
+            background: "#ef4444",
+            color: "white",
+            borderRadius: 6,
+            cursor: "pointer",
+          }}
+        >
+          Delete
+        </button>
+      ),
+    },
+  ].filter(Boolean);
+
+  // 📊 Derived data for charts
+  const lowStockCount = inventory.filter(
+    (i) => i.reorderLevel && i.available < i.reorderLevel
+  ).length;
+
+  const plantWiseData = Object.values(
+    inventory.reduce((acc, cur) => {
+      if (!cur.plant) return acc;
+      acc[cur.plant] = acc[cur.plant] || { name: cur.plant, total: 0 };
+      acc[cur.plant].total += cur.available;
+      return acc;
+    }, {})
+  );
+
+  return (
+    <div style={{ padding: "1rem", background: theme.bg, minHeight: "100vh" }}>
+      <PageHeader
+        title="Inventory Dashboard"
+        subtitle={`Monitor stock and performance — role: ${user?.role?.toUpperCase()}`}
+        actions={[
+          (user?.role !== "dealer") && (
+            <IconPillButton
+              key="pdf"
+              label="Export PDF"
+              icon="📄"
+              onClick={() => handleExport("pdf")}
+            />
+          ),
+          (user?.role !== "dealer") && (
+            <IconPillButton
+              key="excel"
+              label="Export Excel"
+              icon="📊"
+              onClick={() => handleExport("excel")}
+              tone="success"
+            />
+          ),
+          (user?.role === "inventory" || user?.role === "admin") && (
+            <IconPillButton
+              key="add"
+              label="Add Mock Item"
+              icon="➕"
+              onClick={handleAddMockItem}
+              tone="warning"
+            />
+          ),
+        ].filter(Boolean)}
+      />
+
+      <div
+        style={{
+          background: theme.color,
+          color: "white",
+          padding: "0.6rem 1rem",
+          borderRadius: 10,
+          display: "inline-block",
+          marginBottom: "1rem",
+        }}
+      >
+        Logged in as <strong>{user?.role?.toUpperCase()}</strong>
+      </div>
+
+      <Toolbar>
+        <SearchInput
+          placeholder="Search product"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </Toolbar>
+
+      {/* 🎨 Charts */}
+      {!loading && inventory.length > 0 && (
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "2fr 1fr",
+            gap: "1.5rem",
+            marginTop: "2rem",
+          }}
+        >
+          <div
+            style={{
+              background: "white",
+              padding: "1rem",
+              borderRadius: "12px",
+              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+            }}
+          >
+            <h4 style={{ marginBottom: "1rem", color: "#111827" }}>
+              📦 Stock Levels by Product
+            </h4>
+            <ResponsiveContainer width="100%" height={300}>
+              <BarChart data={inventory}>
+                <XAxis dataKey="product" />
+                <YAxis />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="available" fill={theme.color} name="Available Stock" />
+                {(user?.role === "inventory" || user?.role === "admin") && (
+                  <Bar
+                    dataKey="reorderLevel"
+                    fill="#f97316"
+                    name="Reorder Level"
+                  />
+                )}
+              </BarChart>
+            </ResponsiveContainer>
+          </div>
+
+          {(user?.role !== "dealer") && (
+            <div
+              style={{
+                background: "white",
+                padding: "1rem",
+                borderRadius: "12px",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+              }}
+            >
+              <h4 style={{ marginBottom: "1rem", color: "#111827" }}>
+                🏭 Stock by Plant
+              </h4>
+              <ResponsiveContainer width="100%" height={300}>
+                <PieChart>
+                  <Pie
+                    data={plantWiseData}
+                    dataKey="total"
+                    nameKey="name"
+                    outerRadius={100}
+                    fill={theme.color}
+                    label
+                  >
+                    {plantWiseData.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* 📋 Table */}
+      <div style={{ marginTop: "2rem" }}>
+        {loading ? (
+          <p style={{ color: "#9ca3af" }}>Loading inventory...</p>
+        ) : (
+          <DataTable columns={columns} rows={filtered} />
+        )}
+      </div>
+
+      {/* 📈 Summary Cards */}
+      <div
+        style={{
+          marginTop: "2rem",
+          display: "flex",
+          flexWrap: "wrap",
+          gap: "1rem",
+        }}
+      >
+        <div
+          style={{
+            background: "white",
+            padding: "1rem",
+            borderRadius: "12px",
+            flex: 1,
+            minWidth: "200px",
+          }}
+        >
+          <h4 style={{ color: theme.color }}>📊 Summary</h4>
+          <p>Total Dealers: {summary.totalDealers}</p>
+          <p>Active Campaigns: {summary.activeCampaigns}</p>
+          <p>Total Invoices: {summary.totalInvoices}</p>
+        </div>
+        <div
+          style={{
+            background: lowStockCount > 0 ? "#fee2e2" : "#dcfce7",
+            padding: "1rem",
+            borderRadius: "12px",
+            flex: 1,
+            minWidth: "200px",
+          }}
+        >
+          <h4>⚠️ Low Stock Items</h4>
+          <p>
+            {lowStockCount > 0
+              ? `${lowStockCount} product(s) below reorder level`
+              : "All stocks are healthy!"}
+          </p>
+        </div>
+      </div>
+    </div>
+  );
 }
 </file>
 
@@ -4633,7 +5168,6 @@ import StatCard from "../../components/StatCard";
 import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
-
 import {
   BarChart,
   Bar,
@@ -4643,7 +5177,11 @@ import {
   Tooltip,
   ResponsiveContainer,
   Legend,
+  PieChart,
+  Pie,
+  Cell,
 } from "recharts";
+import "./DashboardLayout.css";
 
 export default function DealerDashboard() {
   const [summary, setSummary] = useState({});
@@ -4651,21 +5189,25 @@ export default function DealerDashboard() {
   const [promotions, setPromotions] = useState([]);
   const [documents, setDocuments] = useState([]);
   const [trend, setTrend] = useState([]);
+  const [inventory, setInventory] = useState([]); // 👀 visible stock data
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // ✅ Fetch Data
+  const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
+
+  // ✅ Fetch Dealer Data
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [summaryRes, invoiceRes, promoRes, docRes, trendRes] =
+        const [summaryRes, invoiceRes, promoRes, docRes, trendRes, inventoryRes] =
           await Promise.all([
             api.get("/reports/dealer-performance"),
             api.get("/invoices"),
             api.get("/campaigns/active"),
             api.get("/documents"),
             api.get("/reports/dealer-performance?trend=true"),
+            api.get("/inventory/summary"), // fetch visible stock for dealers
           ]);
 
         setSummary(summaryRes.data);
@@ -4673,6 +5215,7 @@ export default function DealerDashboard() {
         setPromotions(promoRes.data || []);
         setDocuments(docRes.data.documents || []);
         setTrend(trendRes.data.trend || []);
+        setInventory(inventoryRes.data.inventory || []);
       } catch (err) {
         console.error("Dealer dashboard error:", err);
       } finally {
@@ -4704,231 +5247,238 @@ export default function DealerDashboard() {
       toast.info(`🔔 ${notif.message || "New update"}`);
     });
 
-    return () => {
-      socket.disconnect();
-    };
+    return () => socket.disconnect();
   }, []);
 
   if (loading)
     return (
-      <div className="loading-screen">
-        <div className="loading-text">Loading Dealer Dashboard...</div>
+      <div className="center text-center" style={{ height: "80vh" }}>
+        Loading Dealer Dashboard...
       </div>
     );
 
+  // 🎨 Dealer theme (blue accents)
+  const accent = "#3b82f6";
+
   return (
-    <div style={{ padding: "1.5rem" }}>
-      {/* ✅ Header */}
-      <header style={{ marginBottom: "1.5rem" }}>
-        <h1 style={{ marginBottom: ".3rem" }}>Dealer Dashboard</h1>
-        <p className="text-muted">
+    <div className="dashboard-container" style={{ background: "#f9fafb" }}>
+      {/* HEADER */}
+      <header className="dashboard-header">
+        <h1>Dealer Dashboard</h1>
+        <p>
           Welcome back,{" "}
-          <span style={{ color: "var(--accent)", fontWeight: 600 }}>
+          <span style={{ color: accent, fontWeight: 600 }}>
             {summary.dealerName || "Dealer"}
           </span>
-          — here is your latest performance overview.
         </p>
       </header>
 
-      {/* ✅ Toolbar */}
+      {/* TOOLBAR */}
       <Toolbar
         left={[
           <SearchInput
             key="search"
             value={search}
             onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search invoices, documents..."
+            placeholder="Search invoices or documents..."
           />,
         ]}
         right={[
-          <IconPillButton key="upload" icon="📤" label="Upload Document" />,
-          <IconPillButton key="promo" icon="🎉" label="Promotions" tone="warning" />,
+          <IconPillButton key="upload" icon="📤" label="Upload" />,
+          <IconPillButton
+            key="promo"
+            icon="🎉"
+            label="Promotions"
+            tone="warning"
+          />,
         ]}
       />
 
-      {/* ✅ 2 Column Layout */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "70% 30%",
-          gap: "1.5rem",
-          marginTop: "1.5rem",
-        }}
-      >
-        {/* ✅ LEFT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* ✅ Sales Chart */}
-          <Card title="Sales vs Outstanding (Last 6 Months)">
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={trend}>
-                <defs>
-                  <linearGradient id="sales" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="var(--accent)" stopOpacity={0.9} />
-                    <stop offset="95%" stopColor="var(--accent)" stopOpacity={0.2} />
-                  </linearGradient>
-                </defs>
+      {/* KPI SUMMARY */}
+      <div className="stat-grid">
+        <StatCard
+          title="Total Sales"
+          value={`₹${summary.totalSales || 0}`}
+          icon="💰"
+        />
+        <StatCard
+          title="Invoices"
+          value={summary.totalInvoices || 0}
+          icon="🧾"
+        />
+        <StatCard
+          title="Outstanding"
+          value={`₹${summary.outstanding || 0}`}
+          icon="⚠️"
+        />
+        <StatCard title="Promotions" value={promotions.length} icon="🎉" />
+      </div>
 
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="month" stroke="var(--text-muted)" />
-                <YAxis stroke="var(--text-muted)" />
+      {/* MAIN GRID */}
+      <div className="dashboard-grid">
+        {/* LEFT COLUMN */}
+        <div className="column">
+          {/* Sales Trend Chart */}
+          <Card
+            title="Sales vs Outstanding (Last 6 Months)"
+            className="chart-card"
+          >
+            <ResponsiveContainer width="100%" height="100%">
+              <BarChart data={trend}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
                 <Tooltip
                   contentStyle={{
-                    background: "var(--card-bg)",
-                    border: "1px solid var(--card-border)",
-                    color: "var(--text-color)",
+                    background: "#fff",
+                    border: "1px solid #e5e7eb",
+                    color: "#111827",
                   }}
                 />
                 <Legend />
                 <Bar
                   dataKey="sales"
-                  fill="url(#sales)"
-                  barSize={18}
-                  radius={[6, 6, 0, 0]}
+                  fill={accent}
+                  barSize={12}
+                  radius={[4, 4, 0, 0]}
                 />
                 <Bar
                   dataKey="outstanding"
-                  fill="var(--text-muted)"
-                  barSize={18}
-                  radius={[6, 6, 0, 0]}
+                  fill="#93c5fd"
+                  barSize={12}
+                  radius={[4, 4, 0, 0]}
                 />
               </BarChart>
             </ResponsiveContainer>
           </Card>
 
-          {/* ✅ Recent Invoices */}
-          <Card title="Recent Invoices">
-            {invoices.length > 0 ? (
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th>Invoice #</th>
-                    <th>Date</th>
-                    <th>Amount</th>
-                    <th>Status</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.slice(0, 5).map((i) => (
-                    <tr key={i.id}>
-                      <td>{i.invoiceNumber}</td>
-                      <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
-                      <td>₹{i.totalAmount}</td>
-                      <td
-                        className={
-                          i.status === "Paid" ? "status-approved" : "status-pending"
-                        }
-                      >
-                        {i.status}
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+          {/* Inventory Visibility for Dealers */}
+          <Card title="Stock Availability">
+            {inventory.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={inventory}
+                    dataKey="available"
+                    nameKey="product"
+                    outerRadius={100}
+                    fill={accent}
+                    label
+                  >
+                    {inventory.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
             ) : (
-              <p>No invoices found</p>
+              <p className="text-muted">No inventory data available</p>
             )}
           </Card>
 
-          {/* ✅ Uploaded Documents */}
-          <Card title="Uploaded Documents">
-            {documents.length > 0 ? (
-              <table className="custom-table">
-                <thead>
-                  <tr>
-                    <th>File</th>
-                    <th>Type</th>
-                    <th>Status</th>
-                    <th>Uploaded</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {documents.slice(0, 5).map((d) => (
-                    <tr key={d.id}>
-                      <td>{d.fileName}</td>
-                      <td>{d.documentType}</td>
-                      <td className={`status-${d.status || "pending"}`}>{d.status}</td>
-                      <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+          {/* Invoices & Docs */}
+          <div className="stat-grid">
+            <Card title="Recent Invoices">
+              {invoices.length ? (
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th>Date</th>
+                      <th>₹</th>
+                      <th>Status</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <p>No uploaded documents</p>
-            )}
-          </Card>
+                  </thead>
+                  <tbody>
+                    {invoices.slice(0, 4).map((i) => (
+                      <tr key={i.id}>
+                        <td>{i.invoiceNumber}</td>
+                        <td>
+                          {new Date(i.invoiceDate).toLocaleDateString()}
+                        </td>
+                        <td>{i.totalAmount}</td>
+                        <td
+                          className={
+                            i.status === "Paid"
+                              ? "status-approved"
+                              : "status-pending"
+                          }
+                        >
+                          {i.status}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-muted">No invoices found</p>
+              )}
+            </Card>
+
+            <Card title="Documents">
+              {documents.length ? (
+                <table className="custom-table">
+                  <thead>
+                    <tr>
+                      <th>File</th>
+                      <th>Status</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {documents.slice(0, 4).map((d) => (
+                      <tr key={d.id}>
+                        <td>{d.fileName}</td>
+                        <td
+                          className={`status-${d.status || "pending"}`}
+                        >
+                          {d.status}
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              ) : (
+                <p className="text-muted">No uploaded docs</p>
+              )}
+            </Card>
+          </div>
         </div>
 
-        {/* ✅ RIGHT COLUMN */}
-        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
-          {/* ✅ KPIs */}
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: "1rem",
-            }}
-          >
-            <StatCard
-              title="Total Sales"
-              value={`₹${summary.totalSales || 0}`}
-              icon="💰"
-            />
-            <StatCard title="Invoices" value={summary.totalInvoices || 0} icon="🧾" />
-            <StatCard
-              title="Outstanding"
-              value={`₹${summary.outstanding || 0}`}
-              icon="⚠️"
-            />
-            <StatCard
-              title="Promotions"
-              value={promotions.length}
-              icon="🎉"
-            />
-          </div>
-
-          {/* ✅ Promotions */}
+        {/* RIGHT COLUMN */}
+        <div className="column">
           <Card title="Active Promotions">
-            {promotions.length > 0 ? (
-              <div
-                style={{
-                  display: "grid",
-                  gap: "1rem",
-                }}
-              >
-                {promotions.slice(0, 3).map((promo) => (
-                  <div
-                    key={promo.id}
-                    style={{
-                      padding: ".7rem",
-                      borderBottom: "1px solid var(--card-border)",
-                    }}
-                  >
-                    <h4 style={{ color: "var(--accent)" }}>{promo.title}</h4>
-                    <p className="text-muted">{promo.description}</p>
-                    <small className="text-muted">
-                      Valid till {new Date(promo.validTill).toLocaleDateString()}
-                    </small>
-                  </div>
-                ))}
-              </div>
+            {promotions.length ? (
+              promotions.slice(0, 3).map((promo) => (
+                <div
+                  key={promo.id}
+                  style={{
+                    padding: "0.4rem 0",
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
+                >
+                  <strong style={{ color: accent }}>{promo.title}</strong>
+                  <p className="text-muted">{promo.description}</p>
+                  <small className="text-muted">
+                    Till {new Date(promo.validTill).toLocaleDateString()}
+                  </small>
+                </div>
+              ))
             ) : (
-              <p>No active promotions</p>
+              <p className="text-muted">No active promotions</p>
             )}
           </Card>
 
-          {/* ✅ Quick Actions */}
-          <div style={{ display: "flex", gap: "1rem", justifyContent: "center" }}>
-            <IconPillButton icon="📤" label="Upload Document" />
-            <IconPillButton icon="📑" label="View Statements" />
-            <IconPillButton icon="💬" label="Contact Manager" tone="success" />
+          <div className="quick-actions">
+            <IconPillButton icon="📤" label="Upload" />
+            <IconPillButton icon="📑" label="Statements" />
+            <IconPillButton icon="💬" label="Contact" tone="success" />
           </div>
         </div>
       </div>
     </div>
   );
 }
-
-// ✅ nothing below here needs changes
 </file>
 
 </files>
