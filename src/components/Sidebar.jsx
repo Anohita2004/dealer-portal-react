@@ -32,6 +32,7 @@ export default function Sidebar() {
     admin: [
       { path: "/campaigns", label: "Campaigns", icon: <FaCogs /> },
       { path: "/admin", label: "Dealer Mgmt", icon: <FaUsers /> },
+      { path: "/admin/documents", label: "Documents", icon: <FaFileAlt /> },
       { path: "/reports", label: "Reports", icon: <FaChartBar /> },
     ],
     accounts: [{ path: "/reports", label: "Accounts Reports", icon: <FaChartBar /> }],

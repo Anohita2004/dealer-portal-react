@@ -23,33 +23,41 @@ import {
 import "./DashboardLayout.css";
 
 export default function DealerDashboard() {
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [summary, setSummary] = useState({});
   const [invoices, setInvoices] = useState([]);
   const [promotions, setPromotions] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [docFilter, setDocFilter] = useState("all"); // all | pending | approved | rejected
   const [trend, setTrend] = useState([]);
-  const [inventory, setInventory] = useState([]); // 👀 visible stock data
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [inventory, setInventory] = useState([]);
 
   const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
+  const accent = "#3b82f6";
 
-  // ✅ Fetch Dealer Data
+  // ================= FETCH INITIAL DATA =================
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [summaryRes, invoiceRes, promoRes, docRes, trendRes, inventoryRes] =
-          await Promise.all([
-            api.get("/reports/dealer-performance"),
-            api.get("/invoices"),
-            api.get("/campaigns/active"),
-            api.get("/documents"),
-            api.get("/reports/dealer-performance?trend=true"),
-            api.get("/inventory/summary"), // fetch visible stock for dealers
-          ]);
+        const [
+          summaryRes,
+          invoiceRes,
+          promoRes,
+          docRes,
+          trendRes,
+          inventoryRes,
+        ] = await Promise.all([
+          api.get("/reports/dealer-performance"),
+          api.get("/invoices"),
+          api.get("/campaigns/active"),
+          api.get("/documents"),
+          api.get("/reports/dealer-performance?trend=true"),
+          api.get("/inventory/summary"),
+        ]);
 
-        setSummary(summaryRes.data);
+        setSummary(summaryRes.data || {});
         setInvoices(invoiceRes.data.invoices || []);
         setPromotions(promoRes.data || []);
         setDocuments(docRes.data.documents || []);
@@ -61,10 +69,11 @@ export default function DealerDashboard() {
         setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
-  // ✅ Socket Events
+  // ================= SOCKET REAL-TIME UPDATES =================
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) socket.auth = { token };
@@ -76,14 +85,15 @@ export default function DealerDashboard() {
     });
 
     socket.on("document:update", (doc) => {
-      toast.info(`📄 Document ${doc.status}`);
-      setDocuments((prev) =>
-        prev.map((d) => (d.id === doc.id ? { ...d, status: doc.status } : d))
-      );
-    });
-
-    socket.on("notification:update", (notif) => {
-      toast.info(`🔔 ${notif.message || "New update"}`);
+      toast.info(`📄 Document "${doc.fileName}" ${doc.status}`);
+      setDocuments((prev) => {
+        const exists = prev.find((d) => d.id === doc.id);
+        if (exists) {
+          return prev.map((d) => (d.id === doc.id ? { ...d, status: doc.status } : d));
+        } else {
+          return [doc, ...prev];
+        }
+      });
     });
 
     return () => socket.disconnect();
@@ -96,8 +106,10 @@ export default function DealerDashboard() {
       </div>
     );
 
-  // 🎨 Dealer theme (blue accents)
-  const accent = "#3b82f6";
+  // ================= FILTERED DOCUMENTS =================
+  const filteredDocs = documents.filter((d) =>
+    docFilter === "all" ? true : d.status === docFilter
+  );
 
   return (
     <div className="dashboard-container" style={{ background: "#f9fafb" }}>
@@ -124,32 +136,15 @@ export default function DealerDashboard() {
         ]}
         right={[
           <IconPillButton key="upload" icon="📤" label="Upload" />,
-          <IconPillButton
-            key="promo"
-            icon="🎉"
-            label="Promotions"
-            tone="warning"
-          />,
+          <IconPillButton key="promo" icon="🎉" label="Promotions" tone="warning" />,
         ]}
       />
 
       {/* KPI SUMMARY */}
       <div className="stat-grid">
-        <StatCard
-          title="Total Sales"
-          value={`₹${summary.totalSales || 0}`}
-          icon="💰"
-        />
-        <StatCard
-          title="Invoices"
-          value={summary.totalInvoices || 0}
-          icon="🧾"
-        />
-        <StatCard
-          title="Outstanding"
-          value={`₹${summary.outstanding || 0}`}
-          icon="⚠️"
-        />
+        <StatCard title="Total Sales" value={`₹${summary.totalSales || 0}`} icon="💰" />
+        <StatCard title="Invoices" value={summary.totalInvoices || 0} icon="🧾" />
+        <StatCard title="Outstanding" value={`₹${summary.outstanding || 0}`} icon="⚠️" />
         <StatCard title="Promotions" value={promotions.length} icon="🎉" />
       </div>
 
@@ -157,11 +152,8 @@ export default function DealerDashboard() {
       <div className="dashboard-grid">
         {/* LEFT COLUMN */}
         <div className="column">
-          {/* Sales Trend Chart */}
-          <Card
-            title="Sales vs Outstanding (Last 6 Months)"
-            className="chart-card"
-          >
+          {/* Sales Trend */}
+          <Card title="Sales vs Outstanding (Last 6 Months)" className="chart-card">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={trend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -175,35 +167,18 @@ export default function DealerDashboard() {
                   }}
                 />
                 <Legend />
-                <Bar
-                  dataKey="sales"
-                  fill={accent}
-                  barSize={12}
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="outstanding"
-                  fill="#93c5fd"
-                  barSize={12}
-                  radius={[4, 4, 0, 0]}
-                />
+                <Bar dataKey="sales" fill={accent} barSize={12} radius={[4, 4, 0, 0]} />
+                <Bar dataKey="outstanding" fill="#93c5fd" barSize={12} radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </Card>
 
-          {/* Inventory Visibility for Dealers */}
+          {/* Inventory */}
           <Card title="Stock Availability">
             {inventory.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
-                  <Pie
-                    data={inventory}
-                    dataKey="available"
-                    nameKey="product"
-                    outerRadius={100}
-                    fill={accent}
-                    label
-                  >
+                  <Pie data={inventory} dataKey="available" nameKey="product" outerRadius={100} fill={accent} label>
                     {inventory.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
@@ -216,72 +191,80 @@ export default function DealerDashboard() {
             )}
           </Card>
 
-          {/* Invoices & Docs */}
-          <div className="stat-grid">
-            <Card title="Recent Invoices">
-              {invoices.length ? (
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Date</th>
-                      <th>₹</th>
-                      <th>Status</th>
+          {/* Invoices */}
+          <Card title="Recent Invoices">
+            {invoices.length ? (
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>#</th>
+                    <th>Date</th>
+                    <th>₹</th>
+                    <th>Status</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {invoices.slice(0, 4).map((i) => (
+                    <tr key={i.id}>
+                      <td>{i.invoiceNumber}</td>
+                      <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
+                      <td>{i.totalAmount}</td>
+                      <td className={i.status === "Paid" ? "status-approved" : "status-pending"}>
+                        {i.status}
+                      </td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {invoices.slice(0, 4).map((i) => (
-                      <tr key={i.id}>
-                        <td>{i.invoiceNumber}</td>
-                        <td>
-                          {new Date(i.invoiceDate).toLocaleDateString()}
-                        </td>
-                        <td>{i.totalAmount}</td>
-                        <td
-                          className={
-                            i.status === "Paid"
-                              ? "status-approved"
-                              : "status-pending"
-                          }
-                        >
-                          {i.status}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-muted">No invoices found</p>
-              )}
-            </Card>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-muted">No invoices found</p>
+            )}
+          </Card>
 
-            <Card title="Documents">
-              {documents.length ? (
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>File</th>
-                      <th>Status</th>
+          {/* Documents */}
+          <Card title="Documents">
+            {/* Filter Buttons */}
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem" }}>
+              {["all", "pending", "approved", "rejected"].map((status) => (
+                <button
+                  key={status}
+                  onClick={() => setDocFilter(status)}
+                  style={{
+                    padding: "0.3rem 0.8rem",
+                    borderRadius: "6px",
+                    border: docFilter === status ? "2px solid #3b82f6" : "1px solid #ccc",
+                    background: docFilter === status ? "#bfdbfe" : "#fff",
+                    cursor: "pointer",
+                  }}
+                >
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                </button>
+              ))}
+            </div>
+
+            {filteredDocs.length ? (
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>File</th>
+                    <th>Status</th>
+                    <th>Uploaded At</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDocs.map((d) => (
+                    <tr key={d.id}>
+                      <td>{d.fileName}</td>
+                      <td className={`status-${d.status || "pending"}`}>{d.status}</td>
+                      <td>{new Date(d.createdAt).toLocaleDateString()}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {documents.slice(0, 4).map((d) => (
-                      <tr key={d.id}>
-                        <td>{d.fileName}</td>
-                        <td
-                          className={`status-${d.status || "pending"}`}
-                        >
-                          {d.status}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-muted">No uploaded docs</p>
-              )}
-            </Card>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p className="text-muted">No documents found.</p>
+            )}
+          </Card>
         </div>
 
         {/* RIGHT COLUMN */}
@@ -289,13 +272,7 @@ export default function DealerDashboard() {
           <Card title="Active Promotions">
             {promotions.length ? (
               promotions.slice(0, 3).map((promo) => (
-                <div
-                  key={promo.id}
-                  style={{
-                    padding: "0.4rem 0",
-                    borderBottom: "1px solid #e5e7eb",
-                  }}
-                >
+                <div key={promo.id} style={{ padding: "0.4rem 0", borderBottom: "1px solid #e5e7eb" }}>
                   <strong style={{ color: accent }}>{promo.title}</strong>
                   <p className="text-muted">{promo.description}</p>
                   <small className="text-muted">

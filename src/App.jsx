@@ -15,6 +15,10 @@ import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
 import AccountsInvoices from "./pages/accounts/AccountsInvoices";
 import AccountsNotes from "./pages/accounts/AccountsNotes";
 import AccountsReports from "./pages/accounts/AccountsReports";
+import AdminDocuments from "./pages/AdminDocuments";
+
+// inside <Routes>
+
 
 
 // ✅ When Layout is inside ProtectedRoute, all child routes share Navbar & Sidebar
@@ -48,6 +52,8 @@ function App() {
             <Route path="accounts/invoices" element={<AccountsInvoices />} />
 <Route path="accounts/notes" element={<AccountsNotes />} />
 <Route path="accounts/reports" element={<AccountsReports />} />
+
+<Route path="/admin/documents" element={<AdminDocuments />} />
 
 
             {/* 🔜 Add Campaigns, Reports, Admin here */}
