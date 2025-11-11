@@ -29,9 +29,10 @@ export default function DealerDashboard() {
   const [invoices, setInvoices] = useState([]);
   const [promotions, setPromotions] = useState([]);
   const [documents, setDocuments] = useState([]);
-  const [docFilter, setDocFilter] = useState("all"); // all | pending | approved | rejected
+  const [docFilter, setDocFilter] = useState("all");
   const [trend, setTrend] = useState([]);
   const [inventory, setInventory] = useState([]);
+  const [pricingStats, setPricingStats] = useState([]); // ✅ NEW
 
   const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
   const accent = "#3b82f6";
@@ -63,6 +64,17 @@ export default function DealerDashboard() {
         setDocuments(docRes.data.documents || []);
         setTrend(trendRes.data.trend || []);
         setInventory(inventoryRes.data.inventory || []);
+
+        // ✅ Extract pricing distribution from summary
+        if (summaryRes.data?.pricingBreakdown) {
+          const pb = summaryRes.data.pricingBreakdown;
+          setPricingStats([
+            { name: "Approved", value: pb.approved || 0 },
+            { name: "Pending", value: pb.pending || 0 },
+            { name: "Rejected", value: pb.rejected || 0 },
+          ]);
+        }
+
       } catch (err) {
         console.error("Dealer dashboard error:", err);
       } finally {
@@ -89,7 +101,9 @@ export default function DealerDashboard() {
       setDocuments((prev) => {
         const exists = prev.find((d) => d.id === doc.id);
         if (exists) {
-          return prev.map((d) => (d.id === doc.id ? { ...d, status: doc.status } : d));
+          return prev.map((d) =>
+            d.id === doc.id ? { ...d, status: doc.status } : d
+          );
         } else {
           return [doc, ...prev];
         }
@@ -136,15 +150,32 @@ export default function DealerDashboard() {
         ]}
         right={[
           <IconPillButton key="upload" icon="📤" label="Upload" />,
-          <IconPillButton key="promo" icon="🎉" label="Promotions" tone="warning" />,
+          <IconPillButton
+            key="promo"
+            icon="🎉"
+            label="Promotions"
+            tone="warning"
+          />,
         ]}
       />
 
       {/* KPI SUMMARY */}
       <div className="stat-grid">
-        <StatCard title="Total Sales" value={`₹${summary.totalSales || 0}`} icon="💰" />
-        <StatCard title="Invoices" value={summary.totalInvoices || 0} icon="🧾" />
-        <StatCard title="Outstanding" value={`₹${summary.outstanding || 0}`} icon="⚠️" />
+        <StatCard
+          title="Total Sales"
+          value={`₹${summary.totalSales || 0}`}
+          icon="💰"
+        />
+        <StatCard
+          title="Invoices"
+          value={summary.totalInvoices || 0}
+          icon="🧾"
+        />
+        <StatCard
+          title="Outstanding"
+          value={`₹${summary.outstanding || 0}`}
+          icon="⚠️"
+        />
         <StatCard title="Promotions" value={promotions.length} icon="🎉" />
       </div>
 
@@ -153,7 +184,10 @@ export default function DealerDashboard() {
         {/* LEFT COLUMN */}
         <div className="column">
           {/* Sales Trend */}
-          <Card title="Sales vs Outstanding (Last 6 Months)" className="chart-card">
+          <Card
+            title="Sales vs Outstanding (Last 6 Months)"
+            className="chart-card"
+          >
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={trend}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
@@ -167,8 +201,18 @@ export default function DealerDashboard() {
                   }}
                 />
                 <Legend />
-                <Bar dataKey="sales" fill={accent} barSize={12} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="outstanding" fill="#93c5fd" barSize={12} radius={[4, 4, 0, 0]} />
+                <Bar
+                  dataKey="sales"
+                  fill={accent}
+                  barSize={12}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="outstanding"
+                  fill="#93c5fd"
+                  barSize={12}
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </Card>
@@ -178,7 +222,14 @@ export default function DealerDashboard() {
             {inventory.length > 0 ? (
               <ResponsiveContainer width="100%" height={250}>
                 <PieChart>
-                  <Pie data={inventory} dataKey="available" nameKey="product" outerRadius={100} fill={accent} label>
+                  <Pie
+                    data={inventory}
+                    dataKey="available"
+                    nameKey="product"
+                    outerRadius={100}
+                    fill={accent}
+                    label
+                  >
                     {inventory.map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
@@ -207,9 +258,17 @@ export default function DealerDashboard() {
                   {invoices.slice(0, 4).map((i) => (
                     <tr key={i.id}>
                       <td>{i.invoiceNumber}</td>
-                      <td>{new Date(i.invoiceDate).toLocaleDateString()}</td>
+                      <td>
+                        {new Date(i.invoiceDate).toLocaleDateString()}
+                      </td>
                       <td>{i.totalAmount}</td>
-                      <td className={i.status === "Paid" ? "status-approved" : "status-pending"}>
+                      <td
+                        className={
+                          i.status === "Paid"
+                            ? "status-approved"
+                            : "status-pending"
+                        }
+                      >
                         {i.status}
                       </td>
                     </tr>
@@ -223,8 +282,13 @@ export default function DealerDashboard() {
 
           {/* Documents */}
           <Card title="Documents">
-            {/* Filter Buttons */}
-            <div style={{ display: "flex", gap: "0.5rem", marginBottom: "0.8rem" }}>
+            <div
+              style={{
+                display: "flex",
+                gap: "0.5rem",
+                marginBottom: "0.8rem",
+              }}
+            >
               {["all", "pending", "approved", "rejected"].map((status) => (
                 <button
                   key={status}
@@ -232,8 +296,12 @@ export default function DealerDashboard() {
                   style={{
                     padding: "0.3rem 0.8rem",
                     borderRadius: "6px",
-                    border: docFilter === status ? "2px solid #3b82f6" : "1px solid #ccc",
-                    background: docFilter === status ? "#bfdbfe" : "#fff",
+                    border:
+                      docFilter === status
+                        ? "2px solid #3b82f6"
+                        : "1px solid #ccc",
+                    background:
+                      docFilter === status ? "#bfdbfe" : "#fff",
                     cursor: "pointer",
                   }}
                 >
@@ -255,8 +323,12 @@ export default function DealerDashboard() {
                   {filteredDocs.map((d) => (
                     <tr key={d.id}>
                       <td>{d.fileName}</td>
-                      <td className={`status-${d.status || "pending"}`}>{d.status}</td>
-                      <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+                      <td className={`status-${d.status || "pending"}`}>
+                        {d.status}
+                      </td>
+                      <td>
+                        {new Date(d.createdAt).toLocaleDateString()}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -269,14 +341,47 @@ export default function DealerDashboard() {
 
         {/* RIGHT COLUMN */}
         <div className="column">
+
+          {/* ⭐ NEW PRICING DISTRIBUTION CARD ⭐ */}
+          <Card title="Pricing Request Distribution">
+            {pricingStats.length ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={pricingStats}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={90}
+                    label
+                  >
+                    {pricingStats.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-muted">No pricing data available.</p>
+            )}
+          </Card>
+
           <Card title="Active Promotions">
             {promotions.length ? (
               promotions.slice(0, 3).map((promo) => (
-                <div key={promo.id} style={{ padding: "0.4rem 0", borderBottom: "1px solid #e5e7eb" }}>
+                <div
+                  key={promo.id}
+                  style={{
+                    padding: "0.4rem 0",
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
+                >
                   <strong style={{ color: accent }}>{promo.title}</strong>
                   <p className="text-muted">{promo.description}</p>
                   <small className="text-muted">
-                    Till {new Date(promo.validTill).toLocaleDateString()}
+                    Till{" "}
+                    {new Date(promo.validTill).toLocaleDateString()}
                   </small>
                 </div>
               ))

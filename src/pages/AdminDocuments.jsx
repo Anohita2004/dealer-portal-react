@@ -1,16 +1,20 @@
+// src/pages/AdminDocuments.jsx
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
+import DataTable from "../components/DataTable";
+import EmptyState from "../components/EmptyState";
 
 export default function AdminDocuments() {
   const [documents, setDocuments] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all"); // all | pending | approved | rejected
 
   const fetchDocuments = async () => {
     try {
       const res = await api.get("/documents");
       setDocuments(res.data.documents || []);
     } catch (err) {
-      console.error("Error fetching documents:", err);
+      console.error("Error loading documents:", err);
     } finally {
       setLoading(false);
     }
@@ -20,86 +24,132 @@ export default function AdminDocuments() {
     fetchDocuments();
   }, []);
 
- const handleReview = async (docId, action) => {
-  const remarks = prompt(`Add remarks for ${action}:`) || "";
-  await api.patch(`/documents/${docId}/status`, { action, remarks }); // matches router.patch('/:id/status')
-  fetchDocuments();
-};
+  const handleReview = async (id, action) => {
+    const remarks = prompt(`Remarks for ${action}?`) || "";
+    try {
+      await api.patch(`/documents/${id}/status`, { action, remarks });
+      fetchDocuments();
+    } catch (err) {
+      console.error("Review failed:", err);
+    }
+  };
 
-  if (loading) return <p>Loading documents...</p>;
+  const filtered = documents.filter((d) =>
+    filter === "all" ? true : d.status === filter
+  );
+
+  if (loading) return <p style={{ padding: "2rem" }}>Loading...</p>;
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>Document Review</h2>
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th>Dealer</th>
-            <th>Document Name</th>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Uploaded At</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {documents.map((doc) => (
-            <tr key={doc.id}>
-              <td>{doc.dealer?.businessName || "—"}</td>
-              <td>
-                <a href={doc.url} target="_blank" rel="noreferrer">
-                  {doc.name}
-                </a>
-              </td>
-              <td>{doc.type}</td>
-              <td
-                style={{
-                  color: doc.status === "approved" ? "green" : doc.status === "rejected" ? "red" : "orange",
-                }}
-              >
-                {doc.status || "pending"}
-              </td>
-              <td>{new Date(doc.createdAt).toLocaleDateString()}</td>
-              <td>
-                {doc.status === "pending" && (
-                  <>
+    <div style={{ padding: "2rem" }}>
+      <h1 style={{ marginBottom: "1rem", color: "#cbd5e1" }}>📄 Document Approvals</h1>
+
+      {/* FILTER BUTTONS */}
+      <div style={{ marginBottom: "1rem", display: "flex", gap: "0.5rem" }}>
+        {["all", "pending", "approved", "rejected"].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            style={{
+              padding: "6px 14px",
+              borderRadius: 6,
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: filter === f ? "#f97316" : "transparent",
+              color: filter === f ? "#fff" : "#cbd5e1",
+              cursor: "pointer",
+              transition: "0.2s",
+            }}
+          >
+            {f.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {/* TABLE OR EMPTY */}
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon="📂"
+          title="No documents"
+          description="No documents found for the selected filter."
+        />
+      ) : (
+        <DataTable
+          columns={[
+            { key: "id", label: "ID" },
+            { key: "dealerName", label: "Dealer" },
+            { key: "type", label: "Document Type" },
+            { key: "uploadedAt", label: "Uploaded" },
+            {
+              key: "status",
+              label: "Status",
+              render: (v) => (
+                <span
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 20,
+                    fontSize: 12,
+                    color: "#fff",
+                    background:
+                      v === "approved"
+                        ? "#22c55e"
+                        : v === "rejected"
+                        ? "#ef4444"
+                        : "#f59e0b",
+                  }}
+                >
+                  {v.toUpperCase()}
+                </span>
+              ),
+            },
+            {
+              key: "actions",
+              label: "Actions",
+              render: (_, row) =>
+                row.status === "pending" ? (
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
                     <button
-                      style={{ ...styles.button, background: "#2ecc71" }}
-                      onClick={() => handleReview(doc.id, "approve")}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 6,
+                        border: "none",
+                        background: "#22c55e",
+                        color: "#fff",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => handleReview(row.id, "approve")}
                     >
                       Approve
                     </button>
+
                     <button
-                      style={{ ...styles.button, background: "#e74c3c" }}
-                      onClick={() => handleReview(doc.id, "reject")}
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 6,
+                        border: "none",
+                        background: "#ef4444",
+                        color: "#fff",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => handleReview(row.id, "reject")}
                     >
                       Reject
                     </button>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+                  </div>
+                ) : (
+                  "—"
+                ),
+            },
+          ]}
+          rows={filtered.map((d) => ({
+            id: d.id,
+            dealerName: d.dealerName || d.dealerId,
+            type: d.documentType,
+            uploadedAt: new Date(d.createdAt).toLocaleDateString(),
+            status: d.status,
+          }))}
+          emptyMessage="No documents"
+        />
+      )}
     </div>
   );
 }
-
-const styles = {
-  container: { padding: "2rem", fontFamily: "'Poppins', sans-serif" },
-  title: { marginBottom: "1rem", color: "#2c3e50" },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
-  },
-  button: {
-    border: "none",
-    borderRadius: "4px",
-    color: "#fff",
-    padding: "6px 10px",
-    cursor: "pointer",
-    marginRight: "5px",
-  },
-};

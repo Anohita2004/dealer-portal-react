@@ -65,6 +65,7 @@ src/components/Navbar.jsx
 src/components/PageHeader.jsx
 src/components/Pagination.jsx
 src/components/PieChartCard.jsx
+src/components/PricingRequestForm.jsx
 src/components/ProtectedRoute.jsx
 src/components/SearchInput.jsx
 src/components/Sidebar.css
@@ -80,6 +81,8 @@ src/pages/accounts/AccountsInvoices.jsx
 src/pages/accounts/AccountsNotes.jsx
 src/pages/accounts/AccountsReports.jsx
 src/pages/Admin.jsx
+src/pages/AdminDocuments.jsx
+src/pages/AdminPricing.jsx
 src/pages/Campaigns.jsx
 src/pages/Dashboard.jsx
 src/pages/dashboards/AccountsDashboard.jsx
@@ -104,6 +107,304 @@ vite.config.js
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/components/PricingRequestForm.jsx">
+import React, { useState, useEffect } from "react";
+import api from "../services/api";
+import { toast } from "react-toastify";
+
+export default function PricingRequestForm({ onClose }) {
+  const [products, setProducts] = useState([]);
+  const [productId, setProductId] = useState("");
+  const [oldPrice, setOldPrice] = useState(0);
+  const [newPrice, setNewPrice] = useState("");
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Load all products
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const res = await api.get("/products");
+        setProducts(res.data.products || []);
+      } catch (err) {
+        console.error("Failed to load products…", err);
+      }
+    };
+
+    loadProducts();
+  }, []);
+
+  // When product changes, auto-load old price
+  useEffect(() => {
+    if (!productId) return;
+
+    const p = products.find((x) => x.id === parseInt(productId));
+    if (p) setOldPrice(p.price || 0);
+  }, [productId, products]);
+
+  const submitRequest = async (e) => {
+    e.preventDefault();
+
+    if (!productId || !newPrice || !reason) {
+      toast.error("Please fill all fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.post("/pricing", {
+        productId,
+        oldPrice,
+        newPrice,
+        reason,
+      });
+
+      toast.success("✅ Pricing request submitted");
+      onClose();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to submit request");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h2 style={{ marginBottom: 15 }}>Request Pricing Change</h2>
+
+      {/* Product Select */}
+      <label>Product</label>
+      <select
+        value={productId}
+        onChange={(e) => setProductId(e.target.value)}
+        style={{ width: "100%", padding: 8, marginBottom: 10 }}
+      >
+        <option value="">Select a product</option>
+        {products.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+
+      {/* Old Price */}
+      <label>Current Price</label>
+      <input
+        type="text"
+        value={oldPrice}
+        disabled
+        style={{ width: "100%", padding: 8, marginBottom: 10, background: "#f3f4f6" }}
+      />
+
+      {/* New Price */}
+      <label>Requested New Price</label>
+      <input
+        type="number"
+        value={newPrice}
+        onChange={(e) => setNewPrice(e.target.value)}
+        style={{ width: "100%", padding: 8, marginBottom: 10 }}
+      />
+
+      {/* Reason */}
+      <label>Reason</label>
+      <textarea
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        rows={4}
+        style={{ width: "100%", padding: 8, marginBottom: 15 }}
+      />
+
+      {/* Buttons */}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+        <button
+          onClick={onClose}
+          style={{ padding: "8px 12px", background: "#e5e7eb", borderRadius: 6 }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={submitRequest}
+          disabled={loading}
+          style={{ padding: "8px 12px", background: "#3b82f6", color: "#fff", borderRadius: 6 }}
+        >
+          {loading ? "Submitting..." : "Submit Request"}
+        </button>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/AdminPricing.jsx">
+// ==============================
+// FILE: src/pages/admin/AdminPricing.jsx
+// ✅ Full Admin Pricing Approval Panel
+// ==============================
+
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import { toast } from "react-toastify";
+import Card from "../../components/Card";
+import IconPillButton from "../../components/IconPillButton";
+import SearchInput from "../../components/SearchInput";
+import Toolbar from "../../components/Toolbar";
+import "./AdminDashboard.css";
+
+export default function AdminPricing() {
+  const [requests, setRequests] = useState([]);
+  const [search, setSearch] = useState("");
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("pending");
+
+  // Load all pricing requests
+  const loadRequests = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/pricing", { params: { all: true } });
+      setRequests(res.data.updates || []);
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to load requests");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    loadRequests();
+  }, []);
+
+  // Approve
+  const approve = async (id) => {
+    try {
+      await api.put(`/pricing/${id}/approve`);
+      toast.success("✅ Request Approved");
+      loadRequests();
+    } catch (err) {
+      toast.error("Failed to approve");
+    }
+  };
+
+  // Reject
+  const reject = async (id) => {
+    const remarks = prompt("Enter rejection reason:");
+    if (!remarks) return toast.error("Remarks required");
+
+    try {
+      await api.put(`/pricing/${id}/reject`, { remarks });
+      toast.info("❌ Request Rejected");
+      loadRequests();
+    } catch (err) {
+      toast.error("Failed to reject");
+    }
+  };
+
+  const filtered = requests.filter((r) => {
+    if (filter !== "all" && r.status !== filter) return false;
+    if (search && !String(r.productId).toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
+
+  return (
+    <div className="admin-container">
+      <header className="admin-header">
+        <h1>Pricing Approvals</h1>
+      </header>
+
+      {/* Toolbar */}
+      <Toolbar
+        left={[
+          <SearchInput
+            key="search"
+            placeholder="Search by Product ID..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />,
+        ]}
+        right={[
+          <IconPillButton icon="🔄" label="Refresh" onClick={loadRequests} />,
+        ]}
+      />
+
+      {/* Filter */}
+      <div style={{ display: "flex", gap: 10, margin: "15px 0" }}>
+        {["all", "pending", "approved", "rejected"].map((s) => (
+          <button
+            key={s}
+            onClick={() => setFilter(s)}
+            style={{
+              padding: "6px 12px",
+              background: filter === s ? "#3b82f6" : "#e5e7eb",
+              color: filter === s ? "#fff" : "#111",
+              borderRadius: 6,
+              border: "none",
+            }}
+          >
+            {s.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      <Card title="Pricing Requests Queue">
+        {loading ? (
+          <p>Loading...</p>
+        ) : filtered.length ? (
+          <table className="custom-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Product</th>
+                <th>Old</th>
+                <th>New</th>
+                <th>Dealer</th>
+                <th>Status</th>
+                <th>Requested At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.id}</td>
+                  <td>{r.productId}</td>
+                  <td>{r.oldPrice ?? "—"}</td>
+                  <td>{r.newPrice}</td>
+                  <td>{r.dealerName}</td>
+                  <td>{r.status}</td>
+                  <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                  <td>
+                    {r.status === "pending" && (
+                      <>
+                        <button
+                          style={{ marginRight: 10, background: "#10b981", padding: "5px 8px", borderRadius: 5, color: "#fff" }}
+                          onClick={() => approve(r.id)}
+                        >
+                          Approve
+                        </button>
+
+                        <button
+                          style={{ background: "#ef4444", padding: "5px 8px", borderRadius: 5, color: "#fff" }}
+                          onClick={() => reject(r.id)}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p>No requests found.</p>
+        )}
+      </Card>
+    </div>
+  );
+}
+</file>
 
 <file path=".gitignore">
 # Logs
@@ -875,6 +1176,114 @@ export default function AccountsReports() {
 }
 </file>
 
+<file path="src/pages/AdminDocuments.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
+
+export default function AdminDocuments() {
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDocuments = async () => {
+    try {
+      const res = await api.get("/documents");
+      setDocuments(res.data.documents || []);
+    } catch (err) {
+      console.error("Error fetching documents:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
+
+ const handleReview = async (docId, action) => {
+  const remarks = prompt(`Add remarks for ${action}:`) || "";
+  await api.patch(`/documents/${docId}/status`, { action, remarks }); // matches router.patch('/:id/status')
+  fetchDocuments();
+};
+
+  if (loading) return <p>Loading documents...</p>;
+
+  return (
+    <div style={styles.container}>
+      <h2 style={styles.title}>Document Review</h2>
+      <table style={styles.table}>
+        <thead>
+          <tr>
+            <th>Dealer</th>
+            <th>Document Name</th>
+            <th>Type</th>
+            <th>Status</th>
+            <th>Uploaded At</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {documents.map((doc) => (
+            <tr key={doc.id}>
+              <td>{doc.dealer?.businessName || "—"}</td>
+              <td>
+                <a href={doc.url} target="_blank" rel="noreferrer">
+                  {doc.name}
+                </a>
+              </td>
+              <td>{doc.type}</td>
+              <td
+                style={{
+                  color: doc.status === "approved" ? "green" : doc.status === "rejected" ? "red" : "orange",
+                }}
+              >
+                {doc.status || "pending"}
+              </td>
+              <td>{new Date(doc.createdAt).toLocaleDateString()}</td>
+              <td>
+                {doc.status === "pending" && (
+                  <>
+                    <button
+                      style={{ ...styles.button, background: "#2ecc71" }}
+                      onClick={() => handleReview(doc.id, "approve")}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      style={{ ...styles.button, background: "#e74c3c" }}
+                      onClick={() => handleReview(doc.id, "reject")}
+                    >
+                      Reject
+                    </button>
+                  </>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const styles = {
+  container: { padding: "2rem", fontFamily: "'Poppins', sans-serif" },
+  title: { marginBottom: "1rem", color: "#2c3e50" },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+  },
+  button: {
+    border: "none",
+    borderRadius: "4px",
+    color: "#fff",
+    padding: "6px 10px",
+    cursor: "pointer",
+    marginRight: "5px",
+  },
+};
+</file>
+
 <file path="src/pages/dashboards/DashboardLayout.css">
 /* ========== THEME-AWARE COMPACT DASHBOARD LAYOUT ========== */
 .dashboard-container {
@@ -1199,91 +1608,6 @@ export default function StatCard({ title, value, icon, accent = "#f97316" }) {
 }
 </file>
 
-<file path="src/pages/Admin.jsx">
-import React, { useEffect, useState } from "react";
-import api from "../services/api";
-
-export default function Admin() {
-  const [dealers, setDealers] = useState([]);
-
-  const fetchDealers = async () => {
-    const res = await api.get("/dealers");
-    setDealers(res.data.dealers || res.data);
-  };
-
-  const toggleActive = async (id, active) => {
-    await api.put(`/dealers/${id}`, { active: !active });
-    fetchDealers();
-  };
-
-  useEffect(() => { fetchDealers(); }, []);
-
-  return (
-    <div>
-      <h2>Dealer Management</h2>
-      <table border="1" cellPadding="8">
-        <thead><tr><th>ID</th><th>Name</th><th>Status</th><th>Action</th></tr></thead>
-        <tbody>
-          {dealers.map(d => (
-            <tr key={d.id}>
-              <td>{d.id}</td>
-              <td>{d.name}</td>
-              <td>{d.active ? "Active" : "Blocked"}</td>
-              <td><button onClick={() => toggleActive(d.id, d.active)}>{d.active ? "Block" : "Unblock"}</button></td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-</file>
-
-<file path="src/pages/Campaigns.jsx">
-import React, { useEffect, useState } from "react";
-import api from "../services/api";
-
-export default function Campaigns() {
-  const [campaigns, setCampaigns] = useState([]);
-  const [newCampaign, setNewCampaign] = useState({ title: "", description: "", active: true });
-
-  const fetchCampaigns = async () => {
-    const res = await api.get("/campaigns");
-    setCampaigns(res.data.campaigns || res.data);
-  };
-
-  useEffect(() => { fetchCampaigns(); }, []);
-
-  const addCampaign = async (e) => {
-    e.preventDefault();
-    await api.post("/campaigns", newCampaign);
-    setNewCampaign({ title: "", description: "", active: true });
-    fetchCampaigns();
-  };
-
-  return (
-    <div>
-      <h2>Campaigns</h2>
-      <form onSubmit={addCampaign}>
-        <input placeholder="Title" value={newCampaign.title} onChange={e => setNewCampaign({...newCampaign, title: e.target.value})}/>
-        <input placeholder="Description" value={newCampaign.description} onChange={e => setNewCampaign({...newCampaign, description: e.target.value})}/>
-        <label>
-          Active: 
-          <input type="checkbox" checked={newCampaign.active} onChange={e => setNewCampaign({...newCampaign, active: e.target.checked})}/>
-        </label>
-        <button type="submit">Add</button>
-      </form>
-
-      <ul>
-        {campaigns.map(c => (
-          <li key={c.id}>{c.title} — {c.active ? "Active" : "Inactive"}</li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-</file>
-
 <file path="src/components/PieChartCard.jsx">
 import React from "react";
 import { Card, CardContent, Typography } from "@mui/material";
@@ -1403,6 +1727,138 @@ createRoot(document.getElementById('root')).render(
     </ThemeModeProvider>
   </StrictMode>,
 )
+</file>
+
+<file path="src/pages/Admin.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
+
+export default function AdminDealers() {
+  const [dealers, setDealers] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  const fetchDealers = async () => {
+    try {
+      const res = await api.get("/dealers");
+      setDealers(res.data.dealers || res.data);
+    } catch (err) {
+      console.error("Error fetching dealers:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { fetchDealers(); }, []);
+
+  const handleBlockToggle = async (dealer) => {
+    const reason = prompt(`Enter reason to ${dealer.isBlocked ? "unblock" : "block"} this dealer:`);
+    if (!reason) return;
+    try {
+      await api.put(`/dealers/${dealer.id}/block`, { isBlocked: !dealer.isBlocked, reason });
+      fetchDealers();
+    } catch (err) {
+      console.error("Error updating dealer status:", err);
+      alert("Failed to update dealer block status");
+    }
+  };
+
+  const handleVerify = async (dealer) => {
+    const licenseNumber = prompt("Enter License Number:");
+    if (!licenseNumber) return;
+    const licenseDocument = prompt("Enter License Document URL (optional):") || null;
+    try {
+      await api.put(`/dealers/${dealer.id}/verify`, { licenseNumber, licenseDocument });
+      fetchDealers();
+    } catch (err) {
+      console.error("Error verifying dealer:", err);
+      alert("Failed to verify dealer");
+    }
+  };
+
+  if (loading) return <p>Loading dealers...</p>;
+
+  return (
+    <div style={styles.container}>
+      <h2 style={styles.title}>Dealer Management</h2>
+      <table style={styles.table}>
+        <thead>
+          <tr>
+            <th>Dealer Code</th>
+            <th>Business Name</th>
+            <th>Contact Person</th>
+            <th>City</th>
+            <th>Region</th>
+            <th>Status</th>
+            <th>Verified</th>
+            <th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {dealers.map((d) => (
+            <tr key={d.id}>
+              <td>{d.dealerCode}</td>
+              <td>{d.businessName}</td>
+              <td>{d.contactPerson || "—"}</td>
+              <td>{d.city || "—"}</td>
+              <td>{d.region || "—"}</td>
+              <td style={{ color: d.isBlocked ? "red" : "green" }}>
+                {d.isBlocked ? "Blocked" : "Active"}
+              </td>
+              <td>{d.isVerified ? "✅" : "❌"}</td>
+              <td>
+                <button
+                  style={{
+                    ...styles.button,
+                    background: d.isBlocked ? "#2ecc71" : "#e74c3c",
+                  }}
+                  onClick={() => handleBlockToggle(d)}
+                >
+                  {d.isBlocked ? "Unblock" : "Block"}
+                </button>
+                {!d.isVerified && (
+                  <button
+                    style={{ ...styles.button, background: "#3498db" }}
+                    onClick={() => handleVerify(d)}
+                  >
+                    Verify
+                  </button>
+                )}
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+const styles = {
+  container: {
+    padding: "2rem",
+    backgroundColor: "#f5f6fa",
+    fontFamily: "'Poppins', sans-serif",
+  },
+  title: {
+    marginBottom: "1rem",
+    color: "#2c3e50",
+  },
+  table: {
+    width: "100%",
+    borderCollapse: "collapse",
+    background: "#fff",
+    borderRadius: "8px",
+    overflow: "hidden",
+    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
+  },
+  button: {
+    border: "none",
+    borderRadius: "5px",
+    color: "#fff",
+    padding: "6px 12px",
+    cursor: "pointer",
+    marginRight: "8px",
+  },
+};
 </file>
 
 <file path="src/pages/Dashboard.jsx">
@@ -1949,37 +2405,6 @@ export default function Invoices() {
 }
 </file>
 
-<file path="src/services/api.js">
-import axios from "axios";
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
-  withCredentials: true,
-});
-
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`; // ✅ backend expects this format
-  }
-  return config;
-});
-
-api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    if (err.response?.status === 401) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.location.href = "/login";
-    }
-    return Promise.reject(err);
-  }
-);
-
-export default api;
-</file>
-
 <file path="src/components/Navbar.jsx">
 /*import React, { useContext, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
@@ -2331,6 +2756,243 @@ h2, h3, h4 {
 .text-muted { color: var(--text-muted); }
 </file>
 
+<file path="src/pages/Campaigns.jsx">
+import React, { useEffect, useState, useContext } from "react";
+import api from "../services/api";
+import { AuthContext } from "../context/AuthContext";
+
+export default function Campaigns() {
+  const { user } = useContext(AuthContext);
+  const [campaigns, setCampaigns] = useState([]);
+  const [form, setForm] = useState({
+    campaignName: "",
+    campaignType: "promotion",
+    description: "",
+    startDate: "",
+    endDate: "",
+    isActive: true,
+  });
+  const [loading, setLoading] = useState(false);
+  const isAdmin = user?.role === "admin";
+
+  // Fetch campaigns depending on role
+  const fetchCampaigns = async () => {
+    try {
+      setLoading(true);
+      let res;
+      if (isAdmin) {
+        res = await api.get("/campaigns"); // admin sees all
+      } else {
+        res = await api.get("/campaigns/active"); // dealers see only active
+      }
+      setCampaigns(res.data.campaigns || res.data);
+    } catch (err) {
+      console.error("Failed to fetch campaigns:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCampaigns();
+  }, [isAdmin]);
+
+  // Admin-only: Create Campaign
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post("/campaigns", form);
+      setForm({
+        campaignName: "",
+        campaignType: "promotion",
+        description: "",
+        startDate: "",
+        endDate: "",
+        isActive: true,
+      });
+      fetchCampaigns();
+    } catch (err) {
+      console.error("Error creating campaign:", err);
+      alert(err.response?.data?.error || "Failed to create campaign");
+    }
+  };
+
+  // Admin-only: Delete Campaign
+  const deleteCampaign = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this campaign?")) return;
+    try {
+      await api.delete(`/campaigns/${id}`);
+      fetchCampaigns();
+    } catch (err) {
+      console.error("Failed to delete campaign:", err);
+      alert("Failed to delete campaign");
+    }
+  };
+
+  return (
+    <div style={styles.container}>
+      <h2 style={styles.title}>🎯 Campaigns</h2>
+
+      {loading ? (
+        <p>Loading campaigns...</p>
+      ) : (
+        <>
+          {/* Admin Form */}
+          {isAdmin && (
+            <form onSubmit={handleSubmit} style={styles.form}>
+              <h3>Create Campaign</h3>
+              <input
+                type="text"
+                placeholder="Campaign Name"
+                value={form.campaignName}
+                onChange={(e) =>
+                  setForm({ ...form, campaignName: e.target.value })
+                }
+                required
+              />
+              <select
+                value={form.campaignType}
+                onChange={(e) =>
+                  setForm({ ...form, campaignType: e.target.value })
+                }
+              >
+                <option value="promotion">Promotion</option>
+                <option value="sales_scheme">Sales Scheme</option>
+                <option value="seasonal_offer">Seasonal Offer</option>
+              </select>
+
+              <textarea
+                placeholder="Description"
+                value={form.description}
+                onChange={(e) =>
+                  setForm({ ...form, description: e.target.value })
+                }
+              />
+
+              <div style={styles.dateRow}>
+                <label>
+                  Start:
+                  <input
+                    type="date"
+                    value={form.startDate}
+                    onChange={(e) =>
+                      setForm({ ...form, startDate: e.target.value })
+                    }
+                    required
+                  />
+                </label>
+                <label>
+                  End:
+                  <input
+                    type="date"
+                    value={form.endDate}
+                    onChange={(e) =>
+                      setForm({ ...form, endDate: e.target.value })
+                    }
+                    required
+                  />
+                </label>
+              </div>
+
+              <label>
+                Active:
+                <input
+                  type="checkbox"
+                  checked={form.isActive}
+                  onChange={(e) =>
+                    setForm({ ...form, isActive: e.target.checked })
+                  }
+                />
+              </label>
+
+              <button type="submit" style={styles.button}>
+                Add Campaign
+              </button>
+            </form>
+          )}
+
+          {/* Campaign List */}
+          <div style={styles.list}>
+            {campaigns.length === 0 ? (
+              <p>No campaigns found.</p>
+            ) : (
+              campaigns.map((c) => (
+                <div key={c.id} style={styles.card}>
+                  <h3>{c.campaignName}</h3>
+                  <p>
+                    <b>Type:</b> {c.campaignType}
+                  </p>
+                  <p>{c.description}</p>
+                  <p>
+                    📅 {new Date(c.startDate).toLocaleDateString()} →{" "}
+                    {new Date(c.endDate).toLocaleDateString()}
+                  </p>
+                  <span
+                    style={{
+                      color: c.isActive ? "green" : "red",
+                      fontWeight: "bold",
+                    }}
+                  >
+                    {c.isActive ? "Active" : "Inactive"}
+                  </span>
+                  {isAdmin && (
+                    <button
+                      onClick={() => deleteCampaign(c.id)}
+                      style={styles.delete}
+                    >
+                      Delete
+                    </button>
+                  )}
+                </div>
+              ))
+            )}
+          </div>
+        </>
+      )}
+    </div>
+  );
+}
+
+const styles = {
+  container: { padding: "2rem", fontFamily: "Poppins, sans-serif" },
+  title: { marginBottom: "1rem", fontWeight: "600", fontSize: "1.4rem" },
+  form: {
+    display: "grid",
+    gap: "0.8rem",
+    maxWidth: 500,
+    marginBottom: "2rem",
+    background: "#fafafa",
+    padding: "1rem",
+    borderRadius: "8px",
+  },
+  dateRow: { display: "flex", gap: "1rem", justifyContent: "space-between" },
+  button: {
+    background: "#1e3c72",
+    color: "white",
+    border: "none",
+    borderRadius: "8px",
+    padding: "10px",
+    cursor: "pointer",
+  },
+  list: { display: "grid", gap: "1rem" },
+  card: {
+    padding: "1rem",
+    border: "1px solid #ccc",
+    borderRadius: "8px",
+    background: "#fff",
+  },
+  delete: {
+    marginTop: "0.5rem",
+    background: "#e74c3c",
+    color: "white",
+    border: "none",
+    borderRadius: "5px",
+    padding: "6px 10px",
+    cursor: "pointer",
+  },
+};
+</file>
+
 <file path="src/pages/Login.jsx">
 import React, { useState, useContext } from 'react';
 import { AuthContext } from '../context/AuthContext';
@@ -2597,6 +3259,55 @@ const styles = {
 };
 </file>
 
+<file path="src/services/api.js">
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
+  withCredentials: true,
+});
+
+// ✅ Don’t attach token for login or OTP routes
+api.interceptors.request.use((config) => {
+  const noAuthNeeded = [
+    "/auth/login",
+    "/auth/verify-otp",
+    "/auth/reset-password",
+    "/auth/reset-password-confirm",
+  ];
+
+  if (!noAuthNeeded.some((path) => config.url.includes(path))) {
+    const token = localStorage.getItem("token");
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+// ✅ Handle 401 without full reload during login/OTP
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const originalUrl = err.config?.url || "";
+
+    // Ignore these during login flow
+    const safeRoutes = ["/auth/login", "/auth/verify-otp"];
+    const isSafe = safeRoutes.some((path) => originalUrl.includes(path));
+
+    if (err.response?.status === 401 && !isSafe) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      // Instead of reloading, redirect gracefully:
+      window.history.pushState({}, "", "/login");
+    }
+
+    return Promise.reject(err);
+  }
+);
+
+export default api;
+</file>
+
 <file path="src/theme.js">
 import { createTheme } from "@mui/material/styles";
 
@@ -2766,70 +3477,6 @@ export default function getTheme(mode = "dark") {
     },
   });
 }
-</file>
-
-<file path="src/App.jsx">
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Invoices from './pages/Invoices';
-import Documents from './pages/Documents';
-import Campaigns from "./pages/Campaigns";
-import Reports from "./pages/Reports";
-import Admin from "./pages/Admin";
-import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
-import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
-import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
-import AccountsInvoices from "./pages/accounts/AccountsInvoices";
-import AccountsNotes from "./pages/accounts/AccountsNotes";
-import AccountsReports from "./pages/accounts/AccountsReports";
-
-
-// ✅ When Layout is inside ProtectedRoute, all child routes share Navbar & Sidebar
-function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public route */}
-          <Route path="/login" element={<Login />} />
-
-          {/* Protected routes grouped inside Layout */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            {/* All pages with the sidebar/navbar go here */}
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="invoices" element={<Invoices />} />
-            <Route path="documents" element={<Documents />} />
-            <Route path="campaigns" element={<Campaigns />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="admin" element={<Admin />} />
-            <Route path="inventory" element={<InventoryDashboard />} />
-            <Route path="accounts" element={<AccountsDashboard />} />
-            <Route path="accounts/invoices" element={<AccountsInvoices />} />
-<Route path="accounts/notes" element={<AccountsNotes />} />
-<Route path="accounts/reports" element={<AccountsReports />} />
-
-
-            {/* 🔜 Add Campaigns, Reports, Admin here */}
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-  );
-}
-
-export default App;
 </file>
 
 <file path="src/components/Layout.jsx">
@@ -3983,6 +4630,76 @@ export default function Reports() {
 }
 </file>
 
+<file path="src/App.jsx">
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Invoices from './pages/Invoices';
+import Documents from './pages/Documents';
+import Campaigns from "./pages/Campaigns";
+import Reports from "./pages/Reports";
+import Admin from "./pages/Admin";
+import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout';
+import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
+import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
+import AccountsInvoices from "./pages/accounts/AccountsInvoices";
+import AccountsNotes from "./pages/accounts/AccountsNotes";
+import AccountsReports from "./pages/accounts/AccountsReports";
+import AdminDocuments from "./pages/AdminDocuments";
+
+// inside <Routes>
+
+
+
+// ✅ When Layout is inside ProtectedRoute, all child routes share Navbar & Sidebar
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public route */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Protected routes grouped inside Layout */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            {/* All pages with the sidebar/navbar go here */}
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="invoices" element={<Invoices />} />
+            <Route path="documents" element={<Documents />} />
+            <Route path="campaigns" element={<Campaigns />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="admin" element={<Admin />} />
+            <Route path="inventory" element={<InventoryDashboard />} />
+            <Route path="accounts" element={<AccountsDashboard />} />
+            <Route path="accounts/invoices" element={<AccountsInvoices />} />
+<Route path="accounts/notes" element={<AccountsNotes />} />
+<Route path="accounts/reports" element={<AccountsReports />} />
+
+<Route path="/admin/documents" element={<AdminDocuments />} />
+
+
+            {/* 🔜 Add Campaigns, Reports, Admin here */}
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+
+export default App;
+</file>
+
 <file path="src/pages/dashboards/AdminDashboard.jsx">
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
@@ -4650,170 +5367,6 @@ export default function ManagerDashboard() {
 }
 </file>
 
-<file path="src/components/Sidebar.jsx">
-import React, { useContext, useState } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { Link, useLocation } from "react-router-dom";
-import {
-  FaHome,
-  FaFileInvoice,
-  FaFileAlt,
-  FaChartBar,
-  FaCogs,
-  FaUsers,
-  FaWarehouse,
-  FaBars,
-} from "react-icons/fa";
-
-export default function Sidebar() {
-  const { user } = useContext(AuthContext);
-  const { pathname } = useLocation();
-
-  const [collapsed, setCollapsed] = useState(false);
-
-  const role = user?.role?.toLowerCase() || "user";
-
-  const baseLinks = [{ path: "/dashboard", label: "Dashboard", icon: <FaHome /> }];
-
-  const roleLinks = {
-    dealer: [
-      { path: "/invoices", label: "Invoices", icon: <FaFileInvoice /> },
-      { path: "/documents", label: "Documents", icon: <FaFileAlt /> },
-    ],
-    tm: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
-    am: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
-    admin: [
-      { path: "/campaigns", label: "Campaigns", icon: <FaCogs /> },
-      { path: "/admin", label: "Dealer Mgmt", icon: <FaUsers /> },
-      { path: "/reports", label: "Reports", icon: <FaChartBar /> },
-    ],
-    accounts: [{ path: "/reports", label: "Accounts Reports", icon: <FaChartBar /> }],
-    inventory: [{ path: "/inventory", label: "Stock View", icon: <FaWarehouse /> }],
-  };
-
-  const links = [...baseLinks, ...(roleLinks[role] || [])];
-
-  return (
-    <aside
-      style={{
-        width: collapsed ? "70px" : "240px",
-        background: "var(--sidebar-bg)",
-        backdropFilter: "blur(14px)",
-        borderRight: "1px solid var(--card-border)",
-        padding: "1rem",
-        display: "flex",
-        flexDirection: "column",
-        transition: "width 0.3s ease",
-        overflowY: "auto",
-        overflowX: "hidden",
-      }}
-    >
-      {/* HEADER + TOGGLE */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: collapsed ? "center" : "space-between",
-          alignItems: "center",
-          marginBottom: "2rem",
-          paddingBottom: "1rem",
-          borderBottom: "1px solid var(--card-border)",
-        }}
-      >
-        {!collapsed && (
-          <h3 style={{ color: "#f97316", fontWeight: "700" }}>
-            {role.toUpperCase()}
-          </h3>
-        )}
-
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          style={{
-            background: "var(--card-bg)",
-            border: "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.5rem",
-            cursor: "pointer",
-            color: "var(--text-color)",
-          }}
-        >
-          <FaBars />
-        </button>
-      </div>
-
-      {/* NAV LINKS */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        {links.map((l) => {
-          const active = pathname === l.path;
-
-          return (
-            <div style={{ position: "relative" }} key={l.path}>
-              <Link
-                to={l.path}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: collapsed ? "0" : "0.75rem",
-                  padding: "0.75rem 1rem",
-                  borderRadius: "10px",
-                  color: active ? "#f97316" : "var(--text-color)",
-                  textDecoration: "none",
-                  background: active
-                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
-                    : "transparent",
-                  fontWeight: active ? "600" : "400",
-                  transition: "0.25s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background =
-                    "linear-gradient(90deg, rgba(249,115,22,0.15), rgba(249,115,22,0.05))";
-                  e.target.style.color = "#f97316";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = active
-                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
-                    : "transparent";
-                  e.target.style.color = active ? "#f97316" : "var(--text-color)";
-                }}
-              >
-                <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
-                {!collapsed && <span>{l.label}</span>}
-              </Link>
-
-              {/* Tooltip when collapsed */}
-              {collapsed && <div className="sidebar-tooltip">{l.label}</div>}
-            </div>
-          );
-        })}
-      </div>
-
-      <style>
-        {`
-            .sidebar-tooltip {
-                position: absolute;
-                left: 80px;
-                top: 50%;
-                transform: translateY(-50%);
-                background: var(--card-bg);
-                padding: 6px 10px;
-                border-radius: 6px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.25);
-                white-space: nowrap;
-                opacity: 0;
-                pointer-events: none;
-                transition: 0.2s ease;
-                color: var(--text-color);
-                border: 1px solid var(--card-border);
-            }
-            a:hover + .sidebar-tooltip {
-                opacity: 1;
-            }
-        `}
-      </style>
-    </aside>
-  );
-}
-</file>
-
 <file path="src/pages/dashboards/InventoryDashboard.jsx">
 import React, { useEffect, useState, useContext } from "react";
 import api from "../../services/api";
@@ -5158,7 +5711,180 @@ export default function InventoryDashboard() {
 }
 </file>
 
+<file path="src/components/Sidebar.jsx">
+import React, { useContext, useState } from "react";
+import { AuthContext } from "../context/AuthContext";
+import { Link, useLocation } from "react-router-dom";
+import {
+  FaHome,
+  FaFileInvoice,
+  FaFileAlt,
+  FaChartBar,
+  FaCogs,
+  FaUsers,
+  FaWarehouse,
+  FaBars,
+} from "react-icons/fa";
+
+export default function Sidebar() {
+  const { user } = useContext(AuthContext);
+  const { pathname } = useLocation();
+
+  const [collapsed, setCollapsed] = useState(false);
+
+  const role = user?.role?.toLowerCase() || "user";
+
+  const baseLinks = [{ path: "/dashboard", label: "Dashboard", icon: <FaHome /> }];
+
+  const roleLinks = {
+    dealer: [
+      { path: "/invoices", label: "Invoices", icon: <FaFileInvoice /> },
+      { path: "/documents", label: "Documents", icon: <FaFileAlt /> },
+    ],
+    tm: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
+    am: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
+    admin: [
+      { path: "/campaigns", label: "Campaigns", icon: <FaCogs /> },
+      { path: "/admin", label: "Dealer Mgmt", icon: <FaUsers /> },
+      { path: "/admin/documents", label: "Documents", icon: <FaFileAlt /> },
+      { path: "/reports", label: "Reports", icon: <FaChartBar /> },
+    ],
+    accounts: [{ path: "/reports", label: "Accounts Reports", icon: <FaChartBar /> }],
+    inventory: [{ path: "/inventory", label: "Stock View", icon: <FaWarehouse /> }],
+  };
+
+  const links = [...baseLinks, ...(roleLinks[role] || [])];
+
+  return (
+    <aside
+      style={{
+        width: collapsed ? "70px" : "240px",
+        background: "var(--sidebar-bg)",
+        backdropFilter: "blur(14px)",
+        borderRight: "1px solid var(--card-border)",
+        padding: "1rem",
+        display: "flex",
+        flexDirection: "column",
+        transition: "width 0.3s ease",
+        overflowY: "auto",
+        overflowX: "hidden",
+      }}
+    >
+      {/* HEADER + TOGGLE */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: collapsed ? "center" : "space-between",
+          alignItems: "center",
+          marginBottom: "2rem",
+          paddingBottom: "1rem",
+          borderBottom: "1px solid var(--card-border)",
+        }}
+      >
+        {!collapsed && (
+          <h3 style={{ color: "#f97316", fontWeight: "700" }}>
+            {role.toUpperCase()}
+          </h3>
+        )}
+
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          style={{
+            background: "var(--card-bg)",
+            border: "1px solid var(--card-border)",
+            borderRadius: "8px",
+            padding: "0.5rem",
+            cursor: "pointer",
+            color: "var(--text-color)",
+          }}
+        >
+          <FaBars />
+        </button>
+      </div>
+
+      {/* NAV LINKS */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        {links.map((l) => {
+          const active = pathname === l.path;
+
+          return (
+            <div style={{ position: "relative" }} key={l.path}>
+              <Link
+                to={l.path}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: collapsed ? "0" : "0.75rem",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "10px",
+                  color: active ? "#f97316" : "var(--text-color)",
+                  textDecoration: "none",
+                  background: active
+                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
+                    : "transparent",
+                  fontWeight: active ? "600" : "400",
+                  transition: "0.25s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background =
+                    "linear-gradient(90deg, rgba(249,115,22,0.15), rgba(249,115,22,0.05))";
+                  e.target.style.color = "#f97316";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = active
+                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
+                    : "transparent";
+                  e.target.style.color = active ? "#f97316" : "var(--text-color)";
+                }}
+              >
+                <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
+                {!collapsed && <span>{l.label}</span>}
+              </Link>
+
+              {/* Tooltip when collapsed */}
+              {collapsed && <div className="sidebar-tooltip">{l.label}</div>}
+            </div>
+          );
+        })}
+      </div>
+
+      <style>
+        {`
+            .sidebar-tooltip {
+                position: absolute;
+                left: 80px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: var(--card-bg);
+                padding: 6px 10px;
+                border-radius: 6px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: 0.2s ease;
+                color: var(--text-color);
+                border: 1px solid var(--card-border);
+            }
+            a:hover + .sidebar-tooltip {
+                opacity: 1;
+            }
+        `}
+      </style>
+    </aside>
+  );
+}
+</file>
+
 <file path="src/pages/dashboards/DealerDashboard.jsx">
+// ==============================
+// FINAL DEALER DASHBOARD (A + B + C + D + Modal Yes)
+// ✅ Toolbar Button
+// ✅ Pricing Requests Card Section
+// ✅ Quick-Action Button
+// ✅ Pricing Request Modal Included
+// ==============================
+
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
 import socket from "../../services/socket";
@@ -5168,6 +5894,7 @@ import StatCard from "../../components/StatCard";
 import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
+import PricingRequestForm from "../../components/PricingRequestForm";
 import {
   BarChart,
   Bar,
@@ -5184,81 +5911,72 @@ import {
 import "./DashboardLayout.css";
 
 export default function DealerDashboard() {
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
   const [summary, setSummary] = useState({});
   const [invoices, setInvoices] = useState([]);
   const [promotions, setPromotions] = useState([]);
   const [documents, setDocuments] = useState([]);
+  const [docFilter, setDocFilter] = useState("all");
   const [trend, setTrend] = useState([]);
-  const [inventory, setInventory] = useState([]); // 👀 visible stock data
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+  const [inventory, setInventory] = useState([]);
+
+  const [showPricingModal, setShowPricingModal] = useState(false);
+  const [pricingRequests, setPricingRequests] = useState([]);
 
   const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
+  const accent = "#3b82f6";
 
-  // ✅ Fetch Dealer Data
+  // FETCH INITIAL DATA
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [summaryRes, invoiceRes, promoRes, docRes, trendRes, inventoryRes] =
+        const [summaryRes, invoiceRes, promoRes, docRes, trendRes, inventoryRes, pricingRes] =
           await Promise.all([
             api.get("/reports/dealer-performance"),
             api.get("/invoices"),
             api.get("/campaigns/active"),
             api.get("/documents"),
             api.get("/reports/dealer-performance?trend=true"),
-            api.get("/inventory/summary"), // fetch visible stock for dealers
+            api.get("/inventory/summary"),
+            api.get("/pricing?mine=true"),
           ]);
 
-        setSummary(summaryRes.data);
+        setSummary(summaryRes.data || {});
         setInvoices(invoiceRes.data.invoices || []);
         setPromotions(promoRes.data || []);
         setDocuments(docRes.data.documents || []);
         setTrend(trendRes.data.trend || []);
         setInventory(inventoryRes.data.inventory || []);
+        setPricingRequests(pricingRes.data.updates || []);
       } catch (err) {
-        console.error("Dealer dashboard error:", err);
+        console.error("Dashboard error:", err);
       } finally {
         setLoading(false);
       }
     };
+
     fetchData();
   }, []);
 
-  // ✅ Socket Events
+  // SOCKET EVENTS
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) socket.auth = { token };
     socket.connect();
 
-    socket.on("promotion:new", (promo) => {
-      toast.success(`🎉 New promotion: ${promo.title}`);
-      setPromotions((prev) => [promo, ...prev]);
-    });
-
-    socket.on("document:update", (doc) => {
-      toast.info(`📄 Document ${doc.status}`);
-      setDocuments((prev) =>
-        prev.map((d) => (d.id === doc.id ? { ...d, status: doc.status } : d))
-      );
-    });
-
-    socket.on("notification:update", (notif) => {
-      toast.info(`🔔 ${notif.message || "New update"}`);
+    socket.on("pricing:status", (data) => {
+      toast.info(`💸 Pricing Request #${data.id} updated: ${data.status}`);
+      setPricingRequests((prev) => prev.map((r) => (r.id === data.id ? data : r)));
     });
 
     return () => socket.disconnect();
   }, []);
 
-  if (loading)
-    return (
-      <div className="center text-center" style={{ height: "80vh" }}>
-        Loading Dealer Dashboard...
-      </div>
-    );
+  if (loading) return <div className="center">Loading…</div>;
 
-  // 🎨 Dealer theme (blue accents)
-  const accent = "#3b82f6";
+  const filteredDocs = documents.filter((d) => (docFilter === "all" ? true : d.status === docFilter));
 
   return (
     <div className="dashboard-container" style={{ background: "#f9fafb" }}>
@@ -5266,216 +5984,176 @@ export default function DealerDashboard() {
       <header className="dashboard-header">
         <h1>Dealer Dashboard</h1>
         <p>
-          Welcome back,{" "}
-          <span style={{ color: accent, fontWeight: 600 }}>
-            {summary.dealerName || "Dealer"}
-          </span>
+          Welcome back, <span style={{ color: accent }}>{summary.dealerName || "Dealer"}</span>
         </p>
       </header>
 
-      {/* TOOLBAR */}
+      {/* TOOLBAR (A) */}
       <Toolbar
         left={[
-          <SearchInput
-            key="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search invoices or documents..."
-          />,
+          <SearchInput key="s" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." />,
         ]}
         right={[
-          <IconPillButton key="upload" icon="📤" label="Upload" />,
+          <IconPillButton key="u" icon="📤" label="Upload" />,
+          <IconPillButton key="p" icon="🎉" label="Promotions" tone="warning" />,
           <IconPillButton
-            key="promo"
-            icon="🎉"
-            label="Promotions"
-            tone="warning"
+            key="price"
+            icon="💸"
+            label="Request Pricing"
+            tone="success"
+            onClick={() => setShowPricingModal(true)}
           />,
         ]}
       />
 
-      {/* KPI SUMMARY */}
+      {/* KPI */}
       <div className="stat-grid">
-        <StatCard
-          title="Total Sales"
-          value={`₹${summary.totalSales || 0}`}
-          icon="💰"
-        />
-        <StatCard
-          title="Invoices"
-          value={summary.totalInvoices || 0}
-          icon="🧾"
-        />
-        <StatCard
-          title="Outstanding"
-          value={`₹${summary.outstanding || 0}`}
-          icon="⚠️"
-        />
+        <StatCard title="Total Sales" value={`₹${summary.totalSales || 0}`} icon="💰" />
+        <StatCard title="Invoices" value={summary.totalInvoices || 0} icon="🧾" />
+        <StatCard title="Outstanding" value={`₹${summary.outstanding || 0}`} icon="⚠️" />
         <StatCard title="Promotions" value={promotions.length} icon="🎉" />
       </div>
 
       {/* MAIN GRID */}
       <div className="dashboard-grid">
-        {/* LEFT COLUMN */}
+        {/* LEFT */}
         <div className="column">
-          {/* Sales Trend Chart */}
-          <Card
-            title="Sales vs Outstanding (Last 6 Months)"
-            className="chart-card"
-          >
-            <ResponsiveContainer width="100%" height="100%">
+          <Card title="Sales vs Outstanding (Last 6 Months)">
+            <ResponsiveContainer width="100%" height={250}>
               <BarChart data={trend}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="month" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
-                <Tooltip
-                  contentStyle={{
-                    background: "#fff",
-                    border: "1px solid #e5e7eb",
-                    color: "#111827",
-                  }}
-                />
+                <CartesianGrid strokeDasharray="3 3" />
+                <XAxis dataKey="month" />
+                <YAxis />
+                <Tooltip />
                 <Legend />
-                <Bar
-                  dataKey="sales"
-                  fill={accent}
-                  barSize={12}
-                  radius={[4, 4, 0, 0]}
-                />
-                <Bar
-                  dataKey="outstanding"
-                  fill="#93c5fd"
-                  barSize={12}
-                  radius={[4, 4, 0, 0]}
-                />
+                <Bar dataKey="sales" fill={accent} />
+                <Bar dataKey="outstanding" fill="#93c5fd" />
               </BarChart>
             </ResponsiveContainer>
           </Card>
 
-          {/* Inventory Visibility for Dealers */}
-          <Card title="Stock Availability">
-            {inventory.length > 0 ? (
-              <ResponsiveContainer width="100%" height={250}>
-                <PieChart>
-                  <Pie
-                    data={inventory}
-                    dataKey="available"
-                    nameKey="product"
-                    outerRadius={100}
-                    fill={accent}
-                    label
-                  >
-                    {inventory.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
+          {/* PRICING REQUESTS (B) */}
+          <Card title="My Pricing Requests">
+            {pricingRequests.length ? (
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>ID</th>
+                    <th>Product</th>
+                    <th>Old</th>
+                    <th>New</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {pricingRequests.map((r) => (
+                    <tr key={r.id}>
+                      <td>{r.id}</td>
+                      <td>{r.productId}</td>
+                      <td>{r.oldPrice ?? "—"}</td>
+                      <td>{r.newPrice}</td>
+                      <td>{r.status}</td>
+                      <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             ) : (
-              <p className="text-muted">No inventory data available</p>
+              <p>No pricing requests yet.</p>
             )}
+
+            <button
+              style={{ marginTop: 10, padding: 8, background: accent, color: "#fff", borderRadius: 6 }}
+              onClick={() => setShowPricingModal(true)}
+            >
+              Request Pricing
+            </button>
           </Card>
 
-          {/* Invoices & Docs */}
-          <div className="stat-grid">
-            <Card title="Recent Invoices">
-              {invoices.length ? (
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>#</th>
-                      <th>Date</th>
-                      <th>₹</th>
-                      <th>Status</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {invoices.slice(0, 4).map((i) => (
-                      <tr key={i.id}>
-                        <td>{i.invoiceNumber}</td>
-                        <td>
-                          {new Date(i.invoiceDate).toLocaleDateString()}
-                        </td>
-                        <td>{i.totalAmount}</td>
-                        <td
-                          className={
-                            i.status === "Paid"
-                              ? "status-approved"
-                              : "status-pending"
-                          }
-                        >
-                          {i.status}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-muted">No invoices found</p>
-              )}
-            </Card>
+          {/* DOCUMENTS */}
+          <Card title="Documents">
+            <div style={{ display: "flex", gap: "0.5rem", marginBottom: 10 }}>
+              {['all','pending','approved','rejected'].map((s) => (
+                <button
+                  key={s}
+                  onClick={() => setDocFilter(s)}
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 6,
+                    background: docFilter === s ? "#bfdbfe" : "#fff",
+                    border: docFilter === s ? "2px solid #3b82f6" : "1px solid #ccc",
+                  }}
+                >
+                  {s}
+                </button>
+              ))}
+            </div>
 
-            <Card title="Documents">
-              {documents.length ? (
-                <table className="custom-table">
-                  <thead>
-                    <tr>
-                      <th>File</th>
-                      <th>Status</th>
+            {filteredDocs.length ? (
+              <table className="custom-table">
+                <thead>
+                  <tr>
+                    <th>File</th>
+                    <th>Status</th>
+                    <th>Date</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredDocs.map((d) => (
+                    <tr key={d.id}>
+                      <td>{d.fileName}</td>
+                      <td>{d.status}</td>
+                      <td>{new Date(d.createdAt).toLocaleDateString()}</td>
                     </tr>
-                  </thead>
-                  <tbody>
-                    {documents.slice(0, 4).map((d) => (
-                      <tr key={d.id}>
-                        <td>{d.fileName}</td>
-                        <td
-                          className={`status-${d.status || "pending"}`}
-                        >
-                          {d.status}
-                        </td>
-                      </tr>
-                    ))}
-                  </tbody>
-                </table>
-              ) : (
-                <p className="text-muted">No uploaded docs</p>
-              )}
-            </Card>
-          </div>
+                  ))}
+                </tbody>
+              </table>
+            ) : (
+              <p>No documents found.</p>
+            )}
+          </Card>
         </div>
 
-        {/* RIGHT COLUMN */}
+        {/* RIGHT */}
         <div className="column">
           <Card title="Active Promotions">
             {promotions.length ? (
-              promotions.slice(0, 3).map((promo) => (
-                <div
-                  key={promo.id}
-                  style={{
-                    padding: "0.4rem 0",
-                    borderBottom: "1px solid #e5e7eb",
-                  }}
-                >
-                  <strong style={{ color: accent }}>{promo.title}</strong>
-                  <p className="text-muted">{promo.description}</p>
-                  <small className="text-muted">
-                    Till {new Date(promo.validTill).toLocaleDateString()}
-                  </small>
+              promotions.map((p) => (
+                <div key={p.id} style={{ padding: "4px 0", borderBottom: "1px solid #e5e7eb" }}>
+                  <strong style={{ color: accent }}>{p.title}</strong>
+                  <p>{p.description}</p>
+                  <small>Until {new Date(p.validTill).toLocaleDateString()}</small>
                 </div>
               ))
             ) : (
-              <p className="text-muted">No active promotions</p>
+              <p>No promotions</p>
             )}
           </Card>
 
+          {/* QUICK ACTIONS (C) */}
           <div className="quick-actions">
             <IconPillButton icon="📤" label="Upload" />
             <IconPillButton icon="📑" label="Statements" />
-            <IconPillButton icon="💬" label="Contact" tone="success" />
+            <IconPillButton icon="💬" label="Contact" />
+            <IconPillButton
+              icon="💸"
+              label="Pricing"
+              tone="success"
+              onClick={() => setShowPricingModal(true)}
+            />
           </div>
         </div>
       </div>
+
+      {/* PRICING REQUEST MODAL (D + YES) */}
+      {showPricingModal && (
+        <div className="modal-overlay">
+          <div className="modal-box">
+            <PricingRequestForm onClose={() => setShowPricingModal(false)} />
+          </div>
+        </div>
+      )}
     </div>
   );
 }
