@@ -1,4 +1,7 @@
-// src/pages/dashboards/ManagerDashboard.jsx
+// ==============================
+// FILE: src/pages/dashboards/ManagerDashboard.jsx
+// ==============================
+
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
 import socket from "../../services/socket";
@@ -43,26 +46,28 @@ export default function ManagerDashboard() {
   const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
   const accent = "#3b82f6";
 
+  // 🔹 Load manager summary, dealers, pricing requests, campaigns, etc.
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [summaryRes, perfRes, approvalsRes, msgRes, campRes, invRes] =
+
+        const [summaryRes, dealersRes, pricingRes, msgRes, campRes, invRes] =
           await Promise.all([
-            api.get("/reports/dealer-performance"),
-            api.get("/reports/territory"),
-            api.get("/reports/pending-approvals"),
-            api.get("/messages"),
-            api.get("/campaigns"),
-            api.get("/inventory/summary"),
+            api.get("/managers/summary"), // ✅ manager summary
+            api.get("/managers/dealers"), // ✅ dealers list
+            api.get("/managers/pricing?status=pending"), // ✅ pending pricing approvals
+            api.get("/messages"), // ✅ messages (existing backend)
+            api.get("/campaigns"), // ✅ active campaigns
+            api.get("/inventory/summary"), // ✅ inventory summary
           ]);
 
         setSummary(summaryRes.data || {});
-        setDealerPerformance(perfRes.data.report || []);
-        setPendingApprovals(approvalsRes.data || []);
+        setDealerPerformance(dealersRes.data.dealers || []);
+        setPendingApprovals(pricingRes.data.updates || []);
         setMessages(msgRes.data.messages || msgRes.data || []);
         setCampaigns(campRes.data.campaigns || campRes.data || []);
-        setInventory(invRes.data.inventory || []);
+        setInventory(invRes.data.inventory || invRes.data || []);
       } catch (err) {
         console.error("Manager dashboard load error:", err);
         toast.error("Failed to load dashboard data");
@@ -73,7 +78,7 @@ export default function ManagerDashboard() {
     loadData();
   }, []);
 
-  // ✅ Realtime updates
+  // 🔹 Realtime updates (documents, messages, campaigns)
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) socket.auth = { token };
@@ -112,12 +117,37 @@ export default function ManagerDashboard() {
       </div>
     );
 
-  // 🔍 Stock health classification
+  // 🧮 Stock health classification
   const lowStock = inventory.filter((i) => i.available < 20);
   const mediumStock = inventory.filter(
     (i) => i.available >= 20 && i.available < 100
   );
   const highStock = inventory.filter((i) => i.available >= 100);
+// 🔹 Handle pricing approval / rejection / forwarding
+const handlePricingAction = async (id, action) => {
+  try {
+    const remarks = prompt(`Enter remarks for ${action.toUpperCase()} (optional):`) || "";
+
+    const res = await api.patch(`/managers/pricing/${id}/forward`, {
+      action,
+      remarks,
+    });
+
+    toast.success(`✅ Pricing request ${action} successful!`);
+
+    // Refresh list after action
+    setPendingApprovals((prev) =>
+      prev.filter((p) => p.id !== id)
+    );
+
+    // Optional: reload summary counts
+    const summaryRes = await api.get("/managers/summary");
+    setSummary(summaryRes.data || {});
+  } catch (err) {
+    console.error("Pricing action failed:", err);
+    toast.error("Failed to process pricing action");
+  }
+};
 
   return (
     <div className="manager-dashboard" style={{ color: "var(--text-color)" }}>
@@ -156,25 +186,13 @@ export default function ManagerDashboard() {
         {/* LEFT COLUMN */}
         <div className="left-col">
           <div className="kpi-row">
-            <StatCard
-              title="Total Dealers"
-              value={summary.totalDealers || 0}
-              icon="🏪"
-            />
-            <StatCard
-              title="Active Campaigns"
-              value={campaigns.length}
-              icon="📢"
-            />
-            <StatCard
-              title="Pending Approvals"
-              value={pendingApprovals.length}
-              icon="🕒"
-            />
-            <StatCard title="New Messages" value={messages.length} icon="💬" />
+            <StatCard title="Total Dealers" value={summary.totalDealers || 0} icon="🏪" />
+            <StatCard title="Pending Pricing" value={summary.pendingPricing || 0} icon="💰" />
+            <StatCard title="Pending Documents" value={summary.pendingDocuments || 0} icon="🕒" />
+            <StatCard title="Recent Sales" value={`₹ ${summary.recentSales || 0}`} icon="📈" />
           </div>
 
-          {/* 🔔 Critical Low Stock Alert */}
+          {/* Stock Alerts */}
           {lowStock.length > 0 && (
             <div
               className="alert-banner"
@@ -192,19 +210,13 @@ export default function ManagerDashboard() {
             </div>
           )}
 
-          {/* 📊 Stock Health Summary */}
+          {/* Stock Overview */}
           <Card title="Stock Health Overview" style={{ marginBottom: "1rem" }}>
             {inventory.length ? (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-around",
-                  textAlign: "center",
-                }}
-              >
+              <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
                 <div>
                   <h3 style={{ color: "#ef4444" }}>{lowStock.length}</h3>
-                  <p className="text-muted">Low Stock</p>
+                  <p className="text-muted">Low</p>
                 </div>
                 <div>
                   <h3 style={{ color: "#facc15" }}>{mediumStock.length}</h3>
@@ -220,17 +232,10 @@ export default function ManagerDashboard() {
             )}
           </Card>
 
-          {/* 📈 Dealer Performance Chart */}
-          <Card
-            title="Top 5 Dealers by Sales"
-            className="main-chart-card"
-            style={{ marginBottom: "1rem" }}
-          >
+          {/* Dealer Performance */}
+          <Card title="Top 5 Dealers by Sales" className="main-chart-card">
             <ResponsiveContainer width="100%" height={340}>
-              <BarChart
-                data={dealerPerformance.slice(0, 5)}
-                margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
-              >
+              <BarChart data={dealerPerformance.slice(0, 5)} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="businessName" stroke="#6b7280" />
                 <YAxis stroke="#6b7280" />
@@ -241,136 +246,112 @@ export default function ManagerDashboard() {
             </ResponsiveContainer>
           </Card>
 
-          {/* 🥧 Inventory Overview */}
-          <Card title="Inventory Overview (Top 5 Products)">
-            {inventory.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={inventory.slice(0, 5)}
-                    dataKey="available"
-                    nameKey="product"
-                    outerRadius={100}
-                    fill={accent}
-                    label
-                  >
-                    {inventory.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-muted">No inventory data available</p>
-            )}
-          </Card>
+          {/* Pending Pricing Table */}
+          {/* Pending Pricing Table with Action Buttons */}
+<Card title="Pending Pricing Approvals" style={{ marginTop: "1rem" }}>
+  <DataTable
+    columns={[
+      { key: "dealer", label: "Dealer" },
+      { key: "product", label: "Product" },
+      { key: "newPrice", label: "Requested Price" },
+      { key: "requestedBy", label: "Requested By" },
+      { key: "requestedAt", label: "Requested At" },
+      { key: "status", label: "Status" },
+      { key: "actions", label: "Actions" },
+    ]}
+    rows={pendingApprovals
+      .filter((a) => {
+        const q = search.toLowerCase();
+        return (
+          !q ||
+          (a.dealer?.businessName || "").toLowerCase().includes(q) ||
+          (a.product?.name || "").toLowerCase().includes(q) ||
+          (a.requestedBy || "").toLowerCase().includes(q)
+        );
+      })
+      .slice(0, 8)
+      .map((a) => ({
+        id: a.id,
+        dealer: a.dealer?.businessName || a.dealerId,
+        product: a.product?.name || a.productId,
+        newPrice: `₹ ${parseFloat(a.newPrice || 0).toFixed(2)}`,
+        requestedBy: a.requestedBy || "—",
+        requestedAt: new Date(a.createdAt).toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        status:
+          a.status.charAt(0).toUpperCase() + a.status.slice(1).toLowerCase(),
+        actions: (
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button
+              onClick={() => handlePricingAction(a.id, "approve")}
+              style={{
+                background: "#10b981",
+                color: "white",
+                border: "none",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => handlePricingAction(a.id, "reject")}
+              style={{
+                background: "#ef4444",
+                color: "white",
+                border: "none",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Reject
+            </button>
+            <button
+              onClick={() => handlePricingAction(a.id, "forward")}
+              style={{
+                background: "#3b82f6",
+                color: "white",
+                border: "none",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Forward
+            </button>
+          </div>
+        ),
+      }))}
+    emptyMessage="No pending pricing requests"
+/>
+</Card>
 
-          {/* 🧾 Pending Approvals Table */}
-          <Card title="Pending Approvals" style={{ marginTop: "1rem" }}>
-            <DataTable
-              columns={[
-                { key: "dealer", label: "Dealer" },
-                { key: "document", label: "Document" },
-                { key: "date", label: "Date" },
-                { key: "status", label: "Status" },
-              ]}
-              rows={pendingApprovals
-                .filter((a) => {
-                  const q = search.toLowerCase();
-                  return (
-                    !q ||
-                    (a.dealerName || "").toLowerCase().includes(q) ||
-                    String(a.dealerId || "").includes(q)
-                  );
-                })
-                .slice(0, 8)
-                .map((a) => ({
-                  id: a.id || Math.random(),
-                  dealer: a.dealerName || a.dealerId,
-                  document: a.documentType || "Document",
-                  date: new Date(a.createdAt).toLocaleDateString(),
-                  status: "Pending",
-                }))}
-              emptyMessage="No pending approvals"
-            />
-          </Card>
+
         </div>
 
         {/* RIGHT COLUMN */}
         <aside className="right-col">
           <div className="side-kpis">
-            <div className="mini-kpi">
-              <div className="mini-kpi-title">Total Sales</div>
-              <div className="mini-kpi-value">
-                ₹ {summary.totalSales || 0}
-              </div>
-            </div>
-
-            <div className="mini-kpi">
-              <div className="mini-kpi-title">Active Dealers</div>
-              <div className="mini-kpi-value">
-                {summary.activeDealers || summary.totalDealers || 0}
-              </div>
-            </div>
-
-            <div className="mini-kpi">
-              <div className="mini-kpi-title">Pending</div>
-              <div className="mini-kpi-value">{pendingApprovals.length}</div>
-            </div>
-
-            <div className="mini-kpi">
-              <div className="mini-kpi-title">Campaigns</div>
-              <div className="mini-kpi-value">{campaigns.length}</div>
-            </div>
+            <div className="mini-kpi"><div className="mini-kpi-title">Total Outstanding</div><div className="mini-kpi-value">₹ {summary.totalOutstanding || 0}</div></div>
+            <div className="mini-kpi"><div className="mini-kpi-title">Dealers Managed</div><div className="mini-kpi-value">{summary.totalDealers || 0}</div></div>
+            <div className="mini-kpi"><div className="mini-kpi-title">Pending Docs</div><div className="mini-kpi-value">{summary.pendingDocuments || 0}</div></div>
+            <div className="mini-kpi"><div className="mini-kpi-title">Pending Pricing</div><div className="mini-kpi-value">{summary.pendingPricing || 0}</div></div>
           </div>
 
-          {/* 💬 Recent Messages */}
-          <Card
-            title="Recent Messages"
-            className="side-card"
-            style={{ marginTop: "1rem" }}
-          >
-            <div style={{ maxHeight: 220, overflowY: "auto" }}>
-              {messages.length > 0 ? (
-                <ul className="message-list">
-                  {messages.slice(0, 6).map((msg) => (
-                    <li key={msg.id}>
-                      <div style={{ fontWeight: 600 }}>
-                        {msg.dealerName || `Dealer ${msg.senderId}`}
-                      </div>
-                      <div className="text-muted" style={{ fontSize: 13 }}>
-                        {msg.content}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted">No new messages</p>
-              )}
-            </div>
-          </Card>
-
-          {/* 📢 Active Campaigns */}
-          <Card
-            title="Active Campaigns"
-            className="side-card"
-            style={{ marginTop: "1rem" }}
-          >
+          <Card title="Active Campaigns" className="side-card" style={{ marginTop: "1rem" }}>
             <div style={{ maxHeight: 220, overflowY: "auto" }}>
               {campaigns.length > 0 ? (
                 campaigns.slice(0, 6).map((c) => (
-                  <div
-                    key={c.id}
-                    className="campaign-preview"
-                    onClick={() => navigate(`/campaigns/${c.id}`)}
-                  >
-                    <div style={{ fontWeight: 700, color: accent }}>
-                      {c.title}
-                    </div>
-                    <div className="text-muted" style={{ fontSize: 13 }}>
-                      {c.description}
-                    </div>
+                  <div key={c.id} className="campaign-preview" onClick={() => navigate(`/campaigns/${c.id}`)}>
+                    <div style={{ fontWeight: 700, color: accent }}>{c.title}</div>
+                    <div className="text-muted" style={{ fontSize: 13 }}>{c.description}</div>
                   </div>
                 ))
               ) : (

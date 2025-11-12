@@ -66,6 +66,7 @@ src/components/PageHeader.jsx
 src/components/Pagination.jsx
 src/components/PieChartCard.jsx
 src/components/PricingRequestForm.jsx
+src/components/PricingRequestModal.jsx
 src/components/ProtectedRoute.jsx
 src/components/SearchInput.jsx
 src/components/Sidebar.css
@@ -97,6 +98,7 @@ src/pages/InvoiceDetail.jsx
 src/pages/Invoices.jsx
 src/pages/Login.jsx
 src/pages/OTPVerify.jsx
+src/pages/PricingApprovals.jsx
 src/pages/Reports.jsx
 src/services/api.js
 src/services/socket.js
@@ -107,304 +109,6 @@ vite.config.js
 
 <files>
 This section contains the contents of the repository's files.
-
-<file path="src/components/PricingRequestForm.jsx">
-import React, { useState, useEffect } from "react";
-import api from "../services/api";
-import { toast } from "react-toastify";
-
-export default function PricingRequestForm({ onClose }) {
-  const [products, setProducts] = useState([]);
-  const [productId, setProductId] = useState("");
-  const [oldPrice, setOldPrice] = useState(0);
-  const [newPrice, setNewPrice] = useState("");
-  const [reason, setReason] = useState("");
-  const [loading, setLoading] = useState(false);
-
-  // Load all products
-  useEffect(() => {
-    const loadProducts = async () => {
-      try {
-        const res = await api.get("/products");
-        setProducts(res.data.products || []);
-      } catch (err) {
-        console.error("Failed to load products…", err);
-      }
-    };
-
-    loadProducts();
-  }, []);
-
-  // When product changes, auto-load old price
-  useEffect(() => {
-    if (!productId) return;
-
-    const p = products.find((x) => x.id === parseInt(productId));
-    if (p) setOldPrice(p.price || 0);
-  }, [productId, products]);
-
-  const submitRequest = async (e) => {
-    e.preventDefault();
-
-    if (!productId || !newPrice || !reason) {
-      toast.error("Please fill all fields");
-      return;
-    }
-
-    try {
-      setLoading(true);
-      await api.post("/pricing", {
-        productId,
-        oldPrice,
-        newPrice,
-        reason,
-      });
-
-      toast.success("✅ Pricing request submitted");
-      onClose();
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to submit request");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div style={{ padding: 20 }}>
-      <h2 style={{ marginBottom: 15 }}>Request Pricing Change</h2>
-
-      {/* Product Select */}
-      <label>Product</label>
-      <select
-        value={productId}
-        onChange={(e) => setProductId(e.target.value)}
-        style={{ width: "100%", padding: 8, marginBottom: 10 }}
-      >
-        <option value="">Select a product</option>
-        {products.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name}
-          </option>
-        ))}
-      </select>
-
-      {/* Old Price */}
-      <label>Current Price</label>
-      <input
-        type="text"
-        value={oldPrice}
-        disabled
-        style={{ width: "100%", padding: 8, marginBottom: 10, background: "#f3f4f6" }}
-      />
-
-      {/* New Price */}
-      <label>Requested New Price</label>
-      <input
-        type="number"
-        value={newPrice}
-        onChange={(e) => setNewPrice(e.target.value)}
-        style={{ width: "100%", padding: 8, marginBottom: 10 }}
-      />
-
-      {/* Reason */}
-      <label>Reason</label>
-      <textarea
-        value={reason}
-        onChange={(e) => setReason(e.target.value)}
-        rows={4}
-        style={{ width: "100%", padding: 8, marginBottom: 15 }}
-      />
-
-      {/* Buttons */}
-      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
-        <button
-          onClick={onClose}
-          style={{ padding: "8px 12px", background: "#e5e7eb", borderRadius: 6 }}
-        >
-          Cancel
-        </button>
-        <button
-          onClick={submitRequest}
-          disabled={loading}
-          style={{ padding: "8px 12px", background: "#3b82f6", color: "#fff", borderRadius: 6 }}
-        >
-          {loading ? "Submitting..." : "Submit Request"}
-        </button>
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="src/pages/AdminPricing.jsx">
-// ==============================
-// FILE: src/pages/admin/AdminPricing.jsx
-// ✅ Full Admin Pricing Approval Panel
-// ==============================
-
-import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import { toast } from "react-toastify";
-import Card from "../../components/Card";
-import IconPillButton from "../../components/IconPillButton";
-import SearchInput from "../../components/SearchInput";
-import Toolbar from "../../components/Toolbar";
-import "./AdminDashboard.css";
-
-export default function AdminPricing() {
-  const [requests, setRequests] = useState([]);
-  const [search, setSearch] = useState("");
-  const [loading, setLoading] = useState(true);
-  const [filter, setFilter] = useState("pending");
-
-  // Load all pricing requests
-  const loadRequests = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get("/pricing", { params: { all: true } });
-      setRequests(res.data.updates || []);
-    } catch (err) {
-      console.error(err);
-      toast.error("Failed to load requests");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    loadRequests();
-  }, []);
-
-  // Approve
-  const approve = async (id) => {
-    try {
-      await api.put(`/pricing/${id}/approve`);
-      toast.success("✅ Request Approved");
-      loadRequests();
-    } catch (err) {
-      toast.error("Failed to approve");
-    }
-  };
-
-  // Reject
-  const reject = async (id) => {
-    const remarks = prompt("Enter rejection reason:");
-    if (!remarks) return toast.error("Remarks required");
-
-    try {
-      await api.put(`/pricing/${id}/reject`, { remarks });
-      toast.info("❌ Request Rejected");
-      loadRequests();
-    } catch (err) {
-      toast.error("Failed to reject");
-    }
-  };
-
-  const filtered = requests.filter((r) => {
-    if (filter !== "all" && r.status !== filter) return false;
-    if (search && !String(r.productId).toLowerCase().includes(search.toLowerCase())) return false;
-    return true;
-  });
-
-  return (
-    <div className="admin-container">
-      <header className="admin-header">
-        <h1>Pricing Approvals</h1>
-      </header>
-
-      {/* Toolbar */}
-      <Toolbar
-        left={[
-          <SearchInput
-            key="search"
-            placeholder="Search by Product ID..."
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-          />,
-        ]}
-        right={[
-          <IconPillButton icon="🔄" label="Refresh" onClick={loadRequests} />,
-        ]}
-      />
-
-      {/* Filter */}
-      <div style={{ display: "flex", gap: 10, margin: "15px 0" }}>
-        {["all", "pending", "approved", "rejected"].map((s) => (
-          <button
-            key={s}
-            onClick={() => setFilter(s)}
-            style={{
-              padding: "6px 12px",
-              background: filter === s ? "#3b82f6" : "#e5e7eb",
-              color: filter === s ? "#fff" : "#111",
-              borderRadius: 6,
-              border: "none",
-            }}
-          >
-            {s.toUpperCase()}
-          </button>
-        ))}
-      </div>
-
-      <Card title="Pricing Requests Queue">
-        {loading ? (
-          <p>Loading...</p>
-        ) : filtered.length ? (
-          <table className="custom-table">
-            <thead>
-              <tr>
-                <th>ID</th>
-                <th>Product</th>
-                <th>Old</th>
-                <th>New</th>
-                <th>Dealer</th>
-                <th>Status</th>
-                <th>Requested At</th>
-                <th>Actions</th>
-              </tr>
-            </thead>
-            <tbody>
-              {filtered.map((r) => (
-                <tr key={r.id}>
-                  <td>{r.id}</td>
-                  <td>{r.productId}</td>
-                  <td>{r.oldPrice ?? "—"}</td>
-                  <td>{r.newPrice}</td>
-                  <td>{r.dealerName}</td>
-                  <td>{r.status}</td>
-                  <td>{new Date(r.createdAt).toLocaleDateString()}</td>
-                  <td>
-                    {r.status === "pending" && (
-                      <>
-                        <button
-                          style={{ marginRight: 10, background: "#10b981", padding: "5px 8px", borderRadius: 5, color: "#fff" }}
-                          onClick={() => approve(r.id)}
-                        >
-                          Approve
-                        </button>
-
-                        <button
-                          style={{ background: "#ef4444", padding: "5px 8px", borderRadius: 5, color: "#fff" }}
-                          onClick={() => reject(r.id)}
-                        >
-                          Reject
-                        </button>
-                      </>
-                    )}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        ) : (
-          <p>No requests found.</p>
-        )}
-      </Card>
-    </div>
-  );
-}
-</file>
 
 <file path=".gitignore">
 # Logs
@@ -845,6 +549,234 @@ export default function EmptyState({ icon = "🔍", title = "No data", descripti
 }
 </file>
 
+<file path="src/components/PricingRequestForm.jsx">
+import React, { useState, useEffect } from "react";
+import api from "../services/api";
+import { toast } from "react-toastify";
+
+export default function PricingRequestForm({ onClose }) {
+  const [products, setProducts] = useState([]);
+  const [productId, setProductId] = useState("");
+  const [oldPrice, setOldPrice] = useState(0);
+  const [newPrice, setNewPrice] = useState("");
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // Load all products
+  useEffect(() => {
+    const loadProducts = async () => {
+      try {
+        const res = await api.get("/products");
+        setProducts(res.data.products || []);
+      } catch (err) {
+        console.error("Failed to load products…", err);
+      }
+    };
+
+    loadProducts();
+  }, []);
+
+  // When product changes, auto-load old price
+  useEffect(() => {
+    if (!productId) return;
+
+    const p = products.find((x) => x.id === parseInt(productId));
+    if (p) setOldPrice(p.price || 0);
+  }, [productId, products]);
+
+  const submitRequest = async (e) => {
+    e.preventDefault();
+
+    if (!productId || !newPrice || !reason) {
+      toast.error("Please fill all fields");
+      return;
+    }
+
+    try {
+      setLoading(true);
+      await api.post("/pricing", {
+        productId,
+        oldPrice,
+        newPrice,
+        reason,
+      });
+
+      toast.success("✅ Pricing request submitted");
+      onClose();
+    } catch (err) {
+      console.error(err);
+      toast.error("Failed to submit request");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h2 style={{ marginBottom: 15 }}>Request Pricing Change</h2>
+
+      {/* Product Select */}
+      <label>Product</label>
+      <select
+        value={productId}
+        onChange={(e) => setProductId(e.target.value)}
+        style={{ width: "100%", padding: 8, marginBottom: 10 }}
+      >
+        <option value="">Select a product</option>
+        {products.map((p) => (
+          <option key={p.id} value={p.id}>
+            {p.name}
+          </option>
+        ))}
+      </select>
+
+      {/* Old Price */}
+      <label>Current Price</label>
+      <input
+        type="text"
+        value={oldPrice}
+        disabled
+        style={{ width: "100%", padding: 8, marginBottom: 10, background: "#f3f4f6" }}
+      />
+
+      {/* New Price */}
+      <label>Requested New Price</label>
+      <input
+        type="number"
+        value={newPrice}
+        onChange={(e) => setNewPrice(e.target.value)}
+        style={{ width: "100%", padding: 8, marginBottom: 10 }}
+      />
+
+      {/* Reason */}
+      <label>Reason</label>
+      <textarea
+        value={reason}
+        onChange={(e) => setReason(e.target.value)}
+        rows={4}
+        style={{ width: "100%", padding: 8, marginBottom: 15 }}
+      />
+
+      {/* Buttons */}
+      <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+        <button
+          onClick={onClose}
+          style={{ padding: "8px 12px", background: "#e5e7eb", borderRadius: 6 }}
+        >
+          Cancel
+        </button>
+        <button
+          onClick={submitRequest}
+          disabled={loading}
+          style={{ padding: "8px 12px", background: "#3b82f6", color: "#fff", borderRadius: 6 }}
+        >
+          {loading ? "Submitting..." : "Submit Request"}
+        </button>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/PricingRequestModal.jsx">
+import React, { useState, useEffect } from "react";
+import api from "../services/api";
+//import "./Modal.css"; // optional styling
+
+export default function PricingRequestModal({ open, onClose }) {
+  const [products, setProducts] = useState([]);
+  const [productId, setProductId] = useState("");
+  const [newPrice, setNewPrice] = useState("");
+  const [reason, setReason] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    if (open) {
+      (async () => {
+        try {
+          const res = await api.get("/products");
+          setProducts(res.data.products || res.data);
+        } catch (e) {
+          console.error("Failed to fetch products", e);
+        }
+      })();
+    }
+  }, [open]);
+
+  const handleSubmit = async () => {
+    if (!productId || !newPrice) {
+      alert("Please select a product and enter new price");
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const selected = products.find((p) => p.id === Number(productId));
+      await api.post("/pricing/request", {
+        productId,
+        oldPrice: selected?.price,
+        newPrice,
+        reason,
+      });
+      alert("✅ Pricing request submitted successfully!");
+      onClose();
+    } catch (e) {
+      console.error(e);
+      alert("❌ Failed to submit request");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  if (!open) return null;
+
+  return (
+    <div className="modal-overlay">
+      <div className="modal">
+        <h2>Request Price Change</h2>
+
+        <label>Product</label>
+        <select
+          value={productId}
+          onChange={(e) => setProductId(e.target.value)}
+        >
+          <option value="">Select a product</option>
+          {products.map((p) => (
+            <option key={p.id} value={p.id}>
+              {p.name} — ₹{p.price}
+            </option>
+          ))}
+        </select>
+
+        <label>New Price</label>
+        <input
+          type="number"
+          placeholder="Enter new price"
+          value={newPrice}
+          onChange={(e) => setNewPrice(e.target.value)}
+        />
+
+        <label>Reason</label>
+        <textarea
+          placeholder="Explain reason for price change..."
+          value={reason}
+          onChange={(e) => setReason(e.target.value)}
+        />
+
+        <div className="modal-actions">
+          <button onClick={handleSubmit} disabled={loading} className="btn-success">
+            {loading ? "Submitting..." : "Submit"}
+          </button>
+          <button onClick={onClose} className="btn-danger">
+            Cancel
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
 <file path="src/components/SearchInput.jsx">
 import React from "react";
 
@@ -1176,250 +1108,327 @@ export default function AccountsReports() {
 }
 </file>
 
-<file path="src/pages/AdminDocuments.jsx">
+<file path="src/pages/AdminPricing.jsx">
+// ==============================
+// FILE: src/pages/admin/AdminPricing.jsx
+// ✅ Full Admin Pricing Approval Panel
+// ==============================
+
 import React, { useEffect, useState } from "react";
-import api from "../services/api";
+import api from "../../services/api";
+import { toast } from "react-toastify";
+import Card from "../../components/Card";
+import IconPillButton from "../../components/IconPillButton";
+import SearchInput from "../../components/SearchInput";
+import Toolbar from "../../components/Toolbar";
+import "./AdminDashboard.css";
 
-export default function AdminDocuments() {
-  const [documents, setDocuments] = useState([]);
+export default function AdminPricing() {
+  const [requests, setRequests] = useState([]);
+  const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("pending");
 
-  const fetchDocuments = async () => {
+  // Load all pricing requests
+  const loadRequests = async () => {
     try {
-      const res = await api.get("/documents");
-      setDocuments(res.data.documents || []);
+      setLoading(true);
+      const res = await api.get("/pricing", { params: { all: true } });
+      setRequests(res.data.updates || []);
     } catch (err) {
-      console.error("Error fetching documents:", err);
+      console.error(err);
+      toast.error("Failed to load requests");
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    fetchDocuments();
+    loadRequests();
   }, []);
 
- const handleReview = async (docId, action) => {
-  const remarks = prompt(`Add remarks for ${action}:`) || "";
-  await api.patch(`/documents/${docId}/status`, { action, remarks }); // matches router.patch('/:id/status')
-  fetchDocuments();
-};
+  // Approve
+  const approve = async (id) => {
+    try {
+      await api.put(`/pricing/${id}/approve`);
+      toast.success("✅ Request Approved");
+      loadRequests();
+    } catch (err) {
+      toast.error("Failed to approve");
+    }
+  };
 
-  if (loading) return <p>Loading documents...</p>;
+  // Reject
+  const reject = async (id) => {
+    const remarks = prompt("Enter rejection reason:");
+    if (!remarks) return toast.error("Remarks required");
+
+    try {
+      await api.put(`/pricing/${id}/reject`, { remarks });
+      toast.info("❌ Request Rejected");
+      loadRequests();
+    } catch (err) {
+      toast.error("Failed to reject");
+    }
+  };
+
+  const filtered = requests.filter((r) => {
+    if (filter !== "all" && r.status !== filter) return false;
+    if (search && !String(r.productId).toLowerCase().includes(search.toLowerCase())) return false;
+    return true;
+  });
 
   return (
-    <div style={styles.container}>
-      <h2 style={styles.title}>Document Review</h2>
-      <table style={styles.table}>
-        <thead>
-          <tr>
-            <th>Dealer</th>
-            <th>Document Name</th>
-            <th>Type</th>
-            <th>Status</th>
-            <th>Uploaded At</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {documents.map((doc) => (
-            <tr key={doc.id}>
-              <td>{doc.dealer?.businessName || "—"}</td>
-              <td>
-                <a href={doc.url} target="_blank" rel="noreferrer">
-                  {doc.name}
-                </a>
-              </td>
-              <td>{doc.type}</td>
-              <td
-                style={{
-                  color: doc.status === "approved" ? "green" : doc.status === "rejected" ? "red" : "orange",
-                }}
-              >
-                {doc.status || "pending"}
-              </td>
-              <td>{new Date(doc.createdAt).toLocaleDateString()}</td>
-              <td>
-                {doc.status === "pending" && (
-                  <>
-                    <button
-                      style={{ ...styles.button, background: "#2ecc71" }}
-                      onClick={() => handleReview(doc.id, "approve")}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      style={{ ...styles.button, background: "#e74c3c" }}
-                      onClick={() => handleReview(doc.id, "reject")}
-                    >
-                      Reject
-                    </button>
-                  </>
-                )}
-              </td>
-            </tr>
-          ))}
-        </tbody>
-      </table>
+    <div className="admin-container">
+      <header className="admin-header">
+        <h1>Pricing Approvals</h1>
+      </header>
+
+      {/* Toolbar */}
+      <Toolbar
+        left={[
+          <SearchInput
+            key="search"
+            placeholder="Search by Product ID..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />,
+        ]}
+        right={[
+          <IconPillButton icon="🔄" label="Refresh" onClick={loadRequests} />,
+        ]}
+      />
+
+      {/* Filter */}
+      <div style={{ display: "flex", gap: 10, margin: "15px 0" }}>
+        {["all", "pending", "approved", "rejected"].map((s) => (
+          <button
+            key={s}
+            onClick={() => setFilter(s)}
+            style={{
+              padding: "6px 12px",
+              background: filter === s ? "#3b82f6" : "#e5e7eb",
+              color: filter === s ? "#fff" : "#111",
+              borderRadius: 6,
+              border: "none",
+            }}
+          >
+            {s.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      <Card title="Pricing Requests Queue">
+        {loading ? (
+          <p>Loading...</p>
+        ) : filtered.length ? (
+          <table className="custom-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Product</th>
+                <th>Old</th>
+                <th>New</th>
+                <th>Dealer</th>
+                <th>Status</th>
+                <th>Requested At</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody>
+              {filtered.map((r) => (
+                <tr key={r.id}>
+                  <td>{r.id}</td>
+                  <td>{r.productId}</td>
+                  <td>{r.oldPrice ?? "—"}</td>
+                  <td>{r.newPrice}</td>
+                  <td>{r.dealerName}</td>
+                  <td>{r.status}</td>
+                  <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                  <td>
+                    {r.status === "pending" && (
+                      <>
+                        <button
+                          style={{ marginRight: 10, background: "#10b981", padding: "5px 8px", borderRadius: 5, color: "#fff" }}
+                          onClick={() => approve(r.id)}
+                        >
+                          Approve
+                        </button>
+
+                        <button
+                          style={{ background: "#ef4444", padding: "5px 8px", borderRadius: 5, color: "#fff" }}
+                          onClick={() => reject(r.id)}
+                        >
+                          Reject
+                        </button>
+                      </>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p>No requests found.</p>
+        )}
+      </Card>
     </div>
   );
 }
-
-const styles = {
-  container: { padding: "2rem", fontFamily: "'Poppins', sans-serif" },
-  title: { marginBottom: "1rem", color: "#2c3e50" },
-  table: {
-    width: "100%",
-    borderCollapse: "collapse",
-    boxShadow: "0 4px 10px rgba(0,0,0,0.1)",
-  },
-  button: {
-    border: "none",
-    borderRadius: "4px",
-    color: "#fff",
-    padding: "6px 10px",
-    cursor: "pointer",
-    marginRight: "5px",
-  },
-};
 </file>
 
-<file path="src/pages/dashboards/DashboardLayout.css">
-/* ========== THEME-AWARE COMPACT DASHBOARD LAYOUT ========== */
-.dashboard-container {
-  padding: 1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  transition: background 0.3s ease, color 0.3s ease;
-}
+<file path="src/pages/PricingApprovals.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
+import { toast } from "react-toastify";
+import PageHeader from "../components/PageHeader";
+import Card from "../components/Card";
+import SearchInput from "../components/SearchInput";
+import "./dashboards/DashboardLayout.css";
 
-.dashboard-header {
-  margin-bottom: 0.5rem;
-}
+export default function PricingApprovals() {
+  const [loading, setLoading] = useState(true);
+  const [updates, setUpdates] = useState([]);
+  const [page, setPage] = useState(1);
+  const [limit] = useState(20);
+  const [total, setTotal] = useState(0);
+  const [query, setQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all");
 
-.dashboard-header h1 {
-  font-size: 1.1rem;
-  margin-bottom: 0.3rem;
-  font-weight: 600;
-}
+  const fetchUpdates = async (pageToLoad = 1) => {
+    try {
+      setLoading(true);
+      const q = new URLSearchParams();
+      q.set("page", pageToLoad);
+      q.set("limit", limit);
+      // Admin wants all updates; dealers pass mine=true from dealer UI
+      const res = await api.get(`/pricing?${q.toString()}`);
+      setUpdates(res.data.updates || []);
+      setTotal(res.data.total || 0);
+    } catch (err) {
+      console.error("Failed to fetch pricing updates:", err);
+      toast.error("Failed to load pricing requests");
+    } finally {
+      setLoading(false);
+    }
+  };
 
-.dashboard-header p {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
+  useEffect(() => {
+    fetchUpdates(page);
+    // eslint-disable-next-line
+  }, [page]);
 
-/* GRID STRUCTURE */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1rem;
-  width: 100%;
-}
+  const applyAction = async (id, action) => {
+    try {
+      const confirm = window.confirm(`Are you sure you want to ${action} this pricing request?`);
+      if (!confirm) return;
 
-.dashboard-grid .column {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
+      const remarks = window.prompt("Optional remarks (enter to skip):", "");
+      // call backend patch
+      await api.patch(`/pricing/${id}`, { status: action, remarks });
+      toast.success(`Request ${action}ed`);
+      // update local list
+      setUpdates((prev) => prev.filter((u) => u.id !== id));
+      setTotal((t) => Math.max(0, t - 1));
+    } catch (err) {
+      console.error("Approve/reject failed:", err);
+      toast.error("Action failed");
+    }
+  };
 
-/* CARD & COMPONENT STYLING */
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 14px;
-  padding: 0.9rem 1rem;
-  box-shadow: var(--card-shadow);
-  transition: 0.25s ease;
-}
+  // client-side search + filter
+  const visible = updates
+    .filter((u) => (statusFilter === "all" ? true : u.status === statusFilter))
+    .filter((u) => {
+      if (!query) return true;
+      const q = query.toLowerCase();
+      return (
+        String(u.id).includes(q) ||
+        String(u.productId).includes(q) ||
+        String(u.dealerName || "").toLowerCase().includes(q) ||
+        String(u.requestedBy || "").toLowerCase().includes(q)
+      );
+    });
 
-.card:hover {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
+  return (
+    <div className="dashboard-container">
+      <PageHeader title="Pricing Approvals" subtitle="Review and approve pricing change requests." />
 
-.card h2,
-.card h3 {
-  font-size: 0.9rem;
-  margin-bottom: 0.4rem;
-  font-weight: 600;
-}
+      <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+        <SearchInput value={query} onChange={(e) => setQuery(e.target.value)} placeholder="Search by id, product, dealer, requester..." />
+        <div>
+          <select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} style={{ padding: "6px 10px", borderRadius: 6 }}>
+            <option value="all">All</option>
+            <option value="pending">Pending</option>
+            <option value="approved">Approved</option>
+            <option value="rejected">Rejected</option>
+          </select>
+        </div>
+        <div style={{ marginLeft: "auto" }}>
+          <button className="btn-primary" onClick={() => fetchUpdates(1)}>Refresh</button>
+        </div>
+      </div>
 
-.text-muted {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-}
-
-/* STAT CARDS */
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.8rem;
-}
-
-.stat-card {
-  text-align: center;
-  border: 1px solid var(--card-border);
-  background: var(--card-bg);
-  border-radius: 10px;
-  padding: 0.7rem;
-}
-
-.stat-card h3 {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.stat-card p {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--accent);
-}
-
-/* TABLES */
-.custom-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8rem;
-}
-
-.custom-table th,
-.custom-table td {
-  padding: 0.35rem 0.5rem;
-  border-bottom: 1px solid var(--card-border);
-}
-
-.custom-table th {
-  text-transform: uppercase;
-  color: var(--text-muted);
-  font-size: 0.7rem;
-}
-
-/* BUTTON ROWS */
-.quick-actions {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.7rem;
-}
-
-/* CHART */
-.recharts-wrapper {
-  font-size: 0.75rem;
-}
-
-/* COMPACT CARD HEIGHTS */
-.chart-card {
-  height: 230px;
-}
-
-/* THEME-INHERITED COLORS */
-[data-theme="dark"] {
-  --card-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme="light"] {
-  --card-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
+      <Card>
+        {loading ? (
+          <div className="center">Loading...</div>
+        ) : visible.length ? (
+          <div style={{ overflowX: "auto" }}>
+            <table className="custom-table">
+              <thead>
+                <tr>
+                  <th>ID</th>
+                  <th>Product</th>
+                  <th>Dealer</th>
+                  <th>Old</th>
+                  <th>New</th>
+                  <th>Status</th>
+                  <th>Requested By</th>
+                  <th>Requested At</th>
+                  <th style={{ minWidth: 140 }}>Actions</th>
+                </tr>
+              </thead>
+              <tbody>
+                {visible.map((u) => (
+                  <tr key={u.id}>
+                    <td>{u.id}</td>
+                    <td>{u.product?.name || u.productId}</td>
+                    <td>{u.dealer?.businessName || u.dealerName || "—"}</td>
+                    <td>{u.oldPrice ?? "—"}</td>
+                    <td>{u.newPrice}</td>
+                    <td className={`status-${u.status}`}>{u.status}</td>
+                    <td>{u.requestedBy}</td>
+                    <td>{new Date(u.createdAt).toLocaleString()}</td>
+                    <td>
+                      {u.status === "pending" ? (
+                        <>
+                          <button className="btn-success" onClick={() => applyAction(u.id, "approved")}>Approve</button>
+                          <button className="btn-danger" style={{ marginLeft: 8 }} onClick={() => applyAction(u.id, "rejected")}>Reject</button>
+                        </>
+                      ) : (
+                        <span className="text-muted small">No actions</span>
+                      )}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {/* Pagination basic */}
+            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginTop: 12 }}>
+              <div className="text-muted small">Total: {total}</div>
+              <div style={{ display: "flex", gap: 8 }}>
+                <button className="btn" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>Prev</button>
+                <div style={{ padding: "6px 10px" }}>Page {page}</div>
+                <button className="btn" onClick={() => setPage((p) => p + 1)} disabled={updates.length < limit}>Next</button>
+              </div>
+            </div>
+          </div>
+        ) : (
+          <p className="text-muted">No pricing requests found.</p>
+        )}
+      </Card>
+    </div>
+  );
 }
 </file>
 
@@ -1605,6 +1614,308 @@ export default function StatCard({ title, value, icon, accent = "#f97316" }) {
       <div style={{ fontSize: "1.8rem", fontWeight: 700, color: accent }}>{value}</div>
     </div>
   );
+}
+</file>
+
+<file path="src/pages/AdminDocuments.jsx">
+// src/pages/AdminDocuments.jsx
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
+import DataTable from "../components/DataTable";
+import EmptyState from "../components/EmptyState";
+
+export default function AdminDocuments() {
+  const [documents, setDocuments] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [filter, setFilter] = useState("all"); // all | pending | approved | rejected
+
+  const fetchDocuments = async () => {
+    try {
+      const res = await api.get("/documents");
+      setDocuments(res.data.documents || []);
+    } catch (err) {
+      console.error("Error loading documents:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchDocuments();
+  }, []);
+
+  const handleReview = async (id, action) => {
+    const remarks = prompt(`Remarks for ${action}?`) || "";
+    try {
+      await api.patch(`/documents/${id}/status`, { action, remarks });
+      fetchDocuments();
+    } catch (err) {
+      console.error("Review failed:", err);
+    }
+  };
+
+  const filtered = documents.filter((d) =>
+    filter === "all" ? true : d.status === filter
+  );
+
+  if (loading) return <p style={{ padding: "2rem" }}>Loading...</p>;
+
+  return (
+    <div style={{ padding: "2rem" }}>
+      <h1 style={{ marginBottom: "1rem", color: "#cbd5e1" }}>📄 Document Approvals</h1>
+
+      {/* FILTER BUTTONS */}
+      <div style={{ marginBottom: "1rem", display: "flex", gap: "0.5rem" }}>
+        {["all", "pending", "approved", "rejected"].map((f) => (
+          <button
+            key={f}
+            onClick={() => setFilter(f)}
+            style={{
+              padding: "6px 14px",
+              borderRadius: 6,
+              border: "1px solid rgba(255,255,255,0.1)",
+              background: filter === f ? "#f97316" : "transparent",
+              color: filter === f ? "#fff" : "#cbd5e1",
+              cursor: "pointer",
+              transition: "0.2s",
+            }}
+          >
+            {f.toUpperCase()}
+          </button>
+        ))}
+      </div>
+
+      {/* TABLE OR EMPTY */}
+      {filtered.length === 0 ? (
+        <EmptyState
+          icon="📂"
+          title="No documents"
+          description="No documents found for the selected filter."
+        />
+      ) : (
+        <DataTable
+          columns={[
+            { key: "id", label: "ID" },
+            { key: "dealerName", label: "Dealer" },
+            { key: "type", label: "Document Type" },
+            { key: "uploadedAt", label: "Uploaded" },
+            {
+              key: "status",
+              label: "Status",
+              render: (v) => (
+                <span
+                  style={{
+                    padding: "4px 10px",
+                    borderRadius: 20,
+                    fontSize: 12,
+                    color: "#fff",
+                    background:
+                      v === "approved"
+                        ? "#22c55e"
+                        : v === "rejected"
+                        ? "#ef4444"
+                        : "#f59e0b",
+                  }}
+                >
+                  {v.toUpperCase()}
+                </span>
+              ),
+            },
+            {
+              key: "actions",
+              label: "Actions",
+              render: (_, row) =>
+                row.status === "pending" ? (
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 6,
+                        border: "none",
+                        background: "#22c55e",
+                        color: "#fff",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => handleReview(row.id, "approve")}
+                    >
+                      Approve
+                    </button>
+
+                    <button
+                      style={{
+                        padding: "4px 10px",
+                        borderRadius: 6,
+                        border: "none",
+                        background: "#ef4444",
+                        color: "#fff",
+                        cursor: "pointer",
+                      }}
+                      onClick={() => handleReview(row.id, "reject")}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                ) : (
+                  "—"
+                ),
+            },
+          ]}
+          rows={filtered.map((d) => ({
+            id: d.id,
+            dealerName: d.dealerName || d.dealerId,
+            type: d.documentType,
+            uploadedAt: new Date(d.createdAt).toLocaleDateString(),
+            status: d.status,
+          }))}
+          emptyMessage="No documents"
+        />
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/DashboardLayout.css">
+/* ========== THEME-AWARE COMPACT DASHBOARD LAYOUT ========== */
+.dashboard-container {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.dashboard-header {
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-header h1 {
+  font-size: 1.1rem;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+}
+
+.dashboard-header p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* GRID STRUCTURE */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  width: 100%;
+}
+
+.dashboard-grid .column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* CARD & COMPONENT STYLING */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  box-shadow: var(--card-shadow);
+  transition: 0.25s ease;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.card h2,
+.card h3 {
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.text-muted {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* STAT CARDS */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.8rem;
+}
+
+.stat-card {
+  text-align: center;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  border-radius: 10px;
+  padding: 0.7rem;
+}
+
+.stat-card h3 {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.stat-card p {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* TABLES */
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.custom-table th,
+.custom-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.custom-table th {
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+/* BUTTON ROWS */
+.quick-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+/* CHART */
+.recharts-wrapper {
+  font-size: 0.75rem;
+}
+
+/* COMPACT CARD HEIGHTS */
+.chart-card {
+  height: 230px;
+}
+
+/* THEME-INHERITED COLORS */
+[data-theme="dark"] {
+  --card-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] {
+  --card-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
+}
+.chart-card {
+  height: 340px;   /* or 360px */
+  min-height: 320px;
+  position: relative;
 }
 </file>
 
@@ -4649,6 +4960,8 @@ import AccountsInvoices from "./pages/accounts/AccountsInvoices";
 import AccountsNotes from "./pages/accounts/AccountsNotes";
 import AccountsReports from "./pages/accounts/AccountsReports";
 import AdminDocuments from "./pages/AdminDocuments";
+import PricingApprovals from "./pages/PricingApprovals";
+
 
 // inside <Routes>
 
@@ -4687,6 +5000,7 @@ function App() {
 <Route path="accounts/reports" element={<AccountsReports />} />
 
 <Route path="/admin/documents" element={<AdminDocuments />} />
+<Route path="/pricing-approvals" element={<PricingApprovals />} />
 
 
             {/* 🔜 Add Campaigns, Reports, Admin here */}
@@ -4727,10 +5041,12 @@ import "./DashboardLayout.css";
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
+
   const [summary, setSummary] = useState({});
   const [approvals, setApprovals] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [dealerActivity, setDealerActivity] = useState([]);
+  const [pricing, setPricing] = useState({ approved: 0, pending: 0, rejected: 0 });
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
@@ -4738,53 +5054,116 @@ export default function AdminDashboard() {
     const loadData = async () => {
       try {
         setLoading(true);
-        const perf = await api.get("/reports/dealer-performance");
-        const invoices = perf.data?.invoices || [];
-        const totalSales = perf.data?.totalSales || 0;
-        const dealers = new Set(invoices.map((i) => i.dealerId)).size;
 
+        // Admin: fetch full dealer performance report
+        const perfRes = await api.get("/reports/dealer-performance");
+        const perfData = perfRes.data;
+        let totalSales = 0;
+        let dealersCount = 0;
+
+        if (Array.isArray(perfData)) {
+          dealersCount = perfData.length;
+          perfData.forEach((d) => {
+            totalSales += Number(d.totalSales || 0);
+          });
+        } else {
+          dealersCount = perfData?.dealers || 0;
+          totalSales = perfData?.totalSales || 0;
+        }
+
+        // Campaigns
         const campaignRes = await api.get("/campaigns");
-        const activeCampaigns = campaignRes.data.campaigns?.length || 0;
-        setCampaigns(campaignRes.data.campaigns || campaignRes.data);
+        const activeCampaigns = campaignRes.data.campaigns?.length || campaignRes.data?.length || 0;
+        setCampaigns(campaignRes.data.campaigns || campaignRes.data || []);
 
+        // Pending documents (approvals)
         const docs = await api.get("/documents");
-        const approvals = docs.data.documents || [];
+        const pendingDocs = docs.data.documents || [];
 
-        const monthly = {};
-        invoices.forEach((i) => {
-          const m = new Date(i.invoiceDate).toLocaleString("default", { month: "short" });
-          monthly[m] = monthly[m] || { dealersOnboarded: 0, blockedDealers: 0 };
-          monthly[m].dealersOnboarded += 1;
-        });
+        // Pricing summary
+        let pricingRes;
+        try {
+          pricingRes = await api.get("/pricing/summary");
+        } catch {
+          pricingRes = { data: { approved: 0, pending: 0, rejected: 0 } };
+        }
+        setPricing(pricingRes.data || { approved: 0, pending: 0, rejected: 0 });
 
-        setDealerActivity(
-          Object.keys(monthly).map((m) => ({
-            month: m,
-            dealersOnboarded: monthly[m].dealersOnboarded,
-            blockedDealers: Math.floor(Math.random() * 3),
-          }))
-        );
+        // ===== Enhanced dealer activity insights =====
+const monthly = {};
 
-        setSummary({
-          dealers,
-          totalSales,
-          activeCampaigns,
-          blockedDealers: 2,
-          pendingApprovals: approvals.length,
-        });
-        setApprovals(approvals);
+// Get invoices or performance data (depending on your backend)
+const rawData = Array.isArray(perfData)
+  ? perfData
+  : perfData?.dealers || [];
+
+(rawData || []).forEach((dealer) => {
+  const date = dealer.createdAt || dealer.onboardedAt || dealer.updatedAt || new Date();
+  const m = new Date(date).toLocaleString("default", { month: "short" });
+
+  if (!monthly[m]) {
+    monthly[m] = {
+      month: m,
+      dealersOnboarded: 0,
+      blockedDealers: 0,
+      totalSales: 0,
+    };
+  }
+
+  monthly[m].dealersOnboarded += 1;
+  monthly[m].totalSales += Number(dealer.totalSales || 0);
+  if (dealer.status === "blocked" || dealer.isBlocked) {
+    monthly[m].blockedDealers += 1;
+  }
+});
+
+// Ensure last 6 months are present
+const now = new Date();
+const last6Months = [];
+for (let i = 5; i >= 0; i--) {
+  const d = new Date(now);
+  d.setMonth(now.getMonth() - i);
+  const m = d.toLocaleString("default", { month: "short" });
+
+  last6Months.push({
+    month: m,
+    dealersOnboarded: monthly[m]?.dealersOnboarded || 0,
+    blockedDealers: monthly[m]?.blockedDealers || 0,
+    totalSales: monthly[m]?.totalSales || 0,
+  });
+}
+
+console.log("📊 Dealer Activity Chart Data:", last6Months);
+setDealerActivity(last6Months);
+
+// Compute average monthly sales
+const avgMonthlySales =
+  last6Months.reduce((sum, a) => sum + a.totalSales, 0) / (last6Months.length || 1);
+
+setSummary({
+  dealers: dealersCount,
+  totalSales,
+  avgMonthlySales: Math.round(avgMonthlySales),
+  activeCampaigns,
+  blockedDealers: last6Months.reduce((sum, a) => sum + a.blockedDealers, 0),
+  pendingApprovals: pendingDocs.length,
+});
+
+
+        setApprovals(pendingDocs);
       } catch (e) {
         console.error("Admin dashboard fetch error:", e);
       } finally {
         setLoading(false);
       }
     };
+
     loadData();
   }, []);
 
-  const handleApproval = async (id, action) => {
-    toast.info(`Dealer ${action === "approve" ? "approved ✅" : "rejected ❌"}`);
-    setApprovals((prev) => prev.filter((a) => a.id !== id));
+  const handleApproval = (id, action) => {
+    toast.info(`Opening pricing approvals list...`);
+    navigate("/pricing-approvals");
   };
 
   if (loading)
@@ -4796,10 +5175,11 @@ export default function AdminDashboard() {
 
   return (
     <div className="dashboard-container">
-      {/* HEADER */}
-      <PageHeader title="Admin Dashboard" subtitle="Quick overview of dealer performance & campaigns." />
+      <PageHeader
+        title="Admin Dashboard"
+        subtitle="Quick overview of dealer performance & campaigns."
+      />
 
-      {/* TOOLBAR */}
       <Toolbar
         left={[
           <SearchInput
@@ -4826,36 +5206,60 @@ export default function AdminDashboard() {
         ]}
       />
 
-      {/* KPI SUMMARY */}
       <div className="stat-grid">
         <StatCard title="Total Dealers" value={summary.dealers || 0} icon="🏪" />
         <StatCard title="Pending Approvals" value={summary.pendingApprovals || 0} icon="🕒" />
         <StatCard title="Blocked Dealers" value={summary.blockedDealers || 0} icon="🚫" />
         <StatCard title="Active Campaigns" value={summary.activeCampaigns || 0} icon="📢" />
+        <StatCard
+          title="Avg Monthly Sales"
+          value={`₹${summary.avgMonthlySales?.toLocaleString() || 0}`}
+          icon="💰"
+        />
       </div>
 
-      {/* MAIN GRID */}
       <div className="dashboard-grid">
-        {/* LEFT COLUMN */}
         <div className="column">
           <Card title="Dealer Activity (Last 6 Months)" className="chart-card">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={dealerActivity}>
-                <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
-                <XAxis dataKey="month" stroke="var(--text-muted)" />
-                <YAxis stroke="var(--text-muted)" />
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--card-bg)",
-                    border: "1px solid var(--card-border)",
-                    color: "var(--text-color)",
-                  }}
-                />
-                <Bar dataKey="dealersOnboarded" fill="var(--accent)" barSize={12} radius={[4, 4, 0, 0]} />
-                <Bar dataKey="blockedDealers" fill="var(--text-muted)" barSize={12} radius={[4, 4, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
+  <div style={{
+    width: "100%",
+    height: "340px",       // fixed height
+    background: "#1e1e1e22", // debug background
+    border: "1px dashed #999"
+  }}>
+    <ResponsiveContainer width="100%" height="100%">
+      <BarChart
+        data={dealerActivity}
+        margin={{ top: 20, right: 20, left: 10, bottom: 20 }}
+      >
+        <CartesianGrid strokeDasharray="3 3" stroke="#ccc" />
+        <XAxis dataKey="month" stroke="#666" />
+        <YAxis yAxisId="left" stroke="#666" />
+        <YAxis
+          yAxisId="right"
+          orientation="right"
+          stroke="#ffb300"
+          tickFormatter={(v) => `₹${v / 1000}k`}
+        />
+        <Tooltip
+          contentStyle={{
+            background: "#222",
+            border: "1px solid #555",
+            color: "#fff",
+          }}
+          formatter={(v, name) =>
+            name === "totalSales" ? [`₹${v.toLocaleString()}`, "Total Sales"] : [v, name]
+          }
+        />
+        <Bar yAxisId="left" dataKey="dealersOnboarded" fill="#d44b22ff" name="Dealers Onboarded" />
+        <Bar yAxisId="left" dataKey="blockedDealers" fill="#F44336" name="Blocked Dealers" />
+        <Bar yAxisId="right" dataKey="totalSales" fill="#ff6a07ff" name="Total Sales" />
+      </BarChart>
+    </ResponsiveContainer>
+  </div>
+</Card>
+
+
 
           <div className="stat-grid">
             <Card title="Market Demand" compact>
@@ -4869,8 +5273,56 @@ export default function AdminDashboard() {
           </div>
         </div>
 
-        {/* RIGHT COLUMN */}
         <div className="column">
+          <Card title="Pricing Distribution">
+            <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ flex: 1, height: 160 }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart
+                    data={[
+                      { name: "Approved", value: pricing.approved || 0 },
+                      { name: "Pending", value: pricing.pending || 0 },
+                      { name: "Rejected", value: pricing.rejected || 0 },
+                    ]}
+                  >
+                    <CartesianGrid strokeDasharray="3 3" stroke="var(--card-border)" />
+                    <XAxis dataKey="name" stroke="var(--text-muted)" />
+                    <YAxis stroke="var(--text-muted)" />
+                    <Tooltip
+                      contentStyle={{
+                        background: "var(--card-bg)",
+                        border: "1px solid var(--card-border)",
+                        color: "var(--text-color)",
+                      }}
+                    />
+                    <Bar dataKey="value" fill="var(--accent)" barSize={18} radius={[4, 4, 0, 0]} />
+                  </BarChart>
+                </ResponsiveContainer>
+              </div>
+
+              <div style={{ width: 170 }}>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 18, fontWeight: 600 }}>{pricing.approved || 0}</div>
+                  <div className="text-muted small">Approved</div>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 18, fontWeight: 600 }}>{pricing.pending || 0}</div>
+                  <div className="text-muted small">Pending</div>
+                </div>
+                <div style={{ marginBottom: 12 }}>
+                  <div style={{ fontSize: 18, fontWeight: 600 }}>{pricing.rejected || 0}</div>
+                  <div className="text-muted small">Rejected</div>
+                </div>
+
+                <div style={{ marginTop: 8 }}>
+                  <button className="btn-primary" onClick={() => navigate("/pricing-approvals")}>
+                    View Pricing Requests
+                  </button>
+                </div>
+              </div>
+            </div>
+          </Card>
+
           <Card title="Pending Approvals">
             {approvals.slice(0, 4).length ? (
               approvals.slice(0, 4).map((a) => (
@@ -4889,11 +5341,11 @@ export default function AdminDashboard() {
                     <strong>{a.dealerName}</strong>
                     <div className="text-muted small">{a.documentType}</div>
                   </div>
-                  <div style={{ display: "flex", gap: "0.3rem" }}>
-                    <button className="btn-success" onClick={() => handleApproval(a.id, "approve")}>
+                  <div style={{ display: "flex", gap: 6 }}>
+                    <button className="btn-success" onClick={() => handleApproval(a.id, "open")}>
                       ✔
                     </button>
-                    <button className="btn-danger" onClick={() => handleApproval(a.id, "reject")}>
+                    <button className="btn-danger" onClick={() => handleApproval(a.id, "open")}>
                       ✖
                     </button>
                   </div>
@@ -4916,7 +5368,7 @@ export default function AdminDashboard() {
                     padding: "0.5rem 0",
                   }}
                 >
-                  <strong style={{ color: "var(--accent)" }}>{c.title}</strong>
+                  <strong style={{ color: "var(--accent)" }}>{c.title || c.campaignName}</strong>
                   <p className="text-muted small">{c.description}</p>
                 </div>
               ))
@@ -4932,7 +5384,10 @@ export default function AdminDashboard() {
 </file>
 
 <file path="src/pages/dashboards/ManagerDashboard.jsx">
-// src/pages/dashboards/ManagerDashboard.jsx
+// ==============================
+// FILE: src/pages/dashboards/ManagerDashboard.jsx
+// ==============================
+
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
 import socket from "../../services/socket";
@@ -4977,26 +5432,28 @@ export default function ManagerDashboard() {
   const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
   const accent = "#3b82f6";
 
+  // 🔹 Load manager summary, dealers, pricing requests, campaigns, etc.
   useEffect(() => {
     const loadData = async () => {
       try {
         setLoading(true);
-        const [summaryRes, perfRes, approvalsRes, msgRes, campRes, invRes] =
+
+        const [summaryRes, dealersRes, pricingRes, msgRes, campRes, invRes] =
           await Promise.all([
-            api.get("/reports/dealer-performance"),
-            api.get("/reports/territory"),
-            api.get("/reports/pending-approvals"),
-            api.get("/messages"),
-            api.get("/campaigns"),
-            api.get("/inventory/summary"),
+            api.get("/managers/summary"), // ✅ manager summary
+            api.get("/managers/dealers"), // ✅ dealers list
+            api.get("/managers/pricing?status=pending"), // ✅ pending pricing approvals
+            api.get("/messages"), // ✅ messages (existing backend)
+            api.get("/campaigns"), // ✅ active campaigns
+            api.get("/inventory/summary"), // ✅ inventory summary
           ]);
 
         setSummary(summaryRes.data || {});
-        setDealerPerformance(perfRes.data.report || []);
-        setPendingApprovals(approvalsRes.data || []);
+        setDealerPerformance(dealersRes.data.dealers || []);
+        setPendingApprovals(pricingRes.data.updates || []);
         setMessages(msgRes.data.messages || msgRes.data || []);
         setCampaigns(campRes.data.campaigns || campRes.data || []);
-        setInventory(invRes.data.inventory || []);
+        setInventory(invRes.data.inventory || invRes.data || []);
       } catch (err) {
         console.error("Manager dashboard load error:", err);
         toast.error("Failed to load dashboard data");
@@ -5007,7 +5464,7 @@ export default function ManagerDashboard() {
     loadData();
   }, []);
 
-  // ✅ Realtime updates
+  // 🔹 Realtime updates (documents, messages, campaigns)
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) socket.auth = { token };
@@ -5046,12 +5503,37 @@ export default function ManagerDashboard() {
       </div>
     );
 
-  // 🔍 Stock health classification
+  // 🧮 Stock health classification
   const lowStock = inventory.filter((i) => i.available < 20);
   const mediumStock = inventory.filter(
     (i) => i.available >= 20 && i.available < 100
   );
   const highStock = inventory.filter((i) => i.available >= 100);
+// 🔹 Handle pricing approval / rejection / forwarding
+const handlePricingAction = async (id, action) => {
+  try {
+    const remarks = prompt(`Enter remarks for ${action.toUpperCase()} (optional):`) || "";
+
+    const res = await api.patch(`/managers/pricing/${id}/forward`, {
+      action,
+      remarks,
+    });
+
+    toast.success(`✅ Pricing request ${action} successful!`);
+
+    // Refresh list after action
+    setPendingApprovals((prev) =>
+      prev.filter((p) => p.id !== id)
+    );
+
+    // Optional: reload summary counts
+    const summaryRes = await api.get("/managers/summary");
+    setSummary(summaryRes.data || {});
+  } catch (err) {
+    console.error("Pricing action failed:", err);
+    toast.error("Failed to process pricing action");
+  }
+};
 
   return (
     <div className="manager-dashboard" style={{ color: "var(--text-color)" }}>
@@ -5090,25 +5572,13 @@ export default function ManagerDashboard() {
         {/* LEFT COLUMN */}
         <div className="left-col">
           <div className="kpi-row">
-            <StatCard
-              title="Total Dealers"
-              value={summary.totalDealers || 0}
-              icon="🏪"
-            />
-            <StatCard
-              title="Active Campaigns"
-              value={campaigns.length}
-              icon="📢"
-            />
-            <StatCard
-              title="Pending Approvals"
-              value={pendingApprovals.length}
-              icon="🕒"
-            />
-            <StatCard title="New Messages" value={messages.length} icon="💬" />
+            <StatCard title="Total Dealers" value={summary.totalDealers || 0} icon="🏪" />
+            <StatCard title="Pending Pricing" value={summary.pendingPricing || 0} icon="💰" />
+            <StatCard title="Pending Documents" value={summary.pendingDocuments || 0} icon="🕒" />
+            <StatCard title="Recent Sales" value={`₹ ${summary.recentSales || 0}`} icon="📈" />
           </div>
 
-          {/* 🔔 Critical Low Stock Alert */}
+          {/* Stock Alerts */}
           {lowStock.length > 0 && (
             <div
               className="alert-banner"
@@ -5126,19 +5596,13 @@ export default function ManagerDashboard() {
             </div>
           )}
 
-          {/* 📊 Stock Health Summary */}
+          {/* Stock Overview */}
           <Card title="Stock Health Overview" style={{ marginBottom: "1rem" }}>
             {inventory.length ? (
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-around",
-                  textAlign: "center",
-                }}
-              >
+              <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
                 <div>
                   <h3 style={{ color: "#ef4444" }}>{lowStock.length}</h3>
-                  <p className="text-muted">Low Stock</p>
+                  <p className="text-muted">Low</p>
                 </div>
                 <div>
                   <h3 style={{ color: "#facc15" }}>{mediumStock.length}</h3>
@@ -5154,17 +5618,10 @@ export default function ManagerDashboard() {
             )}
           </Card>
 
-          {/* 📈 Dealer Performance Chart */}
-          <Card
-            title="Top 5 Dealers by Sales"
-            className="main-chart-card"
-            style={{ marginBottom: "1rem" }}
-          >
+          {/* Dealer Performance */}
+          <Card title="Top 5 Dealers by Sales" className="main-chart-card">
             <ResponsiveContainer width="100%" height={340}>
-              <BarChart
-                data={dealerPerformance.slice(0, 5)}
-                margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
-              >
+              <BarChart data={dealerPerformance.slice(0, 5)} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
                 <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
                 <XAxis dataKey="businessName" stroke="#6b7280" />
                 <YAxis stroke="#6b7280" />
@@ -5175,136 +5632,111 @@ export default function ManagerDashboard() {
             </ResponsiveContainer>
           </Card>
 
-          {/* 🥧 Inventory Overview */}
-          <Card title="Inventory Overview (Top 5 Products)">
-            {inventory.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <PieChart>
-                  <Pie
-                    data={inventory.slice(0, 5)}
-                    dataKey="available"
-                    nameKey="product"
-                    outerRadius={100}
-                    fill={accent}
-                    label
-                  >
-                    {inventory.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
-                    ))}
-                  </Pie>
-                  <Tooltip />
-                </PieChart>
-              </ResponsiveContainer>
-            ) : (
-              <p className="text-muted">No inventory data available</p>
-            )}
-          </Card>
+          {/* Pending Pricing Table */}
+          {/* Pending Pricing Table with Action Buttons */}
+<Card title="Pending Pricing Approvals" style={{ marginTop: "1rem" }}>
+ <DataTable
+  headers={[
+    "Dealer",
+    "Product",
+    "Requested Price",
+    "Requested By",
+    "Requested At",
+    "Status",
+    "Actions",
+  ]}
+  rows={pendingApprovals
+    .filter((a) => {
+      const q = search.toLowerCase();
+      return (
+        !q ||
+        (a.dealer?.businessName || "").toLowerCase().includes(q) ||
+        (a.product?.name || "").toLowerCase().includes(q) ||
+        (a.requestedBy || "").toLowerCase().includes(q)
+      );
+    })
+    .slice(0, 8)
+    .map((a) => ({
+      id: a.id,
+      dealer: a.dealer?.businessName || a.dealerId,
+      product: a.product?.name || a.productId,
+      newPrice: `₹ ${parseFloat(a.newPrice || 0).toFixed(2)}`,
+      requestedBy: a.requestedBy || "—",
+      requestedAt: new Date(a.createdAt).toLocaleString("en-IN", {
+        day: "2-digit",
+        month: "short",
+        year: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+      }),
+      status:
+        a.status.charAt(0).toUpperCase() + a.status.slice(1).toLowerCase(),
+      actions: (
+        <div style={{ display: "flex", gap: "0.5rem" }}>
+          <button
+            onClick={() => handlePricingAction(a.id, "approve")}
+            style={{
+              background: "#10b981",
+              color: "white",
+              border: "none",
+              padding: "4px 8px",
+              borderRadius: "6px",
+              cursor: "pointer",
+            }}
+          >
+            Approve
+          </button>
+          <button
+            onClick={() => handlePricingAction(a.id, "reject")}
+            style={{
+              background: "#ef4444",
+              color: "white",
+              border: "none",
+              padding: "4px 8px",
+              borderRadius: "6px",
+              cursor: "pointer",
+            }}
+          >
+            Reject
+          </button>
+          <button
+            onClick={() => handlePricingAction(a.id, "forward")}
+            style={{
+              background: "#3b82f6",
+              color: "white",
+              border: "none",
+              padding: "4px 8px",
+              borderRadius: "6px",
+              cursor: "pointer",
+            }}
+          >
+            Forward
+          </button>
+        </div>
+      ),
+    }))}
+/>
 
-          {/* 🧾 Pending Approvals Table */}
-          <Card title="Pending Approvals" style={{ marginTop: "1rem" }}>
-            <DataTable
-              columns={[
-                { key: "dealer", label: "Dealer" },
-                { key: "document", label: "Document" },
-                { key: "date", label: "Date" },
-                { key: "status", label: "Status" },
-              ]}
-              rows={pendingApprovals
-                .filter((a) => {
-                  const q = search.toLowerCase();
-                  return (
-                    !q ||
-                    (a.dealerName || "").toLowerCase().includes(q) ||
-                    String(a.dealerId || "").includes(q)
-                  );
-                })
-                .slice(0, 8)
-                .map((a) => ({
-                  id: a.id || Math.random(),
-                  dealer: a.dealerName || a.dealerId,
-                  document: a.documentType || "Document",
-                  date: new Date(a.createdAt).toLocaleDateString(),
-                  status: "Pending",
-                }))}
-              emptyMessage="No pending approvals"
-            />
-          </Card>
+</Card>
+
         </div>
 
         {/* RIGHT COLUMN */}
         <aside className="right-col">
           <div className="side-kpis">
-            <div className="mini-kpi">
-              <div className="mini-kpi-title">Total Sales</div>
-              <div className="mini-kpi-value">
-                ₹ {summary.totalSales || 0}
-              </div>
-            </div>
-
-            <div className="mini-kpi">
-              <div className="mini-kpi-title">Active Dealers</div>
-              <div className="mini-kpi-value">
-                {summary.activeDealers || summary.totalDealers || 0}
-              </div>
-            </div>
-
-            <div className="mini-kpi">
-              <div className="mini-kpi-title">Pending</div>
-              <div className="mini-kpi-value">{pendingApprovals.length}</div>
-            </div>
-
-            <div className="mini-kpi">
-              <div className="mini-kpi-title">Campaigns</div>
-              <div className="mini-kpi-value">{campaigns.length}</div>
-            </div>
+            <div className="mini-kpi"><div className="mini-kpi-title">Total Outstanding</div><div className="mini-kpi-value">₹ {summary.totalOutstanding || 0}</div></div>
+            <div className="mini-kpi"><div className="mini-kpi-title">Dealers Managed</div><div className="mini-kpi-value">{summary.totalDealers || 0}</div></div>
+            <div className="mini-kpi"><div className="mini-kpi-title">Pending Docs</div><div className="mini-kpi-value">{summary.pendingDocuments || 0}</div></div>
+            <div className="mini-kpi"><div className="mini-kpi-title">Pending Pricing</div><div className="mini-kpi-value">{summary.pendingPricing || 0}</div></div>
           </div>
 
-          {/* 💬 Recent Messages */}
-          <Card
-            title="Recent Messages"
-            className="side-card"
-            style={{ marginTop: "1rem" }}
-          >
-            <div style={{ maxHeight: 220, overflowY: "auto" }}>
-              {messages.length > 0 ? (
-                <ul className="message-list">
-                  {messages.slice(0, 6).map((msg) => (
-                    <li key={msg.id}>
-                      <div style={{ fontWeight: 600 }}>
-                        {msg.dealerName || `Dealer ${msg.senderId}`}
-                      </div>
-                      <div className="text-muted" style={{ fontSize: 13 }}>
-                        {msg.content}
-                      </div>
-                    </li>
-                  ))}
-                </ul>
-              ) : (
-                <p className="text-muted">No new messages</p>
-              )}
-            </div>
-          </Card>
-
-          {/* 📢 Active Campaigns */}
-          <Card
-            title="Active Campaigns"
-            className="side-card"
-            style={{ marginTop: "1rem" }}
-          >
+          <Card title="Active Campaigns" className="side-card" style={{ marginTop: "1rem" }}>
             <div style={{ maxHeight: 220, overflowY: "auto" }}>
               {campaigns.length > 0 ? (
                 campaigns.slice(0, 6).map((c) => (
-                  <div
-                    key={c.id}
-                    className="campaign-preview"
-                    onClick={() => navigate(`/campaigns/${c.id}`)}
-                  >
-                    <div style={{ fontWeight: 700, color: accent }}>
-                      {c.title}
-                    </div>
-                    <div className="text-muted" style={{ fontSize: 13 }}>
-                      {c.description}
-                    </div>
+                  <div key={c.id} className="campaign-preview" onClick={() => navigate(`/campaigns/${c.id}`)}>
+                    <div style={{ fontWeight: 700, color: accent }}>{c.title}</div>
+                    <div className="text-muted" style={{ fontSize: 13 }}>{c.description}</div>
                   </div>
                 ))
               ) : (
@@ -5877,14 +6309,6 @@ export default function Sidebar() {
 </file>
 
 <file path="src/pages/dashboards/DealerDashboard.jsx">
-// ==============================
-// FINAL DEALER DASHBOARD (A + B + C + D + Modal Yes)
-// ✅ Toolbar Button
-// ✅ Pricing Requests Card Section
-// ✅ Quick-Action Button
-// ✅ Pricing Request Modal Included
-// ==============================
-
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
 import socket from "../../services/socket";
@@ -5894,7 +6318,8 @@ import StatCard from "../../components/StatCard";
 import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
-import PricingRequestForm from "../../components/PricingRequestForm";
+import PricingRequestModal from "../../components/PricingRequestModal";
+
 import {
   BarChart,
   Bar,
@@ -5920,28 +6345,33 @@ export default function DealerDashboard() {
   const [docFilter, setDocFilter] = useState("all");
   const [trend, setTrend] = useState([]);
   const [inventory, setInventory] = useState([]);
-
-  const [showPricingModal, setShowPricingModal] = useState(false);
-  const [pricingRequests, setPricingRequests] = useState([]);
+  const [pricingStats, setPricingStats] = useState([]); 
+  const [showPriceModal, setShowPriceModal] = useState(false);
+// ✅ NEW
 
   const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
   const accent = "#3b82f6";
 
-  // FETCH INITIAL DATA
+  // ================= FETCH INITIAL DATA =================
   useEffect(() => {
     const fetchData = async () => {
       try {
         setLoading(true);
-        const [summaryRes, invoiceRes, promoRes, docRes, trendRes, inventoryRes, pricingRes] =
-          await Promise.all([
-            api.get("/reports/dealer-performance"),
-            api.get("/invoices"),
-            api.get("/campaigns/active"),
-            api.get("/documents"),
-            api.get("/reports/dealer-performance?trend=true"),
-            api.get("/inventory/summary"),
-            api.get("/pricing?mine=true"),
-          ]);
+        const [
+          summaryRes,
+          invoiceRes,
+          promoRes,
+          docRes,
+          trendRes,
+          inventoryRes,
+        ] = await Promise.all([
+          api.get("/reports/dealer-performance"),
+          api.get("/invoices"),
+          api.get("/campaigns/active"),
+          api.get("/documents"),
+          api.get("/reports/dealer-performance?trend=true"),
+          api.get("/inventory/summary"),
+        ]);
 
         setSummary(summaryRes.data || {});
         setInvoices(invoiceRes.data.invoices || []);
@@ -5949,9 +6379,19 @@ export default function DealerDashboard() {
         setDocuments(docRes.data.documents || []);
         setTrend(trendRes.data.trend || []);
         setInventory(inventoryRes.data.inventory || []);
-        setPricingRequests(pricingRes.data.updates || []);
+
+        // ✅ Extract pricing distribution from summary
+        if (summaryRes.data?.pricingBreakdown) {
+          const pb = summaryRes.data.pricingBreakdown;
+          setPricingStats([
+            { name: "Approved", value: pb.approved || 0 },
+            { name: "Pending", value: pb.pending || 0 },
+            { name: "Rejected", value: pb.rejected || 0 },
+          ]);
+        }
+
       } catch (err) {
-        console.error("Dashboard error:", err);
+        console.error("Dealer dashboard error:", err);
       } finally {
         setLoading(false);
       }
@@ -5960,23 +6400,45 @@ export default function DealerDashboard() {
     fetchData();
   }, []);
 
-  // SOCKET EVENTS
+  // ================= SOCKET REAL-TIME UPDATES =================
   useEffect(() => {
     const token = localStorage.getItem("token");
     if (token) socket.auth = { token };
     socket.connect();
 
-    socket.on("pricing:status", (data) => {
-      toast.info(`💸 Pricing Request #${data.id} updated: ${data.status}`);
-      setPricingRequests((prev) => prev.map((r) => (r.id === data.id ? data : r)));
+    socket.on("promotion:new", (promo) => {
+      toast.success(`🎉 New promotion: ${promo.title}`);
+      setPromotions((prev) => [promo, ...prev]);
+    });
+
+    socket.on("document:update", (doc) => {
+      toast.info(`📄 Document "${doc.fileName}" ${doc.status}`);
+      setDocuments((prev) => {
+        const exists = prev.find((d) => d.id === doc.id);
+        if (exists) {
+          return prev.map((d) =>
+            d.id === doc.id ? { ...d, status: doc.status } : d
+          );
+        } else {
+          return [doc, ...prev];
+        }
+      });
     });
 
     return () => socket.disconnect();
   }, []);
 
-  if (loading) return <div className="center">Loading…</div>;
+  if (loading)
+    return (
+      <div className="center text-center" style={{ height: "80vh" }}>
+        Loading Dealer Dashboard...
+      </div>
+    );
 
-  const filteredDocs = documents.filter((d) => (docFilter === "all" ? true : d.status === docFilter));
+  // ================= FILTERED DOCUMENTS =================
+  const filteredDocs = documents.filter((d) =>
+    docFilter === "all" ? true : d.status === docFilter
+  );
 
   return (
     <div className="dashboard-container" style={{ background: "#f9fafb" }}>
@@ -5984,108 +6446,189 @@ export default function DealerDashboard() {
       <header className="dashboard-header">
         <h1>Dealer Dashboard</h1>
         <p>
-          Welcome back, <span style={{ color: accent }}>{summary.dealerName || "Dealer"}</span>
+          Welcome back,{" "}
+          <span style={{ color: accent, fontWeight: 600 }}>
+            {summary.dealerName || "Dealer"}
+          </span>
         </p>
       </header>
 
-      {/* TOOLBAR (A) */}
+      {/* TOOLBAR */}
       <Toolbar
         left={[
-          <SearchInput key="s" value={search} onChange={(e) => setSearch(e.target.value)} placeholder="Search..." />,
+          <SearchInput
+            key="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search invoices or documents..."
+          />,
         ]}
         right={[
-          <IconPillButton key="u" icon="📤" label="Upload" />,
-          <IconPillButton key="p" icon="🎉" label="Promotions" tone="warning" />,
+          <IconPillButton key="upload" icon="📤" label="Upload" />,
           <IconPillButton
-            key="price"
-            icon="💸"
-            label="Request Pricing"
-            tone="success"
-            onClick={() => setShowPricingModal(true)}
+            key="promo"
+            icon="🎉"
+            label="Promotions"
+            tone="warning"
           />,
+    <IconPillButton
+  key="pricing"
+  icon="💰"
+  label="Request Price Change"
+  onClick={() => setShowPriceModal(true)}
+/>
+
+
         ]}
       />
 
-      {/* KPI */}
+      {/* KPI SUMMARY */}
       <div className="stat-grid">
-        <StatCard title="Total Sales" value={`₹${summary.totalSales || 0}`} icon="💰" />
-        <StatCard title="Invoices" value={summary.totalInvoices || 0} icon="🧾" />
-        <StatCard title="Outstanding" value={`₹${summary.outstanding || 0}`} icon="⚠️" />
+        <StatCard
+          title="Total Sales"
+          value={`₹${summary.totalSales || 0}`}
+          icon="💰"
+        />
+        <StatCard
+          title="Invoices"
+          value={summary.totalInvoices || 0}
+          icon="🧾"
+        />
+        <StatCard
+          title="Outstanding"
+          value={`₹${summary.outstanding || 0}`}
+          icon="⚠️"
+        />
         <StatCard title="Promotions" value={promotions.length} icon="🎉" />
       </div>
 
       {/* MAIN GRID */}
       <div className="dashboard-grid">
-        {/* LEFT */}
+        {/* LEFT COLUMN */}
         <div className="column">
-          <Card title="Sales vs Outstanding (Last 6 Months)">
-            <ResponsiveContainer width="100%" height={250}>
+          {/* Sales Trend */}
+          <Card
+            title="Sales vs Outstanding (Last 6 Months)"
+            className="chart-card"
+          >
+            <ResponsiveContainer width="100%" height="100%">
               <BarChart data={trend}>
-                <CartesianGrid strokeDasharray="3 3" />
-                <XAxis dataKey="month" />
-                <YAxis />
-                <Tooltip />
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="month" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
+                <Tooltip
+                  contentStyle={{
+                    background: "#fff",
+                    border: "1px solid #e5e7eb",
+                    color: "#111827",
+                  }}
+                />
                 <Legend />
-                <Bar dataKey="sales" fill={accent} />
-                <Bar dataKey="outstanding" fill="#93c5fd" />
+                <Bar
+                  dataKey="sales"
+                  fill={accent}
+                  barSize={12}
+                  radius={[4, 4, 0, 0]}
+                />
+                <Bar
+                  dataKey="outstanding"
+                  fill="#93c5fd"
+                  barSize={12}
+                  radius={[4, 4, 0, 0]}
+                />
               </BarChart>
             </ResponsiveContainer>
           </Card>
 
-          {/* PRICING REQUESTS (B) */}
-          <Card title="My Pricing Requests">
-            {pricingRequests.length ? (
+          {/* Inventory */}
+          <Card title="Stock Availability">
+            {inventory.length > 0 ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={inventory}
+                    dataKey="available"
+                    nameKey="product"
+                    outerRadius={100}
+                    fill={accent}
+                    label
+                  >
+                    {inventory.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-muted">No inventory data available</p>
+            )}
+          </Card>
+
+          {/* Invoices */}
+          <Card title="Recent Invoices">
+            {invoices.length ? (
               <table className="custom-table">
                 <thead>
                   <tr>
-                    <th>ID</th>
-                    <th>Product</th>
-                    <th>Old</th>
-                    <th>New</th>
-                    <th>Status</th>
+                    <th>#</th>
                     <th>Date</th>
+                    <th>₹</th>
+                    <th>Status</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {pricingRequests.map((r) => (
-                    <tr key={r.id}>
-                      <td>{r.id}</td>
-                      <td>{r.productId}</td>
-                      <td>{r.oldPrice ?? "—"}</td>
-                      <td>{r.newPrice}</td>
-                      <td>{r.status}</td>
-                      <td>{new Date(r.createdAt).toLocaleDateString()}</td>
+                  {invoices.slice(0, 4).map((i) => (
+                    <tr key={i.id}>
+                      <td>{i.invoiceNumber}</td>
+                      <td>
+                        {new Date(i.invoiceDate).toLocaleDateString()}
+                      </td>
+                      <td>{i.totalAmount}</td>
+                      <td
+                        className={
+                          i.status === "Paid"
+                            ? "status-approved"
+                            : "status-pending"
+                        }
+                      >
+                        {i.status}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             ) : (
-              <p>No pricing requests yet.</p>
+              <p className="text-muted">No invoices found</p>
             )}
-
-            <button
-              style={{ marginTop: 10, padding: 8, background: accent, color: "#fff", borderRadius: 6 }}
-              onClick={() => setShowPricingModal(true)}
-            >
-              Request Pricing
-            </button>
           </Card>
 
-          {/* DOCUMENTS */}
+          {/* Documents */}
           <Card title="Documents">
-            <div style={{ display: "flex", gap: "0.5rem", marginBottom: 10 }}>
-              {['all','pending','approved','rejected'].map((s) => (
+            <div
+              style={{
+                display: "flex",
+                gap: "0.5rem",
+                marginBottom: "0.8rem",
+              }}
+            >
+              {["all", "pending", "approved", "rejected"].map((status) => (
                 <button
-                  key={s}
-                  onClick={() => setDocFilter(s)}
+                  key={status}
+                  onClick={() => setDocFilter(status)}
                   style={{
-                    padding: "4px 10px",
-                    borderRadius: 6,
-                    background: docFilter === s ? "#bfdbfe" : "#fff",
-                    border: docFilter === s ? "2px solid #3b82f6" : "1px solid #ccc",
+                    padding: "0.3rem 0.8rem",
+                    borderRadius: "6px",
+                    border:
+                      docFilter === status
+                        ? "2px solid #3b82f6"
+                        : "1px solid #ccc",
+                    background:
+                      docFilter === status ? "#bfdbfe" : "#fff",
+                    cursor: "pointer",
                   }}
                 >
-                  {s}
+                  {status.charAt(0).toUpperCase() + status.slice(1)}
                 </button>
               ))}
             </div>
@@ -6096,64 +6639,92 @@ export default function DealerDashboard() {
                   <tr>
                     <th>File</th>
                     <th>Status</th>
-                    <th>Date</th>
+                    <th>Uploaded At</th>
                   </tr>
                 </thead>
                 <tbody>
                   {filteredDocs.map((d) => (
                     <tr key={d.id}>
                       <td>{d.fileName}</td>
-                      <td>{d.status}</td>
-                      <td>{new Date(d.createdAt).toLocaleDateString()}</td>
+                      <td className={`status-${d.status || "pending"}`}>
+                        {d.status}
+                      </td>
+                      <td>
+                        {new Date(d.createdAt).toLocaleDateString()}
+                      </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             ) : (
-              <p>No documents found.</p>
+              <p className="text-muted">No documents found.</p>
             )}
           </Card>
         </div>
 
-        {/* RIGHT */}
+        {/* RIGHT COLUMN */}
         <div className="column">
+
+          {/* ⭐ NEW PRICING DISTRIBUTION CARD ⭐ */}
+          <Card title="Pricing Request Distribution">
+            {pricingStats.length ? (
+              <ResponsiveContainer width="100%" height={250}>
+                <PieChart>
+                  <Pie
+                    data={pricingStats}
+                    dataKey="value"
+                    nameKey="name"
+                    outerRadius={90}
+                    label
+                  >
+                    {pricingStats.map((_, i) => (
+                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    ))}
+                  </Pie>
+                  <Tooltip />
+                  <Legend />
+                </PieChart>
+              </ResponsiveContainer>
+            ) : (
+              <p className="text-muted">No pricing data available.</p>
+            )}
+          </Card>
+
           <Card title="Active Promotions">
             {promotions.length ? (
-              promotions.map((p) => (
-                <div key={p.id} style={{ padding: "4px 0", borderBottom: "1px solid #e5e7eb" }}>
-                  <strong style={{ color: accent }}>{p.title}</strong>
-                  <p>{p.description}</p>
-                  <small>Until {new Date(p.validTill).toLocaleDateString()}</small>
+              promotions.slice(0, 3).map((promo) => (
+                <div
+                  key={promo.id}
+                  style={{
+                    padding: "0.4rem 0",
+                    borderBottom: "1px solid #e5e7eb",
+                  }}
+                >
+                  <strong style={{ color: accent }}>{promo.title}</strong>
+                  <p className="text-muted">{promo.description}</p>
+                  <small className="text-muted">
+                    Till{" "}
+                    {new Date(promo.validTill).toLocaleDateString()}
+                  </small>
                 </div>
               ))
             ) : (
-              <p>No promotions</p>
+              <p className="text-muted">No active promotions</p>
             )}
           </Card>
 
-          {/* QUICK ACTIONS (C) */}
           <div className="quick-actions">
             <IconPillButton icon="📤" label="Upload" />
             <IconPillButton icon="📑" label="Statements" />
-            <IconPillButton icon="💬" label="Contact" />
-            <IconPillButton
-              icon="💸"
-              label="Pricing"
-              tone="success"
-              onClick={() => setShowPricingModal(true)}
-            />
+            <IconPillButton icon="💬" label="Contact" tone="success" />
           </div>
         </div>
       </div>
+   <PricingRequestModal
+  open={showPriceModal}
+  onClose={() => setShowPriceModal(false)}
+/>
 
-      {/* PRICING REQUEST MODAL (D + YES) */}
-      {showPricingModal && (
-        <div className="modal-overlay">
-          <div className="modal-box">
-            <PricingRequestForm onClose={() => setShowPricingModal(false)} />
-          </div>
-        </div>
-      )}
     </div>
   );
 }
