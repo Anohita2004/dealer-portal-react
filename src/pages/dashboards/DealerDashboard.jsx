@@ -7,6 +7,8 @@ import StatCard from "../../components/StatCard";
 import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
+import PricingRequestModal from "../../components/PricingRequestModal";
+
 import {
   BarChart,
   Bar,
@@ -32,7 +34,9 @@ export default function DealerDashboard() {
   const [docFilter, setDocFilter] = useState("all");
   const [trend, setTrend] = useState([]);
   const [inventory, setInventory] = useState([]);
-  const [pricingStats, setPricingStats] = useState([]); // ✅ NEW
+  const [pricingStats, setPricingStats] = useState([]); 
+  const [showPriceModal, setShowPriceModal] = useState(false);
+// ✅ NEW
 
   const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
   const accent = "#3b82f6";
@@ -156,6 +160,14 @@ export default function DealerDashboard() {
             label="Promotions"
             tone="warning"
           />,
+    <IconPillButton
+  key="pricing"
+  icon="💰"
+  label="Request Price Change"
+  onClick={() => setShowPriceModal(true)}
+/>
+
+
         ]}
       />
 
@@ -397,6 +409,11 @@ export default function DealerDashboard() {
           </div>
         </div>
       </div>
+   <PricingRequestModal
+  open={showPriceModal}
+  onClose={() => setShowPriceModal(false)}
+/>
+
     </div>
   );
 }

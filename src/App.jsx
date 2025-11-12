@@ -16,6 +16,8 @@ import AccountsInvoices from "./pages/accounts/AccountsInvoices";
 import AccountsNotes from "./pages/accounts/AccountsNotes";
 import AccountsReports from "./pages/accounts/AccountsReports";
 import AdminDocuments from "./pages/AdminDocuments";
+import PricingApprovals from "./pages/PricingApprovals";
+
 
 // inside <Routes>
 
@@ -54,6 +56,7 @@ function App() {
 <Route path="accounts/reports" element={<AccountsReports />} />
 
 <Route path="/admin/documents" element={<AdminDocuments />} />
+<Route path="/pricing-approvals" element={<PricingApprovals />} />
 
 
             {/* 🔜 Add Campaigns, Reports, Admin here */}
