@@ -85,6 +85,7 @@ src/pages/Admin.jsx
 src/pages/AdminDocuments.jsx
 src/pages/AdminPricing.jsx
 src/pages/Campaigns.jsx
+src/pages/Chat.css
 src/pages/Dashboard.jsx
 src/pages/dashboards/AccountsDashboard.jsx
 src/pages/dashboards/AdminDashboard.jsx
@@ -93,10 +94,12 @@ src/pages/dashboards/DealerDashboard.jsx
 src/pages/dashboards/InventoryDashboard.jsx
 src/pages/dashboards/ManagerDashboard.css
 src/pages/dashboards/ManagerDashboard.jsx
+src/pages/DealerChat.jsx
 src/pages/Documents.jsx
 src/pages/InvoiceDetail.jsx
 src/pages/Invoices.jsx
 src/pages/Login.jsx
+src/pages/ManagerChat.jsx
 src/pages/OTPVerify.jsx
 src/pages/PricingApprovals.jsx
 src/pages/Reports.jsx
@@ -1272,6 +1275,418 @@ export default function AdminPricing() {
           <p>No requests found.</p>
         )}
       </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/Chat.css">
+.chat-container {
+  display: flex;
+  height: 80vh;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--card-bg, #fff);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.chat-sidebar {
+  width: 250px;
+  background: #f3f4f6;
+  border-right: 1px solid #e5e7eb;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.chat-sidebar h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.dealer-item {
+  padding: 8px 10px;
+  margin-bottom: 5px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #fff;
+}
+
+.dealer-item:hover {
+  background: #e0f2fe;
+}
+
+.dealer-item.active {
+  background: #3b82f6;
+  color: white;
+}
+
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  padding: 10px 15px;
+  background: #3b82f6;
+  color: white;
+  font-weight: 600;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  background: #f9fafb;
+}
+
+.message-bubble {
+  max-width: 60%;
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.message-bubble.incoming {
+  background: #e5e7eb;
+  align-self: flex-start;
+}
+
+.message-bubble.outgoing {
+  background: #3b82f6;
+  color: white;
+  align-self: flex-end;
+}
+
+.chat-input {
+  display: flex;
+  padding: 10px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+}
+
+.chat-input button {
+  margin-left: 10px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
+}
+</file>
+
+<file path="src/pages/DealerChat.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
+import socket from "../services/socket";
+import { toast } from "react-toastify";
+import "./Chat.css";
+
+export default function DealerChat() {
+  const [messages, setMessages] = useState([]);
+  const [manager, setManager] = useState(null);
+  const [newMessage, setNewMessage] = useState("");
+
+  // 🔹 Fetch manager info for this dealer
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get("/dealers/my-manager"); // you can create this small endpoint
+        setManager(res.data.manager);
+      } catch {
+        toast.error("Failed to load manager info");
+      }
+    })();
+  }, []);
+
+  // 🔹 Fetch existing conversation
+  useEffect(() => {
+    if (!manager) return;
+    (async () => {
+      const res = await api.get(`/messages/conversation/${manager.id}`);
+      setMessages(res.data.messages || []);
+    })();
+  }, [manager]);
+
+  // 🔹 Realtime updates
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) socket.auth = { token };
+    socket.connect();
+
+    socket.on("message:new", (msg) => {
+      if (
+        msg.senderId === manager?.id ||
+        msg.recipientId === manager?.id
+      ) {
+        setMessages((prev) => [...prev, msg]);
+      }
+    });
+
+    return () => socket.disconnect();
+  }, [manager]);
+
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !manager) return;
+    try {
+      const res = await api.post("/messages", {
+        recipientId: manager.id,
+        subject: "Chat",
+        body: newMessage.trim(),
+      });
+      setMessages((prev) => [...prev, res.data.message]);
+      setNewMessage("");
+    } catch {
+      toast.error("Failed to send message");
+    }
+  };
+
+  return (
+    <div className="chat-container">
+      <main className="chat-main">
+        {manager ? (
+          <>
+            <header className="chat-header">
+              <h3>Chat with {manager.username}</h3>
+            </header>
+            <div className="chat-messages">
+              {messages.map((msg) => (
+                <div
+                  key={msg.id}
+                  className={`message-bubble ${
+                    msg.senderId === manager.id ? "incoming" : "outgoing"
+                  }`}
+                >
+                  <div className="msg-body">{msg.body}</div>
+                  <div className="msg-time">
+                    {new Date(msg.createdAt).toLocaleTimeString()}
+                  </div>
+                </div>
+              ))}
+            </div>
+
+            <div className="chat-input">
+              <input
+                type="text"
+                placeholder="Type your message..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              />
+              <button onClick={sendMessage}>Send</button>
+            </div>
+          </>
+        ) : (
+          <p className="empty-chat">Loading manager info...</p>
+        )}
+      </main>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/ManagerChat.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../services/api";
+import socket from "../services/socket";
+import { toast } from "react-toastify";
+import "./Chat.css";
+
+export default function ManagerChat() {
+  const [dealers, setDealers] = useState([]);
+  const [selectedDealer, setSelectedDealer] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [newMessage, setNewMessage] = useState("");
+  const [loading, setLoading] = useState(false);
+
+  // 🟢 1️⃣ Load all dealers managed by this manager (with linked user)
+  useEffect(() => {
+    (async () => {
+      try {
+        const res = await api.get("/managers/dealers");
+        const dealerList = res.data.dealers || [];
+
+        // Map dealers to include their linked user info
+        const formatted = dealerList.map((d) => ({
+          dealerId: d.id,
+          businessName: d.businessName,
+          userId: d.users?.[0]?.id || null,
+          username: d.users?.[0]?.username || "No user linked",
+          lastMessage: null,
+          unread: false,
+        }));
+
+        setDealers(formatted);
+      } catch (err) {
+        console.error(err);
+        toast.error("Failed to load dealers");
+      }
+    })();
+  }, []);
+
+  // 🟣 2️⃣ Fetch messages for selected dealer
+  useEffect(() => {
+    if (!selectedDealer) return;
+    (async () => {
+      try {
+        setLoading(true);
+        const res = await api.get(`/messages/conversation/${selectedDealer.userId}`);
+        setMessages(res.data.messages || []);
+      } catch (err) {
+        toast.error("Failed to load messages");
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, [selectedDealer]);
+
+  // 🟠 3️⃣ Setup socket for real-time message updates
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) socket.auth = { token };
+    socket.connect();
+
+    socket.on("message:new", (msg) => {
+      // only add messages related to current chat
+      if (
+        msg.senderId === selectedDealer?.userId ||
+        msg.recipientId === selectedDealer?.userId
+      ) {
+        setMessages((prev) => [...prev, msg]);
+      } else {
+        // mark other dealers as having unread messages
+        setDealers((prev) =>
+          prev.map((d) =>
+            d.userId === msg.senderId ? { ...d, unread: true } : d
+          )
+        );
+      }
+    });
+
+    return () => socket.disconnect();
+  }, [selectedDealer]);
+
+  // 🟤 4️⃣ Send message
+  const sendMessage = async () => {
+    if (!newMessage.trim() || !selectedDealer) return;
+
+    try {
+      const res = await api.post("/messages", {
+        recipientId: selectedDealer.userId,
+        subject: "Chat",
+        body: newMessage.trim(),
+      });
+
+      setMessages((prev) => [...prev, res.data.message]);
+      setNewMessage("");
+
+      // update dealer preview
+      setDealers((prev) =>
+        prev.map((d) =>
+          d.userId === selectedDealer.userId
+            ? { ...d, lastMessage: newMessage.trim(), unread: false }
+            : d
+        )
+      );
+    } catch (err) {
+      toast.error("Failed to send message");
+    }
+  };
+
+  return (
+    <div className="chat-container">
+      {/* Sidebar with dealer list */}
+      <aside className="chat-sidebar">
+        <h2>💼 My Dealers</h2>
+        {dealers.length === 0 ? (
+          <p className="empty-chat">No dealers assigned</p>
+        ) : (
+          dealers.map((dealer) => (
+            <div
+              key={dealer.userId || dealer.dealerId}
+              className={`dealer-item ${
+                selectedDealer?.userId === dealer.userId ? "active" : ""
+              } ${dealer.unread ? "unread" : ""}`}
+              onClick={() => {
+                if (!dealer.userId)
+                  return toast.error("Dealer has no linked user account");
+                setSelectedDealer(dealer);
+                setDealers((prev) =>
+                  prev.map((d) =>
+                    d.userId === dealer.userId ? { ...d, unread: false } : d
+                  )
+                );
+              }}
+            >
+              <div className="dealer-name">{dealer.businessName}</div>
+              {dealer.lastMessage && (
+                <div className="last-message">{dealer.lastMessage}</div>
+              )}
+              {dealer.unread && <span className="unread-dot" />}
+            </div>
+          ))
+        )}
+      </aside>
+
+      {/* Main chat area */}
+      <main className="chat-main">
+        {selectedDealer ? (
+          <>
+            <header className="chat-header">
+              <h3>Chat with {selectedDealer.businessName}</h3>
+            </header>
+
+            <div className="chat-messages">
+              {loading ? (
+                <p className="empty-chat">Loading messages...</p>
+              ) : messages.length === 0 ? (
+                <p className="empty-chat">No messages yet</p>
+              ) : (
+                messages.map((msg) => (
+                  <div
+                    key={msg.id}
+                    className={`message-bubble ${
+                      msg.senderId === selectedDealer.userId
+                        ? "incoming"
+                        : "outgoing"
+                    }`}
+                  >
+                    <div className="msg-body">{msg.body}</div>
+                    <div className="msg-time">
+                      {new Date(msg.createdAt).toLocaleTimeString([], {
+                        hour: "2-digit",
+                        minute: "2-digit",
+                      })}
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+
+            <div className="chat-input">
+              <input
+                type="text"
+                placeholder="Type your message..."
+                value={newMessage}
+                onChange={(e) => setNewMessage(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+              />
+              <button onClick={sendMessage}>Send</button>
+            </div>
+          </>
+        ) : (
+          <div className="empty-chat">Select a dealer to start chatting</div>
+        )}
+      </main>
     </div>
   );
 }
@@ -4941,79 +5356,6 @@ export default function Reports() {
 }
 </file>
 
-<file path="src/App.jsx">
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Invoices from './pages/Invoices';
-import Documents from './pages/Documents';
-import Campaigns from "./pages/Campaigns";
-import Reports from "./pages/Reports";
-import Admin from "./pages/Admin";
-import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
-import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
-import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
-import AccountsInvoices from "./pages/accounts/AccountsInvoices";
-import AccountsNotes from "./pages/accounts/AccountsNotes";
-import AccountsReports from "./pages/accounts/AccountsReports";
-import AdminDocuments from "./pages/AdminDocuments";
-import PricingApprovals from "./pages/PricingApprovals";
-
-
-// inside <Routes>
-
-
-
-// ✅ When Layout is inside ProtectedRoute, all child routes share Navbar & Sidebar
-function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public route */}
-          <Route path="/login" element={<Login />} />
-
-          {/* Protected routes grouped inside Layout */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            {/* All pages with the sidebar/navbar go here */}
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="invoices" element={<Invoices />} />
-            <Route path="documents" element={<Documents />} />
-            <Route path="campaigns" element={<Campaigns />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="admin" element={<Admin />} />
-            <Route path="inventory" element={<InventoryDashboard />} />
-            <Route path="accounts" element={<AccountsDashboard />} />
-            <Route path="accounts/invoices" element={<AccountsInvoices />} />
-<Route path="accounts/notes" element={<AccountsNotes />} />
-<Route path="accounts/reports" element={<AccountsReports />} />
-
-<Route path="/admin/documents" element={<AdminDocuments />} />
-<Route path="/pricing-approvals" element={<PricingApprovals />} />
-
-
-            {/* 🔜 Add Campaigns, Reports, Admin here */}
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-  );
-}
-
-export default App;
-</file>
-
 <file path="src/pages/dashboards/AdminDashboard.jsx">
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
@@ -5383,374 +5725,6 @@ setSummary({
 }
 </file>
 
-<file path="src/pages/dashboards/ManagerDashboard.jsx">
-// ==============================
-// FILE: src/pages/dashboards/ManagerDashboard.jsx
-// ==============================
-
-import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import socket from "../../services/socket";
-import { useNavigate } from "react-router-dom";
-
-import PageHeader from "../../components/PageHeader";
-import StatCard from "../../components/StatCard";
-import Card from "../../components/Card";
-import DataTable from "../../components/DataTable";
-import Toolbar from "../../components/Toolbar";
-import SearchInput from "../../components/SearchInput";
-import IconPillButton from "../../components/IconPillButton";
-import { toast } from "react-toastify";
-
-import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
-  Tooltip,
-  ResponsiveContainer,
-  Legend,
-  PieChart,
-  Pie,
-  Cell,
-} from "recharts";
-
-import "./ManagerDashboard.css";
-
-export default function ManagerDashboard() {
-  const navigate = useNavigate();
-  const [summary, setSummary] = useState({});
-  const [dealerPerformance, setDealerPerformance] = useState([]);
-  const [pendingApprovals, setPendingApprovals] = useState([]);
-  const [messages, setMessages] = useState([]);
-  const [campaigns, setCampaigns] = useState([]);
-  const [inventory, setInventory] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-
-  const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
-  const accent = "#3b82f6";
-
-  // 🔹 Load manager summary, dealers, pricing requests, campaigns, etc.
-  useEffect(() => {
-    const loadData = async () => {
-      try {
-        setLoading(true);
-
-        const [summaryRes, dealersRes, pricingRes, msgRes, campRes, invRes] =
-          await Promise.all([
-            api.get("/managers/summary"), // ✅ manager summary
-            api.get("/managers/dealers"), // ✅ dealers list
-            api.get("/managers/pricing?status=pending"), // ✅ pending pricing approvals
-            api.get("/messages"), // ✅ messages (existing backend)
-            api.get("/campaigns"), // ✅ active campaigns
-            api.get("/inventory/summary"), // ✅ inventory summary
-          ]);
-
-        setSummary(summaryRes.data || {});
-        setDealerPerformance(dealersRes.data.dealers || []);
-        setPendingApprovals(pricingRes.data.updates || []);
-        setMessages(msgRes.data.messages || msgRes.data || []);
-        setCampaigns(campRes.data.campaigns || campRes.data || []);
-        setInventory(invRes.data.inventory || invRes.data || []);
-      } catch (err) {
-        console.error("Manager dashboard load error:", err);
-        toast.error("Failed to load dashboard data");
-      } finally {
-        setLoading(false);
-      }
-    };
-    loadData();
-  }, []);
-
-  // 🔹 Realtime updates (documents, messages, campaigns)
-  useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) socket.auth = { token };
-    socket.connect();
-
-    socket.on("document:new", (data) => {
-      toast.info(`📄 New document uploaded by Dealer ${data.dealerId}`);
-      setPendingApprovals((prev) => [
-        {
-          id: data.id || Date.now(),
-          dealerName: data.dealerName || `Dealer ${data.dealerId}`,
-          documentType: data.documentType || "Upload",
-          createdAt: new Date(),
-        },
-        ...prev,
-      ]);
-    });
-
-    socket.on("message:new", (msg) => {
-      toast.success(`💬 Message from Dealer: ${msg.content}`);
-      setMessages((prev) => [msg, ...prev]);
-    });
-
-    socket.on("campaign:new", (campaign) => {
-      toast.info(`📢 New Campaign: ${campaign.title}`);
-      setCampaigns((prev) => [campaign, ...prev]);
-    });
-
-    return () => socket.disconnect();
-  }, []);
-
-  if (loading)
-    return (
-      <div className="loading-screen">
-        <div className="loading-text">Loading Manager Dashboard...</div>
-      </div>
-    );
-
-  // 🧮 Stock health classification
-  const lowStock = inventory.filter((i) => i.available < 20);
-  const mediumStock = inventory.filter(
-    (i) => i.available >= 20 && i.available < 100
-  );
-  const highStock = inventory.filter((i) => i.available >= 100);
-// 🔹 Handle pricing approval / rejection / forwarding
-const handlePricingAction = async (id, action) => {
-  try {
-    const remarks = prompt(`Enter remarks for ${action.toUpperCase()} (optional):`) || "";
-
-    const res = await api.patch(`/managers/pricing/${id}/forward`, {
-      action,
-      remarks,
-    });
-
-    toast.success(`✅ Pricing request ${action} successful!`);
-
-    // Refresh list after action
-    setPendingApprovals((prev) =>
-      prev.filter((p) => p.id !== id)
-    );
-
-    // Optional: reload summary counts
-    const summaryRes = await api.get("/managers/summary");
-    setSummary(summaryRes.data || {});
-  } catch (err) {
-    console.error("Pricing action failed:", err);
-    toast.error("Failed to process pricing action");
-  }
-};
-
-  return (
-    <div className="manager-dashboard" style={{ color: "var(--text-color)" }}>
-      <PageHeader
-        title="Regional Manager Dashboard"
-        subtitle="Monitor dealers, campaigns, and inventory performance in real-time."
-      />
-
-      <Toolbar
-        left={[
-          <SearchInput
-            key="search"
-            value={search}
-            onChange={(e) => setSearch(e.target.value)}
-            placeholder="Search dealers, campaigns..."
-          />,
-        ]}
-        right={[
-          <IconPillButton
-            key="reports"
-            icon="📊"
-            label="Reports"
-            onClick={() => navigate("/reports")}
-          />,
-          <IconPillButton
-            key="campaigns"
-            icon="📢"
-            label="Campaigns"
-            tone="warning"
-            onClick={() => navigate("/campaigns")}
-          />,
-        ]}
-      />
-
-      <div className="dashboard-grid">
-        {/* LEFT COLUMN */}
-        <div className="left-col">
-          <div className="kpi-row">
-            <StatCard title="Total Dealers" value={summary.totalDealers || 0} icon="🏪" />
-            <StatCard title="Pending Pricing" value={summary.pendingPricing || 0} icon="💰" />
-            <StatCard title="Pending Documents" value={summary.pendingDocuments || 0} icon="🕒" />
-            <StatCard title="Recent Sales" value={`₹ ${summary.recentSales || 0}`} icon="📈" />
-          </div>
-
-          {/* Stock Alerts */}
-          {lowStock.length > 0 && (
-            <div
-              className="alert-banner"
-              style={{
-                background: "#fee2e2",
-                color: "#b91c1c",
-                padding: "0.75rem",
-                borderRadius: "8px",
-                marginBottom: "1rem",
-                textAlign: "center",
-                fontWeight: 500,
-              }}
-            >
-              ⚠️ {lowStock.length} products are critically low on stock!
-            </div>
-          )}
-
-          {/* Stock Overview */}
-          <Card title="Stock Health Overview" style={{ marginBottom: "1rem" }}>
-            {inventory.length ? (
-              <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
-                <div>
-                  <h3 style={{ color: "#ef4444" }}>{lowStock.length}</h3>
-                  <p className="text-muted">Low</p>
-                </div>
-                <div>
-                  <h3 style={{ color: "#facc15" }}>{mediumStock.length}</h3>
-                  <p className="text-muted">Moderate</p>
-                </div>
-                <div>
-                  <h3 style={{ color: "#10b981" }}>{highStock.length}</h3>
-                  <p className="text-muted">Healthy</p>
-                </div>
-              </div>
-            ) : (
-              <p className="text-muted">No inventory data available</p>
-            )}
-          </Card>
-
-          {/* Dealer Performance */}
-          <Card title="Top 5 Dealers by Sales" className="main-chart-card">
-            <ResponsiveContainer width="100%" height={340}>
-              <BarChart data={dealerPerformance.slice(0, 5)} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="businessName" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="totalSales" fill={accent} radius={[8, 8, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </Card>
-
-          {/* Pending Pricing Table */}
-          {/* Pending Pricing Table with Action Buttons */}
-<Card title="Pending Pricing Approvals" style={{ marginTop: "1rem" }}>
- <DataTable
-  headers={[
-    "Dealer",
-    "Product",
-    "Requested Price",
-    "Requested By",
-    "Requested At",
-    "Status",
-    "Actions",
-  ]}
-  rows={pendingApprovals
-    .filter((a) => {
-      const q = search.toLowerCase();
-      return (
-        !q ||
-        (a.dealer?.businessName || "").toLowerCase().includes(q) ||
-        (a.product?.name || "").toLowerCase().includes(q) ||
-        (a.requestedBy || "").toLowerCase().includes(q)
-      );
-    })
-    .slice(0, 8)
-    .map((a) => ({
-      id: a.id,
-      dealer: a.dealer?.businessName || a.dealerId,
-      product: a.product?.name || a.productId,
-      newPrice: `₹ ${parseFloat(a.newPrice || 0).toFixed(2)}`,
-      requestedBy: a.requestedBy || "—",
-      requestedAt: new Date(a.createdAt).toLocaleString("en-IN", {
-        day: "2-digit",
-        month: "short",
-        year: "numeric",
-        hour: "2-digit",
-        minute: "2-digit",
-      }),
-      status:
-        a.status.charAt(0).toUpperCase() + a.status.slice(1).toLowerCase(),
-      actions: (
-        <div style={{ display: "flex", gap: "0.5rem" }}>
-          <button
-            onClick={() => handlePricingAction(a.id, "approve")}
-            style={{
-              background: "#10b981",
-              color: "white",
-              border: "none",
-              padding: "4px 8px",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
-          >
-            Approve
-          </button>
-          <button
-            onClick={() => handlePricingAction(a.id, "reject")}
-            style={{
-              background: "#ef4444",
-              color: "white",
-              border: "none",
-              padding: "4px 8px",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
-          >
-            Reject
-          </button>
-          <button
-            onClick={() => handlePricingAction(a.id, "forward")}
-            style={{
-              background: "#3b82f6",
-              color: "white",
-              border: "none",
-              padding: "4px 8px",
-              borderRadius: "6px",
-              cursor: "pointer",
-            }}
-          >
-            Forward
-          </button>
-        </div>
-      ),
-    }))}
-/>
-
-</Card>
-
-        </div>
-
-        {/* RIGHT COLUMN */}
-        <aside className="right-col">
-          <div className="side-kpis">
-            <div className="mini-kpi"><div className="mini-kpi-title">Total Outstanding</div><div className="mini-kpi-value">₹ {summary.totalOutstanding || 0}</div></div>
-            <div className="mini-kpi"><div className="mini-kpi-title">Dealers Managed</div><div className="mini-kpi-value">{summary.totalDealers || 0}</div></div>
-            <div className="mini-kpi"><div className="mini-kpi-title">Pending Docs</div><div className="mini-kpi-value">{summary.pendingDocuments || 0}</div></div>
-            <div className="mini-kpi"><div className="mini-kpi-title">Pending Pricing</div><div className="mini-kpi-value">{summary.pendingPricing || 0}</div></div>
-          </div>
-
-          <Card title="Active Campaigns" className="side-card" style={{ marginTop: "1rem" }}>
-            <div style={{ maxHeight: 220, overflowY: "auto" }}>
-              {campaigns.length > 0 ? (
-                campaigns.slice(0, 6).map((c) => (
-                  <div key={c.id} className="campaign-preview" onClick={() => navigate(`/campaigns/${c.id}`)}>
-                    <div style={{ fontWeight: 700, color: accent }}>{c.title}</div>
-                    <div className="text-muted" style={{ fontSize: 13 }}>{c.description}</div>
-                  </div>
-                ))
-              ) : (
-                <p className="text-muted">No campaigns running</p>
-              )}
-            </div>
-          </Card>
-        </aside>
-      </div>
-    </div>
-  );
-}
-</file>
-
 <file path="package.json">
 {
   "name": "dealer-portal-react",
@@ -5797,6 +5771,85 @@ const handlePricingAction = async (id, action) => {
     "vite": "^7.1.7"
   }
 }
+</file>
+
+<file path="src/App.jsx">
+import React from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom';
+import { AuthProvider } from './context/AuthContext';
+import Login from './pages/Login';
+import Dashboard from './pages/Dashboard';
+import Invoices from './pages/Invoices';
+import Documents from './pages/Documents';
+import Campaigns from "./pages/Campaigns";
+import Reports from "./pages/Reports";
+import Admin from "./pages/Admin";
+import ProtectedRoute from './components/ProtectedRoute';
+import Layout from './components/Layout';
+import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
+import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
+import AccountsInvoices from "./pages/accounts/AccountsInvoices";
+import AccountsNotes from "./pages/accounts/AccountsNotes";
+import AccountsReports from "./pages/accounts/AccountsReports";
+import AdminDocuments from "./pages/AdminDocuments";
+import PricingApprovals from "./pages/PricingApprovals";
+import ManagerChat from "./pages/ManagerChat";
+import DealerChat from "./pages/DealerChat";
+
+
+
+// inside <Routes>
+
+
+
+// ✅ When Layout is inside ProtectedRoute, all child routes share Navbar & Sidebar
+function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+          {/* Public route */}
+          <Route path="/login" element={<Login />} />
+
+          {/* Protected routes grouped inside Layout */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+            {/* All pages with the sidebar/navbar go here */}
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+            <Route path="invoices" element={<Invoices />} />
+            <Route path="documents" element={<Documents />} />
+            <Route path="campaigns" element={<Campaigns />} />
+            <Route path="reports" element={<Reports />} />
+            <Route path="admin" element={<Admin />} />
+            <Route path="inventory" element={<InventoryDashboard />} />
+            <Route path="accounts" element={<AccountsDashboard />} />
+            <Route path="accounts/invoices" element={<AccountsInvoices />} />
+<Route path="accounts/notes" element={<AccountsNotes />} />
+<Route path="accounts/reports" element={<AccountsReports />} />
+
+<Route path="/admin/documents" element={<AdminDocuments />} />
+<Route path="/pricing-approvals" element={<PricingApprovals />} />
+<Route path="/manager/chat" element={<ManagerChat />} />
+<Route path="/dealer/chat" element={<DealerChat />} />
+
+
+
+            {/* 🔜 Add Campaigns, Reports, Admin here */}
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+
+export default App;
 </file>
 
 <file path="src/pages/dashboards/InventoryDashboard.jsx">
@@ -6308,6 +6361,383 @@ export default function Sidebar() {
 }
 </file>
 
+<file path="src/pages/dashboards/ManagerDashboard.jsx">
+// ==============================
+// FILE: src/pages/dashboards/ManagerDashboard.jsx
+// ==============================
+
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import socket from "../../services/socket";
+import { useNavigate } from "react-router-dom";
+
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import DataTable from "../../components/DataTable";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+import { toast } from "react-toastify";
+
+import {
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  PieChart,
+  Pie,
+  Cell,
+} from "recharts";
+
+import "./ManagerDashboard.css";
+
+export default function ManagerDashboard() {
+  const navigate = useNavigate();
+  const [summary, setSummary] = useState({});
+  const [dealerPerformance, setDealerPerformance] = useState([]);
+  const [pendingApprovals, setPendingApprovals] = useState([]);
+  const [messages, setMessages] = useState([]);
+  const [campaigns, setCampaigns] = useState([]);
+  const [inventory, setInventory] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+
+  const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
+  const accent = "#3b82f6";
+
+  // 🔹 Load manager summary, dealers, pricing requests, campaigns, etc.
+  useEffect(() => {
+    const loadData = async () => {
+      try {
+        setLoading(true);
+
+        const [summaryRes, dealersRes, pricingRes, msgRes, campRes, invRes] =
+          await Promise.all([
+            api.get("/managers/summary"), // ✅ manager summary
+            api.get("/managers/dealers"), // ✅ dealers list
+            api.get("/managers/pricing?status=pending"), // ✅ pending pricing approvals
+            api.get("/messages"), // ✅ messages (existing backend)
+            api.get("/campaigns"), // ✅ active campaigns
+            api.get("/inventory/summary"), // ✅ inventory summary
+          ]);
+
+        setSummary(summaryRes.data || {});
+        setDealerPerformance(dealersRes.data.dealers || []);
+        setPendingApprovals(pricingRes.data.updates || []);
+        setMessages(msgRes.data.messages || msgRes.data || []);
+        setCampaigns(campRes.data.campaigns || campRes.data || []);
+        setInventory(invRes.data.inventory || invRes.data || []);
+      } catch (err) {
+        console.error("Manager dashboard load error:", err);
+        toast.error("Failed to load dashboard data");
+      } finally {
+        setLoading(false);
+      }
+    };
+    loadData();
+  }, []);
+
+  // 🔹 Realtime updates (documents, messages, campaigns)
+  useEffect(() => {
+    const token = localStorage.getItem("token");
+    if (token) socket.auth = { token };
+    socket.connect();
+
+    socket.on("document:new", (data) => {
+      toast.info(`📄 New document uploaded by Dealer ${data.dealerId}`);
+      setPendingApprovals((prev) => [
+        {
+          id: data.id || Date.now(),
+          dealerName: data.dealerName || `Dealer ${data.dealerId}`,
+          documentType: data.documentType || "Upload",
+          createdAt: new Date(),
+        },
+        ...prev,
+      ]);
+    });
+
+    socket.on("message:new", (msg) => {
+      toast.success(`💬 Message from Dealer: ${msg.content}`);
+      setMessages((prev) => [msg, ...prev]);
+    });
+
+    socket.on("campaign:new", (campaign) => {
+      toast.info(`📢 New Campaign: ${campaign.title}`);
+      setCampaigns((prev) => [campaign, ...prev]);
+    });
+
+    return () => socket.disconnect();
+  }, []);
+
+  if (loading)
+    return (
+      <div className="loading-screen">
+        <div className="loading-text">Loading Manager Dashboard...</div>
+      </div>
+    );
+
+  // 🧮 Stock health classification
+  const lowStock = inventory.filter((i) => i.available < 20);
+  const mediumStock = inventory.filter(
+    (i) => i.available >= 20 && i.available < 100
+  );
+  const highStock = inventory.filter((i) => i.available >= 100);
+// 🔹 Handle pricing approval / rejection / forwarding
+const handlePricingAction = async (id, action) => {
+  try {
+    const remarks = prompt(`Enter remarks for ${action.toUpperCase()} (optional):`) || "";
+
+    const res = await api.patch(`/managers/pricing/${id}/forward`, {
+      action,
+      remarks,
+    });
+
+    toast.success(`✅ Pricing request ${action} successful!`);
+
+    // Refresh list after action
+    setPendingApprovals((prev) =>
+      prev.filter((p) => p.id !== id)
+    );
+
+    // Optional: reload summary counts
+    const summaryRes = await api.get("/managers/summary");
+    setSummary(summaryRes.data || {});
+  } catch (err) {
+    console.error("Pricing action failed:", err);
+    toast.error("Failed to process pricing action");
+  }
+};
+
+  return (
+    <div className="manager-dashboard" style={{ color: "var(--text-color)" }}>
+      <PageHeader
+        title="Regional Manager Dashboard"
+        subtitle="Monitor dealers, campaigns, and inventory performance in real-time."
+      />
+
+      <Toolbar
+        left={[
+          <SearchInput
+            key="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search dealers, campaigns..."
+          />,
+        ]}
+        right={[
+          <IconPillButton
+            key="reports"
+            icon="📊"
+            label="Reports"
+            onClick={() => navigate("/reports")}
+          />,
+          <IconPillButton
+            key="campaigns"
+            icon="📢"
+            label="Campaigns"
+            tone="warning"
+            onClick={() => navigate("/campaigns")}
+          />,
+          <IconPillButton
+  key="chat"
+  icon="💬"
+  label="Chat"
+  tone="info"
+  onClick={() => navigate("/manager/chat")}
+/>
+
+        ]}
+      />
+
+      <div className="dashboard-grid">
+        {/* LEFT COLUMN */}
+        <div className="left-col">
+          <div className="kpi-row">
+            <StatCard title="Total Dealers" value={summary.totalDealers || 0} icon="🏪" />
+            <StatCard title="Pending Pricing" value={summary.pendingPricing || 0} icon="💰" />
+            <StatCard title="Pending Documents" value={summary.pendingDocuments || 0} icon="🕒" />
+            <StatCard title="Recent Sales" value={`₹ ${summary.recentSales || 0}`} icon="📈" />
+          </div>
+
+          {/* Stock Alerts */}
+          {lowStock.length > 0 && (
+            <div
+              className="alert-banner"
+              style={{
+                background: "#fee2e2",
+                color: "#b91c1c",
+                padding: "0.75rem",
+                borderRadius: "8px",
+                marginBottom: "1rem",
+                textAlign: "center",
+                fontWeight: 500,
+              }}
+            >
+              ⚠️ {lowStock.length} products are critically low on stock!
+            </div>
+          )}
+
+          {/* Stock Overview */}
+          <Card title="Stock Health Overview" style={{ marginBottom: "1rem" }}>
+            {inventory.length ? (
+              <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
+                <div>
+                  <h3 style={{ color: "#ef4444" }}>{lowStock.length}</h3>
+                  <p className="text-muted">Low</p>
+                </div>
+                <div>
+                  <h3 style={{ color: "#facc15" }}>{mediumStock.length}</h3>
+                  <p className="text-muted">Moderate</p>
+                </div>
+                <div>
+                  <h3 style={{ color: "#10b981" }}>{highStock.length}</h3>
+                  <p className="text-muted">Healthy</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-muted">No inventory data available</p>
+            )}
+          </Card>
+
+          {/* Dealer Performance */}
+          <Card title="Top 5 Dealers by Sales" className="main-chart-card">
+            <ResponsiveContainer width="100%" height={340}>
+              <BarChart data={dealerPerformance.slice(0, 5)} margin={{ top: 10, right: 20, left: 0, bottom: 20 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+                <XAxis dataKey="businessName" stroke="#6b7280" />
+                <YAxis stroke="#6b7280" />
+                <Tooltip />
+                <Legend />
+                <Bar dataKey="totalSales" fill={accent} radius={[8, 8, 0, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
+          </Card>
+
+          {/* Pending Pricing Table */}
+          {/* Pending Pricing Table with Action Buttons */}
+<Card title="Pending Pricing Approvals" style={{ marginTop: "1rem" }}>
+  <DataTable
+    columns={[
+      { key: "dealer", label: "Dealer" },
+      { key: "product", label: "Product" },
+      { key: "newPrice", label: "Requested Price" },
+      { key: "requestedBy", label: "Requested By" },
+      { key: "requestedAt", label: "Requested At" },
+      { key: "status", label: "Status" },
+      { key: "actions", label: "Actions" },
+    ]}
+    rows={pendingApprovals
+      .filter((a) => {
+        const q = search.toLowerCase();
+        return (
+          !q ||
+          (a.dealer?.businessName || "").toLowerCase().includes(q) ||
+          (a.product?.name || "").toLowerCase().includes(q) ||
+          (a.requestedBy || "").toLowerCase().includes(q)
+        );
+      })
+      .slice(0, 8)
+      .map((a) => ({
+        id: a.id,
+        dealer: a.dealer?.businessName || a.dealerId,
+        product: a.product?.name || a.productId,
+        newPrice: `₹ ${parseFloat(a.newPrice || 0).toFixed(2)}`,
+        requestedBy: a.requestedBy || "—",
+        requestedAt: new Date(a.createdAt).toLocaleString("en-IN", {
+          day: "2-digit",
+          month: "short",
+          year: "numeric",
+          hour: "2-digit",
+          minute: "2-digit",
+        }),
+        status:
+          a.status.charAt(0).toUpperCase() + a.status.slice(1).toLowerCase(),
+        actions: (
+          <div style={{ display: "flex", gap: "0.5rem" }}>
+            <button
+              onClick={() => handlePricingAction(a.id, "approve")}
+              style={{
+                background: "#10b981",
+                color: "white",
+                border: "none",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Approve
+            </button>
+            <button
+              onClick={() => handlePricingAction(a.id, "reject")}
+              style={{
+                background: "#ef4444",
+                color: "white",
+                border: "none",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Reject
+            </button>
+            <button
+              onClick={() => handlePricingAction(a.id, "forward")}
+              style={{
+                background: "#3b82f6",
+                color: "white",
+                border: "none",
+                padding: "4px 8px",
+                borderRadius: "6px",
+                cursor: "pointer",
+              }}
+            >
+              Forward
+            </button>
+          </div>
+        ),
+      }))}
+    emptyMessage="No pending pricing requests"
+/>
+</Card>
+
+
+        </div>
+
+        {/* RIGHT COLUMN */}
+        <aside className="right-col">
+          <div className="side-kpis">
+            <div className="mini-kpi"><div className="mini-kpi-title">Total Outstanding</div><div className="mini-kpi-value">₹ {summary.totalOutstanding || 0}</div></div>
+            <div className="mini-kpi"><div className="mini-kpi-title">Dealers Managed</div><div className="mini-kpi-value">{summary.totalDealers || 0}</div></div>
+            <div className="mini-kpi"><div className="mini-kpi-title">Pending Docs</div><div className="mini-kpi-value">{summary.pendingDocuments || 0}</div></div>
+            <div className="mini-kpi"><div className="mini-kpi-title">Pending Pricing</div><div className="mini-kpi-value">{summary.pendingPricing || 0}</div></div>
+          </div>
+
+          <Card title="Active Campaigns" className="side-card" style={{ marginTop: "1rem" }}>
+            <div style={{ maxHeight: 220, overflowY: "auto" }}>
+              {campaigns.length > 0 ? (
+                campaigns.slice(0, 6).map((c) => (
+                  <div key={c.id} className="campaign-preview" onClick={() => navigate(`/campaigns/${c.id}`)}>
+                    <div style={{ fontWeight: 700, color: accent }}>{c.title}</div>
+                    <div className="text-muted" style={{ fontSize: 13 }}>{c.description}</div>
+                  </div>
+                ))
+              ) : (
+                <p className="text-muted">No campaigns running</p>
+              )}
+            </div>
+          </Card>
+        </aside>
+      </div>
+    </div>
+  );
+}
+</file>
+
 <file path="src/pages/dashboards/DealerDashboard.jsx">
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
@@ -6319,6 +6749,7 @@ import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
 import PricingRequestModal from "../../components/PricingRequestModal";
+import { useNavigate } from "react-router-dom";
 
 import {
   BarChart,
@@ -6336,6 +6767,7 @@ import {
 import "./DashboardLayout.css";
 
 export default function DealerDashboard() {
+   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [summary, setSummary] = useState({});
@@ -6464,6 +6896,13 @@ export default function DealerDashboard() {
           />,
         ]}
         right={[
+          <IconPillButton
+      key="chat"
+      icon="💬"
+      label="Chat with Manager"
+      tone="info"
+      onClick={() => navigate("/dealer/chat")}
+    />,
           <IconPillButton key="upload" icon="📤" label="Upload" />,
           <IconPillButton
             key="promo"
@@ -6477,6 +6916,7 @@ export default function DealerDashboard() {
   label="Request Price Change"
   onClick={() => setShowPriceModal(true)}
 />
+
 
 
         ]}

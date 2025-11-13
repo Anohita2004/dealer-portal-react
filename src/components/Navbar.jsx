@@ -1,98 +1,43 @@
-/*import React, { useContext, useState } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { Link, useNavigate } from "react-router-dom";
-import SearchInput from "./SearchInput";
-import IconPillButton from "./IconPillButton";
-import { useThemeMode } from "../context/ThemeContext";
-
-export default function Navbar() {
-  const { user, logout } = useContext(AuthContext);
-  const navigate = useNavigate();
-  const [globalSearch, setGlobalSearch] = useState("");
-  const { mode, toggle } = useThemeMode();
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
-  return (
-    <nav
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: "1rem",
-        padding: "0.9rem 1.5rem",
-        background: "rgba(12, 12, 14, 0.75)",
-        backdropFilter: "blur(14px)",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-        boxShadow: "0 4px 24px rgba(0,0,0,0.45)",
-        position: "sticky",
-        top: 0,
-        zIndex: 30,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-        <img
-          src="/logo192.png"
-          alt="Portal Logo"
-          style={{ width: "32px", height: "32px", borderRadius: "50%" }}
-        />
-        <strong style={{ fontSize: "1.15rem", color: "#f97316" }}>
-          Dealer Portal
-        </strong>
-      </div>
-
-      <div style={{ flex: 1, maxWidth: 680 }}>
-        <SearchInput
-          value={globalSearch}
-          onChange={(e) => setGlobalSearch(e.target.value)}
-          placeholder="Search across app..."
-        />
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-        <IconPillButton
-          icon={mode === "dark" ? "🌙" : "☀️"}
-          label={mode === "dark" ? "Dark" : "Light"}
-          tone="warning"
-          onClick={toggle}
-        />
-        <IconPillButton
-          icon="🧾"
-          label="New Invoice"
-          tone="primary"
-          onClick={() => navigate("/invoices")}
-        />
-        {user && (
-          <span style={{ color: "#cbd5e1" }}>
-            👋 Hi, <strong>{user.name || user.username}</strong>
-          </span>
-        )}
-        <IconPillButton icon="🚪" label="Logout" tone="danger" onClick={handleLogout} />
-      </div>
-    </nav>
-  );
-}*/
 import React, { useContext, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import { useThemeMode } from "../context/ThemeContext";
+import { useNotifications } from "../context/NotificationContext";
 import SearchInput from "./SearchInput";
-import { IconButton, Tooltip, Avatar } from "@mui/material";
-import { WbSunny, DarkMode, Notifications, AddCircleOutline } from "@mui/icons-material";
+import {
+  IconButton,
+  Tooltip,
+  Avatar,
+  Badge,
+  Menu,
+  MenuItem,
+  Typography,
+  Divider,
+} from "@mui/material";
+import {
+  WbSunny,
+  DarkMode,
+  Notifications,
+  AddCircleOutline,
+} from "@mui/icons-material";
 
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
   const navigate = useNavigate();
   const { mode, toggle } = useThemeMode();
+  const { notifications, unread, markAllAsRead } = useNotifications();
+
   const [globalSearch, setGlobalSearch] = useState("");
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
+
+  const handleNotifOpen = (e) => setAnchorEl(e.currentTarget);
+  const handleNotifClose = () => setAnchorEl(null);
 
   return (
     <nav
@@ -103,9 +48,7 @@ export default function Navbar() {
         padding: "0.75rem 1.5rem",
         backdropFilter: "blur(14px)",
         background:
-          mode === "dark"
-            ? "rgba(12,12,14,0.75)"
-            : "rgba(255,255,255,0.8)",
+          mode === "dark" ? "rgba(12,12,14,0.75)" : "rgba(255,255,255,0.8)",
         borderBottom:
           mode === "dark"
             ? "1px solid rgba(255,255,255,0.06)"
@@ -113,12 +56,12 @@ export default function Navbar() {
         position: "sticky",
         top: 0,
         zIndex: 50,
-        boxShadow: mode === "dark"
-          ? "0 4px 24px rgba(0,0,0,0.4)"
-          : "0 4px 20px rgba(0,0,0,0.1)",
+        boxShadow:
+          mode === "dark"
+            ? "0 4px 24px rgba(0,0,0,0.4)"
+            : "0 4px 20px rgba(0,0,0,0.1)",
       }}
     >
-      {/* Search Bar */}
       <div style={{ flex: 1, maxWidth: 500 }}>
         <SearchInput
           placeholder="Search modules, dealers..."
@@ -127,23 +70,12 @@ export default function Navbar() {
         />
       </div>
 
-      {/* Right-side Controls */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "1rem",
-        }}
-      >
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
         <Tooltip title="Create New">
           <IconButton
             sx={{
               color: "#f97316",
-              transition: "0.3s",
-              "&:hover": {
-                transform: "scale(1.1)",
-                color: "#fb923c",
-              },
+              "&:hover": { transform: "scale(1.1)", color: "#fb923c" },
             }}
             onClick={() => navigate("/invoices")}
           >
@@ -151,19 +83,81 @@ export default function Navbar() {
           </IconButton>
         </Tooltip>
 
+        {/* 🔔 Notifications */}
         <Tooltip title="Notifications">
           <IconButton
+            onClick={handleNotifOpen}
             sx={{
               color: mode === "dark" ? "#f8fafc" : "#1e293b",
-              "&:hover": {
-                color: "#f97316",
-              },
+              "&:hover": { color: "#f97316" },
             }}
           >
-            <Notifications />
+            <Badge badgeContent={unread} color="error">
+              <Notifications />
+            </Badge>
           </IconButton>
         </Tooltip>
 
+        <Menu
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleNotifClose}
+          PaperProps={{
+            elevation: 4,
+            sx: { mt: 1, minWidth: 300, borderRadius: 2, p: 0.5 },
+          }}
+        >
+          <MenuItem
+            onClick={() => {
+              markAllAsRead();
+              handleNotifClose();
+            }}
+            sx={{
+              fontWeight: 500,
+              color: "#f97316",
+              justifyContent: "center",
+              fontSize: "0.85rem",
+            }}
+          >
+            Mark all as read
+          </MenuItem>
+          <Divider />
+          {notifications.length > 0 ? (
+            notifications.slice(0, 8).map((n, idx) => (
+              <MenuItem
+                key={idx}
+                onClick={handleNotifClose}
+                sx={{
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: 0.3,
+                  backgroundColor: n.isRead
+                    ? "transparent"
+                    : "rgba(249,115,22,0.08)",
+                }}
+              >
+                <Typography
+                  variant="subtitle2"
+                  fontWeight={!n.isRead ? 600 : 400}
+                  sx={{ color: "#f97316" }}
+                >
+                  {n.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {n.message}
+                </Typography>
+              </MenuItem>
+            ))
+          ) : (
+            <MenuItem disabled>
+              <Typography variant="body2" color="text.secondary">
+                No notifications yet
+              </Typography>
+            </MenuItem>
+          )}
+        </Menu>
+
+        {/* 🌗 Theme toggle */}
         <Tooltip title="Toggle Theme">
           <IconButton
             onClick={toggle}
@@ -178,14 +172,7 @@ export default function Navbar() {
 
         {user && (
           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            <Avatar
-              sx={{
-                width: 36,
-                height: 36,
-                bgcolor: "#f97316",
-                fontWeight: 600,
-              }}
-            >
+            <Avatar sx={{ width: 36, height: 36, bgcolor: "#f97316" }}>
               {user.name ? user.name[0].toUpperCase() : "U"}
             </Avatar>
             <div style={{ fontSize: "0.9rem", color: "#cbd5e1" }}>
@@ -197,10 +184,7 @@ export default function Navbar() {
         <Tooltip title="Logout">
           <IconButton
             onClick={handleLogout}
-            sx={{
-              color: "#ef4444",
-              "&:hover": { transform: "scale(1.1)" },
-            }}
+            sx={{ color: "#ef4444", "&:hover": { transform: "scale(1.1)" } }}
           >
             🚪
           </IconButton>
