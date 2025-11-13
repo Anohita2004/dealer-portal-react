@@ -179,6 +179,14 @@ const handlePricingAction = async (id, action) => {
             tone="warning"
             onClick={() => navigate("/campaigns")}
           />,
+          <IconPillButton
+  key="chat"
+  icon="💬"
+  label="Chat"
+  tone="info"
+  onClick={() => navigate("/manager/chat")}
+/>
+
         ]}
       />
 

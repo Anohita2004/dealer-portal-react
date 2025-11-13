@@ -17,6 +17,9 @@ import AccountsNotes from "./pages/accounts/AccountsNotes";
 import AccountsReports from "./pages/accounts/AccountsReports";
 import AdminDocuments from "./pages/AdminDocuments";
 import PricingApprovals from "./pages/PricingApprovals";
+import ManagerChat from "./pages/ManagerChat";
+import DealerChat from "./pages/DealerChat";
+
 
 
 // inside <Routes>
@@ -57,6 +60,9 @@ function App() {
 
 <Route path="/admin/documents" element={<AdminDocuments />} />
 <Route path="/pricing-approvals" element={<PricingApprovals />} />
+<Route path="/manager/chat" element={<ManagerChat />} />
+<Route path="/dealer/chat" element={<DealerChat />} />
+
 
 
             {/* 🔜 Add Campaigns, Reports, Admin here */}

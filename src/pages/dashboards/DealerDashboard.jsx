@@ -8,6 +8,7 @@ import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
 import PricingRequestModal from "../../components/PricingRequestModal";
+import { useNavigate } from "react-router-dom";
 
 import {
   BarChart,
@@ -25,6 +26,7 @@ import {
 import "./DashboardLayout.css";
 
 export default function DealerDashboard() {
+   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [summary, setSummary] = useState({});
@@ -153,6 +155,13 @@ export default function DealerDashboard() {
           />,
         ]}
         right={[
+          <IconPillButton
+      key="chat"
+      icon="💬"
+      label="Chat with Manager"
+      tone="info"
+      onClick={() => navigate("/dealer/chat")}
+    />,
           <IconPillButton key="upload" icon="📤" label="Upload" />,
           <IconPillButton
             key="promo"
@@ -166,6 +175,7 @@ export default function DealerDashboard() {
   label="Request Price Change"
   onClick={() => setShowPriceModal(true)}
 />
+
 
 
         ]}
