@@ -4,6 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useThemeMode } from "../context/ThemeContext";
 import { useNotifications } from "../context/NotificationContext";
 import SearchInput from "./SearchInput";
+
 import {
   IconButton,
   Tooltip,
@@ -14,12 +15,15 @@ import {
   Typography,
   Divider,
 } from "@mui/material";
+
+// Lucide Icons
 import {
-  WbSunny,
-  DarkMode,
-  Notifications,
-  AddCircleOutline,
-} from "@mui/icons-material";
+  Sun,
+  Moon,
+  Bell,
+  PlusCircle,
+  LogOut,
+} from "lucide-react";
 
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
@@ -39,6 +43,8 @@ export default function Navbar() {
   const handleNotifOpen = (e) => setAnchorEl(e.currentTarget);
   const handleNotifClose = () => setAnchorEl(null);
 
+  const isDark = mode === "dark";
+
   return (
     <nav
       style={{
@@ -47,21 +53,19 @@ export default function Navbar() {
         justifyContent: "space-between",
         padding: "0.75rem 1.5rem",
         backdropFilter: "blur(14px)",
-        background:
-          mode === "dark" ? "rgba(12,12,14,0.75)" : "rgba(255,255,255,0.8)",
-        borderBottom:
-          mode === "dark"
-            ? "1px solid rgba(255,255,255,0.06)"
-            : "1px solid rgba(0,0,0,0.08)",
+        background: isDark ? "rgba(12,12,14,0.75)" : "rgba(255,255,255,0.8)",
+        borderBottom: isDark
+          ? "1px solid rgba(255,255,255,0.06)"
+          : "1px solid rgba(0,0,0,0.08)",
         position: "sticky",
         top: 0,
         zIndex: 50,
-        boxShadow:
-          mode === "dark"
-            ? "0 4px 24px rgba(0,0,0,0.4)"
-            : "0 4px 20px rgba(0,0,0,0.1)",
+        boxShadow: isDark
+          ? "0 4px 24px rgba(0,0,0,0.4)"
+          : "0 4px 20px rgba(0,0,0,0.1)",
       }}
     >
+      {/* Search Bar */}
       <div style={{ flex: 1, maxWidth: 500 }}>
         <SearchInput
           placeholder="Search modules, dealers..."
@@ -71,6 +75,7 @@ export default function Navbar() {
       </div>
 
       <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        {/* Create New */}
         <Tooltip title="Create New">
           <IconButton
             sx={{
@@ -79,25 +84,26 @@ export default function Navbar() {
             }}
             onClick={() => navigate("/invoices")}
           >
-            <AddCircleOutline />
+            <PlusCircle size={22} />
           </IconButton>
         </Tooltip>
 
-        {/* 🔔 Notifications */}
+        {/* Notifications */}
         <Tooltip title="Notifications">
           <IconButton
             onClick={handleNotifOpen}
             sx={{
-              color: mode === "dark" ? "#f8fafc" : "#1e293b",
+              color: isDark ? "#f8fafc" : "#1e293b",
               "&:hover": { color: "#f97316" },
             }}
           >
             <Badge badgeContent={unread} color="error">
-              <Notifications />
+              <Bell size={22} />
             </Badge>
           </IconButton>
         </Tooltip>
 
+        {/* Notifications Menu */}
         <Menu
           anchorEl={anchorEl}
           open={open}
@@ -121,7 +127,9 @@ export default function Navbar() {
           >
             Mark all as read
           </MenuItem>
+
           <Divider />
+
           {notifications.length > 0 ? (
             notifications.slice(0, 8).map((n, idx) => (
               <MenuItem
@@ -157,19 +165,20 @@ export default function Navbar() {
           )}
         </Menu>
 
-        {/* 🌗 Theme toggle */}
+        {/* Theme Toggle */}
         <Tooltip title="Toggle Theme">
           <IconButton
             onClick={toggle}
             sx={{
-              color: mode === "dark" ? "#fbbf24" : "#0f172a",
+              color: isDark ? "#fbbf24" : "#0f172a",
               "&:hover": { color: "#f97316" },
             }}
           >
-            {mode === "dark" ? <WbSunny /> : <DarkMode />}
+            {isDark ? <Sun size={22} /> : <Moon size={22} />}
           </IconButton>
         </Tooltip>
 
+        {/* User */}
         {user && (
           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
             <Avatar sx={{ width: 36, height: 36, bgcolor: "#f97316" }}>
@@ -181,12 +190,13 @@ export default function Navbar() {
           </div>
         )}
 
+        {/* Logout */}
         <Tooltip title="Logout">
           <IconButton
             onClick={handleLogout}
             sx={{ color: "#ef4444", "&:hover": { transform: "scale(1.1)" } }}
           >
-            🚪
+            <LogOut size={22} />
           </IconButton>
         </Tooltip>
       </div>

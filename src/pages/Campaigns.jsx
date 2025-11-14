@@ -1,6 +1,7 @@
 import React, { useEffect, useState, useContext } from "react";
 import api from "../services/api";
 import { AuthContext } from "../context/AuthContext";
+import { Target, Calendar, ArrowRight } from "lucide-react";
 
 export default function Campaigns() {
   const { user } = useContext(AuthContext);
@@ -13,19 +14,22 @@ export default function Campaigns() {
     endDate: "",
     isActive: true,
   });
+
   const [loading, setLoading] = useState(false);
   const isAdmin = user?.role === "admin";
 
-  // Fetch campaigns depending on role
+  // Fetch campaigns
   const fetchCampaigns = async () => {
     try {
       setLoading(true);
       let res;
+
       if (isAdmin) {
-        res = await api.get("/campaigns"); // admin sees all
+        res = await api.get("/campaigns"); // admin: all campaigns
       } else {
-        res = await api.get("/campaigns/active"); // dealers see only active
+        res = await api.get("/campaigns/active"); // dealers: only active
       }
+
       setCampaigns(res.data.campaigns || res.data);
     } catch (err) {
       console.error("Failed to fetch campaigns:", err);
@@ -38,11 +42,12 @@ export default function Campaigns() {
     fetchCampaigns();
   }, [isAdmin]);
 
-  // Admin-only: Create Campaign
+  // Create campaign (Admin only)
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
       await api.post("/campaigns", form);
+
       setForm({
         campaignName: "",
         campaignType: "promotion",
@@ -51,6 +56,7 @@ export default function Campaigns() {
         endDate: "",
         isActive: true,
       });
+
       fetchCampaigns();
     } catch (err) {
       console.error("Error creating campaign:", err);
@@ -58,9 +64,10 @@ export default function Campaigns() {
     }
   };
 
-  // Admin-only: Delete Campaign
+  // Delete campaign (Admin only)
   const deleteCampaign = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this campaign?")) return;
+    if (!window.confirm("Delete this campaign?")) return;
+
     try {
       await api.delete(`/campaigns/${id}`);
       fetchCampaigns();
@@ -72,7 +79,12 @@ export default function Campaigns() {
 
   return (
     <div style={styles.container}>
-      <h2 style={styles.title}>🎯 Campaigns</h2>
+      <h2 style={styles.title}>
+        <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+          <Target size={22} />
+          Campaigns
+        </span>
+      </h2>
 
       {loading ? (
         <p>Loading campaigns...</p>
@@ -82,6 +94,7 @@ export default function Campaigns() {
           {isAdmin && (
             <form onSubmit={handleSubmit} style={styles.form}>
               <h3>Create Campaign</h3>
+
               <input
                 type="text"
                 placeholder="Campaign Name"
@@ -91,6 +104,7 @@ export default function Campaigns() {
                 }
                 required
               />
+
               <select
                 value={form.campaignType}
                 onChange={(e) =>
@@ -122,6 +136,7 @@ export default function Campaigns() {
                     required
                   />
                 </label>
+
                 <label>
                   End:
                   <input
@@ -160,14 +175,21 @@ export default function Campaigns() {
               campaigns.map((c) => (
                 <div key={c.id} style={styles.card}>
                   <h3>{c.campaignName}</h3>
+
                   <p>
                     <b>Type:</b> {c.campaignType}
                   </p>
+
                   <p>{c.description}</p>
-                  <p>
-                    📅 {new Date(c.startDate).toLocaleDateString()} →{" "}
+
+                  {/* Icon-based dates */}
+                  <p style={{ display: "flex", alignItems: "center", gap: "6px" }}>
+                    <Calendar size={18} />
+                    {new Date(c.startDate).toLocaleDateString()}
+                    <ArrowRight size={16} />
                     {new Date(c.endDate).toLocaleDateString()}
                   </p>
+
                   <span
                     style={{
                       color: c.isActive ? "green" : "red",
@@ -176,6 +198,7 @@ export default function Campaigns() {
                   >
                     {c.isActive ? "Active" : "Inactive"}
                   </span>
+
                   {isAdmin && (
                     <button
                       onClick={() => deleteCampaign(c.id)}
@@ -197,6 +220,7 @@ export default function Campaigns() {
 const styles = {
   container: { padding: "2rem", fontFamily: "Poppins, sans-serif" },
   title: { marginBottom: "1rem", fontWeight: "600", fontSize: "1.4rem" },
+
   form: {
     display: "grid",
     gap: "0.8rem",
@@ -206,7 +230,9 @@ const styles = {
     padding: "1rem",
     borderRadius: "8px",
   },
+
   dateRow: { display: "flex", gap: "1rem", justifyContent: "space-between" },
+
   button: {
     background: "#1e3c72",
     color: "white",
@@ -215,13 +241,16 @@ const styles = {
     padding: "10px",
     cursor: "pointer",
   },
+
   list: { display: "grid", gap: "1rem" },
+
   card: {
     padding: "1rem",
     border: "1px solid #ccc",
     borderRadius: "8px",
     background: "#fff",
   },
+
   delete: {
     marginTop: "0.5rem",
     background: "#e74c3c",
@@ -232,3 +261,4 @@ const styles = {
     cursor: "pointer",
   },
 };
+
