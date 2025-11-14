@@ -1,12 +1,14 @@
 import React, { useEffect, useState, useContext } from "react";
 import api from "../../services/api";
 import { AuthContext } from "../../context/AuthContext";
+
 import PageHeader from "../../components/PageHeader";
 import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
 import DataTable from "../../components/DataTable";
 import { toast } from "react-toastify";
+
 import {
   BarChart,
   Bar,
@@ -20,14 +22,25 @@ import {
   Legend,
 } from "recharts";
 
+import {
+  FileDown,
+  FileSpreadsheet,
+  Plus,
+  Package,
+  Factory,
+  AlertTriangle,
+  ListChecks,
+} from "lucide-react";
+
 export default function InventoryDashboard() {
   const { user } = useContext(AuthContext);
+
   const [inventory, setInventory] = useState([]);
   const [summary, setSummary] = useState({});
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  // 🎨 Define theme per role
+  // Themes per role
   const roleTheme = {
     dealer: { color: "#3b82f6", bg: "#eff6ff" },
     manager: { color: "#f59e0b", bg: "#fff7ed" },
@@ -39,7 +52,7 @@ export default function InventoryDashboard() {
 
   const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
 
-  // 📡 Fetch inventory data
+  // FETCH inventory
   const fetchInventory = async () => {
     try {
       setLoading(true);
@@ -57,17 +70,21 @@ export default function InventoryDashboard() {
     fetchInventory();
   }, []);
 
+  // Export
   const handleExport = async (format) => {
     try {
       const response = await api.get(`/inventory/export?format=${format}`, {
         responseType: "blob",
       });
+
       const url = window.URL.createObjectURL(new Blob([response.data]));
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute(
         "download",
-        `inventory_${new Date().toISOString().slice(0, 10)}.${format === "pdf" ? "pdf" : "xlsx"}`
+        `inventory_${new Date().toISOString().slice(0, 10)}.${
+          format === "pdf" ? "pdf" : "xlsx"
+        }`
       );
       document.body.appendChild(link);
       link.click();
@@ -76,6 +93,7 @@ export default function InventoryDashboard() {
     }
   };
 
+  // Add item
   const handleAddMockItem = async () => {
     try {
       const mock = {
@@ -84,6 +102,7 @@ export default function InventoryDashboard() {
         plant: "Chennai",
         reorderLevel: 10,
       };
+
       const res = await api.post("/inventory", mock);
       toast.success("Item added");
       setInventory((prev) => [...prev, res.data.item]);
@@ -92,6 +111,7 @@ export default function InventoryDashboard() {
     }
   };
 
+  // Delete item
   const handleDelete = async (id) => {
     try {
       await api.delete(`/inventory/${id}`);
@@ -102,28 +122,32 @@ export default function InventoryDashboard() {
     }
   };
 
-  // 🔍 Filter search
+  // Filter
   const filtered = inventory.filter((item) =>
     item.product.toLowerCase().includes(search.toLowerCase())
   );
 
-  // 🧱 Table columns (role-aware)
+  // Table Columns
   const columns = [
     { key: "product", label: "Product" },
     { key: "available", label: "Available" },
-    (user?.role === "manager" || user?.role === "inventory" || user?.role === "admin") && {
+
+    (["manager", "inventory", "admin"].includes(user?.role)) && {
       key: "plant",
       label: "Plant",
     },
-    (user?.role === "inventory" || user?.role === "admin") && {
+
+    (["inventory", "admin"].includes(user?.role)) && {
       key: "reorderLevel",
       label: "Reorder Level",
     },
-    (user?.role === "inventory" || user?.role === "admin") && {
+
+    (["inventory", "admin"].includes(user?.role)) && {
       key: "updatedAt",
       label: "Last Updated",
     },
-    (user?.role === "inventory" || user?.role === "admin") && {
+
+    (["inventory", "admin"].includes(user?.role)) && {
       key: "actions",
       label: "Actions",
       render: (_, row) => (
@@ -144,7 +168,7 @@ export default function InventoryDashboard() {
     },
   ].filter(Boolean);
 
-  // 📊 Derived data for charts
+  // Derived Data
   const lowStockCount = inventory.filter(
     (i) => i.reorderLevel && i.available < i.reorderLevel
   ).length;
@@ -162,13 +186,13 @@ export default function InventoryDashboard() {
     <div style={{ padding: "1rem", background: theme.bg, minHeight: "100vh" }}>
       <PageHeader
         title="Inventory Dashboard"
-        subtitle={`Monitor stock and performance — role: ${user?.role?.toUpperCase()}`}
+        subtitle={`Live stock monitoring — role: ${user?.role?.toUpperCase()}`}
         actions={[
           (user?.role !== "dealer") && (
             <IconPillButton
               key="pdf"
               label="Export PDF"
-              icon="📄"
+              icon={<FileDown size={16} />}
               onClick={() => handleExport("pdf")}
             />
           ),
@@ -176,18 +200,18 @@ export default function InventoryDashboard() {
             <IconPillButton
               key="excel"
               label="Export Excel"
-              icon="📊"
-              onClick={() => handleExport("excel")}
+              icon={<FileSpreadsheet size={16} />}
               tone="success"
+              onClick={() => handleExport("excel")}
             />
           ),
-          (user?.role === "inventory" || user?.role === "admin") && (
+          (["inventory", "admin"].includes(user?.role)) && (
             <IconPillButton
               key="add"
-              label="Add Mock Item"
-              icon="➕"
-              onClick={handleAddMockItem}
+              label="Add Item"
+              icon={<Plus size={16} />}
               tone="warning"
+              onClick={handleAddMockItem}
             />
           ),
         ].filter(Boolean)}
@@ -208,13 +232,13 @@ export default function InventoryDashboard() {
 
       <Toolbar>
         <SearchInput
-          placeholder="Search product"
+          placeholder="Search product..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
         />
       </Toolbar>
 
-      {/* 🎨 Charts */}
+      {/* Charts Section */}
       {!loading && inventory.length > 0 && (
         <div
           style={{
@@ -224,6 +248,7 @@ export default function InventoryDashboard() {
             marginTop: "2rem",
           }}
         >
+          {/* Product Stock Levels */}
           <div
             style={{
               background: "white",
@@ -233,27 +258,26 @@ export default function InventoryDashboard() {
             }}
           >
             <h4 style={{ marginBottom: "1rem", color: "#111827" }}>
-              📦 Stock Levels by Product
+              <Package size={18} style={{ marginRight: 6 }} />
+              Stock Levels by Product
             </h4>
+
             <ResponsiveContainer width="100%" height={300}>
               <BarChart data={inventory}>
                 <XAxis dataKey="product" />
                 <YAxis />
                 <Tooltip />
                 <Legend />
-                <Bar dataKey="available" fill={theme.color} name="Available Stock" />
-                {(user?.role === "inventory" || user?.role === "admin") && (
-                  <Bar
-                    dataKey="reorderLevel"
-                    fill="#f97316"
-                    name="Reorder Level"
-                  />
+                <Bar dataKey="available" fill={theme.color} name="Available" />
+                {(["inventory", "admin"].includes(user?.role)) && (
+                  <Bar dataKey="reorderLevel" fill="#f97316" name="Reorder Level" />
                 )}
               </BarChart>
             </ResponsiveContainer>
           </div>
 
-          {(user?.role !== "dealer") && (
+          {/* Plant Distribution */}
+          {user?.role !== "dealer" && (
             <div
               style={{
                 background: "white",
@@ -263,8 +287,10 @@ export default function InventoryDashboard() {
               }}
             >
               <h4 style={{ marginBottom: "1rem", color: "#111827" }}>
-                🏭 Stock by Plant
+                <Factory size={18} style={{ marginRight: 6 }} />
+                Stock by Plant
               </h4>
+
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
@@ -272,7 +298,6 @@ export default function InventoryDashboard() {
                     dataKey="total"
                     nameKey="name"
                     outerRadius={100}
-                    fill={theme.color}
                     label
                   >
                     {plantWiseData.map((_, i) => (
@@ -287,7 +312,7 @@ export default function InventoryDashboard() {
         </div>
       )}
 
-      {/* 📋 Table */}
+      {/* Table */}
       <div style={{ marginTop: "2rem" }}>
         {loading ? (
           <p style={{ color: "#9ca3af" }}>Loading inventory...</p>
@@ -296,7 +321,7 @@ export default function InventoryDashboard() {
         )}
       </div>
 
-      {/* 📈 Summary Cards */}
+      {/* Summary Cards */}
       <div
         style={{
           marginTop: "2rem",
@@ -311,28 +336,33 @@ export default function InventoryDashboard() {
             padding: "1rem",
             borderRadius: "12px",
             flex: 1,
-            minWidth: "200px",
+            minWidth: "220px",
           }}
         >
-          <h4 style={{ color: theme.color }}>📊 Summary</h4>
+          <h4 style={{ color: theme.color, display: "flex", alignItems: "center", gap: 8 }}>
+            <ListChecks size={18} /> Summary
+          </h4>
           <p>Total Dealers: {summary.totalDealers}</p>
           <p>Active Campaigns: {summary.activeCampaigns}</p>
           <p>Total Invoices: {summary.totalInvoices}</p>
         </div>
+
         <div
           style={{
             background: lowStockCount > 0 ? "#fee2e2" : "#dcfce7",
             padding: "1rem",
             borderRadius: "12px",
             flex: 1,
-            minWidth: "200px",
+            minWidth: "220px",
           }}
         >
-          <h4>⚠️ Low Stock Items</h4>
+          <h4 style={{ display: "flex", alignItems: "center", gap: 8 }}>
+            <AlertTriangle size={18} /> Low Stock Items
+          </h4>
           <p>
             {lowStockCount > 0
               ? `${lowStockCount} product(s) below reorder level`
-              : "All stocks are healthy!"}
+              : "All stocks are healthy"}
           </p>
         </div>
       </div>
