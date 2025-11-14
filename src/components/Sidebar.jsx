@@ -26,6 +26,7 @@ export default function Sidebar() {
     dealer: [
       { path: "/invoices", label: "Invoices", icon: <FaFileInvoice /> },
       { path: "/documents", label: "Documents", icon: <FaFileAlt /> },
+      { path: "/reports", label: "Reports", icon: <FaChartBar /> },
     ],
     tm: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
     am: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],

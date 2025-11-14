@@ -62,6 +62,7 @@ src/components/IconPillButton.jsx
 src/components/Layout.css
 src/components/Layout.jsx
 src/components/Navbar.jsx
+src/components/NotificationBelll.jsx
 src/components/PageHeader.jsx
 src/components/Pagination.jsx
 src/components/PieChartCard.jsx
@@ -75,6 +76,7 @@ src/components/SparklineMini.jsx
 src/components/StatCard.jsx
 src/components/Toolbar.jsx
 src/context/AuthContext.jsx
+src/context/NotificationContext.jsx
 src/context/ThemeContext.jsx
 src/index.css
 src/main.jsx
@@ -552,6 +554,67 @@ export default function EmptyState({ icon = "🔍", title = "No data", descripti
 }
 </file>
 
+<file path="src/components/NotificationBelll.jsx">
+import React, { useState } from "react";
+import { IconButton, Badge, Menu, MenuItem, Typography } from "@mui/material";
+import NotificationsIcon from "@mui/icons-material/Notifications";
+import { useNotifications } from "../context/NotificationContext";
+
+export default function NotificationBell() {
+  const { notifications, unread, markAllAsRead } = useNotifications();
+  const [anchorEl, setAnchorEl] = useState(null);
+
+  const handleOpen = (e) => setAnchorEl(e.currentTarget);
+  const handleClose = () => setAnchorEl(null);
+
+  return (
+    <>
+      <IconButton color="inherit" onClick={handleOpen}>
+        <Badge badgeContent={unread} color="error">
+          <NotificationsIcon />
+        </Badge>
+      </IconButton>
+
+      <Menu
+        anchorEl={anchorEl}
+        open={Boolean(anchorEl)}
+        onClose={handleClose}
+        sx={{ mt: 1 }}
+      >
+        <MenuItem onClick={markAllAsRead}>
+          <Typography variant="body2" color="primary">
+            Mark all as read
+          </Typography>
+        </MenuItem>
+        {notifications.length > 0 ? (
+          notifications.slice(0, 8).map((n, idx) => (
+            <MenuItem key={idx} onClick={handleClose} dense>
+              <div>
+                <Typography
+                  variant="subtitle2"
+                  fontWeight={!n.isRead ? "bold" : "normal"}
+                >
+                  {n.title}
+                </Typography>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ whiteSpace: "normal" }}
+                >
+                  {n.message}
+                </Typography>
+              </div>
+            </MenuItem>
+          ))
+        ) : (
+          <MenuItem disabled>No notifications</MenuItem>
+        )}
+      </Menu>
+    </>
+  );
+}
+</file>
+
 <file path="src/components/PricingRequestForm.jsx">
 import React, { useState, useEffect } from "react";
 import api from "../services/api";
@@ -948,6 +1011,70 @@ export const AuthProvider = ({ children }) => {
     </AuthContext.Provider>
   );
 };
+</file>
+
+<file path="src/context/NotificationContext.jsx">
+import React, { createContext, useState, useEffect, useContext } from "react";
+import socket from "../services/socket";
+import api from "../services/api";
+import { toast } from "react-toastify";
+import { AuthContext } from "./AuthContext"; // ✅ ensure AuthContext exists
+
+export const NotificationContext = createContext();
+
+export const NotificationProvider = ({ children }) => {
+  const { user } = useContext(AuthContext);
+  const [notifications, setNotifications] = useState([]);
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    if (!user) return;
+
+    // 1️⃣ Fetch saved notifications from backend
+    const fetchNotifications = async () => {
+      try {
+        const res = await api.get("/notifications");
+        setNotifications(res.data.notifications || []);
+        setUnread(res.data.notifications.filter((n) => !n.isRead).length);
+      } catch (err) {
+        console.error("Failed to fetch notifications", err);
+      }
+    };
+    fetchNotifications();
+
+    // 2️⃣ Authenticate socket
+    socket.emit("authenticate", { userId: user.id, role: user.role });
+
+    // 3️⃣ Listen for real-time notifications
+    socket.on("notification", (data) => {
+      toast.info(`${data.title}: ${data.message}`);
+      setNotifications((prev) => [data, ...prev]);
+      setUnread((prev) => prev + 1);
+    });
+
+    return () => socket.off("notification");
+  }, [user]);
+
+  const markAllAsRead = async () => {
+    try {
+      await api.patch("/notifications/read-all");
+      setUnread(0);
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, isRead: true }))
+      );
+    } catch (err) {
+      console.error("Failed to mark notifications read", err);
+    }
+  };
+
+  return (
+    <NotificationContext.Provider value={{ notifications, unread, markAllAsRead }}>
+      {children}
+    </NotificationContext.Provider>
+  );
+};
+
+export const useNotifications = () => useContext(NotificationContext);
 </file>
 
 <file path="src/context/ThemeContext.jsx">
@@ -2427,34 +2554,6 @@ export default function PieChartCard({ title, data = [] }) {
 }
 </file>
 
-<file path="src/main.jsx">
-import { StrictMode } from 'react'
-import { createRoot } from 'react-dom/client'
-import './index.css'
-import App from './App.jsx'
-import { ThemeProvider, CssBaseline } from '@mui/material'
-import getTheme from './theme.js'
-import { ThemeModeProvider, useThemeMode } from './context/ThemeContext.jsx'
-
-function ThemedApp() {
-  const { mode } = useThemeMode();
-  return (
-    <ThemeProvider theme={getTheme(mode)}>
-      <CssBaseline />
-      <App />
-    </ThemeProvider>
-  )
-}
-
-createRoot(document.getElementById('root')).render(
-  <StrictMode>
-    <ThemeModeProvider>
-      <ThemedApp />
-    </ThemeModeProvider>
-  </StrictMode>,
-)
-</file>
-
 <file path="src/pages/Admin.jsx">
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
@@ -3131,220 +3230,6 @@ export default function Invoices() {
 }
 </file>
 
-<file path="src/components/Navbar.jsx">
-/*import React, { useContext, useState } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { Link, useNavigate } from "react-router-dom";
-import SearchInput from "./SearchInput";
-import IconPillButton from "./IconPillButton";
-import { useThemeMode } from "../context/ThemeContext";
-
-export default function Navbar() {
-  const { user, logout } = useContext(AuthContext);
-  const navigate = useNavigate();
-  const [globalSearch, setGlobalSearch] = useState("");
-  const { mode, toggle } = useThemeMode();
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
-  return (
-    <nav
-      style={{
-        display: "flex",
-        justifyContent: "space-between",
-        alignItems: "center",
-        gap: "1rem",
-        padding: "0.9rem 1.5rem",
-        background: "rgba(12, 12, 14, 0.75)",
-        backdropFilter: "blur(14px)",
-        borderBottom: "1px solid rgba(255, 255, 255, 0.08)",
-        boxShadow: "0 4px 24px rgba(0,0,0,0.45)",
-        position: "sticky",
-        top: 0,
-        zIndex: 30,
-      }}
-    >
-      <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-        <img
-          src="/logo192.png"
-          alt="Portal Logo"
-          style={{ width: "32px", height: "32px", borderRadius: "50%" }}
-        />
-        <strong style={{ fontSize: "1.15rem", color: "#f97316" }}>
-          Dealer Portal
-        </strong>
-      </div>
-
-      <div style={{ flex: 1, maxWidth: 680 }}>
-        <SearchInput
-          value={globalSearch}
-          onChange={(e) => setGlobalSearch(e.target.value)}
-          placeholder="Search across app..."
-        />
-      </div>
-
-      <div style={{ display: "flex", alignItems: "center", gap: "0.75rem" }}>
-        <IconPillButton
-          icon={mode === "dark" ? "🌙" : "☀️"}
-          label={mode === "dark" ? "Dark" : "Light"}
-          tone="warning"
-          onClick={toggle}
-        />
-        <IconPillButton
-          icon="🧾"
-          label="New Invoice"
-          tone="primary"
-          onClick={() => navigate("/invoices")}
-        />
-        {user && (
-          <span style={{ color: "#cbd5e1" }}>
-            👋 Hi, <strong>{user.name || user.username}</strong>
-          </span>
-        )}
-        <IconPillButton icon="🚪" label="Logout" tone="danger" onClick={handleLogout} />
-      </div>
-    </nav>
-  );
-}*/
-import React, { useContext, useState } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { useNavigate } from "react-router-dom";
-import { useThemeMode } from "../context/ThemeContext";
-import SearchInput from "./SearchInput";
-import { IconButton, Tooltip, Avatar } from "@mui/material";
-import { WbSunny, DarkMode, Notifications, AddCircleOutline } from "@mui/icons-material";
-
-export default function Navbar() {
-  const { user, logout } = useContext(AuthContext);
-  const navigate = useNavigate();
-  const { mode, toggle } = useThemeMode();
-  const [globalSearch, setGlobalSearch] = useState("");
-
-  const handleLogout = () => {
-    logout();
-    navigate("/login");
-  };
-
-  return (
-    <nav
-      style={{
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "space-between",
-        padding: "0.75rem 1.5rem",
-        backdropFilter: "blur(14px)",
-        background:
-          mode === "dark"
-            ? "rgba(12,12,14,0.75)"
-            : "rgba(255,255,255,0.8)",
-        borderBottom:
-          mode === "dark"
-            ? "1px solid rgba(255,255,255,0.06)"
-            : "1px solid rgba(0,0,0,0.08)",
-        position: "sticky",
-        top: 0,
-        zIndex: 50,
-        boxShadow: mode === "dark"
-          ? "0 4px 24px rgba(0,0,0,0.4)"
-          : "0 4px 20px rgba(0,0,0,0.1)",
-      }}
-    >
-      {/* Search Bar */}
-      <div style={{ flex: 1, maxWidth: 500 }}>
-        <SearchInput
-          placeholder="Search modules, dealers..."
-          value={globalSearch}
-          onChange={(e) => setGlobalSearch(e.target.value)}
-        />
-      </div>
-
-      {/* Right-side Controls */}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "1rem",
-        }}
-      >
-        <Tooltip title="Create New">
-          <IconButton
-            sx={{
-              color: "#f97316",
-              transition: "0.3s",
-              "&:hover": {
-                transform: "scale(1.1)",
-                color: "#fb923c",
-              },
-            }}
-            onClick={() => navigate("/invoices")}
-          >
-            <AddCircleOutline />
-          </IconButton>
-        </Tooltip>
-
-        <Tooltip title="Notifications">
-          <IconButton
-            sx={{
-              color: mode === "dark" ? "#f8fafc" : "#1e293b",
-              "&:hover": {
-                color: "#f97316",
-              },
-            }}
-          >
-            <Notifications />
-          </IconButton>
-        </Tooltip>
-
-        <Tooltip title="Toggle Theme">
-          <IconButton
-            onClick={toggle}
-            sx={{
-              color: mode === "dark" ? "#fbbf24" : "#0f172a",
-              "&:hover": { color: "#f97316" },
-            }}
-          >
-            {mode === "dark" ? <WbSunny /> : <DarkMode />}
-          </IconButton>
-        </Tooltip>
-
-        {user && (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            <Avatar
-              sx={{
-                width: 36,
-                height: 36,
-                bgcolor: "#f97316",
-                fontWeight: 600,
-              }}
-            >
-              {user.name ? user.name[0].toUpperCase() : "U"}
-            </Avatar>
-            <div style={{ fontSize: "0.9rem", color: "#cbd5e1" }}>
-              <strong>{user.name || "User"}</strong>
-            </div>
-          </div>
-        )}
-
-        <Tooltip title="Logout">
-          <IconButton
-            onClick={handleLogout}
-            sx={{
-              color: "#ef4444",
-              "&:hover": { transform: "scale(1.1)" },
-            }}
-          >
-            🚪
-          </IconButton>
-        </Tooltip>
-      </div>
-    </nav>
-  );
-}
-</file>
-
 <file path="src/index.css">
 /* ✅ Global Theme Variables */
 :root {
@@ -3480,6 +3365,43 @@ h2, h3, h4 {
 
 /* ✅ Utility */
 .text-muted { color: var(--text-muted); }
+</file>
+
+<file path="src/main.jsx">
+import { StrictMode } from "react";
+import { createRoot } from "react-dom/client";
+import "./index.css";
+import App from "./App.jsx";
+import { ThemeProvider, CssBaseline } from "@mui/material";
+import getTheme from "./theme.js";
+import { ThemeModeProvider, useThemeMode } from "./context/ThemeContext.jsx";
+import { NotificationProvider } from "./context/NotificationContext.jsx"; // ✅ add this
+import { AuthProvider } from "./context/AuthContext.jsx"; // ✅ add this if not wrapped yet
+import { ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css";
+
+function ThemedApp() {
+  const { mode } = useThemeMode();
+  return (
+    <ThemeProvider theme={getTheme(mode)}>
+      <CssBaseline />
+      <App />
+      <ToastContainer position="bottom-right" />
+    </ThemeProvider>
+  );
+}
+
+createRoot(document.getElementById("root")).render(
+  <StrictMode>
+    <AuthProvider>
+      <ThemeModeProvider>
+        <NotificationProvider>
+          <ThemedApp />
+        </NotificationProvider>
+      </ThemeModeProvider>
+    </AuthProvider>
+  </StrictMode>
+);
 </file>
 
 <file path="src/pages/Campaigns.jsx">
@@ -4257,6 +4179,204 @@ export default function Layout() {
         </main>
       </div>
     </div>
+  );
+}
+</file>
+
+<file path="src/components/Navbar.jsx">
+import React, { useContext, useState } from "react";
+import { AuthContext } from "../context/AuthContext";
+import { useNavigate } from "react-router-dom";
+import { useThemeMode } from "../context/ThemeContext";
+import { useNotifications } from "../context/NotificationContext";
+import SearchInput from "./SearchInput";
+import {
+  IconButton,
+  Tooltip,
+  Avatar,
+  Badge,
+  Menu,
+  MenuItem,
+  Typography,
+  Divider,
+} from "@mui/material";
+import {
+  WbSunny,
+  DarkMode,
+  Notifications,
+  AddCircleOutline,
+} from "@mui/icons-material";
+
+export default function Navbar() {
+  const { user, logout } = useContext(AuthContext);
+  const navigate = useNavigate();
+  const { mode, toggle } = useThemeMode();
+  const { notifications, unread, markAllAsRead } = useNotifications();
+
+  const [globalSearch, setGlobalSearch] = useState("");
+  const [anchorEl, setAnchorEl] = useState(null);
+  const open = Boolean(anchorEl);
+
+  const handleLogout = () => {
+    logout();
+    navigate("/login");
+  };
+
+  const handleNotifOpen = (e) => setAnchorEl(e.currentTarget);
+  const handleNotifClose = () => setAnchorEl(null);
+
+  return (
+    <nav
+      style={{
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+        padding: "0.75rem 1.5rem",
+        backdropFilter: "blur(14px)",
+        background:
+          mode === "dark" ? "rgba(12,12,14,0.75)" : "rgba(255,255,255,0.8)",
+        borderBottom:
+          mode === "dark"
+            ? "1px solid rgba(255,255,255,0.06)"
+            : "1px solid rgba(0,0,0,0.08)",
+        position: "sticky",
+        top: 0,
+        zIndex: 50,
+        boxShadow:
+          mode === "dark"
+            ? "0 4px 24px rgba(0,0,0,0.4)"
+            : "0 4px 20px rgba(0,0,0,0.1)",
+      }}
+    >
+      <div style={{ flex: 1, maxWidth: 500 }}>
+        <SearchInput
+          placeholder="Search modules, dealers..."
+          value={globalSearch}
+          onChange={(e) => setGlobalSearch(e.target.value)}
+        />
+      </div>
+
+      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
+        <Tooltip title="Create New">
+          <IconButton
+            sx={{
+              color: "#f97316",
+              "&:hover": { transform: "scale(1.1)", color: "#fb923c" },
+            }}
+            onClick={() => navigate("/invoices")}
+          >
+            <AddCircleOutline />
+          </IconButton>
+        </Tooltip>
+
+        {/* 🔔 Notifications */}
+        <Tooltip title="Notifications">
+          <IconButton
+            onClick={handleNotifOpen}
+            sx={{
+              color: mode === "dark" ? "#f8fafc" : "#1e293b",
+              "&:hover": { color: "#f97316" },
+            }}
+          >
+            <Badge badgeContent={unread} color="error">
+              <Notifications />
+            </Badge>
+          </IconButton>
+        </Tooltip>
+
+        <Menu
+          anchorEl={anchorEl}
+          open={open}
+          onClose={handleNotifClose}
+          PaperProps={{
+            elevation: 4,
+            sx: { mt: 1, minWidth: 300, borderRadius: 2, p: 0.5 },
+          }}
+        >
+          <MenuItem
+            onClick={() => {
+              markAllAsRead();
+              handleNotifClose();
+            }}
+            sx={{
+              fontWeight: 500,
+              color: "#f97316",
+              justifyContent: "center",
+              fontSize: "0.85rem",
+            }}
+          >
+            Mark all as read
+          </MenuItem>
+          <Divider />
+          {notifications.length > 0 ? (
+            notifications.slice(0, 8).map((n, idx) => (
+              <MenuItem
+                key={idx}
+                onClick={handleNotifClose}
+                sx={{
+                  flexDirection: "column",
+                  alignItems: "flex-start",
+                  gap: 0.3,
+                  backgroundColor: n.isRead
+                    ? "transparent"
+                    : "rgba(249,115,22,0.08)",
+                }}
+              >
+                <Typography
+                  variant="subtitle2"
+                  fontWeight={!n.isRead ? 600 : 400}
+                  sx={{ color: "#f97316" }}
+                >
+                  {n.title}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {n.message}
+                </Typography>
+              </MenuItem>
+            ))
+          ) : (
+            <MenuItem disabled>
+              <Typography variant="body2" color="text.secondary">
+                No notifications yet
+              </Typography>
+            </MenuItem>
+          )}
+        </Menu>
+
+        {/* 🌗 Theme toggle */}
+        <Tooltip title="Toggle Theme">
+          <IconButton
+            onClick={toggle}
+            sx={{
+              color: mode === "dark" ? "#fbbf24" : "#0f172a",
+              "&:hover": { color: "#f97316" },
+            }}
+          >
+            {mode === "dark" ? <WbSunny /> : <DarkMode />}
+          </IconButton>
+        </Tooltip>
+
+        {user && (
+          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
+            <Avatar sx={{ width: 36, height: 36, bgcolor: "#f97316" }}>
+              {user.name ? user.name[0].toUpperCase() : "U"}
+            </Avatar>
+            <div style={{ fontSize: "0.9rem", color: "#cbd5e1" }}>
+              <strong>{user.name || "User"}</strong>
+            </div>
+          </div>
+        )}
+
+        <Tooltip title="Logout">
+          <IconButton
+            onClick={handleLogout}
+            sx={{ color: "#ef4444", "&:hover": { transform: "scale(1.1)" } }}
+          >
+            🚪
+          </IconButton>
+        </Tooltip>
+      </div>
+    </nav>
   );
 }
 </file>
