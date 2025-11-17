@@ -84,6 +84,8 @@ src/pages/accounts/AccountsInvoices.jsx
 src/pages/accounts/AccountsNotes.jsx
 src/pages/accounts/AccountsReports.jsx
 src/pages/Admin.jsx
+src/pages/admin/UserForm.jsx
+src/pages/admin/Users.jsx
 src/pages/AdminDocuments.jsx
 src/pages/AdminPricing.jsx
 src/pages/Campaigns.jsx
@@ -96,6 +98,7 @@ src/pages/dashboards/DealerDashboard.jsx
 src/pages/dashboards/InventoryDashboard.jsx
 src/pages/dashboards/ManagerDashboard.css
 src/pages/dashboards/ManagerDashboard.jsx
+src/pages/dashboards/SuperAdminDashboard.jsx
 src/pages/DealerChat.jsx
 src/pages/Documents.jsx
 src/pages/InvoiceDetail.jsx
@@ -118,6 +121,8 @@ src/pages/reports/OutstandingReceivables.jsx
 src/pages/reports/PendingApprovals.jsx
 src/pages/reports/RegionalSalesSummary.jsx
 src/pages/reports/TerritorySummary.jsx
+src/pages/superadmin/Roles.jsx
+src/pages/superadmin/Users.jsx
 src/services/api.js
 src/services/socket.js
 src/theme.js
@@ -127,6 +132,648 @@ vite.config.js
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/pages/admin/UserForm.jsx">
+import React, { useState, useEffect } from "react";
+import api from "../../services/api";
+
+export default function UserForm({ onClose, reload, userData, roles }) {
+  const [form, setForm] = useState({
+    username: "",
+    email: "",
+    password: "",
+    roleId: "",
+    dealerId: "",
+    regionId: "",
+  });
+
+  const [dealers, setDealers] = useState([]);
+  const [regions, setRegions] = useState([]);
+
+  const isEdit = !!userData;
+
+  useEffect(() => {
+    async function fetchDropdowns() {
+      const d = await api.get("/dealers");
+      const r = await api.get("/regions");
+
+      setDealers(d.data);
+      setRegions(r.data);
+    }
+    fetchDropdowns();
+
+    if (isEdit) {
+      setForm({
+        username: userData.username,
+        email: userData.email,
+        password: "",
+        roleId: userData.roleId,
+        dealerId: userData.dealerId || "",
+        regionId: userData.regionId || "",
+      });
+    }
+  }, [userData]);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+
+    try {
+      if (isEdit) {
+        await api.put(`/admin/users/${userData.id}`, form);
+      } else {
+        await api.post("/admin/users", form);
+      }
+
+      reload();
+      onClose();
+    } catch (err) {
+      console.error("Save failed:", err);
+    }
+  };
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.5)",
+        display: "flex",
+        justifyContent: "center",
+        alignItems: "center",
+      }}
+    >
+      <form
+        onSubmit={handleSubmit}
+        style={{
+          background: "white",
+          padding: "2rem",
+          borderRadius: "12px",
+          width: "420px",
+          display: "flex",
+          flexDirection: "column",
+          gap: "1rem",
+        }}
+      >
+        <h2>{isEdit ? "Edit User" : "Add User"}</h2>
+
+        <input
+          placeholder="Username"
+          value={form.username}
+          onChange={(e) => setForm({ ...form, username: e.target.value })}
+        />
+
+        <input
+          placeholder="Email"
+          value={form.email}
+          onChange={(e) => setForm({ ...form, email: e.target.value })}
+        />
+
+        {!isEdit && (
+          <input
+            placeholder="Password"
+            type="password"
+            value={form.password}
+            onChange={(e) => setForm({ ...form, password: e.target.value })}
+          />
+        )}
+
+        {/* Roles */}
+        <select
+          value={form.roleId}
+          onChange={(e) => setForm({ ...form, roleId: e.target.value })}
+        >
+          <option value="">Select Role</option>
+          {roles.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+
+        {/* Dealers */}
+        <select
+          value={form.dealerId}
+          onChange={(e) => setForm({ ...form, dealerId: e.target.value })}
+        >
+          <option value="">Assign Dealer (Optional)</option>
+          {dealers.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.businessName}
+            </option>
+          ))}
+        </select>
+
+        {/* Regions */}
+        <select
+          value={form.regionId}
+          onChange={(e) => setForm({ ...form, regionId: e.target.value })}
+        >
+          <option value="">Assign Region (Optional)</option>
+          {regions.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+
+        <button
+          type="submit"
+          style={{
+            padding: "0.8rem",
+            background: "#f97316",
+            color: "white",
+            border: "none",
+            borderRadius: "6px",
+          }}
+        >
+          Save
+        </button>
+
+        <button
+          onClick={onClose}
+          type="button"
+          style={{
+            marginTop: "0.5rem",
+            background: "transparent",
+            border: "1px solid #aaa",
+            padding: "0.6rem",
+            borderRadius: "6px",
+          }}
+        >
+          Cancel
+        </button>
+      </form>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/admin/Users.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import UserForm from "./UserForm";
+
+export default function Users() {
+  const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [search, setSearch] = useState("");
+  const [selectedRole, setSelectedRole] = useState("");
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editUser, setEditUser] = useState(null);
+
+  // Load users + roles
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const loadData = async () => {
+    try {
+      const u = await api.get("/admin/users");
+      const r = await api.get("/roles");
+
+      setUsers(u.data);
+      setRoles(r.data);
+    } catch (err) {
+      console.error("Failed loading users:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // DELETE USER
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+
+    try {
+      await api.delete(`/admin/users/${id}`);
+      loadData();
+    } catch (err) {
+      console.error("Delete failed:", err);
+    }
+  };
+
+  const filteredUsers = users.filter((u) => {
+    const matchSearch =
+      u.username.toLowerCase().includes(search.toLowerCase()) ||
+      u.email.toLowerCase().includes(search.toLowerCase());
+
+    const matchRole = selectedRole ? u.role?.toLowerCase() === selectedRole : true;
+
+    return matchSearch && matchRole;
+  });
+
+  if (loading) return <p>Loading users...</p>;
+
+  return (
+    <div style={{ padding: "2rem" }}>
+      <div style={{ display: "flex", justifyContent: "space-between" }}>
+        <h1 style={{ marginBottom: "1rem" }}>Users</h1>
+        <button
+          onClick={() => {
+            setEditUser(null);
+            setModalOpen(true);
+          }}
+          style={{
+            padding: "0.6rem 1.2rem",
+            background: "#f97316",
+            color: "#fff",
+            border: "none",
+            borderRadius: "8px",
+            cursor: "pointer",
+          }}
+        >
+          + Add User
+        </button>
+      </div>
+
+      {/* Search + Filter */}
+      <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem" }}>
+        <input
+          placeholder="Search by username or email..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          style={{
+            padding: "0.6rem 1rem",
+            borderRadius: "8px",
+            border: "1px solid var(--card-border)",
+            width: "300px",
+          }}
+        />
+
+        <select
+          value={selectedRole}
+          onChange={(e) => setSelectedRole(e.target.value)}
+          style={{
+            padding: "0.6rem",
+            borderRadius: "8px",
+            border: "1px solid var(--card-border)",
+          }}
+        >
+          <option value="">All Roles</option>
+          {roles.map((r) => (
+            <option key={r.id} value={r.name.toLowerCase()}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      {/* Users Table */}
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
+            <th>Username</th>
+            <th>Email</th>
+            <th>Role</th>
+            <th>Dealer</th>
+            <th>Region</th>
+            <th style={{ textAlign: "right" }}>Actions</th>
+          </tr>
+        </thead>
+
+        <tbody>
+          {filteredUsers.map((u) => (
+            <tr key={u.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
+              <td>{u.username}</td>
+              <td>{u.email}</td>
+              <td>{u.role || "—"}</td>
+              <td>{u.dealer?.businessName || "—"}</td>
+              <td>{u.region?.name || "—"}</td>
+
+              <td style={{ textAlign: "right" }}>
+                <button
+                  onClick={() => {
+                    setEditUser(u);
+                    setModalOpen(true);
+                  }}
+                  style={{
+                    marginRight: "10px",
+                    background: "#3b82f6",
+                    color: "#fff",
+                    padding: "0.4rem 0.8rem",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Edit
+                </button>
+
+                <button
+                  onClick={() => handleDelete(u.id)}
+                  style={{
+                    background: "#ef4444",
+                    color: "#fff",
+                    padding: "0.4rem 0.8rem",
+                    border: "none",
+                    borderRadius: "6px",
+                    cursor: "pointer",
+                  }}
+                >
+                  Delete
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* MODAL */}
+      {modalOpen && (
+        <UserForm
+          onClose={() => setModalOpen(false)}
+          reload={loadData}
+          roles={roles}
+          userData={editUser}
+        />
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/superadmin/Roles.jsx">
+import React from "react";
+
+export default function Users() {
+  return (
+    <div>
+      <h1>Roles Management</h1>
+      <p>Super Admin can create, edit, delete and assign roles here.</p>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/superadmin/Users.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api"; // your axios instance
+import { FaEdit, FaTrash, FaPlus } from "react-icons/fa";
+
+export default function Users() {
+  const [users, setUsers] = useState([]);
+  const [roles, setRoles] = useState([]);
+  const [dealers, setDealers] = useState([]);
+  const [regions, setRegions] = useState([]);
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState(null);
+  const [form, setForm] = useState({
+    username: "",
+    email: "",
+    password: "",
+    roleId: "",
+    dealerId: "",
+    regionId: "",
+    isActive: true,
+  });
+
+  // -----------------------
+  // Fetch initial data
+  // -----------------------
+  const fetchData = async () => {
+    const usersRes = await api.get("/users");
+    const rolesRes = await api.get("/roles");
+    const dealersRes = await api.get("/dealers");
+    const regionsRes = await api.get("/regions");
+
+    setUsers(usersRes.data);
+    setRoles(rolesRes.data);
+    setDealers(dealersRes.data);
+    setRegions(regionsRes.data);
+  };
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  // -----------------------
+  // Handlers
+  // -----------------------
+  const handleInput = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
+  };
+
+  const openEdit = (user) => {
+    setEditingUser(user);
+    setForm({
+      username: user.username,
+      email: user.email,
+      password: "",
+      roleId: user.roleId || "",
+      dealerId: user.dealerId || "",
+      regionId: user.regionId || "",
+      isActive: user.isActive,
+    });
+    setModalOpen(true);
+  };
+
+  const openAdd = () => {
+    setEditingUser(null);
+    setForm({
+      username: "",
+      email: "",
+      password: "",
+      roleId: "",
+      dealerId: "",
+      regionId: "",
+      isActive: true,
+    });
+    setModalOpen(true);
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingUser) {
+        await api.put(`/users/${editingUser.id}`, form);
+      } else {
+        await api.post("/users", form);
+      }
+      setModalOpen(false);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert("Error saving user");
+    }
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Are you sure you want to delete this user?")) return;
+    try {
+      await api.delete(`/users/${id}`);
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert("Error deleting user");
+    }
+  };
+
+  return (
+    <div>
+      <h1 className="text-2xl font-bold mb-4">Users Management</h1>
+      <button
+        onClick={openAdd}
+        className="bg-orange-500 text-white px-4 py-2 rounded mb-4 flex items-center gap-2"
+      >
+        <FaPlus /> Add User
+      </button>
+
+      {/* Users Table */}
+      <table className="w-full border border-gray-300 rounded">
+        <thead className="bg-gray-100">
+          <tr>
+            <th className="p-2 border">Username</th>
+            <th className="p-2 border">Email</th>
+            <th className="p-2 border">Role</th>
+            <th className="p-2 border">Dealer</th>
+            <th className="p-2 border">Region</th>
+            <th className="p-2 border">Active</th>
+            <th className="p-2 border">Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {users.map((u) => (
+            <tr key={u.id}>
+              <td className="p-2 border">{u.username}</td>
+              <td className="p-2 border">{u.email}</td>
+              <td className="p-2 border">{u.role?.name || "-"}</td>
+              <td className="p-2 border">{u.dealer?.businessName || "-"}</td>
+              <td className="p-2 border">{u.region?.name || "-"}</td>
+              <td className="p-2 border">
+                {u.isActive ? "Yes" : "No"}
+              </td>
+              <td className="p-2 border flex gap-2">
+                <button
+                  onClick={() => openEdit(u)}
+                  className="text-blue-500"
+                >
+                  <FaEdit />
+                </button>
+                <button
+                  onClick={() => handleDelete(u.id)}
+                  className="text-red-500"
+                >
+                  <FaTrash />
+                </button>
+              </td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+
+      {/* Modal */}
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex justify-center items-center">
+          <div className="bg-white p-6 rounded w-96">
+            <h2 className="text-xl font-bold mb-4">
+              {editingUser ? "Edit User" : "Add User"}
+            </h2>
+            <form onSubmit={handleSubmit} className="flex flex-col gap-2">
+              <input
+                name="username"
+                placeholder="Username"
+                value={form.username}
+                onChange={handleInput}
+                className="border p-2 rounded"
+                required
+              />
+              <input
+                name="email"
+                placeholder="Email"
+                type="email"
+                value={form.email}
+                onChange={handleInput}
+                className="border p-2 rounded"
+                required
+              />
+              {!editingUser && (
+                <input
+                  name="password"
+                  placeholder="Password"
+                  type="password"
+                  value={form.password}
+                  onChange={handleInput}
+                  className="border p-2 rounded"
+                  required
+                />
+              )}
+              <select
+                name="roleId"
+                value={form.roleId}
+                onChange={handleInput}
+                className="border p-2 rounded"
+                required
+              >
+                <option value="">Select Role</option>
+                {roles.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+              <select
+                name="dealerId"
+                value={form.dealerId || ""}
+                onChange={handleInput}
+                className="border p-2 rounded"
+              >
+                <option value="">Select Dealer</option>
+                {dealers.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.businessName}
+                  </option>
+                ))}
+              </select>
+              <select
+                name="regionId"
+                value={form.regionId || ""}
+                onChange={handleInput}
+                className="border p-2 rounded"
+              >
+                <option value="">Select Region</option>
+                {regions.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.name}
+                  </option>
+                ))}
+              </select>
+              <label className="flex items-center gap-2 mt-2">
+                <input
+                  type="checkbox"
+                  name="isActive"
+                  checked={form.isActive}
+                  onChange={handleInput}
+                />
+                Active
+              </label>
+              <div className="flex justify-end gap-2 mt-4">
+                <button
+                  type="button"
+                  onClick={() => setModalOpen(false)}
+                  className="px-4 py-2 border rounded"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="px-4 py-2 bg-orange-500 text-white rounded"
+                >
+                  {editingUser ? "Update" : "Create"}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
 
 <file path=".gitignore">
 # Logs
@@ -987,45 +1634,6 @@ export default function Toolbar({ children, right }) {
 }
 </file>
 
-<file path="src/context/AuthContext.jsx">
-import React, { createContext, useState } from "react";
-import api from "../services/api";
-
-export const AuthContext = createContext();
-
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")) || null);
-
-  const login = async (username, password) => {
-    const res = await api.post("/auth/login", { username, password });
-    // 👇 return the backend response to the Login component
-    return res.data;
-  };
-
-  const verifyOTP = async (userId, otp) => {
-    const res = await api.post("/auth/verify-otp", { userId, otp });
-    const { token, user } = res.data;
-
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
-    setUser(user);
-    return user;
-  };
-
-  const logout = () => {
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
-  };
-
-  return (
-    <AuthContext.Provider value={{ user, login, verifyOTP, logout }}>
-      {children}
-    </AuthContext.Provider>
-  );
-};
-</file>
-
 <file path="src/context/NotificationContext.jsx">
 import React, { createContext, useState, useEffect, useContext } from "react";
 import socket from "../services/socket";
@@ -1521,6 +2129,192 @@ export default function AdminPricing() {
   border-radius: 6px;
   padding: 8px 14px;
   cursor: pointer;
+}
+</file>
+
+<file path="src/pages/dashboards/SuperAdminDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import Chart from "react-apexcharts";
+
+export default function SuperAdminDashboard() {
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalUsers: 0,
+    totalDealers: 0,
+    totalDocuments: 0,
+    totalInvoices: 0,
+    userGrowth: [],
+    documentsPerMonth: [],
+    roleDistribution: [],
+    recentActivity: [],
+  });
+
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        const res = await api.get("/admin/dashboard-stats");
+        setStats(res.data);
+      } catch (err) {
+        console.error("Failed to fetch dashboard stats:", err);
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchData();
+  }, []);
+
+  if (loading) return <p>Loading Super Admin Dashboard...</p>;
+
+  return (
+    <div style={{ padding: "2rem", color: "var(--text-color)" }}>
+      <h1 style={{ fontSize: "2rem", fontWeight: "700", marginBottom: "1rem" }}>
+        Super Admin Dashboard
+      </h1>
+
+      {/* KPI GRID */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(220px, 1fr))",
+          gap: "1.5rem",
+          marginBottom: "2rem",
+        }}
+      >
+        <KPI title="Total Users" value={stats.totalUsers} color="#3b82f6" />
+        <KPI title="Total Dealers" value={stats.totalDealers} color="#10b981" />
+        <KPI title="Documents" value={stats.totalDocuments} color="#f59e0b" />
+        <KPI title="Invoices" value={stats.totalInvoices} color="#ef4444" />
+      </div>
+
+      {/* CHART GRID */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr",
+          gap: "2rem",
+          marginBottom: "2rem",
+        }}
+      >
+        <ChartCard title="User Growth (Last 12 Months)">
+          <Chart
+            options={{
+              chart: { id: "user-growth", toolbar: { show: false } },
+              xaxis: { categories: stats.userGrowth.map((d) => d.month) },
+              stroke: { curve: "smooth" },
+              colors: ["#3b82f6"],
+            }}
+            series={[
+              {
+                name: "Users",
+                data: stats.userGrowth.map((d) => d.count),
+              },
+            ]}
+            type="line"
+            height={300}
+          />
+        </ChartCard>
+
+        <ChartCard title="Role Distribution">
+          <Chart
+            options={{
+              labels: stats.roleDistribution.map((r) => r.role),
+              colors: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"],
+            }}
+            series={stats.roleDistribution.map((r) => r.count)}
+            type="pie"
+            height={300}
+          />
+        </ChartCard>
+
+        <ChartCard title="Documents Uploaded Per Month">
+          <Chart
+            options={{
+              chart: { id: "docs-month", toolbar: { show: false } },
+              xaxis: { categories: stats.documentsPerMonth.map((d) => d.month) },
+              colors: ["#f59e0b"],
+            }}
+            series={[
+              {
+                name: "Documents",
+                data: stats.documentsPerMonth.map((d) => d.count),
+              },
+            ]}
+            type="bar"
+            height={300}
+          />
+        </ChartCard>
+      </div>
+
+      {/* RECENT ACTIVITY */}
+      <div
+        style={{
+          background: "var(--card-bg)",
+          padding: "1.5rem",
+          borderRadius: "12px",
+          border: "1px solid var(--card-border)",
+        }}
+      >
+        <h2 style={{ fontSize: "1.3rem", fontWeight: "600", marginBottom: "1rem" }}>
+          Recent Activity
+        </h2>
+
+        <table style={{ width: "100%", borderCollapse: "collapse" }}>
+          <thead>
+            <tr style={{ textAlign: "left", borderBottom: "1px solid var(--card-border)" }}>
+              <th>User</th>
+              <th>Action</th>
+              <th>Entity</th>
+              <th>Date</th>
+            </tr>
+          </thead>
+          <tbody>
+            {stats.recentActivity.slice(0, 10).map((row) => (
+              <tr key={row.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
+                <td>{row.username}</td>
+                <td>{row.action}</td>
+                <td>{row.entity}</td>
+                <td>{new Date(row.createdAt).toLocaleString()}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+function KPI({ title, value, color }) {
+  return (
+    <div
+      style={{
+        background: "var(--card-bg)",
+        padding: "1.5rem",
+        borderRadius: "14px",
+        border: "1px solid var(--card-border)",
+        boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+      }}
+    >
+      <h3 style={{ fontSize: "1rem", opacity: 0.8 }}>{title}</h3>
+      <p style={{ fontSize: "2rem", fontWeight: "700", color }}>{value}</p>
+    </div>
+  );
+}
+
+function ChartCard({ title, children }) {
+  return (
+    <div
+      style={{
+        background: "var(--card-bg)",
+        padding: "1.5rem",
+        borderRadius: "14px",
+        border: "1px solid var(--card-border)",
+      }}
+    >
+      <h3 style={{ marginBottom: "1rem" }}>{title}</h3>
+      {children}
+    </div>
+  );
 }
 </file>
 
@@ -3317,22 +4111,6 @@ export default function PageHeader({ title, subtitle, actions }) {
 }
 </file>
 
-<file path="src/components/ProtectedRoute.jsx">
-import React, { useContext } from 'react';
-import { Navigate } from 'react-router-dom';
-import { AuthContext } from '../context/AuthContext';
-
-export default function ProtectedRoute({ children, roles = [] }) {
-  const { user } = useContext(AuthContext);
-  if (!user) return <Navigate to="/login" replace />;
-
-  if (roles.length && !roles.includes(user.role)) {
-    return <Navigate to="/unauthorized" replace />;
-  }
-  return children;
-}
-</file>
-
 <file path="src/components/SparklineMini.jsx">
 import React from "react";
 import { AreaChart, Area, ResponsiveContainer } from "recharts";
@@ -3376,6 +4154,52 @@ export default function StatCard({ title, value, icon, accent = "#f97316" }) {
     </div>
   );
 }
+</file>
+
+<file path="src/context/AuthContext.jsx">
+import React, { createContext, useState, useContext, useEffect } from "react";
+import api from "../services/api";
+
+export const AuthContext = createContext();
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")) || null);
+  const [token, setToken] = useState(localStorage.getItem("token") || null);
+  const [loading, setLoading] = useState(false);
+
+  const login = async (username, password) => {
+    const res = await api.post("/auth/login", { username, password });
+    return res.data;
+  };
+
+  const verifyOTP = async (userId, otp) => {
+    const res = await api.post("/auth/verify-otp", { userId, otp });
+    const { token, user } = res.data;
+
+    localStorage.setItem("token", token);
+    localStorage.setItem("user", JSON.stringify(user));
+
+    setToken(token);
+    setUser(user);
+
+    return user;
+  };
+
+  const logout = () => {
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    setToken(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, token, login, verifyOTP, loading, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);
 </file>
 
 <file path="src/pages/AdminDocuments.jsx">
@@ -3773,6 +4597,27 @@ export default function PieChartCard({ title, data = [] }) {
 }
 </file>
 
+<file path="src/components/ProtectedRoute.jsx">
+import { Navigate } from "react-router-dom";
+import { useAuth } from "../context/AuthContext";
+
+export default function ProtectedRoute({ children, allowed }) {
+  const { user, token, loading } = useAuth();
+
+  if (loading) return <div>Loading...</div>;
+
+  // User not logged in → redirect to login
+  if (!token || !user) return <Navigate to="/login" replace />;
+
+  // Role-protected routes (e.g., allowed = ["super_admin", "technical_admin"])
+  if (allowed && !allowed.includes(user.role)) {
+    return <Navigate to="/unauthorized" replace />;
+  }
+
+  return children;
+}
+</file>
+
 <file path="src/pages/Admin.jsx">
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
@@ -3903,56 +4748,6 @@ const styles = {
     marginRight: "8px",
   },
 };
-</file>
-
-<file path="src/pages/Dashboard.jsx">
-import React, { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
-
-import DealerDashboard from "./dashboards/DealerDashboard";
-import ManagerDashboard from "./dashboards/ManagerDashboard";
-import AdminDashboard from "./dashboards/AdminDashboard";
-import AccountsDashboard from "./dashboards/AccountsDashboard";
-import InventoryDashboard from "./dashboards/InventoryDashboard";
-
-export default function Dashboard() {
-  const { user } = useContext(AuthContext);
-
-  if (!user) return <p>Loading user...</p>;
-
-  const roleId = user.roleId;
-  const role = user.role?.toLowerCase(); // "super_admin"
-
-  switch (role) {
-    case "super_admin":
-    case "technical_admin":
-    case "regional_admin":
-    case "finance_admin":
-      return <AdminDashboard />;
-
-    case "dealer_admin":
-    case "dealer_staff":
-      return <DealerDashboard />;
-
-    case "regional_manager":
-    case "area_manager":
-    case "territory_manager":
-      return <ManagerDashboard />;
-
-    case "accounts_user":
-      return <AccountsDashboard />;
-
-    case "inventory_user":
-      return <InventoryDashboard />;
-
-    default:
-      return (
-        <p>
-          No dashboard available for role: <b>{role}</b> (roleId: {roleId})
-        </p>
-      );
-  }
-}
 </file>
 
 <file path="src/pages/dashboards/ManagerDashboard.css">
@@ -4455,6 +5250,42 @@ createRoot(document.getElementById("root")).render(
     </AuthProvider>
   </StrictMode>
 );
+</file>
+
+<file path="src/pages/Dashboard.jsx">
+import React, { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
+
+import SuperAdminDashboard from "./dashboards/SuperAdminDashboard";
+import AdminDashboard from "./dashboards/AdminDashboard";
+import ManagerDashboard from "./dashboards/ManagerDashboard";
+import DealerDashboard from "./dashboards/DealerDashboard";
+import AccountsDashboard from "./dashboards/AccountsDashboard";
+import InventoryDashboard from "./dashboards/InventoryDashboard";
+
+export default function Dashboard() {
+  const { user } = useContext(AuthContext);
+
+  if (!user) return <p>Loading...</p>;
+
+  const role = user.role?.toLowerCase();
+
+  const roleMap = {
+    super_admin: <SuperAdminDashboard />,
+    technical_admin: <AdminDashboard />,
+    regional_admin: <AdminDashboard />,
+    finance_admin: <AccountsDashboard />,
+    regional_manager: <ManagerDashboard />,
+    area_manager: <ManagerDashboard />,
+    territory_manager: <ManagerDashboard />,
+    dealer_admin: <DealerDashboard />,
+    dealer_staff: <DealerDashboard />,
+    inventory_user: <InventoryDashboard />,
+    accounts_user: <AccountsDashboard />,
+  };
+
+  return roleMap[role] || <p>No dashboard available for role: {role}</p>;
+}
 </file>
 
 <file path="src/pages/Documents.jsx">
@@ -6342,85 +7173,6 @@ export default function Reports() {
 }
 </file>
 
-<file path="src/App.jsx">
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
-import Invoices from './pages/Invoices';
-import Documents from './pages/Documents';
-import Campaigns from "./pages/Campaigns";
-import Reports from "./pages/Reports";
-import Admin from "./pages/Admin";
-import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
-import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
-import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
-import AccountsInvoices from "./pages/accounts/AccountsInvoices";
-import AccountsNotes from "./pages/accounts/AccountsNotes";
-import AccountsReports from "./pages/accounts/AccountsReports";
-import AdminDocuments from "./pages/AdminDocuments";
-import PricingApprovals from "./pages/PricingApprovals";
-import ManagerChat from "./pages/ManagerChat";
-import DealerChat from "./pages/DealerChat";
-
-
-
-// inside <Routes>
-
-
-
-// ✅ When Layout is inside ProtectedRoute, all child routes share Navbar & Sidebar
-function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-          {/* Public route */}
-          <Route path="/login" element={<Login />} />
-
-          {/* Protected routes grouped inside Layout */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-            {/* All pages with the sidebar/navbar go here */}
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Dashboard />} />
-            <Route path="invoices" element={<Invoices />} />
-            <Route path="documents" element={<Documents />} />
-            <Route path="campaigns" element={<Campaigns />} />
-            <Route path="reports" element={<Reports />} />
-            <Route path="admin" element={<Admin />} />
-            <Route path="inventory" element={<InventoryDashboard />} />
-            <Route path="accounts" element={<AccountsDashboard />} />
-            <Route path="accounts/invoices" element={<AccountsInvoices />} />
-<Route path="accounts/notes" element={<AccountsNotes />} />
-<Route path="accounts/reports" element={<AccountsReports />} />
-
-<Route path="/admin/documents" element={<AdminDocuments />} />
-<Route path="/pricing-approvals" element={<PricingApprovals />} />
-<Route path="/manager/chat" element={<ManagerChat />} />
-<Route path="/dealer/chat" element={<DealerChat />} />
-
-
-
-            {/* 🔜 Add Campaigns, Reports, Admin here */}
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-  );
-}
-
-export default App;
-</file>
-
 <file path="src/pages/dashboards/AdminDashboard.jsx">
 // src/pages/dashboard/AdminDashboard.jsx
 import React, { useEffect, useState, useContext } from "react";
@@ -6776,6 +7528,7 @@ export default function AdminDashboard() {
     "framer-motion": "^12.23.24",
     "lucide-react": "^0.552.0",
     "react": "^19.1.1",
+    "react-apexcharts": "^1.8.0",
     "react-countup": "^6.5.3",
     "react-dom": "^19.1.1",
     "react-hook-form": "^7.65.0",
@@ -6800,6 +7553,386 @@ export default function AdminDashboard() {
     "tailwindcss": "^4.1.16",
     "vite": "^7.1.7"
   }
+}
+</file>
+
+<file path="src/App.jsx">
+import React from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+
+// 🔐 Auth
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
+
+// 🔑 Public
+import Login from "./pages/Login";
+
+// 🧭 Dashboards
+import Dashboard from "./pages/Dashboard";
+import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
+import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
+
+// 📄 Common Pages
+import Invoices from "./pages/Invoices";
+import Documents from "./pages/Documents";
+import Campaigns from "./pages/Campaigns";
+import Reports from "./pages/Reports";
+
+// 🛠 Admin & Config
+import Admin from "./pages/Admin";
+import AdminDocuments from "./pages/AdminDocuments";
+import PricingApprovals from "./pages/PricingApprovals";
+
+// 💼 Accounts subpages
+import AccountsInvoices from "./pages/accounts/AccountsInvoices";
+import AccountsNotes from "./pages/accounts/AccountsNotes";
+import AccountsReports from "./pages/accounts/AccountsReports";
+
+// 💬 Chat
+import ManagerChat from "./pages/ManagerChat";
+import DealerChat from "./pages/DealerChat";
+
+// 🆕 Super Admin CRUD pages (you will build these)
+import Users from "./pages/superadmin/Users";
+import Roles from "./pages/superadmin/Roles";
+
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+
+          {/* ================= PUBLIC ROUTES ================= */}
+          <Route path="/login" element={<Login />} />
+
+
+          {/* ================= PROTECTED LAYOUT (Navbar + Sidebar) ================= */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+
+            {/* ================= DEFAULT ================= */}
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+
+
+            {/* ============================================================
+               SUPER ADMIN ONLY
+            ============================================================ */}
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <Users />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="roles"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <Roles />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="pricing"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <PricingApprovals />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="inventory"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <InventoryDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               TECHNICAL ADMIN
+            ============================================================ */}
+            <Route
+              path="roles"
+              element={
+                <ProtectedRoute allowed={["technical_admin"]}>
+                  <Roles />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               REGIONAL ADMIN
+            ============================================================ */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["regional_admin"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="regions"
+              element={
+                <ProtectedRoute allowed={["regional_admin"]}>
+                  <AdminDocuments />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               FINANCE ADMIN
+            ============================================================ */}
+            <Route
+              path="invoices"
+              element={
+                <ProtectedRoute allowed={["finance_admin"]}>
+                  <Invoices />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts"
+              element={
+                <ProtectedRoute allowed={["finance_admin"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               REGIONAL MANAGER
+            ============================================================ */}
+            <Route
+              path="approvals"
+              element={
+                <ProtectedRoute allowed={["regional_manager"]}>
+                  <PricingApprovals />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["regional_manager"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               AREA MANAGER
+            ============================================================ */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["area_manager"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               TERRITORY MANAGER
+            ============================================================ */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["territory_manager"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               DEALER ADMIN
+            ============================================================ */}
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="campaigns"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <Campaigns />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="invoices"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <Invoices />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="chat"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <DealerChat />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               DEALER STAFF
+            ============================================================ */}
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute allowed={["dealer_staff"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               INVENTORY USER
+            ============================================================ */}
+            <Route
+              path="inventory"
+              element={
+                <ProtectedRoute allowed={["inventory_user"]}>
+                  <InventoryDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="pricing"
+              element={
+                <ProtectedRoute allowed={["inventory_user"]}>
+                  <PricingApprovals />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               ACCOUNTS USER
+            ============================================================ */}
+            <Route
+              path="accounts"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts/invoices"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsInvoices />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts/notes"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsNotes />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts/reports"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsReports />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               CHAT ROUTES
+            ============================================================ */}
+            <Route
+              path="manager/chat"
+              element={
+                <ProtectedRoute
+                  allowed={[
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager",
+                  ]}
+                >
+                  <ManagerChat />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="dealer/chat"
+              element={
+                <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
+                  <DealerChat />
+                </ProtectedRoute>
+              }
+            />
+
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
 }
 </file>
 
@@ -7173,172 +8306,6 @@ export default function InventoryDashboard() {
         </div>
       </div>
     </div>
-  );
-}
-</file>
-
-<file path="src/components/Sidebar.jsx">
-import React, { useContext, useState } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { Link, useLocation } from "react-router-dom";
-import {
-  FaHome,
-  FaFileInvoice,
-  FaFileAlt,
-  FaChartBar,
-  FaCogs,
-  FaUsers,
-  FaWarehouse,
-  FaBars,
-} from "react-icons/fa";
-
-export default function Sidebar() {
-  const { user } = useContext(AuthContext);
-  const { pathname } = useLocation();
-
-  const [collapsed, setCollapsed] = useState(false);
-
-  const role = user?.role?.toLowerCase() || "user";
-
-  const baseLinks = [{ path: "/dashboard", label: "Dashboard", icon: <FaHome /> }];
-
-  const roleLinks = {
-    dealer: [
-      { path: "/invoices", label: "Invoices", icon: <FaFileInvoice /> },
-      { path: "/documents", label: "Documents", icon: <FaFileAlt /> },
-      { path: "/reports", label: "Reports", icon: <FaChartBar /> },
-    ],
-    tm: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
-    am: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
-    admin: [
-      { path: "/campaigns", label: "Campaigns", icon: <FaCogs /> },
-      { path: "/admin", label: "Dealer Mgmt", icon: <FaUsers /> },
-      { path: "/admin/documents", label: "Documents", icon: <FaFileAlt /> },
-      { path: "/reports", label: "Reports", icon: <FaChartBar /> },
-    ],
-    accounts: [{ path: "/reports", label: "Accounts Reports", icon: <FaChartBar /> }],
-    inventory: [{ path: "/inventory", label: "Stock View", icon: <FaWarehouse /> }],
-  };
-
-  const links = [...baseLinks, ...(roleLinks[role] || [])];
-
-  return (
-    <aside
-      style={{
-        width: collapsed ? "70px" : "240px",
-        background: "var(--sidebar-bg)",
-        backdropFilter: "blur(14px)",
-        borderRight: "1px solid var(--card-border)",
-        padding: "1rem",
-        display: "flex",
-        flexDirection: "column",
-        transition: "width 0.3s ease",
-        overflowY: "auto",
-        overflowX: "hidden",
-      }}
-    >
-      {/* HEADER + TOGGLE */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: collapsed ? "center" : "space-between",
-          alignItems: "center",
-          marginBottom: "2rem",
-          paddingBottom: "1rem",
-          borderBottom: "1px solid var(--card-border)",
-        }}
-      >
-        {!collapsed && (
-          <h3 style={{ color: "#f97316", fontWeight: "700" }}>
-            {role.toUpperCase()}
-          </h3>
-        )}
-
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          style={{
-            background: "var(--card-bg)",
-            border: "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.5rem",
-            cursor: "pointer",
-            color: "var(--text-color)",
-          }}
-        >
-          <FaBars />
-        </button>
-      </div>
-
-      {/* NAV LINKS */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        {links.map((l) => {
-          const active = pathname === l.path;
-
-          return (
-            <div style={{ position: "relative" }} key={l.path}>
-              <Link
-                to={l.path}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: collapsed ? "0" : "0.75rem",
-                  padding: "0.75rem 1rem",
-                  borderRadius: "10px",
-                  color: active ? "#f97316" : "var(--text-color)",
-                  textDecoration: "none",
-                  background: active
-                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
-                    : "transparent",
-                  fontWeight: active ? "600" : "400",
-                  transition: "0.25s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background =
-                    "linear-gradient(90deg, rgba(249,115,22,0.15), rgba(249,115,22,0.05))";
-                  e.target.style.color = "#f97316";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = active
-                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
-                    : "transparent";
-                  e.target.style.color = active ? "#f97316" : "var(--text-color)";
-                }}
-              >
-                <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
-                {!collapsed && <span>{l.label}</span>}
-              </Link>
-
-              {/* Tooltip when collapsed */}
-              {collapsed && <div className="sidebar-tooltip">{l.label}</div>}
-            </div>
-          );
-        })}
-      </div>
-
-      <style>
-        {`
-            .sidebar-tooltip {
-                position: absolute;
-                left: 80px;
-                top: 50%;
-                transform: translateY(-50%);
-                background: var(--card-bg);
-                padding: 6px 10px;
-                border-radius: 6px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.25);
-                white-space: nowrap;
-                opacity: 0;
-                pointer-events: none;
-                transition: 0.2s ease;
-                color: var(--text-color);
-                border: 1px solid var(--card-border);
-            }
-            a:hover + .sidebar-tooltip {
-                opacity: 1;
-            }
-        `}
-      </style>
-    </aside>
   );
 }
 </file>
@@ -7786,6 +8753,215 @@ export default function ManagerDashboard() {
         </aside>
       </div>
     </div>
+  );
+}
+</file>
+
+<file path="src/components/Sidebar.jsx">
+import React, { useContext, useState } from "react";
+import { AuthContext } from "../context/AuthContext";
+import { Link, useLocation } from "react-router-dom";
+import {
+  FaHome,
+  FaFileInvoice,
+  FaFileAlt,
+  FaChartBar,
+  FaCogs,
+  FaUsers,
+  FaWarehouse,
+  FaBars,
+} from "react-icons/fa";
+
+export default function Sidebar() {
+  const { user } = useContext(AuthContext);
+  const { pathname } = useLocation();
+
+  const [collapsed, setCollapsed] = useState(false);
+
+  const role = user?.role?.toLowerCase() || "user";
+
+  const baseLinks = [{ path: "/dashboard", label: "Dashboard", icon: <FaHome /> }];
+
+ const roleLinks = {
+  super_admin: [
+    { label: "Users", path: "/users", icon: <FaUsers /> },
+    { label: "Roles & Permissions", path: "/roles", icon: <FaCogs /> },
+    { label: "Documents", path: "/documents", icon: <FaFileAlt /> },
+    { label: "Pricing", path: "/pricing", icon: <FaChartBar /> },
+    { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
+    { label: "Accounts", path: "/accounts", icon: <FaFileInvoice /> },
+  ],
+
+  technical_admin: [
+    { label: "Roles & Permissions", path: "/roles", icon: <FaCogs /> },
+  ],
+
+  regional_admin: [
+    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+    { label: "Regions", path: "/regions", icon: <FaChartBar /> },
+  ],
+
+  finance_admin: [
+    { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+    { label: "Accounts", path: "/accounts", icon: <FaUsers /> },
+  ],
+
+  regional_manager: [
+    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+    { label: "Approvals", path: "/approvals", icon: <FaChartBar /> },
+  ],
+
+  area_manager: [
+    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+  ],
+
+  territory_manager: [
+    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+  ],
+
+  dealer_admin: [
+    { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
+    { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
+    { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+    { label: "Chat", path: "/chat", icon: <FaUsers /> },
+  ],
+
+  dealer_staff: [
+    { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
+  ],
+
+  inventory_user: [
+    { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
+    { label: "Pricing Updates", path: "/pricing", icon: <FaChartBar /> },
+  ],
+
+  accounts_user: [
+    { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+    { label: "Statements", path: "/statements", icon: <FaFileAlt /> },
+  ],
+};
+
+
+
+  const links = [...baseLinks, ...(roleLinks[role] || [])];
+
+  return (
+    <aside
+      style={{
+        width: collapsed ? "70px" : "240px",
+        background: "var(--sidebar-bg)",
+        backdropFilter: "blur(14px)",
+        borderRight: "1px solid var(--card-border)",
+        padding: "1rem",
+        display: "flex",
+        flexDirection: "column",
+        transition: "width 0.3s ease",
+        overflowY: "auto",
+        overflowX: "hidden",
+      }}
+    >
+      {/* HEADER + TOGGLE */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: collapsed ? "center" : "space-between",
+          alignItems: "center",
+          marginBottom: "2rem",
+          paddingBottom: "1rem",
+          borderBottom: "1px solid var(--card-border)",
+        }}
+      >
+        {!collapsed && (
+          <h3 style={{ color: "#f97316", fontWeight: "700" }}>
+            {role.toUpperCase()}
+          </h3>
+        )}
+
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          style={{
+            background: "var(--card-bg)",
+            border: "1px solid var(--card-border)",
+            borderRadius: "8px",
+            padding: "0.5rem",
+            cursor: "pointer",
+            color: "var(--text-color)",
+          }}
+        >
+          <FaBars />
+        </button>
+      </div>
+
+      {/* NAV LINKS */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        {links.map((l) => {
+          const active = pathname === l.path;
+
+          return (
+            <div style={{ position: "relative" }} key={l.path}>
+              <Link
+                to={l.path}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: collapsed ? "0" : "0.75rem",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "10px",
+                  color: active ? "#f97316" : "var(--text-color)",
+                  textDecoration: "none",
+                  background: active
+                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
+                    : "transparent",
+                  fontWeight: active ? "600" : "400",
+                  transition: "0.25s ease",
+                }}
+                onMouseEnter={(e) => {
+                  e.target.style.background =
+                    "linear-gradient(90deg, rgba(249,115,22,0.15), rgba(249,115,22,0.05))";
+                  e.target.style.color = "#f97316";
+                }}
+                onMouseLeave={(e) => {
+                  e.target.style.background = active
+                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
+                    : "transparent";
+                  e.target.style.color = active ? "#f97316" : "var(--text-color)";
+                }}
+              >
+                <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
+                {!collapsed && <span>{l.label}</span>}
+              </Link>
+
+              {/* Tooltip when collapsed */}
+              {collapsed && <div className="sidebar-tooltip">{l.label}</div>}
+            </div>
+          );
+        })}
+      </div>
+
+      <style>
+        {`
+            .sidebar-tooltip {
+                position: absolute;
+                left: 80px;
+                top: 50%;
+                transform: translateY(-50%);
+                background: var(--card-bg);
+                padding: 6px 10px;
+                border-radius: 6px;
+                box-shadow: 0 2px 10px rgba(0,0,0,0.25);
+                white-space: nowrap;
+                opacity: 0;
+                pointer-events: none;
+                transition: 0.2s ease;
+                color: var(--text-color);
+                border: 1px solid var(--card-border);
+            }
+            a:hover + .sidebar-tooltip {
+                opacity: 1;
+            }
+        `}
+      </style>
+    </aside>
   );
 }
 </file>

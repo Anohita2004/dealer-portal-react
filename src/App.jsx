@@ -1,43 +1,55 @@
-import React from 'react';
-import { BrowserRouter, Routes, Route } from 'react-router-dom';
-import { AuthProvider } from './context/AuthContext';
+import React from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
 
-import Login from './pages/Login';
-import Dashboard from './pages/Dashboard';
+// 🔐 Auth
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
 
-import Invoices from './pages/Invoices';
-import Documents from './pages/Documents';
+// 🔑 Public
+import Login from "./pages/Login";
+
+// 🧭 Dashboards
+import Dashboard from "./pages/Dashboard";
+import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
+import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
+
+// 📄 Common Pages
+import Invoices from "./pages/Invoices";
+import Documents from "./pages/Documents";
 import Campaigns from "./pages/Campaigns";
 import Reports from "./pages/Reports";
 
+// 🛠 Admin & Config
 import Admin from "./pages/Admin";
 import AdminDocuments from "./pages/AdminDocuments";
 import PricingApprovals from "./pages/PricingApprovals";
 
-import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
-import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
-
+// 💼 Accounts subpages
 import AccountsInvoices from "./pages/accounts/AccountsInvoices";
 import AccountsNotes from "./pages/accounts/AccountsNotes";
 import AccountsReports from "./pages/accounts/AccountsReports";
 
+// 💬 Chat
 import ManagerChat from "./pages/ManagerChat";
 import DealerChat from "./pages/DealerChat";
 
-import ProtectedRoute from './components/ProtectedRoute';
-import Layout from './components/Layout';
+// 🆕 Super Admin CRUD pages (you will build these)
+import Users from "./pages/superadmin/Users";
+import Roles from "./pages/superadmin/Roles";
 
 
-function App() {
+export default function App() {
   return (
     <AuthProvider>
       <BrowserRouter>
         <Routes>
 
-          {/* Public */}
+          {/* ================= PUBLIC ROUTES ================= */}
           <Route path="/login" element={<Login />} />
 
-          {/* Protected */}
+
+          {/* ================= PROTECTED LAYOUT (Navbar + Sidebar) ================= */}
           <Route
             path="/"
             element={
@@ -47,33 +59,315 @@ function App() {
             }
           >
 
-            {/* Default */}
+            {/* ================= DEFAULT ================= */}
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
 
-            {/* Common */}
-            <Route path="documents" element={<Documents />} />
-            <Route path="invoices" element={<Invoices />} />
-            <Route path="campaigns" element={<Campaigns />} />
-            <Route path="reports" element={<Reports />} />
 
-            {/* Admin */}
-            <Route path="admin" element={<Admin />} />
-            <Route path="admin/documents" element={<AdminDocuments />} />
-            <Route path="pricing-approvals" element={<PricingApprovals />} />
+            {/* ============================================================
+               SUPER ADMIN ONLY
+            ============================================================ */}
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <Users />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* Inventory role */}
-            <Route path="inventory" element={<InventoryDashboard />} />
+            <Route
+              path="roles"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <Roles />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* Accounts role */}
-            <Route path="accounts" element={<AccountsDashboard />} />
-            <Route path="accounts/invoices" element={<AccountsInvoices />} />
-            <Route path="accounts/notes" element={<AccountsNotes />} />
-            <Route path="accounts/reports" element={<AccountsReports />} />
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
 
-            {/* Chat */}
-            <Route path="manager/chat" element={<ManagerChat />} />
-            <Route path="dealer/chat" element={<DealerChat />} />
+            <Route
+              path="pricing"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <PricingApprovals />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="inventory"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <InventoryDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               TECHNICAL ADMIN
+            ============================================================ */}
+            <Route
+              path="roles"
+              element={
+                <ProtectedRoute allowed={["technical_admin"]}>
+                  <Roles />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               REGIONAL ADMIN
+            ============================================================ */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["regional_admin"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="regions"
+              element={
+                <ProtectedRoute allowed={["regional_admin"]}>
+                  <AdminDocuments />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               FINANCE ADMIN
+            ============================================================ */}
+            <Route
+              path="invoices"
+              element={
+                <ProtectedRoute allowed={["finance_admin"]}>
+                  <Invoices />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts"
+              element={
+                <ProtectedRoute allowed={["finance_admin"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               REGIONAL MANAGER
+            ============================================================ */}
+            <Route
+              path="approvals"
+              element={
+                <ProtectedRoute allowed={["regional_manager"]}>
+                  <PricingApprovals />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["regional_manager"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               AREA MANAGER
+            ============================================================ */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["area_manager"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               TERRITORY MANAGER
+            ============================================================ */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["territory_manager"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               DEALER ADMIN
+            ============================================================ */}
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="campaigns"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <Campaigns />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="invoices"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <Invoices />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="chat"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <DealerChat />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               DEALER STAFF
+            ============================================================ */}
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute allowed={["dealer_staff"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               INVENTORY USER
+            ============================================================ */}
+            <Route
+              path="inventory"
+              element={
+                <ProtectedRoute allowed={["inventory_user"]}>
+                  <InventoryDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="pricing"
+              element={
+                <ProtectedRoute allowed={["inventory_user"]}>
+                  <PricingApprovals />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               ACCOUNTS USER
+            ============================================================ */}
+            <Route
+              path="accounts"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts/invoices"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsInvoices />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts/notes"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsNotes />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts/reports"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsReports />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               CHAT ROUTES
+            ============================================================ */}
+            <Route
+              path="manager/chat"
+              element={
+                <ProtectedRoute
+                  allowed={[
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager",
+                  ]}
+                >
+                  <ManagerChat />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="dealer/chat"
+              element={
+                <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
+                  <DealerChat />
+                </ProtectedRoute>
+              }
+            />
 
           </Route>
         </Routes>
@@ -81,5 +375,3 @@ function App() {
     </AuthProvider>
   );
 }
-
-export default App;
