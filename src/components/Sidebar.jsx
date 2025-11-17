@@ -22,23 +22,66 @@ export default function Sidebar() {
 
   const baseLinks = [{ path: "/dashboard", label: "Dashboard", icon: <FaHome /> }];
 
-  const roleLinks = {
-    dealer: [
-      { path: "/invoices", label: "Invoices", icon: <FaFileInvoice /> },
-      { path: "/documents", label: "Documents", icon: <FaFileAlt /> },
-      { path: "/reports", label: "Reports", icon: <FaChartBar /> },
-    ],
-    tm: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
-    am: [{ path: "/reports", label: "Reports", icon: <FaChartBar /> }],
-    admin: [
-      { path: "/campaigns", label: "Campaigns", icon: <FaCogs /> },
-      { path: "/admin", label: "Dealer Mgmt", icon: <FaUsers /> },
-      { path: "/admin/documents", label: "Documents", icon: <FaFileAlt /> },
-      { path: "/reports", label: "Reports", icon: <FaChartBar /> },
-    ],
-    accounts: [{ path: "/reports", label: "Accounts Reports", icon: <FaChartBar /> }],
-    inventory: [{ path: "/inventory", label: "Stock View", icon: <FaWarehouse /> }],
-  };
+ const roleLinks = {
+  super_admin: [
+    { label: "Users", path: "/users", icon: <FaUsers /> },
+    { label: "Roles & Permissions", path: "/roles", icon: <FaCogs /> },
+    { label: "Documents", path: "/documents", icon: <FaFileAlt /> },
+    { label: "Pricing", path: "/pricing", icon: <FaChartBar /> },
+    { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
+    { label: "Accounts", path: "/accounts", icon: <FaFileInvoice /> },
+  ],
+
+  technical_admin: [
+    { label: "Roles & Permissions", path: "/roles", icon: <FaCogs /> },
+  ],
+
+  regional_admin: [
+    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+    { label: "Regions", path: "/regions", icon: <FaChartBar /> },
+  ],
+
+  finance_admin: [
+    { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+    { label: "Accounts", path: "/accounts", icon: <FaUsers /> },
+  ],
+
+  regional_manager: [
+    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+    { label: "Approvals", path: "/approvals", icon: <FaChartBar /> },
+  ],
+
+  area_manager: [
+    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+  ],
+
+  territory_manager: [
+    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+  ],
+
+  dealer_admin: [
+    { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
+    { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
+    { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+    { label: "Chat", path: "/chat", icon: <FaUsers /> },
+  ],
+
+  dealer_staff: [
+    { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
+  ],
+
+  inventory_user: [
+    { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
+    { label: "Pricing Updates", path: "/pricing", icon: <FaChartBar /> },
+  ],
+
+  accounts_user: [
+    { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+    { label: "Statements", path: "/statements", icon: <FaFileAlt /> },
+  ],
+};
+
+
 
   const links = [...baseLinks, ...(roleLinks[role] || [])];
 
