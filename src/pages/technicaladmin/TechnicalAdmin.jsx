@@ -132,13 +132,75 @@ export default function TechnicalAdminDashboard() {
 
       <div className="dashboard-grid">
         <div className="column">
-          <Card title="Role Permission Matrix">
+          <Card title="Role Permission Matrix" className="matrix-card">
+  <div className="matrix-container">
+    <div className="matrix-inner-scroll">
 
-            <div className="matrix-scroll">
-              {/* your full table stays unchanged here */}
-            </div>
+      <table className="matrix-table">
+        <thead>
+          <tr>
+            <th className="sticky-col">Permission</th>
 
-          </Card>
+            {roles.map((r) => (
+              <th key={r.id} className="center-cell">
+                <div className="role-header">
+                  {r.name}
+                  {dirty.has(r.id) && (
+                    <span className="unsaved-tag">Unsaved</span>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => saveRole(r.id)}
+                  disabled={!dirty.has(r.id) || saving}
+                  className={`save-btn ${dirty.has(r.id) ? "active" : ""}`}
+                >
+                  {saving ? "Saving…" : "Save"}
+                </button>
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {permissions
+            .filter((p) =>
+              search.trim() === ""
+                ? true
+                : p.key.toLowerCase().includes(search.toLowerCase()) ||
+                  p.description.toLowerCase().includes(search.toLowerCase())
+            )
+            .map((p, idx) => (
+              <tr
+                key={p.id}
+                className={idx % 2 === 0 ? "row-even" : "row-odd"}
+              >
+                <td className="sticky-col perm-col">
+                  <strong>{p.key}</strong>
+                  <div className="perm-desc">{p.description}</div>
+                </td>
+
+                {roles.map((r) => (
+                  <td key={r.id} className="center-cell">
+                    <label className="checkbox-wrapper">
+                      <input
+                        type="checkbox"
+                        checked={matrix[r.id]?.has(p.id)}
+                        onChange={() => toggle(r.id, p.id)}
+                      />
+                      <span className="custom-checkbox"></span>
+                    </label>
+                  </td>
+                ))}
+              </tr>
+            ))}
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+</Card>
+
         </div>
 
         <div className="column">

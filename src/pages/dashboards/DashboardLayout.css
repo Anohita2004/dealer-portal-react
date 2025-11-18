@@ -139,3 +139,209 @@
   min-height: 320px;
   position: relative;
 }
+/* MATRIX CONTAINER */
+.matrix-wrapper {
+  margin-top: 1rem;
+  background: var(--card-bg);
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  padding: 1rem;
+}
+
+/* SCROLLABLE AREA */
+.matrix-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;       /* scroll inside card */
+  padding-bottom: 1rem;
+}
+
+
+/* TABLE MUST NOT EXPAND PAGE */
+.matrix-table {
+  width: max-content;    /* ← allows scrolling instead of expanding page */
+  min-width: 500px;      /* reduced for compactness */
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+
+/* STICKY LEFT PERMISSION COLUMN */
+.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--card-bg);
+  box-shadow: 2px 0 4px rgba(0,0,0,0.05);
+}
+
+/* HEADER CELLS */
+.matrix-table thead th {
+  background: var(--hover-bg);
+  padding: 0.8rem 1rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--card-border);
+  white-space: nowrap;
+}
+
+/* PERMISSION COLUMN WIDTH */
+.perm-col {
+  width: 180px;
+  max-width: 180px;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+
+/* CHECKBOX COLUMNS: FIX WIDTH */
+.center-cell {
+  width: 70px;
+  max-width: 70px;
+  min-width: 70px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+
+/* SAVE BUTTON */
+.save-btn {
+  margin-top: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: #fff;
+  opacity: 0.5;
+  cursor: not-allowed;
+  transition: 0.2s ease;
+}
+
+.save-btn.active {
+  opacity: 1;
+  cursor: pointer;
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+
+.role-header {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.unsaved-tag {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #b45309;
+}
+
+/* ROW COLORS */
+.row-even {
+  background: #fafafa;
+}
+.row-odd {
+  background: #ffffff;
+}
+
+/* TABLE BODY */
+.matrix-table td {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.matrix-table tbody tr:hover {
+  background: var(--hover-bg);
+}
+
+/* PERMISSION DESCRIPTION */
+.perm-desc {
+  color: gray;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* CUSTOM CHECKBOX */
+.checkbox-wrapper {
+  width: 20px;
+  height: 20px;
+  position: relative;
+  display: inline-block;
+}
+
+.checkbox-wrapper input {
+  position: absolute;
+  opacity: 0;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.custom-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  display: inline-block;
+  transition: 0.15s;
+}
+
+.checkbox-wrapper input:checked + .custom-checkbox {
+  background: #f97316;
+  border-color: #f97316;
+}
+
+/* CARD SHOULD NEVER EXPAND LAYOUT */
+.card {
+  max-width: 100%;
+  overflow: hidden;
+}
+/* Matrix card itself is narrower */
+/* Compact Matrix Card */
+.matrix-card {
+  max-width: 650px;      /* ← Your requested width */
+  width: 100%;
+  margin: 0 auto;        /* center it */
+  overflow: hidden;
+  padding: 0;            /* tighter look */
+}
+/* Outer container — controls final width (never expands layout) */
+.matrix-container {
+  width: 100%;
+  max-width: 650px;        /* fixed dashboard-safe width */
+  margin: 0 auto;          /* center it */
+  overflow: hidden;        /* prevents layout push */
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  padding: 0;
+}
+
+/* Inner scroll — table scrolls INSIDE here */
+.matrix-inner-scroll {
+  width: 100%;
+  overflow-x: auto;        /* horizontal scroll ONLY inside */
+  overflow-y: hidden;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* Table — can be any width, but cannot escape container */
+.matrix-table {
+  width: max-content;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+
+/* Scroll area must NOT grow the card */
+.matrix-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+}
+
+/* Table can be wider, but it stays inside the card */
+.matrix-table {
+  width: max-content;
+  min-width: 700px;           /* safe minimum table width */
+}
