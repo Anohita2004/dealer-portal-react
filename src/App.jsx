@@ -37,6 +37,7 @@ import DealerChat from "./pages/DealerChat";
 // 🆕 Super Admin CRUD pages (you will build these)
 import Users from "./pages/superadmin/Users";
 import Roles from "./pages/superadmin/Roles";
+import TechnicalAdmin from "./pages/technicaladmin/TechnicalAdmin";
 
 
 export default function App() {
@@ -126,10 +127,10 @@ export default function App() {
                TECHNICAL ADMIN
             ============================================================ */}
             <Route
-              path="roles"
+              path="technical-admin"
               element={
                 <ProtectedRoute allowed={["technical_admin"]}>
-                  <Roles />
+                  <TechnicalAdmin />
                 </ProtectedRoute>
               }
             />

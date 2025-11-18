@@ -33,7 +33,7 @@ export default function Sidebar() {
   ],
 
   technical_admin: [
-    { label: "Roles & Permissions", path: "/roles", icon: <FaCogs /> },
+    { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
   ],
 
   regional_admin: [
