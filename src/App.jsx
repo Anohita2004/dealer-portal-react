@@ -41,6 +41,8 @@ import TechnicalAdmin from "./pages/technicaladmin/TechnicalAdmin";
 import AdminOrders from "./pages/orders/AdminOrders";
 import CreateOrder from "./pages/orders/CreateOrders";
 import MyOrders from "./pages/orders/MyOrders";
+import Materials from "./pages/Materials";
+
 
 
 export default function App() {
@@ -137,6 +139,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+  path="materials"
+  element={
+    <ProtectedRoute allowed={["technical_admin", "super_admin"]}>
+      <Materials />
+    </ProtectedRoute>
+  }
+/>
 
 
             {/* ============================================================

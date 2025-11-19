@@ -34,6 +34,12 @@ export default function Sidebar() {
 
   technical_admin: [
     { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
+    {
+  label: "Material Master",
+  path: "/materials",
+  roles: ["technical_admin", "super_admin"],
+}
+
   ],
 
   regional_admin: [

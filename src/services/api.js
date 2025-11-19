@@ -56,6 +56,9 @@ export const materialAPI = {
 
   deleteMaterial: (id) =>
     api.delete(`/materials/${id}`).then((r) => r.data),
+  
+
+
 };
 
 // =======================================================================
