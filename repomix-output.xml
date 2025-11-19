@@ -105,6 +105,10 @@ src/pages/InvoiceDetail.jsx
 src/pages/Invoices.jsx
 src/pages/Login.jsx
 src/pages/ManagerChat.jsx
+src/pages/Materials.jsx
+src/pages/orders/AdminOrders.jsx
+src/pages/orders/CreateOrders.jsx
+src/pages/orders/MyOrders.jsx
 src/pages/OTPVerify.jsx
 src/pages/PricingApprovals.jsx
 src/pages/Reports.jsx
@@ -2155,6 +2159,443 @@ export default function ManagerChat() {
         )}
       </main>
     </div>
+  );
+}
+</file>
+
+<file path="src/pages/Materials.jsx">
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  TextField,
+  MenuItem,
+  Divider,
+} from "@mui/material";
+import api from "../services/api";
+
+export default function Materials() {
+  const [groups, setGroups] = useState([]);
+  const [materials, setMaterials] = useState([]);
+
+  // Group form
+  const [groupName, setGroupName] = useState("");
+  const [groupCode, setGroupCode] = useState("");
+  const [groupDesc, setGroupDesc] = useState("");
+
+  // Material form
+  const [matName, setMatName] = useState("");
+  const [matNum, setMatNum] = useState("");
+  const [matUom, setMatUom] = useState("");
+  const [matDesc, setMatDesc] = useState("");
+  const [matGroup, setMatGroup] = useState("");
+
+  useEffect(() => {
+    fetchData();
+  }, []);
+
+  const fetchData = async () => {
+    const g = await api.get("/materials/groups");
+    const m = await api.get("/materials");
+    setGroups(g.data.groups || []);
+    setMaterials(m.data.materials || []);
+  };
+
+  // Create Group
+  const createGroup = async () => {
+    if (!groupName || !groupCode) return alert("Fields required");
+
+    try {
+      await api.post("/materials/groups", {
+        name: groupName,
+        code: groupCode,
+        description: groupDesc,
+      });
+      alert("Group created");
+      setGroupName("");
+      setGroupCode("");
+      setGroupDesc("");
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert("Failed");
+    }
+  };
+
+  // Create Material
+  const createMaterial = async () => {
+    if (!matName || !matNum) return alert("Fields required");
+
+    try {
+      await api.post("/materials", {
+        name: matName,
+        materialNumber: matNum,
+        uom: matUom,
+        description: matDesc,
+        materialGroupId: matGroup || null,
+      });
+
+      alert("Material created");
+      setMatDesc("");
+      setMatName("");
+      setMatNum("");
+      setMatUom("");
+      setMatGroup("");
+
+      fetchData();
+    } catch (err) {
+      console.error(err);
+      alert("Failed");
+    }
+  };
+
+  return (
+    <Box p={4}>
+
+      {/* ---------------- GROUP SECTION ---------------- */}
+      <Card sx={{ mb: 4 }}>
+        <CardContent>
+          <Typography variant="h5">Create Material Group</Typography>
+
+          <TextField
+            label="Group Name"
+            fullWidth
+            value={groupName}
+            onChange={(e) => setGroupName(e.target.value)}
+            sx={{ mt: 2 }}
+          />
+          <TextField
+            label="Group Code"
+            fullWidth
+            value={groupCode}
+            onChange={(e) => setGroupCode(e.target.value)}
+            sx={{ mt: 2 }}
+          />
+          <TextField
+            label="Description"
+            fullWidth
+            value={groupDesc}
+            onChange={(e) => setGroupDesc(e.target.value)}
+            sx={{ mt: 2 }}
+          />
+
+          <Button variant="contained" onClick={createGroup} sx={{ mt: 2 }}>
+            Create Group
+          </Button>
+        </CardContent>
+      </Card>
+
+      {/* ---------------- MATERIAL SECTION ---------------- */}
+      <Card>
+        <CardContent>
+          <Typography variant="h5">Create Material</Typography>
+
+          <TextField
+            label="Material Name"
+            fullWidth
+            value={matName}
+            onChange={(e) => setMatName(e.target.value)}
+            sx={{ mt: 2 }}
+          />
+          <TextField
+            label="Material Number"
+            fullWidth
+            value={matNum}
+            onChange={(e) => setMatNum(e.target.value)}
+            sx={{ mt: 2 }}
+          />
+          <TextField
+            label="UOM"
+            fullWidth
+            value={matUom}
+            onChange={(e) => setMatUom(e.target.value)}
+            sx={{ mt: 2 }}
+          />
+          <TextField
+            label="Description"
+            fullWidth
+            value={matDesc}
+            onChange={(e) => setMatDesc(e.target.value)}
+            sx={{ mt: 2 }}
+          />
+
+          <TextField
+            select
+            label="Material Group"
+            fullWidth
+            value={matGroup}
+            onChange={(e) => setMatGroup(e.target.value)}
+            sx={{ mt: 2 }}
+          >
+            {groups.map((g) => (
+              <MenuItem key={g.id} value={g.id}>
+                {g.name}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <Button variant="contained" onClick={createMaterial} sx={{ mt: 2 }}>
+            Create Material
+          </Button>
+        </CardContent>
+      </Card>
+
+    </Box>
+  );
+}
+</file>
+
+<file path="src/pages/orders/AdminOrders.jsx">
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  TextField,
+  Chip,
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHead,
+} from "@mui/material";
+import { orderAPI } from "../../services/api";
+
+export default function AdminOrders() {
+  const [orders, setOrders] = useState([]);
+  const [editQty, setEditQty] = useState({});
+
+  const fetchOrders = () => {
+    orderAPI
+      .getAllOrders()
+      .then((res) => {
+        const list = res?.orders || [];
+        setOrders(list);
+      })
+      .catch(console.error);
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const updateQuantity = async (orderId, itemId) => {
+    try {
+      await orderAPI.updateOrder(orderId, {
+        itemId,
+        qty: Number(editQty[itemId])
+      });
+
+      fetchOrders();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update quantity");
+    }
+  };
+
+  const approve = async (id) => {
+    await orderAPI.approveOrder(id);
+    fetchOrders();
+  };
+
+  const reject = async (id) => {
+    const reason = prompt("Reason for rejection:");
+    if (!reason) return;
+
+    await orderAPI.rejectOrder(id, { reason });
+    fetchOrders();
+  };
+
+  return (
+    <Box p={4}>
+      <Typography variant="h5" mb={3}>
+        Dealer Orders (Approval Panel)
+      </Typography>
+
+      <Card>
+        <CardContent>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Order ID</TableCell>
+                <TableCell>Material</TableCell>
+                <TableCell>Quantity</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {orders.map((order) =>
+                order.items?.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{order.id}</TableCell>
+
+                    <TableCell>{item.material?.name || "Unknown"}</TableCell>
+
+                    <TableCell>
+                      {order.status === "Pending" ? (
+                        <TextField
+                          size="small"
+                          type="number"
+                          value={editQty[item.id] ?? item.qty}
+                          onChange={(e) =>
+                            setEditQty({
+                              ...editQty,
+                              [item.id]: e.target.value,
+                            })
+                          }
+                        />
+                      ) : (
+                        item.qty
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      <Chip
+                        label={order.status}
+                        color={
+                          order.status === "Approved"
+                            ? "success"
+                            : order.status === "Rejected"
+                            ? "error"
+                            : "warning"
+                        }
+                      />
+                    </TableCell>
+
+                    <TableCell>
+                      {order.status === "Pending" && (
+                        <>
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            onClick={() =>
+                              updateQuantity(order.id, item.id)
+                            }
+                            sx={{ mr: 1 }}
+                          >
+                            Update
+                          </Button>
+
+                          <Button
+                            variant="contained"
+                            color="success"
+                            size="small"
+                            onClick={() => approve(order.id)}
+                            sx={{ mr: 1 }}
+                          >
+                            Approve
+                          </Button>
+
+                          <Button
+                            variant="contained"
+                            color="error"
+                            size="small"
+                            onClick={() => reject(order.id)}
+                          >
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}
+</file>
+
+<file path="src/pages/orders/MyOrders.jsx">
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Chip,
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHead,
+} from "@mui/material";
+import { orderAPI } from "../../services/api";
+
+export default function MyOrders() {
+  const [orders, setOrders] = useState([]);
+
+  useEffect(() => {
+    orderAPI
+      .getMyOrders()
+      .then((res) => {
+        const list = res?.orders || [];
+        setOrders(list);
+      })
+      .catch(console.error);
+  }, []);
+
+  const statusColor = {
+    Pending: "warning",
+    Approved: "success",
+    Rejected: "error",
+  };
+
+  return (
+    <Box p={4}>
+      <Typography variant="h5" mb={3}>
+        My Orders
+      </Typography>
+
+      <Card>
+        <CardContent>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Order ID</TableCell>
+                <TableCell>Material</TableCell>
+                <TableCell>Quantity</TableCell>
+                <TableCell>Status</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {orders.map((order) =>
+                order.items?.map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{order.id}</TableCell>
+
+                    <TableCell>
+                      {item.material?.name || "Unknown"}
+                    </TableCell>
+
+                    <TableCell>{item.qty}</TableCell>
+
+                    <TableCell>
+                      <Chip
+                        label={order.status}
+                        color={statusColor[order.status] || "default"}
+                      />
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
 </file>
@@ -5020,6 +5461,107 @@ function ChartCard({ title, children }) {
 }
 </file>
 
+<file path="src/pages/orders/CreateOrders.jsx">
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  MenuItem,
+  TextField,
+} from "@mui/material";
+import { materialAPI, orderAPI } from "../../services/api";
+
+export default function CreateOrder() {
+  const [materials, setMaterials] = useState([]);
+  const [selectedMaterial, setSelectedMaterial] = useState("");
+  const [quantity, setQuantity] = useState("");
+
+  useEffect(() => {
+    materialAPI
+      .getMaterials()
+      .then((res) => {
+        const list = res?.materials || [];
+        setMaterials(list);
+      })
+      .catch(console.error);
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!selectedMaterial || !quantity)
+      return alert("All fields required");
+
+    try {
+      await orderAPI.createOrder({
+        items: [
+          {
+            materialId: selectedMaterial,
+            qty: Number(quantity),
+            unitPrice: 0
+          }
+        ],
+        notes: ""
+      });
+
+      alert("Order created successfully!");
+      setSelectedMaterial("");
+      setQuantity("");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to create order");
+    }
+  };
+
+  return (
+    <Box p={4}>
+      <Card>
+        <CardContent>
+          <Typography variant="h5" mb={2}>
+            Create New Order
+          </Typography>
+
+          <TextField
+            fullWidth
+            select
+            label="Select Material"
+            value={selectedMaterial}
+            onChange={(e) => setSelectedMaterial(e.target.value)}
+            margin="normal"
+          >
+            {materials.map((m) => (
+              <MenuItem key={m.id} value={m.id}>
+                {m.name}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            fullWidth
+            label="Quantity"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            margin="normal"
+            type="number"
+          />
+
+          <Button
+            variant="contained"
+            color="primary"
+            fullWidth
+            sx={{ mt: 2 }}
+            onClick={handleSubmit}
+          >
+            Submit Order
+          </Button>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}
+</file>
+
 <file path="src/pages/technicaladmin/TechnicalAdmin.jsx">
 import React, { useEffect, useState, useContext } from "react";
 import api from "../../services/api";
@@ -6939,55 +7481,6 @@ const styles = {
 };
 </file>
 
-<file path="src/services/api.js">
-import axios from "axios";
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
-  withCredentials: true,
-});
-
-// ✅ Don’t attach token for login or OTP routes
-api.interceptors.request.use((config) => {
-  const noAuthNeeded = [
-    "/auth/login",
-    "/auth/verify-otp",
-    "/auth/reset-password",
-    "/auth/reset-password-confirm",
-  ];
-
-  if (!noAuthNeeded.some((path) => config.url.includes(path))) {
-    const token = localStorage.getItem("token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
-});
-
-// ✅ Handle 401 without full reload during login/OTP
-api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    const originalUrl = err.config?.url || "";
-
-    // Ignore these during login flow
-    const safeRoutes = ["/auth/login", "/auth/verify-otp"];
-    const isSafe = safeRoutes.some((path) => originalUrl.includes(path));
-
-    if (err.response?.status === 401 && !isSafe) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      // Instead of reloading, redirect gracefully:
-      window.history.pushState({}, "", "/login");
-    }
-
-    return Promise.reject(err);
-  }
-);
-
-export default api;
-</file>
-
 <file path="src/theme.js">
 import { createTheme } from "@mui/material/styles";
 
@@ -8267,6 +8760,117 @@ export default function Reports() {
 }
 </file>
 
+<file path="src/services/api.js">
+import axios from "axios";
+
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
+  withCredentials: true,
+});
+
+// ====== INTERCEPTORS (keep as is) ======
+api.interceptors.request.use((config) => {
+  const noAuthNeeded = [
+    "/auth/login",
+    "/auth/verify-otp",
+    "/auth/reset-password",
+    "/auth/reset-password-confirm",
+  ];
+
+  if (!noAuthNeeded.some((path) => config.url.includes(path))) {
+    const token = localStorage.getItem("token");
+    if (token) config.headers.Authorization = `Bearer ${token}`;
+  }
+
+  return config;
+});
+
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const originalUrl = err.config?.url || "";
+
+    const safeRoutes = ["/auth/login", "/auth/verify-otp"];
+    const isSafe = safeRoutes.some((path) => originalUrl.includes(path));
+
+    if (err.response?.status === 401 && !isSafe) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.history.pushState({}, "", "/login");
+    }
+
+    return Promise.reject(err);
+  }
+);
+
+// =======================================================================
+// ======================= MATERIAL MASTER APIs ===========================
+// =======================================================================
+
+export const materialAPI = {
+  getMaterials: () => api.get("/materials").then((r) => r.data),
+  getMaterialGroups: () => api.get("/material-groups").then((r) => r.data),
+
+  createMaterial: (payload) =>
+    api.post("/materials", payload).then((r) => r.data),
+
+  updateMaterial: (id, payload) =>
+    api.patch(`/materials/${id}`, payload).then((r) => r.data),
+
+  deleteMaterial: (id) =>
+    api.delete(`/materials/${id}`).then((r) => r.data),
+  
+
+
+};
+
+// =======================================================================
+// ======================== ORDER FLOW APIs ===============================
+// =======================================================================
+
+export const orderAPI = {
+  // Dealer creates order
+  createOrder: (payload) =>
+    api.post("/orders", payload).then((r) => r.data),
+
+  // Dealer views own orders
+  getMyOrders: () =>
+    api.get("/orders/my").then((r) => r.data),
+
+  // Admin views all / pending orders
+  getAllOrders: (params) =>
+    api.get("/orders", { params }).then((r) => r.data),
+
+  getOrderById: (id) =>
+    api.get(`/orders/${id}`).then((r) => r.data),
+
+  // Admin modifies order qty before approval
+  updateOrder: (id, payload) =>
+    api.patch(`/orders/${id}`, payload).then((r) => r.data),
+
+  approveOrder: (id) =>
+    api.patch(`/orders/${id}/approve`).then((r) => r.data),
+
+  rejectOrder: (id, payload) =>
+    api.patch(`/orders/${id}/reject`, payload).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================= NOTIFICATIONS APIs =============================
+// =======================================================================
+
+export const notificationAPI = {
+  getNotifications: () =>
+    api.get("/notifications").then((r) => r.data),
+
+  markNotificationRead: (id) =>
+    api.patch(`/notifications/${id}/read`).then((r) => r.data),
+};
+
+// Default export for compatibility
+export default api;
+</file>
+
 <file path="src/pages/dashboards/AdminDashboard.jsx">
 // src/pages/dashboard/AdminDashboard.jsx
 import React, { useEffect, useState, useContext } from "react";
@@ -9512,6 +10116,11 @@ import DealerChat from "./pages/DealerChat";
 import Users from "./pages/superadmin/Users";
 import Roles from "./pages/superadmin/Roles";
 import TechnicalAdmin from "./pages/technicaladmin/TechnicalAdmin";
+import AdminOrders from "./pages/orders/AdminOrders";
+import CreateOrder from "./pages/orders/CreateOrders";
+import MyOrders from "./pages/orders/MyOrders";
+import Materials from "./pages/Materials";
+
 
 
 export default function App() {
@@ -9608,6 +10217,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+  path="materials"
+  element={
+    <ProtectedRoute allowed={["technical_admin", "super_admin"]}>
+      <Materials />
+    </ProtectedRoute>
+  }
+/>
 
 
             {/* ============================================================
@@ -9740,7 +10357,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-
+            <Route
+  path="orders/approvals"
+  element={
+    <ProtectedRoute allowed={["dealer_admin"]}>
+      <AdminOrders />
+    </ProtectedRoute>
+  }
+/>
 
             {/* ============================================================
                DEALER STAFF
@@ -9753,7 +10377,23 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+  path="orders/create"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <CreateOrder />
+    </ProtectedRoute>
+  }
+/>
 
+<Route
+  path="orders/my"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <MyOrders />
+    </ProtectedRoute>
+  }
+/>
 
             {/* ============================================================
                INVENTORY USER
@@ -9889,6 +10529,12 @@ export default function Sidebar() {
 
   technical_admin: [
     { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
+    {
+  label: "Material Master",
+  path: "/materials",
+  roles: ["technical_admin", "super_admin"],
+}
+
   ],
 
   regional_admin: [
@@ -9919,10 +10565,13 @@ export default function Sidebar() {
     { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
     { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
     { label: "Chat", path: "/chat", icon: <FaUsers /> },
+    {label:"Order Approvals" ,path:"/orders/approvals",icon: <FaChartBar /> },
   ],
 
   dealer_staff: [
     { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
+    {label:"Create Order",path: "/orders/create",icon: <FaChartBar /> },
+    {label:"My Orders",path: "/orders/my" ,icon: <FaChartBar /> },
   ],
 
   inventory_user: [

@@ -11,19 +11,38 @@ import {
   TableCell,
   TableHead,
 } from "@mui/material";
-import { orderAPI } from "../../services/api";
+import { orderAPI, materialAPI } from "../../services/api";
 
 export default function MyOrders() {
   const [orders, setOrders] = useState([]);
+  const [materials, setMaterials] = useState({});
 
   useEffect(() => {
-    orderAPI.getMyOrders().then(setOrders).catch(console.error);
+    async function loadData() {
+      try {
+        // 1. Get all materials (cache them by ID)
+        const mres = await materialAPI.getMaterials();
+        const matMap = {};
+        (mres?.materials || []).forEach(m => {
+          matMap[m.id] = m;
+        });
+        setMaterials(matMap);
+
+        // 2. Load orders
+        const ores = await orderAPI.getMyOrders();
+        setOrders(ores?.orders || []);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadData();
   }, []);
 
   const statusColor = {
-    pending: "warning",
-    approved: "success",
-    rejected: "error",
+    Pending: "warning",
+    Approved: "success",
+    Rejected: "error",
   };
 
   return (
@@ -37,7 +56,7 @@ export default function MyOrders() {
           <Table>
             <TableHead>
               <TableRow>
-                <TableCell>Order ID</TableCell>
+                <TableCell>Order Number</TableCell>
                 <TableCell>Material</TableCell>
                 <TableCell>Quantity</TableCell>
                 <TableCell>Status</TableCell>
@@ -45,19 +64,24 @@ export default function MyOrders() {
             </TableHead>
 
             <TableBody>
-              {orders.map((o) => (
-                <TableRow key={o.id}>
-                  <TableCell>{o.id}</TableCell>
-                  <TableCell>{o.material?.name}</TableCell>
-                  <TableCell>{o.quantity}</TableCell>
-                  <TableCell>
-                    <Chip
-                      label={o.status}
-                      color={statusColor[o.status] || "default"}
-                    />
-                  </TableCell>
-                </TableRow>
-              ))}
+              {orders.map(order =>
+                (order.order_items || []).map(item => {
+                  const mat = materials[item.materialId] || {};
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>{order.orderNumber}</TableCell>
+                      <TableCell>{mat.name || "Unknown Material"}</TableCell>
+                      <TableCell>{item.qty}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={order.status}
+                          color={statusColor[order.status] || "default"}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
             </TableBody>
           </Table>
         </CardContent>

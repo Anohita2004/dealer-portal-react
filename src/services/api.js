@@ -62,7 +62,7 @@ export const materialAPI = {
 };
 
 // =======================================================================
-// ======================== ORDER FLOW APIs ===============================
+// ======================== ORDER FLOW APIs (FIXED) =======================
 // =======================================================================
 
 export const orderAPI = {
@@ -72,25 +72,17 @@ export const orderAPI = {
 
   // Dealer views own orders
   getMyOrders: () =>
-    api.get("/orders/my").then((r) => r.data),
+    api.get("/orders", { params: { mine: true } }).then((r) => r.data),
 
-  // Admin views all / pending orders
+  // Admin/Manager view all orders
   getAllOrders: (params) =>
     api.get("/orders", { params }).then((r) => r.data),
 
-  getOrderById: (id) =>
-    api.get(`/orders/${id}`).then((r) => r.data),
-
-  // Admin modifies order qty before approval
-  updateOrder: (id, payload) =>
-    api.patch(`/orders/${id}`, payload).then((r) => r.data),
-
-  approveOrder: (id) =>
-    api.patch(`/orders/${id}/approve`).then((r) => r.data),
-
-  rejectOrder: (id, payload) =>
-    api.patch(`/orders/${id}/reject`, payload).then((r) => r.data),
+  // Admin/Manager update qty or status
+  updateOrderStatus: (id, payload) =>
+    api.patch(`/orders/${id}/status`, payload).then((r) => r.data)
 };
+
 
 // =======================================================================
 // ======================= NOTIFICATIONS APIs =============================
