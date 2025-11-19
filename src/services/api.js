@@ -5,7 +5,7 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// ✅ Don’t attach token for login or OTP routes
+// ====== INTERCEPTORS (keep as is) ======
 api.interceptors.request.use((config) => {
   const noAuthNeeded = [
     "/auth/login",
@@ -22,20 +22,17 @@ api.interceptors.request.use((config) => {
   return config;
 });
 
-// ✅ Handle 401 without full reload during login/OTP
 api.interceptors.response.use(
   (res) => res,
   (err) => {
     const originalUrl = err.config?.url || "";
 
-    // Ignore these during login flow
     const safeRoutes = ["/auth/login", "/auth/verify-otp"];
     const isSafe = safeRoutes.some((path) => originalUrl.includes(path));
 
     if (err.response?.status === 401 && !isSafe) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      // Instead of reloading, redirect gracefully:
       window.history.pushState({}, "", "/login");
     }
 
@@ -43,4 +40,66 @@ api.interceptors.response.use(
   }
 );
 
+// =======================================================================
+// ======================= MATERIAL MASTER APIs ===========================
+// =======================================================================
+
+export const materialAPI = {
+  getMaterials: () => api.get("/materials").then((r) => r.data),
+  getMaterialGroups: () => api.get("/material-groups").then((r) => r.data),
+
+  createMaterial: (payload) =>
+    api.post("/materials", payload).then((r) => r.data),
+
+  updateMaterial: (id, payload) =>
+    api.patch(`/materials/${id}`, payload).then((r) => r.data),
+
+  deleteMaterial: (id) =>
+    api.delete(`/materials/${id}`).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== ORDER FLOW APIs ===============================
+// =======================================================================
+
+export const orderAPI = {
+  // Dealer creates order
+  createOrder: (payload) =>
+    api.post("/orders", payload).then((r) => r.data),
+
+  // Dealer views own orders
+  getMyOrders: () =>
+    api.get("/orders/my").then((r) => r.data),
+
+  // Admin views all / pending orders
+  getAllOrders: (params) =>
+    api.get("/orders", { params }).then((r) => r.data),
+
+  getOrderById: (id) =>
+    api.get(`/orders/${id}`).then((r) => r.data),
+
+  // Admin modifies order qty before approval
+  updateOrder: (id, payload) =>
+    api.patch(`/orders/${id}`, payload).then((r) => r.data),
+
+  approveOrder: (id) =>
+    api.patch(`/orders/${id}/approve`).then((r) => r.data),
+
+  rejectOrder: (id, payload) =>
+    api.patch(`/orders/${id}/reject`, payload).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================= NOTIFICATIONS APIs =============================
+// =======================================================================
+
+export const notificationAPI = {
+  getNotifications: () =>
+    api.get("/notifications").then((r) => r.data),
+
+  markNotificationRead: (id) =>
+    api.patch(`/notifications/${id}/read`).then((r) => r.data),
+};
+
+// Default export for compatibility
 export default api;

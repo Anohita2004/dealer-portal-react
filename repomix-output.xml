@@ -123,6 +123,7 @@ src/pages/reports/RegionalSalesSummary.jsx
 src/pages/reports/TerritorySummary.jsx
 src/pages/superadmin/Roles.jsx
 src/pages/superadmin/Users.jsx
+src/pages/technicaladmin/TechnicalAdmin.jsx
 src/services/api.js
 src/services/socket.js
 src/theme.js
@@ -4796,150 +4797,6 @@ export default function AdminDocuments() {
 }
 </file>
 
-<file path="src/pages/dashboards/DashboardLayout.css">
-/* ========== THEME-AWARE COMPACT DASHBOARD LAYOUT ========== */
-.dashboard-container {
-  padding: 1rem 1.25rem;
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-  transition: background 0.3s ease, color 0.3s ease;
-}
-
-.dashboard-header {
-  margin-bottom: 0.5rem;
-}
-
-.dashboard-header h1 {
-  font-size: 1.1rem;
-  margin-bottom: 0.3rem;
-  font-weight: 600;
-}
-
-.dashboard-header p {
-  font-size: 0.85rem;
-  color: var(--text-muted);
-}
-
-/* GRID STRUCTURE */
-.dashboard-grid {
-  display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 1rem;
-  width: 100%;
-}
-
-.dashboard-grid .column {
-  display: flex;
-  flex-direction: column;
-  gap: 1rem;
-}
-
-/* CARD & COMPONENT STYLING */
-.card {
-  background: var(--card-bg);
-  border: 1px solid var(--card-border);
-  border-radius: 14px;
-  padding: 0.9rem 1rem;
-  box-shadow: var(--card-shadow);
-  transition: 0.25s ease;
-}
-
-.card:hover {
-  border-color: var(--accent);
-  transform: translateY(-1px);
-}
-
-.card h2,
-.card h3 {
-  font-size: 0.9rem;
-  margin-bottom: 0.4rem;
-  font-weight: 600;
-}
-
-.text-muted {
-  color: var(--text-muted);
-  font-size: 0.8rem;
-}
-
-/* STAT CARDS */
-.stat-grid {
-  display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
-  gap: 0.8rem;
-}
-
-.stat-card {
-  text-align: center;
-  border: 1px solid var(--card-border);
-  background: var(--card-bg);
-  border-radius: 10px;
-  padding: 0.7rem;
-}
-
-.stat-card h3 {
-  font-size: 0.8rem;
-  color: var(--text-muted);
-}
-
-.stat-card p {
-  font-size: 0.95rem;
-  font-weight: 700;
-  color: var(--accent);
-}
-
-/* TABLES */
-.custom-table {
-  width: 100%;
-  border-collapse: collapse;
-  font-size: 0.8rem;
-}
-
-.custom-table th,
-.custom-table td {
-  padding: 0.35rem 0.5rem;
-  border-bottom: 1px solid var(--card-border);
-}
-
-.custom-table th {
-  text-transform: uppercase;
-  color: var(--text-muted);
-  font-size: 0.7rem;
-}
-
-/* BUTTON ROWS */
-.quick-actions {
-  display: flex;
-  justify-content: center;
-  flex-wrap: wrap;
-  gap: 0.7rem;
-}
-
-/* CHART */
-.recharts-wrapper {
-  font-size: 0.75rem;
-}
-
-/* COMPACT CARD HEIGHTS */
-.chart-card {
-  height: 230px;
-}
-
-/* THEME-INHERITED COLORS */
-[data-theme="dark"] {
-  --card-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-}
-
-[data-theme="light"] {
-  --card-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
-}
-.chart-card {
-  height: 340px;   /* or 360px */
-  min-height: 320px;
-  position: relative;
-}
-</file>
-
 <file path="src/pages/dashboards/SuperAdminDashboard.jsx">
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
@@ -5160,6 +5017,234 @@ function ChartCard({ title, children }) {
       {children}
     </div>
   );
+}
+</file>
+
+<file path="src/pages/technicaladmin/TechnicalAdmin.jsx">
+import React, { useEffect, useState, useContext } from "react";
+import api from "../../services/api";
+import { toast } from "react-toastify";
+
+import PageHeader from "../../components/PageHeader";
+import Card from "../../components/Card";
+import Toolbar from "../../components/Toolbar";
+import SearchInput from "../../components/SearchInput";
+import IconPillButton from "../../components/IconPillButton";
+import StatCard from "../../components/StatCard";
+
+import { AuthContext } from "../../context/AuthContext";
+
+import { ShieldCheck, ShieldAlert, Database, Save } from "lucide-react";
+
+import "../dashboards/DashboardLayout.css"; // same layout styles
+
+export default function TechnicalAdminDashboard() {
+  const { user } = useContext(AuthContext);
+
+  const [roles, setRoles] = useState([]);
+  const [permissions, setPermissions] = useState([]);
+  const [matrix, setMatrix] = useState({});
+  const [dirty, setDirty] = useState(new Set());
+
+  const [loading, setLoading] = useState(true);
+  const [saving, setSaving] = useState(false);
+  const [search, setSearch] = useState("");
+
+  useEffect(() => {
+    load();
+  }, []);
+
+  const load = async () => {
+    try {
+      setLoading(true);
+      const [r, p] = await Promise.all([
+        api.get("/roles"),
+        api.get("/permissions"),
+      ]);
+
+      setRoles(r.data);
+      setPermissions(p.data);
+
+      const m = {};
+      r.data.forEach((role) => {
+        m[role.id] = new Set(role.permissions?.map((p) => p.id) || []);
+      });
+
+      setMatrix(m);
+      setDirty(new Set());
+    } catch (e) {
+      toast.error("Failed to load permissions");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const toggle = (roleId, permId) => {
+    setMatrix((prev) => {
+      const updated = { ...prev };
+      const set = new Set(updated[roleId]);
+
+      set.has(permId) ? set.delete(permId) : set.add(permId);
+      updated[roleId] = set;
+
+      setDirty((dr) => new Set(dr).add(roleId));
+      return updated;
+    });
+  };
+
+  const saveRole = async (roleId) => {
+    try {
+      setSaving(true);
+      const permissionIds = [...matrix[roleId]];
+      await api.put(`/roles/${roleId}/permissions`, { permissionIds });
+
+      toast.success("Permissions updated");
+
+      setDirty((dr) => {
+        const s = new Set(dr);
+        s.delete(roleId);
+        return s;
+      });
+    } catch {
+      toast.error("Failed to save permissions");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loading)
+    return (
+      <div className="center text-center" style={{ height: "70vh" }}>
+        Loading Technical Admin…
+      </div>
+    );
+
+  return (
+  <div className="dashboard-page">
+    <div className="dashboard-container">
+
+      <PageHeader
+        title="Technical Admin Dashboard"
+        subtitle="System-wide role and permission management"
+      />
+
+      <Toolbar
+        left={[
+          <SearchInput
+            key="search"
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            placeholder="Search permissions…"
+          />,
+        ]}
+        right={[
+          <IconPillButton
+            key="reload"
+            icon={<Database size={18} />}
+            label="Reload Data"
+            onClick={load}
+          />,
+        ]}
+      />
+
+      <div className="stat-grid">
+        <StatCard title="Total Roles" value={roles.length} icon={<ShieldCheck />} />
+        <StatCard title="Total Permissions" value={permissions.length} icon={<ShieldAlert />} />
+        <StatCard title="Roles Modified" value={dirty.size} icon={<Save />} />
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="column">
+          <Card title="Role Permission Matrix" className="matrix-card">
+  <div className="matrix-container">
+    <div className="matrix-inner-scroll">
+
+      <table className="matrix-table">
+        <thead>
+          <tr>
+            <th className="sticky-col">Permission</th>
+
+            {roles.map((r) => (
+              <th key={r.id} className="center-cell">
+                <div className="role-header">
+                  {r.name}
+                  {dirty.has(r.id) && (
+                    <span className="unsaved-tag">Unsaved</span>
+                  )}
+                </div>
+
+                <button
+                  onClick={() => saveRole(r.id)}
+                  disabled={!dirty.has(r.id) || saving}
+                  className={`save-btn ${dirty.has(r.id) ? "active" : ""}`}
+                >
+                  {saving ? "Saving…" : "Save"}
+                </button>
+              </th>
+            ))}
+          </tr>
+        </thead>
+
+        <tbody>
+          {permissions
+            .filter((p) =>
+              search.trim() === ""
+                ? true
+                : p.key.toLowerCase().includes(search.toLowerCase()) ||
+                  p.description.toLowerCase().includes(search.toLowerCase())
+            )
+            .map((p, idx) => (
+              <tr
+                key={p.id}
+                className={idx % 2 === 0 ? "row-even" : "row-odd"}
+              >
+                <td className="sticky-col perm-col">
+                  <strong>{p.key}</strong>
+                  <div className="perm-desc">{p.description}</div>
+                </td>
+
+                {roles.map((r) => (
+                  <td key={r.id} className="center-cell">
+                    <label className="checkbox-wrapper">
+                      <input
+                        type="checkbox"
+                        checked={matrix[r.id]?.has(p.id)}
+                        onChange={() => toggle(r.id, p.id)}
+                      />
+                      <span className="custom-checkbox"></span>
+                    </label>
+                  </td>
+                ))}
+              </tr>
+            ))}
+        </tbody>
+      </table>
+
+    </div>
+  </div>
+</Card>
+
+        </div>
+
+        <div className="column">
+          <Card title="System Notes">
+            <p className="text-muted small">
+              ✓ Editing permissions takes effect immediately.<br />
+              ✓ Avoid removing core permissions from Super Admin.<br />
+              ✓ Technical Admin has full control.
+            </p>
+          </Card>
+
+          <Card title="Recent Updates">
+            <p className="text-muted small">No recent updates.</p>
+          </Card>
+        </div>
+      </div>
+
+    </div>
+  </div>
+);
+
 }
 </file>
 
@@ -5407,6 +5492,356 @@ const styles = {
     marginRight: "8px",
   },
 };
+</file>
+
+<file path="src/pages/dashboards/DashboardLayout.css">
+/* ========== THEME-AWARE COMPACT DASHBOARD LAYOUT ========== */
+.dashboard-container {
+  padding: 1rem 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  transition: background 0.3s ease, color 0.3s ease;
+}
+
+.dashboard-header {
+  margin-bottom: 0.5rem;
+}
+
+.dashboard-header h1 {
+  font-size: 1.1rem;
+  margin-bottom: 0.3rem;
+  font-weight: 600;
+}
+
+.dashboard-header p {
+  font-size: 0.85rem;
+  color: var(--text-muted);
+}
+
+/* GRID STRUCTURE */
+.dashboard-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1rem;
+  width: 100%;
+}
+
+.dashboard-grid .column {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+/* CARD & COMPONENT STYLING */
+.card {
+  background: var(--card-bg);
+  border: 1px solid var(--card-border);
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  box-shadow: var(--card-shadow);
+  transition: 0.25s ease;
+}
+
+.card:hover {
+  border-color: var(--accent);
+  transform: translateY(-1px);
+}
+
+.card h2,
+.card h3 {
+  font-size: 0.9rem;
+  margin-bottom: 0.4rem;
+  font-weight: 600;
+}
+
+.text-muted {
+  color: var(--text-muted);
+  font-size: 0.8rem;
+}
+
+/* STAT CARDS */
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 0.8rem;
+}
+
+.stat-card {
+  text-align: center;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  border-radius: 10px;
+  padding: 0.7rem;
+}
+
+.stat-card h3 {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+}
+
+.stat-card p {
+  font-size: 0.95rem;
+  font-weight: 700;
+  color: var(--accent);
+}
+
+/* TABLES */
+.custom-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.8rem;
+}
+
+.custom-table th,
+.custom-table td {
+  padding: 0.35rem 0.5rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.custom-table th {
+  text-transform: uppercase;
+  color: var(--text-muted);
+  font-size: 0.7rem;
+}
+
+/* BUTTON ROWS */
+.quick-actions {
+  display: flex;
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: 0.7rem;
+}
+
+/* CHART */
+.recharts-wrapper {
+  font-size: 0.75rem;
+}
+
+/* COMPACT CARD HEIGHTS */
+.chart-card {
+  height: 230px;
+}
+
+/* THEME-INHERITED COLORS */
+[data-theme="dark"] {
+  --card-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+}
+
+[data-theme="light"] {
+  --card-shadow: 0 1px 8px rgba(0, 0, 0, 0.08);
+}
+.chart-card {
+  height: 340px;   /* or 360px */
+  min-height: 320px;
+  position: relative;
+}
+/* MATRIX CONTAINER */
+.matrix-wrapper {
+  margin-top: 1rem;
+  background: var(--card-bg);
+  border-radius: 14px;
+  border: 1px solid var(--card-border);
+  padding: 1rem;
+}
+
+/* SCROLLABLE AREA */
+.matrix-scroll {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: auto;       /* scroll inside card */
+  padding-bottom: 1rem;
+}
+
+
+/* TABLE MUST NOT EXPAND PAGE */
+.matrix-table {
+  width: max-content;    /* ← allows scrolling instead of expanding page */
+  min-width: 500px;      /* reduced for compactness */
+  border-collapse: separate;
+  border-spacing: 0;
+}
+
+
+/* STICKY LEFT PERMISSION COLUMN */
+.sticky-col {
+  position: sticky;
+  left: 0;
+  z-index: 3;
+  background: var(--card-bg);
+  box-shadow: 2px 0 4px rgba(0,0,0,0.05);
+}
+
+/* HEADER CELLS */
+.matrix-table thead th {
+  background: var(--hover-bg);
+  padding: 0.8rem 1rem;
+  font-weight: 600;
+  border-bottom: 1px solid var(--card-border);
+  white-space: nowrap;
+}
+
+/* PERMISSION COLUMN WIDTH */
+.perm-col {
+  width: 180px;
+  max-width: 180px;
+  white-space: normal;
+  overflow-wrap: break-word;
+}
+
+
+/* CHECKBOX COLUMNS: FIX WIDTH */
+.center-cell {
+  width: 70px;
+  max-width: 70px;
+  min-width: 70px;
+  text-align: center;
+  white-space: nowrap;
+}
+
+
+/* SAVE BUTTON */
+.save-btn {
+  margin-top: 6px;
+  padding: 5px 10px;
+  font-size: 12px;
+  border-radius: 6px;
+  border: 1px solid var(--card-border);
+  background: #fff;
+  opacity: 0.5;
+  cursor: not-allowed;
+  transition: 0.2s ease;
+}
+
+.save-btn.active {
+  opacity: 1;
+  cursor: pointer;
+  background: #fef3c7;
+  border-color: #f59e0b;
+}
+
+.role-header {
+  font-weight: 600;
+  font-size: 14px;
+}
+
+.unsaved-tag {
+  display: inline-block;
+  margin-top: 4px;
+  font-size: 10px;
+  color: #b45309;
+}
+
+/* ROW COLORS */
+.row-even {
+  background: #fafafa;
+}
+.row-odd {
+  background: #ffffff;
+}
+
+/* TABLE BODY */
+.matrix-table td {
+  padding: 0.8rem 1rem;
+  border-bottom: 1px solid var(--card-border);
+}
+
+.matrix-table tbody tr:hover {
+  background: var(--hover-bg);
+}
+
+/* PERMISSION DESCRIPTION */
+.perm-desc {
+  color: gray;
+  font-size: 12px;
+  margin-top: 2px;
+}
+
+/* CUSTOM CHECKBOX */
+.checkbox-wrapper {
+  width: 20px;
+  height: 20px;
+  position: relative;
+  display: inline-block;
+}
+
+.checkbox-wrapper input {
+  position: absolute;
+  opacity: 0;
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+}
+
+.custom-checkbox {
+  width: 18px;
+  height: 18px;
+  border: 2px solid #d1d5db;
+  border-radius: 4px;
+  display: inline-block;
+  transition: 0.15s;
+}
+
+.checkbox-wrapper input:checked + .custom-checkbox {
+  background: #f97316;
+  border-color: #f97316;
+}
+
+/* CARD SHOULD NEVER EXPAND LAYOUT */
+.card {
+  max-width: 100%;
+  overflow: hidden;
+}
+/* Matrix card itself is narrower */
+/* Compact Matrix Card */
+.matrix-card {
+  max-width: 650px;      /* ← Your requested width */
+  width: 100%;
+  margin: 0 auto;        /* center it */
+  overflow: hidden;
+  padding: 0;            /* tighter look */
+}
+/* Outer container — controls final width (never expands layout) */
+.matrix-container {
+  width: 100%;
+  max-width: 650px;        /* fixed dashboard-safe width */
+  margin: 0 auto;          /* center it */
+  overflow: hidden;        /* prevents layout push */
+  border-radius: 12px;
+  border: 1px solid var(--card-border);
+  background: var(--card-bg);
+  padding: 0;
+}
+
+/* Inner scroll — table scrolls INSIDE here */
+.matrix-inner-scroll {
+  width: 100%;
+  overflow-x: auto;        /* horizontal scroll ONLY inside */
+  overflow-y: hidden;
+  padding: 1rem;
+  box-sizing: border-box;
+}
+
+/* Table — can be any width, but cannot escape container */
+.matrix-table {
+  width: max-content;
+  border-collapse: collapse;
+  border-spacing: 0;
+}
+
+
+/* Scroll area must NOT grow the card */
+.matrix-scroll {
+  max-width: 100%;
+  overflow-x: auto;
+  padding-bottom: 1rem;
+}
+
+/* Table can be wider, but it stays inside the card */
+.matrix-table {
+  width: max-content;
+  min-width: 700px;           /* safe minimum table width */
+}
 </file>
 
 <file path="src/pages/dashboards/ManagerDashboard.css">
@@ -8589,386 +9024,6 @@ export default function InventoryDashboard() {
 }
 </file>
 
-<file path="src/App.jsx">
-import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
-
-// 🔐 Auth
-import ProtectedRoute from "./components/ProtectedRoute";
-import Layout from "./components/Layout";
-
-// 🔑 Public
-import Login from "./pages/Login";
-
-// 🧭 Dashboards
-import Dashboard from "./pages/Dashboard";
-import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
-import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
-
-// 📄 Common Pages
-import Invoices from "./pages/Invoices";
-import Documents from "./pages/Documents";
-import Campaigns from "./pages/Campaigns";
-import Reports from "./pages/Reports";
-
-// 🛠 Admin & Config
-import Admin from "./pages/Admin";
-import AdminDocuments from "./pages/AdminDocuments";
-import PricingApprovals from "./pages/PricingApprovals";
-
-// 💼 Accounts subpages
-import AccountsInvoices from "./pages/accounts/AccountsInvoices";
-import AccountsNotes from "./pages/accounts/AccountsNotes";
-import AccountsReports from "./pages/accounts/AccountsReports";
-
-// 💬 Chat
-import ManagerChat from "./pages/ManagerChat";
-import DealerChat from "./pages/DealerChat";
-
-// 🆕 Super Admin CRUD pages (you will build these)
-import Users from "./pages/superadmin/Users";
-import Roles from "./pages/superadmin/Roles";
-
-
-export default function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-
-          {/* ================= PUBLIC ROUTES ================= */}
-          <Route path="/login" element={<Login />} />
-
-
-          {/* ================= PROTECTED LAYOUT (Navbar + Sidebar) ================= */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
-
-            {/* ================= DEFAULT ================= */}
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Dashboard />} />
-
-
-            {/* ============================================================
-               SUPER ADMIN ONLY
-            ============================================================ */}
-            <Route
-              path="users"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <Users />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="roles"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <Roles />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="documents"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <Documents />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="pricing"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <PricingApprovals />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="inventory"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <InventoryDashboard />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="accounts"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <AccountsDashboard />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               TECHNICAL ADMIN
-            ============================================================ */}
-            <Route
-              path="roles"
-              element={
-                <ProtectedRoute allowed={["technical_admin"]}>
-                  <Roles />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               REGIONAL ADMIN
-            ============================================================ */}
-            <Route
-              path="dealers"
-              element={
-                <ProtectedRoute allowed={["regional_admin"]}>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="regions"
-              element={
-                <ProtectedRoute allowed={["regional_admin"]}>
-                  <AdminDocuments />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               FINANCE ADMIN
-            ============================================================ */}
-            <Route
-              path="invoices"
-              element={
-                <ProtectedRoute allowed={["finance_admin"]}>
-                  <Invoices />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="accounts"
-              element={
-                <ProtectedRoute allowed={["finance_admin"]}>
-                  <AccountsDashboard />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               REGIONAL MANAGER
-            ============================================================ */}
-            <Route
-              path="approvals"
-              element={
-                <ProtectedRoute allowed={["regional_manager"]}>
-                  <PricingApprovals />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="dealers"
-              element={
-                <ProtectedRoute allowed={["regional_manager"]}>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               AREA MANAGER
-            ============================================================ */}
-            <Route
-              path="dealers"
-              element={
-                <ProtectedRoute allowed={["area_manager"]}>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               TERRITORY MANAGER
-            ============================================================ */}
-            <Route
-              path="dealers"
-              element={
-                <ProtectedRoute allowed={["territory_manager"]}>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               DEALER ADMIN
-            ============================================================ */}
-            <Route
-              path="documents"
-              element={
-                <ProtectedRoute allowed={["dealer_admin"]}>
-                  <Documents />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="campaigns"
-              element={
-                <ProtectedRoute allowed={["dealer_admin"]}>
-                  <Campaigns />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="invoices"
-              element={
-                <ProtectedRoute allowed={["dealer_admin"]}>
-                  <Invoices />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="chat"
-              element={
-                <ProtectedRoute allowed={["dealer_admin"]}>
-                  <DealerChat />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               DEALER STAFF
-            ============================================================ */}
-            <Route
-              path="documents"
-              element={
-                <ProtectedRoute allowed={["dealer_staff"]}>
-                  <Documents />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               INVENTORY USER
-            ============================================================ */}
-            <Route
-              path="inventory"
-              element={
-                <ProtectedRoute allowed={["inventory_user"]}>
-                  <InventoryDashboard />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="pricing"
-              element={
-                <ProtectedRoute allowed={["inventory_user"]}>
-                  <PricingApprovals />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               ACCOUNTS USER
-            ============================================================ */}
-            <Route
-              path="accounts"
-              element={
-                <ProtectedRoute allowed={["accounts_user"]}>
-                  <AccountsDashboard />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="accounts/invoices"
-              element={
-                <ProtectedRoute allowed={["accounts_user"]}>
-                  <AccountsInvoices />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="accounts/notes"
-              element={
-                <ProtectedRoute allowed={["accounts_user"]}>
-                  <AccountsNotes />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="accounts/reports"
-              element={
-                <ProtectedRoute allowed={["accounts_user"]}>
-                  <AccountsReports />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               CHAT ROUTES
-            ============================================================ */}
-            <Route
-              path="manager/chat"
-              element={
-                <ProtectedRoute
-                  allowed={[
-                    "regional_manager",
-                    "area_manager",
-                    "territory_manager",
-                  ]}
-                >
-                  <ManagerChat />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="dealer/chat"
-              element={
-                <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
-                  <DealerChat />
-                </ProtectedRoute>
-              }
-            />
-
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-  );
-}
-</file>
-
 <file path="src/pages/dashboards/ManagerDashboard.jsx">
 // src/pages/dashboards/ManagerDashboard.jsx
 import React, { useEffect, useState, useCallback } from "react";
@@ -9416,6 +9471,387 @@ export default function ManagerDashboard() {
 }
 </file>
 
+<file path="src/App.jsx">
+import React from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+
+// 🔐 Auth
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
+
+// 🔑 Public
+import Login from "./pages/Login";
+
+// 🧭 Dashboards
+import Dashboard from "./pages/Dashboard";
+import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
+import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
+
+// 📄 Common Pages
+import Invoices from "./pages/Invoices";
+import Documents from "./pages/Documents";
+import Campaigns from "./pages/Campaigns";
+import Reports from "./pages/Reports";
+
+// 🛠 Admin & Config
+import Admin from "./pages/Admin";
+import AdminDocuments from "./pages/AdminDocuments";
+import PricingApprovals from "./pages/PricingApprovals";
+
+// 💼 Accounts subpages
+import AccountsInvoices from "./pages/accounts/AccountsInvoices";
+import AccountsNotes from "./pages/accounts/AccountsNotes";
+import AccountsReports from "./pages/accounts/AccountsReports";
+
+// 💬 Chat
+import ManagerChat from "./pages/ManagerChat";
+import DealerChat from "./pages/DealerChat";
+
+// 🆕 Super Admin CRUD pages (you will build these)
+import Users from "./pages/superadmin/Users";
+import Roles from "./pages/superadmin/Roles";
+import TechnicalAdmin from "./pages/technicaladmin/TechnicalAdmin";
+
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+
+          {/* ================= PUBLIC ROUTES ================= */}
+          <Route path="/login" element={<Login />} />
+
+
+          {/* ================= PROTECTED LAYOUT (Navbar + Sidebar) ================= */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+
+            {/* ================= DEFAULT ================= */}
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+
+
+            {/* ============================================================
+               SUPER ADMIN ONLY
+            ============================================================ */}
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <Users />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="roles"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <Roles />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="pricing"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <PricingApprovals />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="inventory"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <InventoryDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               TECHNICAL ADMIN
+            ============================================================ */}
+            <Route
+              path="technical-admin"
+              element={
+                <ProtectedRoute allowed={["technical_admin"]}>
+                  <TechnicalAdmin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               REGIONAL ADMIN
+            ============================================================ */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["regional_admin"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="regions"
+              element={
+                <ProtectedRoute allowed={["regional_admin"]}>
+                  <AdminDocuments />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               FINANCE ADMIN
+            ============================================================ */}
+            <Route
+              path="invoices"
+              element={
+                <ProtectedRoute allowed={["finance_admin"]}>
+                  <Invoices />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts"
+              element={
+                <ProtectedRoute allowed={["finance_admin"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               REGIONAL MANAGER
+            ============================================================ */}
+            <Route
+              path="approvals"
+              element={
+                <ProtectedRoute allowed={["regional_manager"]}>
+                  <PricingApprovals />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["regional_manager"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               AREA MANAGER
+            ============================================================ */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["area_manager"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               TERRITORY MANAGER
+            ============================================================ */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["territory_manager"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               DEALER ADMIN
+            ============================================================ */}
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="campaigns"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <Campaigns />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="invoices"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <Invoices />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="chat"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <DealerChat />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               DEALER STAFF
+            ============================================================ */}
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute allowed={["dealer_staff"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               INVENTORY USER
+            ============================================================ */}
+            <Route
+              path="inventory"
+              element={
+                <ProtectedRoute allowed={["inventory_user"]}>
+                  <InventoryDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="pricing"
+              element={
+                <ProtectedRoute allowed={["inventory_user"]}>
+                  <PricingApprovals />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               ACCOUNTS USER
+            ============================================================ */}
+            <Route
+              path="accounts"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts/invoices"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsInvoices />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts/notes"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsNotes />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts/reports"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsReports />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               CHAT ROUTES
+            ============================================================ */}
+            <Route
+              path="manager/chat"
+              element={
+                <ProtectedRoute
+                  allowed={[
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager",
+                  ]}
+                >
+                  <ManagerChat />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="dealer/chat"
+              element={
+                <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
+                  <DealerChat />
+                </ProtectedRoute>
+              }
+            />
+
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+</file>
+
 <file path="src/components/Sidebar.jsx">
 import React, { useContext, useState } from "react";
 import { AuthContext } from "../context/AuthContext";
@@ -9452,7 +9888,7 @@ export default function Sidebar() {
   ],
 
   technical_admin: [
-    { label: "Roles & Permissions", path: "/roles", icon: <FaCogs /> },
+    { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
   ],
 
   regional_admin: [

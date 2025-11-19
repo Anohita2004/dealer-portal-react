@@ -64,10 +64,13 @@ export default function Sidebar() {
     { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
     { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
     { label: "Chat", path: "/chat", icon: <FaUsers /> },
+    {label:"Order Approvals" ,path:"/orders/approvals",icon: <FaChartBar /> },
   ],
 
   dealer_staff: [
     { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
+    {label:"Create Order",path: "/orders/create",icon: <FaChartBar /> },
+    {label:"My Orders",path: "/orders/my" ,icon: <FaChartBar /> },
   ],
 
   inventory_user: [

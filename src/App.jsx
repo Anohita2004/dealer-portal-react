@@ -38,6 +38,9 @@ import DealerChat from "./pages/DealerChat";
 import Users from "./pages/superadmin/Users";
 import Roles from "./pages/superadmin/Roles";
 import TechnicalAdmin from "./pages/technicaladmin/TechnicalAdmin";
+import AdminOrders from "./pages/orders/AdminOrders";
+import CreateOrder from "./pages/orders/CreateOrders";
+import MyOrders from "./pages/orders/MyOrders";
 
 
 export default function App() {
@@ -266,7 +269,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-
+            <Route
+  path="orders/approvals"
+  element={
+    <ProtectedRoute allowed={["dealer_admin"]}>
+      <AdminOrders />
+    </ProtectedRoute>
+  }
+/>
 
             {/* ============================================================
                DEALER STAFF
@@ -279,7 +289,23 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+  path="orders/create"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <CreateOrder />
+    </ProtectedRoute>
+  }
+/>
 
+<Route
+  path="orders/my"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <MyOrders />
+    </ProtectedRoute>
+  }
+/>
 
             {/* ============================================================
                INVENTORY USER
