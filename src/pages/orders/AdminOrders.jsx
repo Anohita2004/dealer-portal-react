@@ -5,7 +5,6 @@ import {
   CardContent,
   Typography,
   Button,
-  TextField,
   Chip,
   Table,
   TableBody,
@@ -17,7 +16,6 @@ import { orderAPI } from "../../services/api";
 
 export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
-  const [editQty, setEditQty] = useState({});
 
   const fetchOrders = async () => {
     try {
@@ -32,31 +30,27 @@ export default function AdminOrders() {
     fetchOrders();
   }, []);
 
-  const updateQuantity = async (orderId, itemId) => {
+  const approve = async (id) => {
     try {
-      await orderAPI.updateOrder(orderId, {
-        itemId,
-        qty: Number(editQty[itemId]),
-      });
-
+      await orderAPI.approveOrder(id);
       fetchOrders();
     } catch (err) {
       console.error(err);
-      alert("Failed to update quantity");
+      alert("Failed to approve");
     }
-  };
-
-  const approve = async (id) => {
-    await orderAPI.approveOrder(id);
-    fetchOrders();
   };
 
   const reject = async (id) => {
     const reason = prompt("Reason for rejection:");
     if (!reason) return;
 
-    await orderAPI.rejectOrder(id, { reason });
-    fetchOrders();
+    try {
+      await orderAPI.rejectOrder(id, reason);
+      fetchOrders();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to reject");
+    }
   };
 
   const statusColor = {
@@ -89,28 +83,8 @@ export default function AdminOrders() {
                 (order.items || []).map((item) => (
                   <TableRow key={item.id}>
                     <TableCell>{order.orderNumber}</TableCell>
-
-                    <TableCell>
-                      {item.material?.name || "Unknown Material"}
-                    </TableCell>
-
-                    <TableCell>
-                      {order.status === "Pending" ? (
-                        <TextField
-                          size="small"
-                          type="number"
-                          value={editQty[item.id] ?? item.qty}
-                          onChange={(e) =>
-                            setEditQty({
-                              ...editQty,
-                              [item.id]: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        item.qty
-                      )}
-                    </TableCell>
+                    <TableCell>{item.material?.name || "Unknown Material"}</TableCell>
+                    <TableCell>{item.qty}</TableCell>
 
                     <TableCell>
                       <Chip
@@ -122,18 +96,6 @@ export default function AdminOrders() {
                     <TableCell>
                       {order.status === "Pending" && (
                         <>
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            onClick={() =>
-                              updateQuantity(order.id, item.id)
-                            }
-                            sx={{ mr: 1 }}
-                          >
-                            Update
-                          </Button>
-
                           <Button
                             variant="contained"
                             color="success"

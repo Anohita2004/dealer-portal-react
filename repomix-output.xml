@@ -2348,258 +2348,6 @@ export default function Materials() {
 }
 </file>
 
-<file path="src/pages/orders/AdminOrders.jsx">
-import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  TextField,
-  Chip,
-  Table,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableHead,
-} from "@mui/material";
-import { orderAPI } from "../../services/api";
-
-export default function AdminOrders() {
-  const [orders, setOrders] = useState([]);
-  const [editQty, setEditQty] = useState({});
-
-  const fetchOrders = () => {
-    orderAPI
-      .getAllOrders()
-      .then((res) => {
-        const list = res?.orders || [];
-        setOrders(list);
-      })
-      .catch(console.error);
-  };
-
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const updateQuantity = async (orderId, itemId) => {
-    try {
-      await orderAPI.updateOrder(orderId, {
-        itemId,
-        qty: Number(editQty[itemId])
-      });
-
-      fetchOrders();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to update quantity");
-    }
-  };
-
-  const approve = async (id) => {
-    await orderAPI.approveOrder(id);
-    fetchOrders();
-  };
-
-  const reject = async (id) => {
-    const reason = prompt("Reason for rejection:");
-    if (!reason) return;
-
-    await orderAPI.rejectOrder(id, { reason });
-    fetchOrders();
-  };
-
-  return (
-    <Box p={4}>
-      <Typography variant="h5" mb={3}>
-        Dealer Orders (Approval Panel)
-      </Typography>
-
-      <Card>
-        <CardContent>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Order ID</TableCell>
-                <TableCell>Material</TableCell>
-                <TableCell>Quantity</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {orders.map((order) =>
-                order.items?.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{order.id}</TableCell>
-
-                    <TableCell>{item.material?.name || "Unknown"}</TableCell>
-
-                    <TableCell>
-                      {order.status === "Pending" ? (
-                        <TextField
-                          size="small"
-                          type="number"
-                          value={editQty[item.id] ?? item.qty}
-                          onChange={(e) =>
-                            setEditQty({
-                              ...editQty,
-                              [item.id]: e.target.value,
-                            })
-                          }
-                        />
-                      ) : (
-                        item.qty
-                      )}
-                    </TableCell>
-
-                    <TableCell>
-                      <Chip
-                        label={order.status}
-                        color={
-                          order.status === "Approved"
-                            ? "success"
-                            : order.status === "Rejected"
-                            ? "error"
-                            : "warning"
-                        }
-                      />
-                    </TableCell>
-
-                    <TableCell>
-                      {order.status === "Pending" && (
-                        <>
-                          <Button
-                            variant="contained"
-                            color="primary"
-                            size="small"
-                            onClick={() =>
-                              updateQuantity(order.id, item.id)
-                            }
-                            sx={{ mr: 1 }}
-                          >
-                            Update
-                          </Button>
-
-                          <Button
-                            variant="contained"
-                            color="success"
-                            size="small"
-                            onClick={() => approve(order.id)}
-                            sx={{ mr: 1 }}
-                          >
-                            Approve
-                          </Button>
-
-                          <Button
-                            variant="contained"
-                            color="error"
-                            size="small"
-                            onClick={() => reject(order.id)}
-                          >
-                            Reject
-                          </Button>
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </Box>
-  );
-}
-</file>
-
-<file path="src/pages/orders/MyOrders.jsx">
-import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Chip,
-  Table,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableHead,
-} from "@mui/material";
-import { orderAPI } from "../../services/api";
-
-export default function MyOrders() {
-  const [orders, setOrders] = useState([]);
-
-  useEffect(() => {
-    orderAPI
-      .getMyOrders()
-      .then((res) => {
-        const list = res?.orders || [];
-        setOrders(list);
-      })
-      .catch(console.error);
-  }, []);
-
-  const statusColor = {
-    Pending: "warning",
-    Approved: "success",
-    Rejected: "error",
-  };
-
-  return (
-    <Box p={4}>
-      <Typography variant="h5" mb={3}>
-        My Orders
-      </Typography>
-
-      <Card>
-        <CardContent>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Order ID</TableCell>
-                <TableCell>Material</TableCell>
-                <TableCell>Quantity</TableCell>
-                <TableCell>Status</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {orders.map((order) =>
-                order.items?.map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{order.id}</TableCell>
-
-                    <TableCell>
-                      {item.material?.name || "Unknown"}
-                    </TableCell>
-
-                    <TableCell>{item.qty}</TableCell>
-
-                    <TableCell>
-                      <Chip
-                        label={order.status}
-                        color={statusColor[order.status] || "default"}
-                      />
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </Box>
-  );
-}
-</file>
-
 <file path="src/pages/PricingApprovals.jsx">
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
@@ -5461,7 +5209,7 @@ function ChartCard({ title, children }) {
 }
 </file>
 
-<file path="src/pages/orders/CreateOrders.jsx">
+<file path="src/pages/orders/AdminOrders.jsx">
 import React, { useEffect, useState } from "react";
 import {
   Box,
@@ -5469,92 +5217,255 @@ import {
   CardContent,
   Typography,
   Button,
-  MenuItem,
   TextField,
+  Chip,
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHead,
 } from "@mui/material";
-import { materialAPI, orderAPI } from "../../services/api";
+import { orderAPI } from "../../services/api";
 
-export default function CreateOrder() {
-  const [materials, setMaterials] = useState([]);
-  const [selectedMaterial, setSelectedMaterial] = useState("");
-  const [quantity, setQuantity] = useState("");
+export default function AdminOrders() {
+  const [orders, setOrders] = useState([]);
+  const [editQty, setEditQty] = useState({});
 
-  useEffect(() => {
-    materialAPI
-      .getMaterials()
-      .then((res) => {
-        const list = res?.materials || [];
-        setMaterials(list);
-      })
-      .catch(console.error);
-  }, []);
-
-  const handleSubmit = async () => {
-    if (!selectedMaterial || !quantity)
-      return alert("All fields required");
-
+  const fetchOrders = async () => {
     try {
-      await orderAPI.createOrder({
-        items: [
-          {
-            materialId: selectedMaterial,
-            qty: Number(quantity),
-            unitPrice: 0
-          }
-        ],
-        notes: ""
-      });
-
-      alert("Order created successfully!");
-      setSelectedMaterial("");
-      setQuantity("");
+      const res = await orderAPI.getAllOrders();
+      setOrders(res?.orders || []);
     } catch (err) {
       console.error(err);
-      alert("Failed to create order");
     }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, []);
+
+  const updateQuantity = async (orderId, itemId) => {
+    try {
+      await orderAPI.updateOrder(orderId, {
+        itemId,
+        qty: Number(editQty[itemId]),
+      });
+
+      fetchOrders();
+    } catch (err) {
+      console.error(err);
+      alert("Failed to update quantity");
+    }
+  };
+
+  const approve = async (id) => {
+    await orderAPI.approveOrder(id);
+    fetchOrders();
+  };
+
+  const reject = async (id) => {
+    const reason = prompt("Reason for rejection:");
+    if (!reason) return;
+
+    await orderAPI.rejectOrder(id, { reason });
+    fetchOrders();
+  };
+
+  const statusColor = {
+    Pending: "warning",
+    Approved: "success",
+    Rejected: "error",
   };
 
   return (
     <Box p={4}>
+      <Typography variant="h5" mb={3}>
+        Dealer Orders (Approval Panel)
+      </Typography>
+
       <Card>
         <CardContent>
-          <Typography variant="h5" mb={2}>
-            Create New Order
-          </Typography>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Order No</TableCell>
+                <TableCell>Material</TableCell>
+                <TableCell>Quantity</TableCell>
+                <TableCell>Status</TableCell>
+                <TableCell>Actions</TableCell>
+              </TableRow>
+            </TableHead>
 
-          <TextField
-            fullWidth
-            select
-            label="Select Material"
-            value={selectedMaterial}
-            onChange={(e) => setSelectedMaterial(e.target.value)}
-            margin="normal"
-          >
-            {materials.map((m) => (
-              <MenuItem key={m.id} value={m.id}>
-                {m.name}
-              </MenuItem>
-            ))}
-          </TextField>
+            <TableBody>
+              {orders.map((order) =>
+                (order.items || []).map((item) => (
+                  <TableRow key={item.id}>
+                    <TableCell>{order.orderNumber}</TableCell>
 
-          <TextField
-            fullWidth
-            label="Quantity"
-            value={quantity}
-            onChange={(e) => setQuantity(e.target.value)}
-            margin="normal"
-            type="number"
-          />
+                    <TableCell>
+                      {item.material?.name || "Unknown Material"}
+                    </TableCell>
 
-          <Button
-            variant="contained"
-            color="primary"
-            fullWidth
-            sx={{ mt: 2 }}
-            onClick={handleSubmit}
-          >
-            Submit Order
-          </Button>
+                    <TableCell>
+                      {order.status === "Pending" ? (
+                        <TextField
+                          size="small"
+                          type="number"
+                          value={editQty[item.id] ?? item.qty}
+                          onChange={(e) =>
+                            setEditQty({
+                              ...editQty,
+                              [item.id]: e.target.value,
+                            })
+                          }
+                        />
+                      ) : (
+                        item.qty
+                      )}
+                    </TableCell>
+
+                    <TableCell>
+                      <Chip
+                        label={order.status}
+                        color={statusColor[order.status] || "default"}
+                      />
+                    </TableCell>
+
+                    <TableCell>
+                      {order.status === "Pending" && (
+                        <>
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            onClick={() =>
+                              updateQuantity(order.id, item.id)
+                            }
+                            sx={{ mr: 1 }}
+                          >
+                            Update
+                          </Button>
+
+                          <Button
+                            variant="contained"
+                            color="success"
+                            size="small"
+                            onClick={() => approve(order.id)}
+                            sx={{ mr: 1 }}
+                          >
+                            Approve
+                          </Button>
+
+                          <Button
+                            variant="contained"
+                            color="error"
+                            size="small"
+                            onClick={() => reject(order.id)}
+                          >
+                            Reject
+                          </Button>
+                        </>
+                      )}
+                    </TableCell>
+                  </TableRow>
+                ))
+              )}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}
+</file>
+
+<file path="src/pages/orders/MyOrders.jsx">
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Chip,
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHead,
+} from "@mui/material";
+import { orderAPI, materialAPI } from "../../services/api";
+
+export default function MyOrders() {
+  const [orders, setOrders] = useState([]);
+  const [materials, setMaterials] = useState({});
+
+  useEffect(() => {
+    async function loadData() {
+      try {
+        // 1. Get all materials (cache them by ID)
+        const mres = await materialAPI.getMaterials();
+        const matMap = {};
+        (mres?.materials || []).forEach(m => {
+          matMap[m.id] = m;
+        });
+        setMaterials(matMap);
+
+        // 2. Load orders
+        const ores = await orderAPI.getMyOrders();
+        setOrders(ores?.orders || []);
+      } catch (err) {
+        console.error(err);
+      }
+    }
+
+    loadData();
+  }, []);
+
+  const statusColor = {
+    Pending: "warning",
+    Approved: "success",
+    Rejected: "error",
+  };
+
+  return (
+    <Box p={4}>
+      <Typography variant="h5" mb={3}>
+        My Orders
+      </Typography>
+
+      <Card>
+        <CardContent>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Order Number</TableCell>
+                <TableCell>Material</TableCell>
+                <TableCell>Quantity</TableCell>
+                <TableCell>Status</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {orders.map(order =>
+                (order.order_items || []).map(item => {
+                  const mat = materials[item.materialId] || {};
+                  return (
+                    <TableRow key={item.id}>
+                      <TableCell>{order.orderNumber}</TableCell>
+                      <TableCell>{mat.name || "Unknown Material"}</TableCell>
+                      <TableCell>{item.qty}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={order.status}
+                          color={statusColor[order.status] || "default"}
+                        />
+                      </TableCell>
+                    </TableRow>
+                  );
+                })
+              )}
+            </TableBody>
+          </Table>
         </CardContent>
       </Card>
     </Box>
@@ -6710,6 +6621,146 @@ export default function Invoices() {
         </table>
       </div>
     </div>
+  );
+}
+</file>
+
+<file path="src/pages/orders/CreateOrders.jsx">
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  MenuItem,
+  TextField,
+} from "@mui/material";
+import { materialAPI, orderAPI } from "../../services/api";
+
+export default function CreateOrder() {
+  const [materials, setMaterials] = useState([]);
+  const [selectedMaterial, setSelectedMaterial] = useState("");
+  const [quantity, setQuantity] = useState("");
+  const [unitPrice, setUnitPrice] = useState("");
+  
+  const user = JSON.parse(localStorage.getItem("user") || "{}");
+
+  useEffect(() => {
+    materialAPI
+      .getMaterials()
+      .then((res) => {
+        const list = res?.materials || [];
+        setMaterials(list);
+      })
+      .catch(console.error);
+  }, []);
+
+  const handleSubmit = async () => {
+    if (!selectedMaterial || !quantity)
+      return alert("All fields required");
+
+    if (!user?.dealerId) {
+      return alert("Dealer ID missing. Login again.");
+    }
+
+    const material = materials.find((m) => m.id === selectedMaterial);
+    const price = Number(material?.price || unitPrice || 1);
+
+    try {
+      const payload = {
+        dealerId: user.dealerId,    // 🔥 REQUIRED BY BACKEND
+        items: [
+          {
+            materialId: selectedMaterial,
+            qty: Number(quantity),
+            unitPrice: price        // 🔥 NEVER SEND 0
+          }
+        ],
+        notes: ""
+      };
+
+      await orderAPI.createOrder(payload);
+
+      alert("Order created successfully!");
+
+      setSelectedMaterial("");
+      setQuantity("");
+      setUnitPrice("");
+
+    } catch (err) {
+      console.error("Order create error:", err);
+      alert("Failed to create order");
+    }
+  };
+
+  return (
+    <Box p={4}>
+      <Card>
+        <CardContent>
+          <Typography variant="h5" mb={2}>
+            Create New Order
+          </Typography>
+
+          {/* MATERIAL SELECT */}
+          <TextField
+            fullWidth
+            select
+            label="Select Material"
+            value={selectedMaterial}
+            onChange={(e) => {
+              setSelectedMaterial(e.target.value);
+
+              const selected = materials.find(
+                (m) => m.id === e.target.value
+              );
+
+              // auto-fill unit price
+              if (selected?.price) {
+                setUnitPrice(selected.price);
+              }
+            }}
+            margin="normal"
+          >
+            {materials.map((m) => (
+              <MenuItem key={m.id} value={m.id}>
+                {m.name} — ₹{m.price}
+              </MenuItem>
+            ))}
+          </TextField>
+
+          {/* QUANTITY */}
+          <TextField
+            fullWidth
+            label="Quantity"
+            value={quantity}
+            onChange={(e) => setQuantity(e.target.value)}
+            margin="normal"
+            type="number"
+          />
+
+          {/* UNIT PRICE (auto-filled but editable) */}
+          <TextField
+            fullWidth
+            label="Unit Price"
+            value={unitPrice}
+            onChange={(e) => setUnitPrice(e.target.value)}
+            margin="normal"
+            type="number"
+          />
+
+          <Button
+            variant="contained"
+            color="primary"
+            fullWidth
+            sx={{ mt: 2 }}
+            onClick={handleSubmit}
+          >
+            Submit Order
+          </Button>
+        </CardContent>
+      </Card>
+    </Box>
   );
 }
 </file>
@@ -8825,7 +8876,7 @@ export const materialAPI = {
 };
 
 // =======================================================================
-// ======================== ORDER FLOW APIs ===============================
+// ======================== ORDER FLOW APIs (FIXED) =======================
 // =======================================================================
 
 export const orderAPI = {
@@ -8835,25 +8886,17 @@ export const orderAPI = {
 
   // Dealer views own orders
   getMyOrders: () =>
-    api.get("/orders/my").then((r) => r.data),
+    api.get("/orders", { params: { mine: true } }).then((r) => r.data),
 
-  // Admin views all / pending orders
+  // Admin/Manager view all orders
   getAllOrders: (params) =>
     api.get("/orders", { params }).then((r) => r.data),
 
-  getOrderById: (id) =>
-    api.get(`/orders/${id}`).then((r) => r.data),
-
-  // Admin modifies order qty before approval
-  updateOrder: (id, payload) =>
-    api.patch(`/orders/${id}`, payload).then((r) => r.data),
-
-  approveOrder: (id) =>
-    api.patch(`/orders/${id}/approve`).then((r) => r.data),
-
-  rejectOrder: (id, payload) =>
-    api.patch(`/orders/${id}/reject`, payload).then((r) => r.data),
+  // Admin/Manager update qty or status
+  updateOrderStatus: (id, payload) =>
+    api.patch(`/orders/${id}/status`, payload).then((r) => r.data)
 };
+
 
 // =======================================================================
 // ======================= NOTIFICATIONS APIs =============================

@@ -72,16 +72,25 @@ export const orderAPI = {
 
   // Dealer views own orders
   getMyOrders: () =>
-    api.get("/orders", { params: { mine: true } }).then((r) => r.data),
+    api.get("/orders/my", { params: { mine: true } }).then((r) => r.data),
 
   // Admin/Manager view all orders
   getAllOrders: (params) =>
     api.get("/orders", { params }).then((r) => r.data),
 
-  // Admin/Manager update qty or status
-  updateOrderStatus: (id, payload) =>
-    api.patch(`/orders/${id}/status`, payload).then((r) => r.data)
+  // Admin/Manager update status
+  updateOrderStatus: (id, status) =>
+    api.patch(`/orders/${id}/status`, { status }).then((r) => r.data),
+
+  // Admin approves order
+  approveOrder: (id) =>
+    api.patch(`/orders/${id}/approve`).then((r) => r.data),
+
+  // Admin rejects order
+  rejectOrder: (id, reason) =>
+    api.patch(`/orders/${id}/reject`, { reason }).then((r) => r.data),
 };
+
 
 
 // =======================================================================

@@ -20,10 +20,10 @@ export default function MyOrders() {
   useEffect(() => {
     async function loadData() {
       try {
-        // 1. Get all materials (cache them by ID)
+        // 1. Load materials
         const mres = await materialAPI.getMaterials();
         const matMap = {};
-        (mres?.materials || []).forEach(m => {
+        (mres?.materials || []).forEach((m) => {
           matMap[m.id] = m;
         });
         setMaterials(matMap);
@@ -64,8 +64,8 @@ export default function MyOrders() {
             </TableHead>
 
             <TableBody>
-              {orders.map(order =>
-                (order.order_items || []).map(item => {
+              {orders.map((order) =>
+                (order.items || []).map((item) => {
                   const mat = materials[item.materialId] || {};
                   return (
                     <TableRow key={item.id}>
