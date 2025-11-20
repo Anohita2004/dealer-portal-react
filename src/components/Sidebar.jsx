@@ -1,6 +1,7 @@
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { Link, useLocation } from "react-router-dom";
+import api from "../services/api";
 import {
   FaHome,
   FaFileInvoice,
@@ -20,7 +21,10 @@ export default function Sidebar() {
 
   const role = user?.role?.toLowerCase() || "user";
 
-  const baseLinks = [{ path: "/dashboard", label: "Dashboard", icon: <FaHome /> }];
+  const baseLinks = [
+    { path: "/dashboard", label: "Dashboard", icon: <FaHome /> },
+    { path: "/chat", label: "Chat", icon: <FaUsers /> },
+  ];
 
  const roleLinks = {
   super_admin: [
@@ -69,7 +73,6 @@ export default function Sidebar() {
     { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
     { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
     { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-    { label: "Chat", path: "/chat", icon: <FaUsers /> },
     {label:"Order Approvals" ,path:"/orders/approvals",icon: <FaChartBar /> },
   ],
 
@@ -93,6 +96,60 @@ export default function Sidebar() {
 
 
   const links = [...baseLinks, ...(roleLinks[role] || [])];
+
+  // Unread chat badge state
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+
+    // Don't call unread-count unless we have a token / user — avoids triggering 401s
+    const token = localStorage.getItem("token");
+    if (!token && !user) {
+      // ensure badge reset
+      setUnread(0);
+      return () => (mounted = false);
+    }
+
+    const load = async () => {
+      try {
+        const res = await api.get("/chats/unread-count");
+        const data = res.data ?? res; // handle different shapes
+        const count = data.count ?? data.unread ?? data.unreadCount ?? 0;
+        if (mounted) setUnread(Number(count) || 0);
+      } catch (err) {
+        // ignore non-fatal errors — do not force logout here
+        console.debug("Sidebar: unread-count fetch failed", err?.message || err);
+      }
+    };
+
+    load();
+
+    // live updates via socket (if available globally)
+    try {
+      // eslint-disable-next-line no-undef
+      const socket = require("../services/socket").default;
+      const onNew = () => {
+        // increment unread only if user not on /chat
+        if (pathname !== "/chat") setUnread((v) => v + 1);
+      };
+      const onReadReset = (data) => {
+        if (data?.path === "/chat" || pathname === "/chat") setUnread(0);
+      };
+
+      socket.on("message:new", onNew);
+      socket.on("chat:read", onReadReset);
+
+      return () => {
+        mounted = false;
+        socket.off("message:new", onNew);
+        socket.off("chat:read", onReadReset);
+      };
+    } catch {
+      // no socket available
+      return () => (mounted = false);
+    }
+  }, [pathname, user]);
 
   return (
     <aside
@@ -177,7 +234,21 @@ export default function Sidebar() {
                 }}
               >
                 <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
-                {!collapsed && <span>{l.label}</span>}
+                {!collapsed && <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>{l.label}</span>
+                  {l.path === "/chat" && unread > 0 && (
+                    <span style={{
+                      background: "#ef4444",
+                      color: "white",
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                      fontSize: "12px",
+                      fontWeight: 700,
+                    }}>
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
+                </span>}
               </Link>
 
               {/* Tooltip when collapsed */}
