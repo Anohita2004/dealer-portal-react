@@ -104,6 +104,28 @@ export const notificationAPI = {
   markNotificationRead: (id) =>
     api.patch(`/notifications/${id}/read`).then((r) => r.data),
 };
+/* =======================================================================
+   INVOICE / PAYMENT APIs
+   ======================================================================= */
 
+export const invoiceAPI = {
+  // Create invoice (dealer_staff may call with { orderId } — backend derives other fields)
+  createInvoice: (payload) => api.post('/invoices', payload).then((r) => r.data),
+
+  // Get invoices (list) - supports query params
+  getInvoices: (params) => api.get('/invoices', { params }).then((r) => r.data),
+
+  // Get single invoice by id
+  getInvoiceById: (id) => api.get(`/invoices/${id}`).then((r) => r.data),
+
+  // Update invoice (admin / key_user)
+  updateInvoice: (id, payload) => api.put(`/invoices/${id}`, payload).then((r) => r.data),
+
+  // Download invoice PDF — returns ArrayBuffer blob
+  downloadInvoicePDF: (id) =>
+    api
+      .get(`/invoices/${id}/pdf`, { responseType: 'arraybuffer' })
+      .then((r) => r.data),
+};
 // Default export for compatibility
 export default api;
