@@ -1,5 +1,5 @@
 import React, { useEffect, useState, useRef } from "react";
-import api from "../services/api";
+import api, { chatAPI } from "../services/api";
 import socket, {
   joinChatRoom,
   leaveChatRoom,
@@ -61,7 +61,7 @@ export default function ChatUI() {
       scrollToBottom();
 
       // Reset unread for this conversation
-      api.patch(`/chat/mark-read/${partner.id}`).catch(() => {});
+      chatAPI.markRead(partner.id).catch(() => {});
       socket.emit("chat:read", { partnerId: partner.id });
     } catch (err) {
       console.error("Failed to load conversation", err);
@@ -81,7 +81,7 @@ export default function ChatUI() {
         scrollToBottom();
 
         socket.emit("chat:read", { partnerId: selected.id });
-        api.patch(`/chat/mark-read/${selected.id}`).catch(() => {});
+        chatAPI.markRead(selected.id).catch(() => {});
       }
     });
 

@@ -129,3 +129,60 @@ export const invoiceAPI = {
 };
 // Default export for compatibility
 export default api;
+
+// ======================= CHAT APIs (resilient mark-read) =================
+export const chatAPI = {
+  // Try several endpoint variants to mark a conversation as read.
+  // Some backends expose different paths or use POST instead of PATCH.
+  // We attempt likely candidates and ignore 404s.
+  markRead: async (partnerId) => {
+    const candidates = [
+      // Prefer the backend's declared route: PATCH /api/chat/:partnerId/read
+      { method: "patch", url: `/chat/${partnerId}/read` },
+
+      // original chat endpoints (fallbacks)
+      { method: "patch", url: `/chat/mark-read/${partnerId}` },
+      { method: "post", url: `/chat/mark-read/${partnerId}` },
+      { method: "post", url: `/chat/${partnerId}/read` },
+      { method: "patch", url: `/chat/read/${partnerId}` },
+      { method: "post", url: `/chat/read/${partnerId}` },
+
+      // messages-based endpoints (used elsewhere in repo)
+      { method: "patch", url: `/messages/mark-read/${partnerId}` },
+      { method: "post", url: `/messages/mark-read/${partnerId}` },
+      { method: "patch", url: `/messages/${partnerId}/read` },
+      { method: "post", url: `/messages/${partnerId}/read` },
+      { method: "patch", url: `/messages/read/${partnerId}` },
+      { method: "post", url: `/messages/read/${partnerId}` },
+
+      // conversation-based endpoints
+      { method: "patch", url: `/conversations/${partnerId}/read` },
+      { method: "post", url: `/conversations/${partnerId}/read` },
+      { method: "patch", url: `/conversations/mark-read/${partnerId}` },
+      { method: "post", url: `/conversations/mark-read/${partnerId}` },
+
+      // query param variants
+      { method: "patch", url: `/chat/mark-read?partnerId=${partnerId}` },
+      { method: "post", url: `/chat/mark-read?partnerId=${partnerId}` },
+
+      // snake_case variants
+      { method: "patch", url: `/chat/mark_as_read/${partnerId}` },
+      { method: "post", url: `/chat/mark_as_read/${partnerId}` },
+    ];
+
+    let lastErr = null;
+    for (const c of candidates) {
+      try {
+        const res = await api[c.method](c.url);
+        // helpful debug: which candidate succeeded
+        console.debug(`[chatAPI.markRead] succeeded: ${c.method.toUpperCase()} ${c.url}`);
+        return res.data;
+      } catch (err) {
+        lastErr = err;
+        if (err.response && err.response.status === 404) continue;
+      }
+    }
+
+    return Promise.reject(lastErr || new Error("Failed to mark chat read"));
+  },
+};
