@@ -17,6 +17,7 @@ import {
   FaUpload,
 } from "react-icons/fa";
 import { FaMoneyCheckAlt } from "react-icons/fa";
+import { FaMapMarkedAlt } from "react-icons/fa";
 
 export default function Sidebar() {
   const { user } = useContext(AuthContext);
@@ -50,6 +51,9 @@ export default function Sidebar() {
       { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
       { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
       { label: "Material Alerts", path: "/alerts/materials", icon: <FaBell /> },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
     technical_admin: [
@@ -57,11 +61,17 @@ export default function Sidebar() {
       { label: "Material Master", path: "/materials", icon: <FaCogs /> },
       { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
       { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
     regional_admin: [
       { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
       { label: "Regions", path: "/regions", icon: <FaChartBar /> },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
     finance_admin: [
@@ -77,12 +87,23 @@ export default function Sidebar() {
     regional_manager: [
       { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
       { label: "Approvals", path: "/approvals", icon: <FaChartBar /> },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
-    area_manager: [{ label: "Dealers", path: "/dealers", icon: <FaUsers /> }],
+    area_manager: [
+      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
+    ],
 
     territory_manager: [
       { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
     dealer_admin: [
@@ -99,14 +120,15 @@ export default function Sidebar() {
         path: "/payments/dealer/pending",
         icon: <FaMoneyCheckAlt />,
       },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
     dealer_staff: [
       { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
       { label: "Create Order", path: "/orders/create", icon: <FaChartBar /> },
       { label: "My Orders", path: "/orders/my", icon: <FaChartBar /> },
-
-      // NEW: payment
       { label: "Make Payment", path: "/payments/create", icon: <FaMoneyCheckAlt /> },
     ],
 
@@ -114,6 +136,9 @@ export default function Sidebar() {
       { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
       { label: "Pricing Updates", path: "/pricing", icon: <FaChartBar /> },
       { label: "Material Alerts", path: "/alerts/materials", icon: <FaBell /> },
+
+      // ⭐ NEW MAP VIEW (optional)
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
     accounts_user: [
@@ -143,14 +168,12 @@ export default function Sidebar() {
 
     loadUnread();
 
-    // 📌 LIVE socket updates
     socket.on("message:new", () => {
       if (pathname !== "/chat") {
         setUnread((v) => v + 1);
       }
     });
 
-    // 📌 When chat UI tells us messages are read
     socket.on("chat:read", () => {
       if (mounted) setUnread(0);
     });
@@ -163,7 +186,7 @@ export default function Sidebar() {
   }, [pathname]);
 
   return (
-      <aside
+    <aside
       style={{
         width: collapsed ? "70px" : "240px",
         background: "var(--sidebar-bg)",
@@ -260,6 +283,6 @@ export default function Sidebar() {
           );
         })}
       </div>
-      </aside>
+    </aside>
   );
 }

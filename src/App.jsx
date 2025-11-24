@@ -52,6 +52,7 @@ import MaterialImport from "./pages/Materials/MaterialImport";
 import MaterialAnalytics from "./pages/Materials/MaterialAnalytics";
 import MaterialAlerts from "./pages/Alerts/MaterialAlerts";
 
+import RegionMap from "./pages/maps/RegionMaps";
 
 
 export default function App() {
@@ -98,6 +99,26 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
 
+             {/* ============================================================
+   REGION & TERRITORY MAP VIEW
+============================================================ */}
+<Route
+  path="map-view"
+  element={
+    <ProtectedRoute
+      allowed={[
+        "super_admin",
+        "regional_manager",
+        "area_manager",
+        "territory_manager",
+        "dealer_admin",
+        "technical_admin"
+      ]}
+    >
+      <RegionMap />
+    </ProtectedRoute>
+  }
+/>
 
             {/* ============================================================
                SUPER ADMIN ONLY

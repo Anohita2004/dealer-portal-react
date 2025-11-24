@@ -59,6 +59,7 @@ src/components/DonutProgress.jsx
 src/components/EmptyState.jsx
 src/components/FileUpload.jsx
 src/components/IconPillButton.jsx
+src/components/ImportPreviewTable.jsx
 src/components/Layout.css
 src/components/Layout.jsx
 src/components/Navbar.jsx
@@ -88,6 +89,7 @@ src/pages/admin/UserForm.jsx
 src/pages/admin/Users.jsx
 src/pages/AdminDocuments.jsx
 src/pages/AdminPricing.jsx
+src/pages/Alerts/MaterialAlerts.jsx
 src/pages/Campaigns.jsx
 src/pages/Chat.css
 src/pages/ChatUI.jsx
@@ -114,6 +116,8 @@ src/pages/Invoices.jsx
 src/pages/Login.jsx
 src/pages/ManagerChat.jsx
 src/pages/Materials.jsx
+src/pages/Materials/MaterialAnalytics.jsx
+src/pages/Materials/MaterialImport.jsx
 src/pages/orders/AdminOrders.jsx
 src/pages/orders/CreateOrders.jsx
 src/pages/orders/MyOrders.jsx
@@ -148,287 +152,6 @@ vite.config.js
 
 <files>
 This section contains the contents of the repository's files.
-
-<file path="src/pages/ChatUI.jsx">
-import React, { useEffect, useState, useRef } from "react";
-import api from "../services/api";
-import socket, {
-  joinChatRoom,
-  leaveChatRoom,
-  sendChatMessage,
-  onReceiveMessage,
-  onNewMessageNotification,
-} from "../services/socket";
-
-export default function ChatUI() {
-  const user = JSON.parse(localStorage.getItem("user")); // logged-in user
-
-  const [contacts, setContacts] = useState([]);
-  const [selected, setSelected] = useState(null);
-  const [messages, setMessages] = useState([]);
-  const [text, setText] = useState("");
-
-  const chatBoxRef = useRef(null);
-
-  // Auto-scroll
-  const scrollToBottom = () => {
-    setTimeout(() => {
-      if (chatBoxRef.current) {
-        chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
-      }
-    }, 100);
-  };
-
-  // Fetch allowed contacts
-  useEffect(() => {
-    api
-      .get("/chat/allowed-users")
-      .then((res) => {
-        const raw = res.data.users || [];
-
-        // 🔥 FIXED: map roleDetails.name → role
-        const mapped = raw.map((u) => ({
-          ...u,
-          role: u.roleDetails?.name || "unknown",
-        }));
-
-        setContacts(mapped);
-      })
-      .catch((err) => console.error("Failed to fetch contacts:", err));
-
-    // Chat opened → reset unread
-    socket.emit("chat:read");
-  }, []);
-
-  // Open a chat
-  const openConversation = async (partner) => {
-    if (selected) leaveChatRoom(user.id, selected.id);
-
-    setSelected(partner);
-    joinChatRoom(user.id, partner.id);
-
-    try {
-      const res = await api.get(`/chat/conversation/${partner.id}`);
-      setMessages(res.data.messages || []);
-      scrollToBottom();
-
-      // Reset unread for this conversation
-      api.patch(`/chat/mark-read/${partner.id}`).catch(() => {});
-      socket.emit("chat:read", { partnerId: partner.id });
-    } catch (err) {
-      console.error("Failed to load conversation", err);
-    }
-  };
-
-  // Real-time incoming messages
-  useEffect(() => {
-    onReceiveMessage((msg) => {
-      if (!selected) return;
-
-      const room = makeRoomId(msg.senderId, msg.recipientId);
-      const myRoom = makeRoomId(user.id, selected.id);
-
-      if (room === myRoom) {
-        setMessages((prev) => [...prev, msg]);
-        scrollToBottom();
-
-        socket.emit("chat:read", { partnerId: selected.id });
-        api.patch(`/chat/mark-read/${selected.id}`).catch(() => {});
-      }
-    });
-
-    onNewMessageNotification((notif) => {
-      console.log("🔔 New message notification:", notif);
-    });
-  }, [selected]);
-
-  // Send a message
-  const sendMessage = () => {
-    if (!text.trim() || !selected) return;
-
-    const payload = {
-      senderId: user.id,
-      recipientId: selected.id,
-      body: text.trim(),
-    };
-
-    sendChatMessage(payload);
-
-    // Optimistic UI
-    setMessages((prev) => [
-      ...prev,
-      {
-        id: "tmp-" + Date.now(),
-        senderId: user.id,
-        recipientId: selected.id,
-        body: text.trim(),
-        createdAt: new Date().toISOString(),
-      },
-    ]);
-
-    setText("");
-    scrollToBottom();
-  };
-
-  return (
-    <div style={{ display: "flex", height: "100vh", background: "#f8f9fa" }}>
-      {/* CONTACTS */}
-      <div
-        style={{
-          width: "300px",
-          borderRight: "1px solid #e0e0e0",
-          padding: "15px",
-          overflowY: "auto",
-        }}
-      >
-        <h3 style={{ marginBottom: "15px" }}>Contacts</h3>
-
-        {contacts.length === 0 && (
-          <div style={{ color: "#777" }}>No contacts available</div>
-        )}
-
-        {contacts.map((c) => (
-          <div
-            key={c.id}
-            onClick={() => openConversation(c)}
-            style={{
-              padding: "12px",
-              background: selected?.id === c.id ? "#eaf1ff" : "white",
-              borderRadius: "8px",
-              marginBottom: "10px",
-              cursor: "pointer",
-              border: "1px solid #ddd",
-            }}
-          >
-            <div style={{ fontWeight: "600", fontSize: "15px" }}>
-              {c.username}
-            </div>
-
-            {/* 🔥 FIXED: Show proper role */}
-            <div style={{ fontSize: "12px", color: "#666" }}>
-              {c.roleDetails?.name || c.role || "unknown"}
-            </div>
-          </div>
-        ))}
-      </div>
-
-      {/* CHAT AREA */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
-        <div
-          style={{
-            padding: "15px",
-            borderBottom: "1px solid #e0e0e0",
-            fontWeight: "600",
-            fontSize: "16px",
-          }}
-        >
-          {selected ? selected.username : "Select a contact to start chatting"}
-        </div>
-
-        {/* MESSAGES */}
-        <div
-          ref={chatBoxRef}
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "12px",
-            background: "#f4f5f7",
-          }}
-        >
-          {messages.map((m, idx) => {
-            const isMe = m.senderId === user.id;
-
-            return (
-              <div
-                key={m.id || idx}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: isMe ? "flex-end" : "flex-start",
-                }}
-              >
-                <div
-                  style={{
-                    background: isMe ? "#4f8cff" : "#ffffff",
-                    color: isMe ? "#fff" : "#333",
-                    padding: "10px 14px",
-                    borderRadius: "14px",
-                    maxWidth: "70%",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-                    fontSize: "14px",
-                  }}
-                >
-                  {m.body}
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      opacity: 0.6,
-                      marginTop: "6px",
-                      textAlign: "right",
-                    }}
-                  >
-                    {new Date(m.createdAt).toLocaleString()}
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-
-        {/* INPUT */}
-        <div
-          style={{
-            padding: "15px",
-            borderTop: "1px solid #e0e0e0",
-            display: "flex",
-            gap: "10px",
-          }}
-        >
-          <input
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
-            placeholder={
-              selected ? "Type a message..." : "Select a contact to message"
-            }
-            style={{
-              flex: 1,
-              padding: "12px",
-              borderRadius: "20px",
-              border: "1px solid #ccc",
-              outline: "none",
-            }}
-            disabled={!selected}
-          />
-
-          <button
-            onClick={sendMessage}
-            disabled={!selected}
-            style={{
-              padding: "10px 18px",
-              background: "#4f8cff",
-              border: "none",
-              borderRadius: "20px",
-              color: "#fff",
-              cursor: "pointer",
-            }}
-          >
-            Send
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
-// Utility
-function makeRoomId(a, b) {
-  return `chat:${[a, b].sort().join("-")}`;
-}
-</file>
 
 <file path=".gitignore">
 # Logs
@@ -795,6 +518,45 @@ export default function EmptyState({ icon = "🔍", title = "No data", descripti
       <div style={{ fontSize: "2rem" }}>{icon}</div>
       <div style={{ fontWeight: 600, marginTop: "0.25rem", color: "#cbd5e1" }}>{title}</div>
       {description && <div style={{ marginTop: "0.25rem" }}>{description}</div>}
+    </div>
+  );
+}
+</file>
+
+<file path="src/components/ImportPreviewTable.jsx">
+import React from 'react';
+
+// Very small preview table used by MaterialImport page
+export default function ImportPreviewTable({ rows = [], errors = {} }) {
+  if (!rows || rows.length === 0) return <div style={{ color: '#666' }}>No preview available</div>;
+
+  const headers = Object.keys(rows[0]);
+
+  return (
+    <div style={{ overflowX: 'auto' }}>
+      <table style={{ width: '100%', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            {headers.map((h) => (
+              <th key={h} style={{ textAlign: 'left', padding: 8, borderBottom: '1px solid #eee' }}>{h}</th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r, i) => (
+            <tr key={i} style={{ background: i % 2 ? 'transparent' : '#fafafa' }}>
+              {headers.map((h) => (
+                <td key={h} style={{ padding: 8, borderBottom: '1px solid #fff' }}>
+                  <div>{String(r[h] ?? '')}</div>
+                  {errors[i] && errors[i][h] && (
+                    <div style={{ color: '#b91c1c', fontSize: 12 }}>{errors[i][h]}</div>
+                  )}
+                </td>
+              ))}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -2043,107 +1805,80 @@ export default function AdminPricing() {
 }
 </file>
 
-<file path="src/pages/Chat.css">
-.chat-container {
-  display: flex;
-  height: 80vh;
-  border-radius: 10px;
-  overflow: hidden;
-  background: var(--card-bg, #fff);
-  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-}
+<file path="src/pages/Alerts/MaterialAlerts.jsx">
+import React, { useEffect, useState } from 'react';
+import api from '../../services/api';
 
-.chat-sidebar {
-  width: 250px;
-  background: #f3f4f6;
-  border-right: 1px solid #e5e7eb;
-  padding: 1rem;
-  overflow-y: auto;
-}
+export default function MaterialAlerts() {
+  const [alerts, setAlerts] = useState({ reorderAlerts: [], expiryAlerts: [] });
+  const [loading, setLoading] = useState(false);
 
-.chat-sidebar h2 {
-  font-size: 1.1rem;
-  font-weight: 600;
-  margin-bottom: 1rem;
-}
+  const loadAlerts = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get('/materials/alerts', { params: { days: 30 } });
+      setAlerts({ reorderAlerts: res.data.reorderAlerts || [], expiryAlerts: res.data.expiryAlerts || [] });
+    } catch (err) {
+      console.error('Failed to fetch alerts', err);
+      alert('Failed to fetch material alerts');
+    } finally {
+      setLoading(false);
+    }
+  };
 
-.dealer-item {
-  padding: 8px 10px;
-  margin-bottom: 5px;
-  border-radius: 8px;
-  cursor: pointer;
-  background: #fff;
-}
+  useEffect(() => {
+    loadAlerts();
+  }, []);
 
-.dealer-item:hover {
-  background: #e0f2fe;
-}
+  const acknowledge = async (type, id) => {
+    try {
+      await api.post(`/materials/alerts/${id}/acknowledge`, { type });
+      loadAlerts();
+    } catch (err) {
+      console.error('Ack failed', err);
+      alert('Failed to acknowledge');
+    }
+  };
 
-.dealer-item.active {
-  background: #3b82f6;
-  color: white;
-}
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>Material Alerts</h2>
 
-.chat-main {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-}
+      <section style={{ marginTop: 12 }}>
+        <h4>Reorder Alerts</h4>
+        {alerts.reorderAlerts.length === 0 && <div>No reorder alerts</div>}
+        <ul>
+          {alerts.reorderAlerts.map((a) => (
+            <li key={a.id} style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <strong>{a.materialNumber}</strong> — {a.name} — stock: {a.stock}
+              </div>
+              <div>
+                <button onClick={() => acknowledge('reorder', a.id)}>Acknowledge</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
 
-.chat-header {
-  padding: 10px 15px;
-  background: #3b82f6;
-  color: white;
-  font-weight: 600;
-}
-
-.chat-messages {
-  flex: 1;
-  overflow-y: auto;
-  padding: 10px;
-  background: #f9fafb;
-}
-
-.message-bubble {
-  max-width: 60%;
-  margin: 8px 0;
-  padding: 8px 12px;
-  border-radius: 10px;
-  font-size: 14px;
-}
-
-.message-bubble.incoming {
-  background: #e5e7eb;
-  align-self: flex-start;
-}
-
-.message-bubble.outgoing {
-  background: #3b82f6;
-  color: white;
-  align-self: flex-end;
-}
-
-.chat-input {
-  display: flex;
-  padding: 10px;
-  border-top: 1px solid #e5e7eb;
-}
-
-.chat-input input {
-  flex: 1;
-  padding: 8px;
-  border-radius: 6px;
-  border: 1px solid #d1d5db;
-}
-
-.chat-input button {
-  margin-left: 10px;
-  background: #3b82f6;
-  color: white;
-  border: none;
-  border-radius: 6px;
-  padding: 8px 14px;
-  cursor: pointer;
+      <section style={{ marginTop: 12 }}>
+        <h4>Expiry Alerts</h4>
+        {alerts.expiryAlerts.length === 0 && <div>No expiry alerts</div>}
+        <ul>
+          {alerts.expiryAlerts.map((a) => (
+            <li key={a.id} style={{ marginBottom: 8, display: 'flex', justifyContent: 'space-between' }}>
+              <div>
+                <strong>{a.materialNumber}</strong> — {a.name} — expires: {a.expiryDate}
+              </div>
+              <div>
+                <button onClick={() => acknowledge('expiry', a.id)}>Acknowledge</button>
+              </div>
+            </li>
+          ))}
+        </ul>
+      </section>
+    </div>
+  );
 }
 </file>
 
@@ -2928,6 +2663,184 @@ export default function Materials() {
       </Card>
 
     </Box>
+  );
+}
+</file>
+
+<file path="src/pages/Materials/MaterialAnalytics.jsx">
+import React, { useEffect, useState } from 'react';
+import api from '../../services/api';
+
+export default function MaterialAnalytics() {
+  const [range, setRange] = useState({ start: '', end: '' });
+  const [limit, setLimit] = useState(10);
+  const [fastMoving, setFastMoving] = useState([]);
+  const [slowMoving, setSlowMoving] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const loadAnalytics = async () => {
+    setLoading(true);
+    try {
+      const params = {};
+      if (range.start) params.start = range.start;
+      if (range.end) params.end = range.end;
+      if (limit) params.limit = limit;
+
+      const res = await api.get('/materials/analytics', { params });
+      setFastMoving(res.fastMoving || res.data?.fastMoving || []);
+      setSlowMoving(res.slowMoving || res.data?.slowMoving || []);
+    } catch (err) {
+      console.error('Failed to load analytics', err);
+      alert('Failed to load analytics');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    // run once on mount
+    loadAnalytics();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>Materials Analytics</h2>
+
+      <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+        <div>
+          <label>Start</label>
+          <input type="date" value={range.start} onChange={(e) => setRange(r => ({ ...r, start: e.target.value }))} />
+        </div>
+        <div>
+          <label>End</label>
+          <input type="date" value={range.end} onChange={(e) => setRange(r => ({ ...r, end: e.target.value }))} />
+        </div>
+        <div>
+          <label>Limit</label>
+          <input type="number" value={limit} onChange={(e) => setLimit(Number(e.target.value))} />
+        </div>
+        <div>
+          <button onClick={loadAnalytics} disabled={loading}>Refresh</button>
+        </div>
+      </div>
+
+      <div style={{ display: 'flex', gap: 20 }}>
+        <div style={{ flex: 1 }}>
+          <h4>Fast Moving</h4>
+          <ul>
+            {fastMoving.map((m) => (
+              <li key={m.id}>{m.materialNumber || m.id} — {m.name} — {m.movement || m.count}</li>
+            ))}
+          </ul>
+        </div>
+
+        <div style={{ flex: 1 }}>
+          <h4>Slow Moving</h4>
+          <ul>
+            {slowMoving.map((m) => (
+              <li key={m.id}>{m.materialNumber || m.id} — {m.name} — {m.movement || m.count}</li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/Materials/MaterialImport.jsx">
+import React, { useState } from 'react';
+import api from '../../services/api';
+import ImportPreviewTable from '../../components/ImportPreviewTable';
+
+export default function MaterialImport() {
+  const [file, setFile] = useState(null);
+  const [previewRows, setPreviewRows] = useState([]);
+  const [previewErrors, setPreviewErrors] = useState({});
+  const [loading, setLoading] = useState(false);
+  const [result, setResult] = useState(null);
+
+  const downloadTemplate = () => {
+    // Try backend endpoint first, fallback to static file
+    window.open('/api/materials/template', '_blank');
+  };
+
+  const onFileChange = (e) => {
+    setFile(e.target.files[0] || null);
+    setPreviewRows([]);
+    setPreviewErrors({});
+    setResult(null);
+  };
+
+  const previewOnServer = async () => {
+    if (!file) return alert('Select a file first');
+    setLoading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await api.post('/materials/import/validate', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setPreviewRows(res.data.preview || []);
+      setPreviewErrors(res.data.errors || {});
+    } catch (err) {
+      console.error(err);
+      alert('Failed to validate file on server');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const importToServer = async () => {
+    if (!file) return alert('Select a file first');
+    if (!confirm('Proceed with importing the selected file?')) return;
+
+    setLoading(true);
+    try {
+      const form = new FormData();
+      form.append('file', file);
+      const res = await api.post('/materials/import', form, {
+        headers: { 'Content-Type': 'multipart/form-data' },
+      });
+      setResult(res.data);
+      setPreviewRows(res.data.preview || []);
+      setPreviewErrors(res.data.errors || {});
+      alert('Import completed');
+    } catch (err) {
+      console.error(err);
+      alert('Import failed');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div style={{ padding: 20 }}>
+      <h2>Import Materials</h2>
+
+      <div style={{ marginBottom: 12 }}>
+        <button onClick={downloadTemplate} style={{ marginRight: 8 }}>Download template</button>
+        <input type="file" accept=".xlsx,.xls,.csv" onChange={onFileChange} />
+      </div>
+
+      <div style={{ marginBottom: 12 }}>
+        <button onClick={previewOnServer} disabled={!file || loading} style={{ marginRight: 8 }}>Preview</button>
+        <button onClick={importToServer} disabled={!file || loading}>Import</button>
+      </div>
+
+      <div style={{ marginTop: 16 }}>
+        <h4>Preview</h4>
+        <ImportPreviewTable rows={previewRows} errors={previewErrors} />
+      </div>
+
+      {result && (
+        <div style={{ marginTop: 16 }}>
+          <h4>Result</h4>
+          <pre style={{ whiteSpace: 'pre-wrap', background: '#f3f4f6', padding: 12 }}>{JSON.stringify(result, null, 2)}</pre>
+        </div>
+      )}
+    </div>
   );
 }
 </file>
@@ -5497,66 +5410,6 @@ export default function Users() {
 }
 </file>
 
-<file path="src/services/socket.js">
-// src/services/socket.js
-import { io } from "socket.io-client";
-
-const BASE_URL = import.meta.env.VITE_API_URL.replace("/api", "");
-
-// 🔥 Initialize socket
-const socket = io(BASE_URL, {
-  transports: ["websocket"],
-  auth: {
-    token: localStorage.getItem("token"),
-  },
-  reconnection: true,
-});
-
-// 🔥 When socket connects, authenticate with backend  
-socket.on("connect", () => {
-  try {
-    const user = JSON.parse(localStorage.getItem("user"));
-    if (!user) return;
-
-    socket.emit("authenticate", {
-      userId: user.id,
-      role: user.role, // role string like "dealer_admin"
-    });
-
-    console.log("🔐 Socket authenticated:", user.id, user.role);
-  } catch (err) {
-    console.error("Socket auth error:", err);
-  }
-});
-
-// 👉 Join a specific chat (1-to-1)
-export const joinChatRoom = (user1, user2) => {
-  socket.emit("join_chat", { user1, user2 });
-};
-
-// 👉 Leave chat room
-export const leaveChatRoom = (user1, user2) => {
-  socket.emit("leave_chat", { user1, user2 });
-};
-
-// 👉 Send message
-export const sendChatMessage = (msg) => {
-  socket.emit("send_message", msg);
-};
-
-// 👉 Listen to messages (used inside ChatUI)
-export const onReceiveMessage = (callback) => {
-  socket.on("receive_message", callback);
-};
-
-// 👉 Listen to notifications
-export const onNewMessageNotification = (callback) => {
-  socket.on("new_message_notification", callback);
-};
-
-export default socket;
-</file>
-
 <file path="vite.config.js">
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
@@ -5912,6 +5765,161 @@ export default function AdminDocuments() {
       )}
     </div>
   );
+}
+</file>
+
+<file path="src/pages/Chat.css">
+.chat-container {
+  display: flex;
+  height: 80vh;
+  border-radius: 10px;
+  overflow: hidden;
+  background: var(--card-bg, #fff);
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.chat-sidebar {
+  width: 250px;
+  background: #f3f4f6;
+  border-right: 1px solid #e5e7eb;
+  padding: 1rem;
+  overflow-y: auto;
+}
+
+.chat-sidebar h2 {
+  font-size: 1.1rem;
+  font-weight: 600;
+  margin-bottom: 1rem;
+}
+
+.dealer-item {
+  padding: 8px 10px;
+  margin-bottom: 5px;
+  border-radius: 8px;
+  cursor: pointer;
+  background: #fff;
+}
+
+.dealer-item:hover {
+  background: #e0f2fe;
+}
+
+.dealer-item.active {
+  background: #3b82f6;
+  color: white;
+}
+
+.chat-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-header {
+  padding: 10px 15px;
+  background: #3b82f6;
+  color: white;
+  font-weight: 600;
+}
+
+.chat-messages {
+  flex: 1;
+  overflow-y: auto;
+  padding: 10px;
+  background: #f9fafb;
+}
+
+.message-bubble {
+  max-width: 60%;
+  margin: 8px 0;
+  padding: 8px 12px;
+  border-radius: 10px;
+  font-size: 14px;
+}
+
+.message-bubble.incoming {
+  background: #e5e7eb;
+  align-self: flex-start;
+}
+
+.message-bubble.outgoing {
+  background: #3b82f6;
+  color: white;
+  align-self: flex-end;
+}
+
+/* Avatars and WhatsApp-like layout */
+.contact-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.message-avatar-col {
+  width: 44px;
+  display: flex;
+  justify-content: center;
+}
+
+.message-content {
+  max-width: 72%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.message-content.incoming {
+  background: #ffffff;
+  color: #111827;
+  align-self: flex-start;
+}
+
+.message-content.outgoing {
+  background: #25D366; /* whatsapp green */
+  color: #fff;
+  align-self: flex-end;
+}
+
+.msg-text { font-size: 14px; }
+.msg-meta { font-size: 11px; opacity: 0.6; margin-top: 6px; text-align: right; }
+
+.incoming-row { justify-content: flex-start; }
+.outgoing-row { justify-content: flex-end; }
+
+.chat-input {
+  display: flex;
+  padding: 10px;
+  border-top: 1px solid #e5e7eb;
+}
+
+.chat-input input {
+  flex: 1;
+  padding: 8px;
+  border-radius: 6px;
+  border: 1px solid #d1d5db;
+}
+
+.chat-input button {
+  margin-left: 10px;
+  background: #3b82f6;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  padding: 8px 14px;
+  cursor: pointer;
 }
 </file>
 
@@ -6366,6 +6374,66 @@ export default function TechnicalAdminDashboard() {
 }
 </file>
 
+<file path="src/services/socket.js">
+// src/services/socket.js
+import { io } from "socket.io-client";
+
+const BASE_URL = import.meta.env.VITE_API_URL.replace("/api", "");
+
+// 🔥 Initialize socket
+const socket = io(BASE_URL, {
+  transports: ["websocket"],
+  auth: {
+    token: localStorage.getItem("token"),
+  },
+  reconnection: true,
+});
+
+// 🔥 When socket connects, authenticate with backend  
+socket.on("connect", () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) return;
+
+    socket.emit("authenticate", {
+      userId: user.id,
+      role: user.role, // role string like "dealer_admin"
+    });
+
+    console.log("🔐 Socket authenticated:", user.id, user.role);
+  } catch (err) {
+    console.error("Socket auth error:", err);
+  }
+});
+
+// 👉 Join a specific chat (1-to-1)
+export const joinChatRoom = (user1, user2) => {
+  socket.emit("join_chat", { user1, user2 });
+};
+
+// 👉 Leave chat room
+export const leaveChatRoom = (user1, user2) => {
+  socket.emit("leave_chat", { user1, user2 });
+};
+
+// 👉 Send message
+export const sendChatMessage = (msg) => {
+  socket.emit("send_message", msg);
+};
+
+// 👉 Listen to messages (used inside ChatUI)
+export const onReceiveMessage = (callback) => {
+  socket.on("receive_message", callback);
+};
+
+// 👉 Listen to notifications
+export const onNewMessageNotification = (callback) => {
+  socket.on("new_message_notification", callback);
+};
+
+export default socket;
+</file>
+
 <file path="src/components/PieChartCard.jsx">
 import React from "react";
 import { Card, CardContent, Typography } from "@mui/material";
@@ -6610,6 +6678,329 @@ const styles = {
     marginRight: "8px",
   },
 };
+</file>
+
+<file path="src/pages/ChatUI.jsx">
+import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaArrowLeft } from "react-icons/fa";
+import api, { chatAPI } from "../services/api";
+import "./Chat.css";
+import socket, {
+  joinChatRoom,
+  leaveChatRoom,
+  sendChatMessage,
+  onReceiveMessage,
+  onNewMessageNotification,
+} from "../services/socket";
+
+export default function ChatUI({ compact = false }) {
+  const user = JSON.parse(localStorage.getItem("user")); // logged-in user
+  const navigate = useNavigate();
+
+  const [contacts, setContacts] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+
+  const chatBoxRef = useRef(null);
+
+  // Auto-scroll
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      if (chatBoxRef.current) {
+        chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+      }
+    }, 100);
+  };
+
+  // Fetch allowed contacts
+  useEffect(() => {
+    api
+      .get("/chat/allowed-users")
+      .then((res) => {
+        const raw = res.data.users || [];
+
+        // 🔥 FIXED: map roleDetails.name → role
+        const mapped = raw.map((u) => ({
+          ...u,
+          role: u.roleDetails?.name || "unknown",
+        }));
+
+        setContacts(mapped);
+      })
+      .catch((err) => console.error("Failed to fetch contacts:", err));
+
+    // Chat opened → reset unread
+    socket.emit("chat:read");
+  }, []);
+
+  // Small helper to render avatar (initials) with deterministic color
+  const avatarFor = (name, id) => {
+    const initials = (name || "?")
+      .split(" ")
+      .map((s) => s[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+
+    // deterministic color from id
+    const colors = ["#34D399", "#60A5FA", "#F472B6", "#F59E0B", "#A78BFA", "#FB7185"];
+    const idx = Math.abs(String(id).split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0)) % colors.length;
+
+    return (
+      <div className="contact-avatar" style={{ background: colors[idx] }}>
+        {initials}
+      </div>
+    );
+  };
+
+  // Open a chat
+  const openConversation = async (partner) => {
+    if (selected) leaveChatRoom(user.id, selected.id);
+
+    setSelected(partner);
+    joinChatRoom(user.id, partner.id);
+
+    try {
+      const res = await api.get(`/chat/conversation/${partner.id}`);
+      setMessages(res.data.messages || []);
+      scrollToBottom();
+
+      // Reset unread for this conversation
+      chatAPI.markRead(partner.id).catch(() => {});
+      socket.emit("chat:read", { partnerId: partner.id });
+    } catch (err) {
+      console.error("Failed to load conversation", err);
+    }
+  };
+
+  // Real-time incoming messages
+  useEffect(() => {
+    onReceiveMessage((msg) => {
+      if (!selected) return;
+
+      const room = makeRoomId(msg.senderId, msg.recipientId);
+      const myRoom = makeRoomId(user.id, selected.id);
+
+      if (room === myRoom) {
+        setMessages((prev) => [...prev, msg]);
+        scrollToBottom();
+
+        socket.emit("chat:read", { partnerId: selected.id });
+        chatAPI.markRead(selected.id).catch(() => {});
+      }
+    });
+
+    onNewMessageNotification((notif) => {
+      console.log("🔔 New message notification:", notif);
+    });
+  }, [selected, user.id]);
+
+  // Send a message
+  const sendMessage = () => {
+    if (!text.trim() || !selected) return;
+
+    const payload = {
+      senderId: user.id,
+      recipientId: selected.id,
+      body: text.trim(),
+    };
+
+    sendChatMessage(payload);
+
+    // Optimistic UI
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: "tmp-" + Date.now(),
+        senderId: user.id,
+        recipientId: selected.id,
+        body: text.trim(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    setText("");
+    scrollToBottom();
+  };
+
+  const containerStyle = compact
+    ? { display: "flex", flexDirection: "column", background: "#f8f9fa", width: "100%" }
+    : { display: "flex", height: "100vh", background: "#f8f9fa" };
+
+  return (
+    <div style={containerStyle}>
+        <div> {!compact && (
+            <button
+              onClick={() => navigate("/dashboard")}
+              title="Back to dashboard"
+              style={{
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                fontSize: 18,
+                padding: 6,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <FaArrowLeft />
+            </button>
+          )}
+</div>      {/* CONTACTS */}
+      <div
+        style={
+          compact
+            ? {
+                width: "100%",
+                borderBottom: "1px solid #e0e0e0",
+                padding: "10px",
+                maxHeight: "260px",
+                overflowY: "auto",
+              }
+            : {
+                width: "300px",
+                borderRight: "1px solid #e0e0e0",
+                padding: "15px",
+                overflowY: "auto",
+              }
+        }
+      >
+        <h3 style={{ marginBottom: "15px" }}>Contacts</h3>
+
+        {contacts.length === 0 && (
+          <div style={{ color: "#777" }}>No contacts available</div>
+        )}
+
+        {contacts.map((c) => (
+          <div
+            key={c.id}
+            className={`dealer-item ${selected?.id === c.id ? "active" : ""}`}
+            onClick={() => openConversation(c)}
+            style={{ display: "flex", alignItems: "center", gap: 12 }}
+          >
+            {avatarFor(c.username, c.id)}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 15 }}>{c.username}</div>
+              <div style={{ fontSize: 12, color: "#666" }}>{c.roleDetails?.name || c.role || "unknown"}</div>
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* CHAT AREA */}
+      <div style={compact ? { display: "block" } : { flex: 1, display: "flex", flexDirection: "column" }}>
+        <div
+          style={{
+            padding: "15px",
+            borderBottom: "1px solid #e0e0e0",
+            fontWeight: "600",
+            fontSize: "16px",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
+          }}
+        >
+          
+          <div>{selected ? selected.username : "Select a contact to start chatting"}</div>
+        </div>
+
+        {/* MESSAGES */}
+        <div
+          ref={chatBoxRef}
+          style={
+            compact
+              ? {
+                  height: "260px",
+                  overflowY: "auto",
+                  padding: "10px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                  background: "#f4f5f7",
+                }
+              : {
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: "20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                  background: "#f4f5f7",
+                }
+          }
+        >
+          {messages.map((m, idx) => {
+            const isMe = m.senderId === user.id;
+            const senderName = m.sender?.username || (m.senderId === user.id ? user.username : selected?.username);
+
+            return (
+              <div key={m.id || idx} className={`message-row ${isMe ? "outgoing-row" : "incoming-row"}`}>
+                {!isMe && <div className="message-avatar-col">{avatarFor(senderName, m.senderId)}</div>}
+
+                <div className={`message-content ${isMe ? "outgoing" : "incoming"}`}>
+                  <div className="msg-text">{m.body}</div>
+                  <div className="msg-meta">{new Date(m.createdAt).toLocaleString()}</div>
+                </div>
+
+                {isMe && <div className="message-avatar-col">{avatarFor(user.username, user.id)}</div>}
+              </div>
+            );
+          })}
+        </div>
+
+        {/* INPUT */}
+        <div
+          style={{
+            padding: compact ? "8px" : "15px",
+            borderTop: "1px solid #e0e0e0",
+            display: "flex",
+            gap: "10px",
+          }}
+        >
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            placeholder={
+              selected ? "Type a message..." : "Select a contact to message"
+            }
+            style={{
+              flex: 1,
+              padding: "12px",
+              borderRadius: "20px",
+              border: "1px solid #ccc",
+              outline: "none",
+            }}
+            disabled={!selected}
+          />
+
+          <button
+            onClick={sendMessage}
+            disabled={!selected}
+            style={{
+              padding: "10px 18px",
+              background: "#4f8cff",
+              border: "none",
+              borderRadius: "20px",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Utility
+function makeRoomId(a, b) {
+  return `chat:${[a, b].sort().join("-")}`;
+}
 </file>
 
 <file path="src/pages/dashboards/DashboardLayout.css">
@@ -10573,140 +10964,6 @@ export default function InventoryDashboard() {
 }
 </file>
 
-<file path="src/services/api.js">
-import axios from "axios";
-
-const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
-  withCredentials: true,
-});
-
-// ====== INTERCEPTORS (keep as is) ======
-api.interceptors.request.use((config) => {
-  const noAuthNeeded = [
-    "/auth/login",
-    "/auth/verify-otp",
-    "/auth/reset-password",
-    "/auth/reset-password-confirm",
-  ];
-
-  if (!noAuthNeeded.some((path) => config.url.includes(path))) {
-    const token = localStorage.getItem("token");
-    if (token) config.headers.Authorization = `Bearer ${token}`;
-  }
-
-  return config;
-});
-
-api.interceptors.response.use(
-  (res) => res,
-  (err) => {
-    const originalUrl = err.config?.url || "";
-
-    const safeRoutes = ["/auth/login", "/auth/verify-otp"];
-    const isSafe = safeRoutes.some((path) => originalUrl.includes(path));
-
-    if (err.response?.status === 401 && !isSafe) {
-      localStorage.removeItem("token");
-      localStorage.removeItem("user");
-      window.history.pushState({}, "", "/login");
-    }
-
-    return Promise.reject(err);
-  }
-);
-
-// =======================================================================
-// ======================= MATERIAL MASTER APIs ===========================
-// =======================================================================
-
-export const materialAPI = {
-  getMaterials: () => api.get("/materials").then((r) => r.data),
-  getMaterialGroups: () => api.get("/material-groups").then((r) => r.data),
-
-  createMaterial: (payload) =>
-    api.post("/materials", payload).then((r) => r.data),
-
-  updateMaterial: (id, payload) =>
-    api.patch(`/materials/${id}`, payload).then((r) => r.data),
-
-  deleteMaterial: (id) =>
-    api.delete(`/materials/${id}`).then((r) => r.data),
-  
-
-
-};
-
-// =======================================================================
-// ======================== ORDER FLOW APIs (FIXED) =======================
-// =======================================================================
-
-export const orderAPI = {
-  // Dealer creates order
-  createOrder: (payload) =>
-    api.post("/orders", payload).then((r) => r.data),
-
-  // Dealer views own orders
-  getMyOrders: () =>
-    api.get("/orders/my", { params: { mine: true } }).then((r) => r.data),
-
-  // Admin/Manager view all orders
-  getAllOrders: (params) =>
-    api.get("/orders", { params }).then((r) => r.data),
-
-  // Admin/Manager update status
-  updateOrderStatus: (id, status) =>
-    api.patch(`/orders/${id}/status`, { status }).then((r) => r.data),
-
-  // Admin approves order
-  approveOrder: (id) =>
-    api.patch(`/orders/${id}/approve`).then((r) => r.data),
-
-  // Admin rejects order
-  rejectOrder: (id, reason) =>
-    api.patch(`/orders/${id}/reject`, { reason }).then((r) => r.data),
-};
-
-
-
-// =======================================================================
-// ======================= NOTIFICATIONS APIs =============================
-// =======================================================================
-
-export const notificationAPI = {
-  getNotifications: () =>
-    api.get("/notifications").then((r) => r.data),
-
-  markNotificationRead: (id) =>
-    api.patch(`/notifications/${id}/read`).then((r) => r.data),
-};
-/* =======================================================================
-   INVOICE / PAYMENT APIs
-   ======================================================================= */
-
-export const invoiceAPI = {
-  // Create invoice (dealer_staff may call with { orderId } — backend derives other fields)
-  createInvoice: (payload) => api.post('/invoices', payload).then((r) => r.data),
-
-  // Get invoices (list) - supports query params
-  getInvoices: (params) => api.get('/invoices', { params }).then((r) => r.data),
-
-  // Get single invoice by id
-  getInvoiceById: (id) => api.get(`/invoices/${id}`).then((r) => r.data),
-
-  // Update invoice (admin / key_user)
-  updateInvoice: (id, payload) => api.put(`/invoices/${id}`, payload).then((r) => r.data),
-
-  // Download invoice PDF — returns ArrayBuffer blob
-  downloadInvoicePDF: (id) =>
-    api
-      .get(`/invoices/${id}/pdf`, { responseType: 'arraybuffer' })
-      .then((r) => r.data),
-};
-// Default export for compatibility
-export default api;
-</file>
-
 <file path="package.json">
 {
   "name": "dealer-portal-react",
@@ -11204,475 +11461,195 @@ export default function ManagerDashboard() {
 }
 </file>
 
-<file path="src/App.jsx">
-import React from "react";
-import { BrowserRouter, Routes, Route } from "react-router-dom";
-import { AuthProvider } from "./context/AuthContext";
+<file path="src/services/api.js">
+import axios from "axios";
 
-// 🔐 Auth
-import ProtectedRoute from "./components/ProtectedRoute";
-import Layout from "./components/Layout";
+const api = axios.create({
+  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
+  withCredentials: true,
+});
 
-// 🔑 Public
-import Login from "./pages/Login";
+// ====== INTERCEPTORS (keep as is) ======
+api.interceptors.request.use((config) => {
+  const noAuthNeeded = [
+    "/auth/login",
+    "/auth/verify-otp",
+    "/auth/reset-password",
+    "/auth/reset-password-confirm",
+  ];
 
-// 🧭 Dashboards
-import Dashboard from "./pages/Dashboard";
-import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
-import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
-
-// 📄 Common Pages
-import Invoices from "./pages/Invoices";
-import Documents from "./pages/Documents";
-import Campaigns from "./pages/Campaigns";
-import Reports from "./pages/Reports";
-import CreatePaymentRequest from "./pages/payments/CreatePaymentRequest";
-
-import DealerAdminPayments from "./pages/payments/DealerAdminPayments";
-import FinancePendingPayments from "./pages/payments/FinancePendingPayments";
-
-
-// 🛠 Admin & Config
-import Admin from "./pages/Admin";
-import AdminDocuments from "./pages/AdminDocuments";
-import PricingApprovals from "./pages/PricingApprovals";
-
-// 💼 Accounts subpages
-import AccountsInvoices from "./pages/accounts/AccountsInvoices";
-import AccountsNotes from "./pages/accounts/AccountsNotes";
-import AccountsReports from "./pages/accounts/AccountsReports";
-
-// 💬 Chat
-import ManagerChat from "./pages/ManagerChat";
-import DealerChat from "./pages/DealerChat";
-
-// 🆕 Super Admin CRUD pages (you will build these)
-import Users from "./pages/superadmin/Users";
-import Roles from "./pages/superadmin/Roles";
-import TechnicalAdmin from "./pages/technicaladmin/TechnicalAdmin";
-import AdminOrders from "./pages/orders/AdminOrders";
-import CreateOrder from "./pages/orders/CreateOrders";
-import MyOrders from "./pages/orders/MyOrders";
-import Materials from "./pages/Materials";
-import ChatUI from "./pages/ChatUI";
-
-
-
-export default function App() {
-  return (
-    <AuthProvider>
-      <BrowserRouter>
-        <Routes>
-
-          {/* ================= PUBLIC ROUTES ================= */}
-          <Route path="/login" element={<Login />} />
-          <Route
-  path="chat"
-  element={
-    <ProtectedRoute allowed={[
-      "super_admin",
-      "dealer_admin",
-      "dealer_staff",
-      "regional_manager",
-      "area_manager",
-      "territory_manager",
-      "technical_admin",
-      "finance_admin",
-      "inventory_user",
-      "accounts_user"
-    ]}>
-      <ChatUI />
-    </ProtectedRoute>
+  if (!noAuthNeeded.some((path) => config.url.includes(path))) {
+    const token = localStorage.getItem("token");
+    if (token) config.headers.Authorization = `Bearer ${token}`;
   }
-/>
 
+  return config;
+});
 
+api.interceptors.response.use(
+  (res) => res,
+  (err) => {
+    const originalUrl = err.config?.url || "";
 
-          {/* ================= PROTECTED LAYOUT (Navbar + Sidebar) ================= */}
-          <Route
-            path="/"
-            element={
-              <ProtectedRoute>
-                <Layout />
-              </ProtectedRoute>
-            }
-          >
+    const safeRoutes = ["/auth/login", "/auth/verify-otp"];
+    const isSafe = safeRoutes.some((path) => originalUrl.includes(path));
 
-            {/* ================= DEFAULT ================= */}
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Dashboard />} />
+    if (err.response?.status === 401 && !isSafe) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      window.history.pushState({}, "", "/login");
+    }
 
-
-            {/* ============================================================
-               SUPER ADMIN ONLY
-            ============================================================ */}
-            <Route
-              path="users"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <Users />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="roles"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <Roles />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="documents"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <Documents />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="pricing"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <PricingApprovals />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="inventory"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <InventoryDashboard />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="accounts"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <AccountsDashboard />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               TECHNICAL ADMIN
-            ============================================================ */}
-            <Route
-              path="technical-admin"
-              element={
-                <ProtectedRoute allowed={["technical_admin"]}>
-                  <TechnicalAdmin />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-  path="materials"
-  element={
-    <ProtectedRoute allowed={["technical_admin", "super_admin"]}>
-      <Materials />
-    </ProtectedRoute>
+    return Promise.reject(err);
   }
-/>
+);
+
+// =======================================================================
+// ======================= MATERIAL MASTER APIs ===========================
+// =======================================================================
+
+export const materialAPI = {
+  getMaterials: () => api.get("/materials").then((r) => r.data),
+  getMaterialGroups: () => api.get("/material-groups").then((r) => r.data),
+
+  createMaterial: (payload) =>
+    api.post("/materials", payload).then((r) => r.data),
+
+  updateMaterial: (id, payload) =>
+    api.patch(`/materials/${id}`, payload).then((r) => r.data),
+
+  deleteMaterial: (id) =>
+    api.delete(`/materials/${id}`).then((r) => r.data),
+  
 
 
-            {/* ============================================================
-               REGIONAL ADMIN
-            ============================================================ */}
-            <Route
-              path="dealers"
-              element={
-                <ProtectedRoute allowed={["regional_admin"]}>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
+};
 
-            <Route
-              path="regions"
-              element={
-                <ProtectedRoute allowed={["regional_admin"]}>
-                  <AdminDocuments />
-                </ProtectedRoute>
-              }
-            />
+// =======================================================================
+// ======================== ORDER FLOW APIs (FIXED) =======================
+// =======================================================================
 
+export const orderAPI = {
+  // Dealer creates order
+  createOrder: (payload) =>
+    api.post("/orders", payload).then((r) => r.data),
 
-            {/* ============================================================
-               FINANCE ADMIN
-            ============================================================ */}
-            <Route
-              path="invoices"
-              element={
-                <ProtectedRoute allowed={["finance_admin"]}>
-                  <Invoices />
-                </ProtectedRoute>
-              }
-            />
+  // Dealer views own orders
+  getMyOrders: () =>
+    api.get("/orders/my", { params: { mine: true } }).then((r) => r.data),
 
-            <Route
-              path="accounts"
-              element={
-                <ProtectedRoute allowed={["finance_admin"]}>
-                  <AccountsDashboard />
-                </ProtectedRoute>
-              }
-            />
-<Route
-  path="payments/finance/pending"
-  element={
-    <ProtectedRoute allowed={["finance_admin"]}>
-      <FinancePendingPayments />
-    </ProtectedRoute>
-  }
-/>
+  // Admin/Manager view all orders
+  getAllOrders: (params) =>
+    api.get("/orders", { params }).then((r) => r.data),
 
+  // Admin/Manager update status
+  updateOrderStatus: (id, status) =>
+    api.patch(`/orders/${id}/status`, { status }).then((r) => r.data),
 
-            {/* ============================================================
-               REGIONAL MANAGER
-            ============================================================ */}
-            <Route
-              path="approvals"
-              element={
-                <ProtectedRoute allowed={["regional_manager"]}>
-                  <PricingApprovals />
-                </ProtectedRoute>
-              }
-            />
+  // Admin approves order
+  approveOrder: (id) =>
+    api.patch(`/orders/${id}/approve`).then((r) => r.data),
 
-            <Route
-              path="dealers"
-              element={
-                <ProtectedRoute allowed={["regional_manager"]}>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               AREA MANAGER
-            ============================================================ */}
-            <Route
-              path="dealers"
-              element={
-                <ProtectedRoute allowed={["area_manager"]}>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               TERRITORY MANAGER
-            ============================================================ */}
-            <Route
-              path="dealers"
-              element={
-                <ProtectedRoute allowed={["territory_manager"]}>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
-
-
-            {/* ============================================================
-               DEALER ADMIN
-            ============================================================ */}
-            <Route
-              path="documents"
-              element={
-                <ProtectedRoute allowed={["dealer_admin"]}>
-                  <Documents />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="campaigns"
-              element={
-                <ProtectedRoute allowed={["dealer_admin"]}>
-                  <Campaigns />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="invoices"
-              element={
-                <ProtectedRoute allowed={["dealer_admin"]}>
-                  <Invoices />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="chat"
-              element={
-                <ProtectedRoute allowed={["dealer_admin"]}>
-                  <DealerChat />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-  path="orders/approvals"
-  element={
-    <ProtectedRoute allowed={["dealer_admin"]}>
-      <AdminOrders />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="payments/dealer/pending"
-  element={
-    <ProtectedRoute allowed={["dealer_admin"]}>
-      <DealerAdminPayments />
-    </ProtectedRoute>
-  }
-/>
-
-
-            {/* ============================================================
-               DEALER STAFF
-            ============================================================ */}
-            <Route
-              path="documents"
-              element={
-                <ProtectedRoute allowed={["dealer_staff"]}>
-                  <Documents />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-  path="orders/create"
-  element={
-    <ProtectedRoute allowed={["dealer_staff"]}>
-      <CreateOrder />
-    </ProtectedRoute>
-  }
-/>
-
-<Route
-  path="orders/my"
-  element={
-    <ProtectedRoute allowed={["dealer_staff"]}>
-      <MyOrders />
-    </ProtectedRoute>
-  }
-/>
-<Route
-  path="payments/create/:invoiceId"
-  element={
-    <ProtectedRoute allowed={["dealer_staff"]}>
-      <CreatePaymentRequest />
-    </ProtectedRoute>
-  }
-/>
+  // Admin rejects order
+  rejectOrder: (id, reason) =>
+    api.patch(`/orders/${id}/reject`, { reason }).then((r) => r.data),
+};
 
 
 
+// =======================================================================
+// ======================= NOTIFICATIONS APIs =============================
+// =======================================================================
 
-            {/* ============================================================
-               INVENTORY USER
-            ============================================================ */}
-            <Route
-              path="inventory"
-              element={
-                <ProtectedRoute allowed={["inventory_user"]}>
-                  <InventoryDashboard />
-                </ProtectedRoute>
-              }
-            />
+export const notificationAPI = {
+  getNotifications: () =>
+    api.get("/notifications").then((r) => r.data),
 
-            <Route
-              path="pricing"
-              element={
-                <ProtectedRoute allowed={["inventory_user"]}>
-                  <PricingApprovals />
-                </ProtectedRoute>
-              }
-            />
+  markNotificationRead: (id) =>
+    api.patch(`/notifications/${id}/read`).then((r) => r.data),
+};
+/* =======================================================================
+   INVOICE / PAYMENT APIs
+   ======================================================================= */
 
+export const invoiceAPI = {
+  // Create invoice (dealer_staff may call with { orderId } — backend derives other fields)
+  createInvoice: (payload) => api.post('/invoices', payload).then((r) => r.data),
 
-            {/* ============================================================
-               ACCOUNTS USER
-            ============================================================ */}
-            <Route
-              path="accounts"
-              element={
-                <ProtectedRoute allowed={["accounts_user"]}>
-                  <AccountsDashboard />
-                </ProtectedRoute>
-              }
-            />
+  // Get invoices (list) - supports query params
+  getInvoices: (params) => api.get('/invoices', { params }).then((r) => r.data),
 
-            <Route
-              path="accounts/invoices"
-              element={
-                <ProtectedRoute allowed={["accounts_user"]}>
-                  <AccountsInvoices />
-                </ProtectedRoute>
-              }
-            />
+  // Get single invoice by id
+  getInvoiceById: (id) => api.get(`/invoices/${id}`).then((r) => r.data),
 
-            <Route
-              path="accounts/notes"
-              element={
-                <ProtectedRoute allowed={["accounts_user"]}>
-                  <AccountsNotes />
-                </ProtectedRoute>
-              }
-            />
+  // Update invoice (admin / key_user)
+  updateInvoice: (id, payload) => api.put(`/invoices/${id}`, payload).then((r) => r.data),
 
-            <Route
-              path="accounts/reports"
-              element={
-                <ProtectedRoute allowed={["accounts_user"]}>
-                  <AccountsReports />
-                </ProtectedRoute>
-              }
-            />
+  // Download invoice PDF — returns ArrayBuffer blob
+  downloadInvoicePDF: (id) =>
+    api
+      .get(`/invoices/${id}/pdf`, { responseType: 'arraybuffer' })
+      .then((r) => r.data),
+};
+// Default export for compatibility
+export default api;
 
+// ======================= CHAT APIs (resilient mark-read) =================
+export const chatAPI = {
+  // Try several endpoint variants to mark a conversation as read.
+  // Some backends expose different paths or use POST instead of PATCH.
+  // We attempt likely candidates and ignore 404s.
+  markRead: async (partnerId) => {
+    const candidates = [
+      // Prefer the backend's declared route: PATCH /api/chat/:partnerId/read
+      { method: "patch", url: `/chat/${partnerId}/read` },
 
-            {/* ============================================================
-               CHAT ROUTES
-            ============================================================ */}
-            <Route
-              path="manager/chat"
-              element={
-                <ProtectedRoute
-                  allowed={[
-                    "regional_manager",
-                    "area_manager",
-                    "territory_manager",
-                  ]}
-                >
-                  <ManagerChat />
-                </ProtectedRoute>
-              }
-            />
+      // original chat endpoints (fallbacks)
+      { method: "patch", url: `/chat/mark-read/${partnerId}` },
+      { method: "post", url: `/chat/mark-read/${partnerId}` },
+      { method: "post", url: `/chat/${partnerId}/read` },
+      { method: "patch", url: `/chat/read/${partnerId}` },
+      { method: "post", url: `/chat/read/${partnerId}` },
 
-            <Route
-              path="dealer/chat"
-              element={
-                <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
-                  <DealerChat />
-                </ProtectedRoute>
-              }
-            />
+      // messages-based endpoints (used elsewhere in repo)
+      { method: "patch", url: `/messages/mark-read/${partnerId}` },
+      { method: "post", url: `/messages/mark-read/${partnerId}` },
+      { method: "patch", url: `/messages/${partnerId}/read` },
+      { method: "post", url: `/messages/${partnerId}/read` },
+      { method: "patch", url: `/messages/read/${partnerId}` },
+      { method: "post", url: `/messages/read/${partnerId}` },
 
-          </Route>
-        </Routes>
-      </BrowserRouter>
-    </AuthProvider>
-  );
-}
+      // conversation-based endpoints
+      { method: "patch", url: `/conversations/${partnerId}/read` },
+      { method: "post", url: `/conversations/${partnerId}/read` },
+      { method: "patch", url: `/conversations/mark-read/${partnerId}` },
+      { method: "post", url: `/conversations/mark-read/${partnerId}` },
+
+      // query param variants
+      { method: "patch", url: `/chat/mark-read?partnerId=${partnerId}` },
+      { method: "post", url: `/chat/mark-read?partnerId=${partnerId}` },
+
+      // snake_case variants
+      { method: "patch", url: `/chat/mark_as_read/${partnerId}` },
+      { method: "post", url: `/chat/mark_as_read/${partnerId}` },
+    ];
+
+    let lastErr = null;
+    for (const c of candidates) {
+      try {
+        const res = await api[c.method](c.url);
+        // helpful debug: which candidate succeeded
+        console.debug(`[chatAPI.markRead] succeeded: ${c.method.toUpperCase()} ${c.url}`);
+        return res.data;
+      } catch (err) {
+        lastErr = err;
+        if (err.response && err.response.status === 404) continue;
+      }
+    }
+
+    return Promise.reject(lastErr || new Error("Failed to mark chat read"));
+  },
+};
 </file>
 
 <file path="src/pages/dashboards/DealerDashboard.jsx">
@@ -12110,6 +12087,507 @@ export default function DealerDashboard() {
 }
 </file>
 
+<file path="src/App.jsx">
+import React from "react";
+import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { AuthProvider } from "./context/AuthContext";
+
+// 🔐 Auth
+import ProtectedRoute from "./components/ProtectedRoute";
+import Layout from "./components/Layout";
+
+// 🔑 Public
+import Login from "./pages/Login";
+
+// 🧭 Dashboards
+import Dashboard from "./pages/Dashboard";
+import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
+import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
+
+// 📄 Common Pages
+import Invoices from "./pages/Invoices";
+import Documents from "./pages/Documents";
+import Campaigns from "./pages/Campaigns";
+import Reports from "./pages/Reports";
+import CreatePaymentRequest from "./pages/payments/CreatePaymentRequest";
+
+import DealerAdminPayments from "./pages/payments/DealerAdminPayments";
+import FinancePendingPayments from "./pages/payments/FinancePendingPayments";
+
+
+// 🛠 Admin & Config
+import Admin from "./pages/Admin";
+import AdminDocuments from "./pages/AdminDocuments";
+import PricingApprovals from "./pages/PricingApprovals";
+
+// 💼 Accounts subpages
+import AccountsInvoices from "./pages/accounts/AccountsInvoices";
+import AccountsNotes from "./pages/accounts/AccountsNotes";
+import AccountsReports from "./pages/accounts/AccountsReports";
+
+// 💬 Chat
+import ManagerChat from "./pages/ManagerChat";
+import DealerChat from "./pages/DealerChat";
+
+// 🆕 Super Admin CRUD pages (you will build these)
+import Users from "./pages/superadmin/Users";
+import Roles from "./pages/superadmin/Roles";
+import TechnicalAdmin from "./pages/technicaladmin/TechnicalAdmin";
+import AdminOrders from "./pages/orders/AdminOrders";
+import CreateOrder from "./pages/orders/CreateOrders";
+import MyOrders from "./pages/orders/MyOrders";
+import Materials from "./pages/Materials";
+import ChatUI from "./pages/ChatUI";
+import MaterialImport from "./pages/Materials/MaterialImport";
+import MaterialAnalytics from "./pages/Materials/MaterialAnalytics";
+import MaterialAlerts from "./pages/Alerts/MaterialAlerts";
+
+
+
+export default function App() {
+  return (
+    <AuthProvider>
+      <BrowserRouter>
+        <Routes>
+
+          {/* ================= PUBLIC ROUTES ================= */}
+          <Route path="/login" element={<Login />} />
+          <Route
+  path="chat"
+  element={
+    <ProtectedRoute allowed={[
+      "super_admin",
+      "dealer_admin",
+      "dealer_staff",
+      "regional_manager",
+      "area_manager",
+      "territory_manager",
+      "technical_admin",
+      "finance_admin",
+      "inventory_user",
+      "accounts_user"
+    ]}>
+      <ChatUI />
+    </ProtectedRoute>
+  }
+/>
+
+
+
+          {/* ================= PROTECTED LAYOUT (Navbar + Sidebar) ================= */}
+          <Route
+            path="/"
+            element={
+              <ProtectedRoute>
+                <Layout />
+              </ProtectedRoute>
+            }
+          >
+
+            {/* ================= DEFAULT ================= */}
+            <Route index element={<Dashboard />} />
+            <Route path="dashboard" element={<Dashboard />} />
+
+
+            {/* ============================================================
+               SUPER ADMIN ONLY
+            ============================================================ */}
+            <Route
+              path="users"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <Users />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="roles"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <Roles />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="pricing"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <PricingApprovals />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="inventory"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <InventoryDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               TECHNICAL ADMIN
+            ============================================================ */}
+            <Route
+              path="technical-admin"
+              element={
+                <ProtectedRoute allowed={["technical_admin"]}>
+                  <TechnicalAdmin />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+  path="materials"
+  element={
+    <ProtectedRoute allowed={["technical_admin", "super_admin"]}>
+      <Materials />
+    </ProtectedRoute>
+  }
+/>
+
+            <Route
+              path="materials/import"
+              element={
+                <ProtectedRoute allowed={["technical_admin", "super_admin"]}>
+                  <MaterialImport />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="materials/analytics"
+              element={
+                <ProtectedRoute allowed={["technical_admin", "super_admin"]}>
+                  <MaterialAnalytics />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="alerts/materials"
+              element={
+                <ProtectedRoute allowed={["technical_admin", "super_admin", "inventory_user"]}>
+                  <MaterialAlerts />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               REGIONAL ADMIN
+            ============================================================ */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["regional_admin"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="regions"
+              element={
+                <ProtectedRoute allowed={["regional_admin"]}>
+                  <AdminDocuments />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               FINANCE ADMIN
+            ============================================================ */}
+            <Route
+              path="invoices"
+              element={
+                <ProtectedRoute allowed={["finance_admin"]}>
+                  <Invoices />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts"
+              element={
+                <ProtectedRoute allowed={["finance_admin"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              }
+            />
+<Route
+  path="payments/finance/pending"
+  element={
+    <ProtectedRoute allowed={["finance_admin"]}>
+      <FinancePendingPayments />
+    </ProtectedRoute>
+  }
+/>
+
+
+            {/* ============================================================
+               REGIONAL MANAGER
+            ============================================================ */}
+            <Route
+              path="approvals"
+              element={
+                <ProtectedRoute allowed={["regional_manager"]}>
+                  <PricingApprovals />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["regional_manager"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               AREA MANAGER
+            ============================================================ */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["area_manager"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               TERRITORY MANAGER
+            ============================================================ */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["territory_manager"]}>
+                  <Admin />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               DEALER ADMIN
+            ============================================================ */}
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="campaigns"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <Campaigns />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="invoices"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <Invoices />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="chat"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <DealerChat />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+  path="orders/approvals"
+  element={
+    <ProtectedRoute allowed={["dealer_admin"]}>
+      <AdminOrders />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="payments/dealer/pending"
+  element={
+    <ProtectedRoute allowed={["dealer_admin"]}>
+      <DealerAdminPayments />
+    </ProtectedRoute>
+  }
+/>
+
+
+            {/* ============================================================
+               DEALER STAFF
+            ============================================================ */}
+            <Route
+              path="documents"
+              element={
+                <ProtectedRoute allowed={["dealer_staff"]}>
+                  <Documents />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+  path="orders/create"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <CreateOrder />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="orders/my"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <MyOrders />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="payments/create/:invoiceId"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <CreatePaymentRequest />
+    </ProtectedRoute>
+  }
+/>
+
+
+
+
+            {/* ============================================================
+               INVENTORY USER
+            ============================================================ */}
+            <Route
+              path="inventory"
+              element={
+                <ProtectedRoute allowed={["inventory_user"]}>
+                  <InventoryDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="pricing"
+              element={
+                <ProtectedRoute allowed={["inventory_user"]}>
+                  <PricingApprovals />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               ACCOUNTS USER
+            ============================================================ */}
+            <Route
+              path="accounts"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts/invoices"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsInvoices />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts/notes"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsNotes />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="accounts/reports"
+              element={
+                <ProtectedRoute allowed={["accounts_user"]}>
+                  <AccountsReports />
+                </ProtectedRoute>
+              }
+            />
+
+
+            {/* ============================================================
+               CHAT ROUTES
+            ============================================================ */}
+            <Route
+              path="manager/chat"
+              element={
+                <ProtectedRoute
+                  allowed={[
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager",
+                  ]}
+                >
+                  <ManagerChat />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="dealer/chat"
+              element={
+                <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
+                  <DealerChat />
+                </ProtectedRoute>
+              }
+            />
+
+          </Route>
+        </Routes>
+      </BrowserRouter>
+    </AuthProvider>
+  );
+}
+</file>
+
 <file path="src/components/Sidebar.jsx">
 import React, { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
@@ -12126,6 +12604,8 @@ import {
   FaUsers,
   FaWarehouse,
   FaBars,
+  FaBell,
+  FaUpload,
 } from "react-icons/fa";
 import { FaMoneyCheckAlt } from "react-icons/fa";
 
@@ -12157,11 +12637,17 @@ export default function Sidebar() {
       { label: "Pricing", path: "/pricing", icon: <FaChartBar /> },
       { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
       { label: "Accounts", path: "/accounts", icon: <FaFileInvoice /> },
+      { label: "Materials", path: "/materials", icon: <FaWarehouse /> },
+      { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
+      { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
+      { label: "Material Alerts", path: "/alerts/materials", icon: <FaBell /> },
     ],
 
     technical_admin: [
       { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
       { label: "Material Master", path: "/materials", icon: <FaCogs /> },
+      { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
+      { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
     ],
 
     regional_admin: [
@@ -12218,6 +12704,7 @@ export default function Sidebar() {
     inventory_user: [
       { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
       { label: "Pricing Updates", path: "/pricing", icon: <FaChartBar /> },
+      { label: "Material Alerts", path: "/alerts/materials", icon: <FaBell /> },
     ],
 
     accounts_user: [
@@ -12267,7 +12754,7 @@ export default function Sidebar() {
   }, [pathname]);
 
   return (
-    <aside
+      <aside
       style={{
         width: collapsed ? "70px" : "240px",
         background: "var(--sidebar-bg)",
@@ -12364,7 +12851,7 @@ export default function Sidebar() {
           );
         })}
       </div>
-    </aside>
+      </aside>
   );
 }
 </file>
