@@ -77,6 +77,57 @@
   align-self: flex-end;
 }
 
+/* Avatars and WhatsApp-like layout */
+.contact-avatar {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: #fff;
+  font-weight: 700;
+  font-size: 14px;
+}
+
+.message-row {
+  display: flex;
+  align-items: flex-end;
+  gap: 10px;
+  margin: 8px 0;
+}
+
+.message-avatar-col {
+  width: 44px;
+  display: flex;
+  justify-content: center;
+}
+
+.message-content {
+  max-width: 72%;
+  padding: 10px 14px;
+  border-radius: 14px;
+  box-shadow: 0 2px 6px rgba(0,0,0,0.06);
+}
+
+.message-content.incoming {
+  background: #ffffff;
+  color: #111827;
+  align-self: flex-start;
+}
+
+.message-content.outgoing {
+  background: #25D366; /* whatsapp green */
+  color: #fff;
+  align-self: flex-end;
+}
+
+.msg-text { font-size: 14px; }
+.msg-meta { font-size: 11px; opacity: 0.6; margin-top: 6px; text-align: right; }
+
+.incoming-row { justify-content: flex-start; }
+.outgoing-row { justify-content: flex-end; }
+
 .chat-input {
   display: flex;
   padding: 10px;

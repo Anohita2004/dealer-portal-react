@@ -154,7 +154,7 @@ export default function Sidebar() {
   }, [pathname]);
 
   return (
-    <aside
+      <aside
       style={{
         width: collapsed ? "70px" : "240px",
         background: "var(--sidebar-bg)",
@@ -251,6 +251,6 @@ export default function Sidebar() {
           );
         })}
       </div>
-    </aside>
+      </aside>
   );
 }

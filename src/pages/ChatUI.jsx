@@ -1,5 +1,8 @@
 import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
+import { FaArrowLeft } from "react-icons/fa";
 import api, { chatAPI } from "../services/api";
+import "./Chat.css";
 import socket, {
   joinChatRoom,
   leaveChatRoom,
@@ -8,8 +11,9 @@ import socket, {
   onNewMessageNotification,
 } from "../services/socket";
 
-export default function ChatUI() {
+export default function ChatUI({ compact = false }) {
   const user = JSON.parse(localStorage.getItem("user")); // logged-in user
+  const navigate = useNavigate();
 
   const [contacts, setContacts] = useState([]);
   const [selected, setSelected] = useState(null);
@@ -47,6 +51,26 @@ export default function ChatUI() {
     // Chat opened → reset unread
     socket.emit("chat:read");
   }, []);
+
+  // Small helper to render avatar (initials) with deterministic color
+  const avatarFor = (name, id) => {
+    const initials = (name || "?")
+      .split(" ")
+      .map((s) => s[0])
+      .slice(0, 2)
+      .join("")
+      .toUpperCase();
+
+    // deterministic color from id
+    const colors = ["#34D399", "#60A5FA", "#F472B6", "#F59E0B", "#A78BFA", "#FB7185"];
+    const idx = Math.abs(String(id).split("").reduce((acc, ch) => acc + ch.charCodeAt(0), 0)) % colors.length;
+
+    return (
+      <div className="contact-avatar" style={{ background: colors[idx] }}>
+        {initials}
+      </div>
+    );
+  };
 
   // Open a chat
   const openConversation = async (partner) => {
@@ -88,7 +112,7 @@ export default function ChatUI() {
     onNewMessageNotification((notif) => {
       console.log("🔔 New message notification:", notif);
     });
-  }, [selected]);
+  }, [selected, user.id]);
 
   // Send a message
   const sendMessage = () => {
@@ -118,16 +142,48 @@ export default function ChatUI() {
     scrollToBottom();
   };
 
+  const containerStyle = compact
+    ? { display: "flex", flexDirection: "column", background: "#f8f9fa", width: "100%" }
+    : { display: "flex", height: "100vh", background: "#f8f9fa" };
+
   return (
-    <div style={{ display: "flex", height: "100vh", background: "#f8f9fa" }}>
-      {/* CONTACTS */}
+    <div style={containerStyle}>
+        <div> {!compact && (
+            <button
+              onClick={() => navigate("/dashboard")}
+              title="Back to dashboard"
+              style={{
+                border: "none",
+                background: "transparent",
+                cursor: "pointer",
+                fontSize: 18,
+                padding: 6,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              <FaArrowLeft />
+            </button>
+          )}
+</div>      {/* CONTACTS */}
       <div
-        style={{
-          width: "300px",
-          borderRight: "1px solid #e0e0e0",
-          padding: "15px",
-          overflowY: "auto",
-        }}
+        style={
+          compact
+            ? {
+                width: "100%",
+                borderBottom: "1px solid #e0e0e0",
+                padding: "10px",
+                maxHeight: "260px",
+                overflowY: "auto",
+              }
+            : {
+                width: "300px",
+                borderRight: "1px solid #e0e0e0",
+                padding: "15px",
+                overflowY: "auto",
+              }
+        }
       >
         <h3 style={{ marginBottom: "15px" }}>Contacts</h3>
 
@@ -138,89 +194,75 @@ export default function ChatUI() {
         {contacts.map((c) => (
           <div
             key={c.id}
+            className={`dealer-item ${selected?.id === c.id ? "active" : ""}`}
             onClick={() => openConversation(c)}
-            style={{
-              padding: "12px",
-              background: selected?.id === c.id ? "#eaf1ff" : "white",
-              borderRadius: "8px",
-              marginBottom: "10px",
-              cursor: "pointer",
-              border: "1px solid #ddd",
-            }}
+            style={{ display: "flex", alignItems: "center", gap: 12 }}
           >
-            <div style={{ fontWeight: "600", fontSize: "15px" }}>
-              {c.username}
-            </div>
-
-            {/* 🔥 FIXED: Show proper role */}
-            <div style={{ fontSize: "12px", color: "#666" }}>
-              {c.roleDetails?.name || c.role || "unknown"}
+            {avatarFor(c.username, c.id)}
+            <div style={{ flex: 1 }}>
+              <div style={{ fontWeight: 600, fontSize: 15 }}>{c.username}</div>
+              <div style={{ fontSize: 12, color: "#666" }}>{c.roleDetails?.name || c.role || "unknown"}</div>
             </div>
           </div>
         ))}
       </div>
 
       {/* CHAT AREA */}
-      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+      <div style={compact ? { display: "block" } : { flex: 1, display: "flex", flexDirection: "column" }}>
         <div
           style={{
             padding: "15px",
             borderBottom: "1px solid #e0e0e0",
             fontWeight: "600",
             fontSize: "16px",
+            display: "flex",
+            alignItems: "center",
+            gap: "12px",
           }}
         >
-          {selected ? selected.username : "Select a contact to start chatting"}
+          
+          <div>{selected ? selected.username : "Select a contact to start chatting"}</div>
         </div>
 
         {/* MESSAGES */}
         <div
           ref={chatBoxRef}
-          style={{
-            flex: 1,
-            overflowY: "auto",
-            padding: "20px",
-            display: "flex",
-            flexDirection: "column",
-            gap: "12px",
-            background: "#f4f5f7",
-          }}
+          style={
+            compact
+              ? {
+                  height: "260px",
+                  overflowY: "auto",
+                  padding: "10px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "8px",
+                  background: "#f4f5f7",
+                }
+              : {
+                  flex: 1,
+                  overflowY: "auto",
+                  padding: "20px",
+                  display: "flex",
+                  flexDirection: "column",
+                  gap: "12px",
+                  background: "#f4f5f7",
+                }
+          }
         >
           {messages.map((m, idx) => {
             const isMe = m.senderId === user.id;
+            const senderName = m.sender?.username || (m.senderId === user.id ? user.username : selected?.username);
 
             return (
-              <div
-                key={m.id || idx}
-                style={{
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: isMe ? "flex-end" : "flex-start",
-                }}
-              >
-                <div
-                  style={{
-                    background: isMe ? "#4f8cff" : "#ffffff",
-                    color: isMe ? "#fff" : "#333",
-                    padding: "10px 14px",
-                    borderRadius: "14px",
-                    maxWidth: "70%",
-                    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
-                    fontSize: "14px",
-                  }}
-                >
-                  {m.body}
-                  <div
-                    style={{
-                      fontSize: "11px",
-                      opacity: 0.6,
-                      marginTop: "6px",
-                      textAlign: "right",
-                    }}
-                  >
-                    {new Date(m.createdAt).toLocaleString()}
-                  </div>
+              <div key={m.id || idx} className={`message-row ${isMe ? "outgoing-row" : "incoming-row"}`}>
+                {!isMe && <div className="message-avatar-col">{avatarFor(senderName, m.senderId)}</div>}
+
+                <div className={`message-content ${isMe ? "outgoing" : "incoming"}`}>
+                  <div className="msg-text">{m.body}</div>
+                  <div className="msg-meta">{new Date(m.createdAt).toLocaleString()}</div>
                 </div>
+
+                {isMe && <div className="message-avatar-col">{avatarFor(user.username, user.id)}</div>}
               </div>
             );
           })}
@@ -229,7 +271,7 @@ export default function ChatUI() {
         {/* INPUT */}
         <div
           style={{
-            padding: "15px",
+            padding: compact ? "8px" : "15px",
             borderTop: "1px solid #e0e0e0",
             display: "flex",
             gap: "10px",
