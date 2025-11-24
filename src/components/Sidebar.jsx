@@ -2,6 +2,8 @@ import React, { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { Link, useLocation } from "react-router-dom";
 import api from "../services/api";
+import socket from "../services/socket";
+
 import {
   FaHome,
   FaFileInvoice,
@@ -19,144 +21,137 @@ export default function Sidebar() {
   const { pathname } = useLocation();
 
   const [collapsed, setCollapsed] = useState(false);
+  const [unread, setUnread] = useState(0);
 
   const role = user?.role?.toLowerCase() || "user";
 
+  // -------------------------
+  // BASE MENU LINKS
+  // -------------------------
   const baseLinks = [
     { path: "/dashboard", label: "Dashboard", icon: <FaHome /> },
     { path: "/chat", label: "Chat", icon: <FaUsers /> },
   ];
 
- const roleLinks = {
-  super_admin: [
-    { label: "Users", path: "/users", icon: <FaUsers /> },
-    { label: "Roles & Permissions", path: "/roles", icon: <FaCogs /> },
-    { label: "Documents", path: "/documents", icon: <FaFileAlt /> },
-    { label: "Pricing", path: "/pricing", icon: <FaChartBar /> },
-    { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
-    { label: "Accounts", path: "/accounts", icon: <FaFileInvoice /> },
-  ],
+  // -------------------------
+  // ROLE-BASED NAVIGATION
+  // -------------------------
+  const roleLinks = {
+    super_admin: [
+      { label: "Users", path: "/users", icon: <FaUsers /> },
+      { label: "Roles & Permissions", path: "/roles", icon: <FaCogs /> },
+      { label: "Documents", path: "/documents", icon: <FaFileAlt /> },
+      { label: "Pricing", path: "/pricing", icon: <FaChartBar /> },
+      { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
+      { label: "Accounts", path: "/accounts", icon: <FaFileInvoice /> },
+    ],
 
-  technical_admin: [
-    { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
-    {
-      label: "Material Master",
-      path: "/materials",
-      icon: <FaCogs />,
-    }
-  ],
+    technical_admin: [
+      { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
+      { label: "Material Master", path: "/materials", icon: <FaCogs /> },
+    ],
 
-  regional_admin: [
-    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-    { label: "Regions", path: "/regions", icon: <FaChartBar /> },
-  ],
+    regional_admin: [
+      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+      { label: "Regions", path: "/regions", icon: <FaChartBar /> },
+    ],
 
-  finance_admin: [
-    { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-    { label: "Payment Approvals", path: "/payments/finance/pending", icon: <FaMoneyCheckAlt /> },
-    { label: "Accounts", path: "/accounts", icon: <FaUsers /> },
-  ],
+    finance_admin: [
+      { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+      {
+        label: "Payment Approvals",
+        path: "/payments/finance/pending",
+        icon: <FaMoneyCheckAlt />,
+      },
+      { label: "Accounts", path: "/accounts", icon: <FaUsers /> },
+    ],
 
-  regional_manager: [
-    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-    { label: "Approvals", path: "/approvals", icon: <FaChartBar /> },
-  ],
+    regional_manager: [
+      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+      { label: "Approvals", path: "/approvals", icon: <FaChartBar /> },
+    ],
 
-  area_manager: [
-    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-  ],
+    area_manager: [{ label: "Dealers", path: "/dealers", icon: <FaUsers /> }],
 
-  territory_manager: [
-    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-  ],
+    territory_manager: [
+      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+    ],
 
-  dealer_admin: [
-    { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
-    { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
-    { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-    { label: "Order Approvals", path: "/orders/approvals", icon: <FaChartBar /> },
-    { label: "Payment Approvals", path: "/payments/dealer/pending", icon: <FaMoneyCheckAlt /> },
-  ],
+    dealer_admin: [
+      { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
+      { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
+      { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+      {
+        label: "Order Approvals",
+        path: "/orders/approvals",
+        icon: <FaChartBar />,
+      },
+      {
+        label: "Payment Approvals",
+        path: "/payments/dealer/pending",
+        icon: <FaMoneyCheckAlt />,
+      },
+    ],
 
-  dealer_staff: [
-    { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
-    { label: "Create Order", path: "/orders/create", icon: <FaChartBar /> },
-    { label: "My Orders", path: "/orders/my", icon: <FaChartBar /> },
+    dealer_staff: [
+      { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
+      { label: "Create Order", path: "/orders/create", icon: <FaChartBar /> },
+      { label: "My Orders", path: "/orders/my", icon: <FaChartBar /> },
 
-    // NEW PAYMENT LINKS
-    { label: "Make Payment", path: "/payments/create", icon: <FaMoneyCheckAlt /> },
-    //{ label: "My Payments", path: "/payments/mine", icon: <FaMoneyCheckAlt /> },
-  ],
+      // NEW: payment
+      { label: "Make Payment", path: "/payments/create", icon: <FaMoneyCheckAlt /> },
+    ],
 
-  inventory_user: [
-    { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
-    { label: "Pricing Updates", path: "/pricing", icon: <FaChartBar /> },
-  ],
+    inventory_user: [
+      { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
+      { label: "Pricing Updates", path: "/pricing", icon: <FaChartBar /> },
+    ],
 
-  accounts_user: [
-    { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-    { label: "Statements", path: "/statements", icon: <FaFileAlt /> },
-  ],
-};
-
-
-
+    accounts_user: [
+      { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+      { label: "Statements", path: "/statements", icon: <FaFileAlt /> },
+    ],
+  };
 
   const links = [...baseLinks, ...(roleLinks[role] || [])];
 
-  // Unread chat badge state
-  const [unread, setUnread] = useState(0);
-
+  // -------------------------
+  // UNREAD BADGE LOGIC
+  // -------------------------
   useEffect(() => {
     let mounted = true;
 
-    // Don't call unread-count unless we have a token / user — avoids triggering 401s
-    const token = localStorage.getItem("token");
-    if (!token && !user) {
-      // ensure badge reset
-      setUnread(0);
-      return () => (mounted = false);
-    }
-
-    const load = async () => {
+    const loadUnread = async () => {
       try {
-        const res = await api.get("/chats/unread-count");
-        const data = res.data ?? res; // handle different shapes
-        const count = data.count ?? data.unread ?? data.unreadCount ?? 0;
-        if (mounted) setUnread(Number(count) || 0);
+        const res = await api.get("/chat/unread-count");
+        const count = res.data.count || res.data.unread || 0;
+
+        if (mounted) setUnread(count);
       } catch (err) {
-        // ignore non-fatal errors — do not force logout here
-        console.debug("Sidebar: unread-count fetch failed", err?.message || err);
+        console.log("Unread fetch error:", err);
       }
     };
 
-    load();
+    loadUnread();
 
-    // live updates via socket (if available globally)
-    try {
-      // eslint-disable-next-line no-undef
-      const socket = require("../services/socket").default;
-      const onNew = () => {
-        // increment unread only if user not on /chat
-        if (pathname !== "/chat") setUnread((v) => v + 1);
-      };
-      const onReadReset = (data) => {
-        if (data?.path === "/chat" || pathname === "/chat") setUnread(0);
-      };
+    // 📌 LIVE socket updates
+    socket.on("message:new", () => {
+      if (pathname !== "/chat") {
+        setUnread((v) => v + 1);
+      }
+    });
 
-      socket.on("message:new", onNew);
-      socket.on("chat:read", onReadReset);
+    // 📌 When chat UI tells us messages are read
+    socket.on("chat:read", () => {
+      if (mounted) setUnread(0);
+    });
 
-      return () => {
-        mounted = false;
-        socket.off("message:new", onNew);
-        socket.off("chat:read", onReadReset);
-      };
-    } catch {
-      // no socket available
-      return () => (mounted = false);
-    }
-  }, [pathname, user]);
+    return () => {
+      mounted = false;
+      socket.off("message:new");
+      socket.off("chat:read");
+    };
+  }, [pathname]);
 
   return (
     <aside
@@ -173,7 +168,7 @@ export default function Sidebar() {
         overflowX: "hidden",
       }}
     >
-      {/* HEADER + TOGGLE */}
+      {/* HEADER */}
       <div
         style={{
           display: "flex",
@@ -228,67 +223,34 @@ export default function Sidebar() {
                   fontWeight: active ? "600" : "400",
                   transition: "0.25s ease",
                 }}
-                onMouseEnter={(e) => {
-                  e.target.style.background =
-                    "linear-gradient(90deg, rgba(249,115,22,0.15), rgba(249,115,22,0.05))";
-                  e.target.style.color = "#f97316";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = active
-                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
-                    : "transparent";
-                  e.target.style.color = active ? "#f97316" : "var(--text-color)";
-                }}
               >
                 <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
-                {!collapsed && <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span>{l.label}</span>
-                  {l.path === "/chat" && unread > 0 && (
-                    <span style={{
-                      background: "#ef4444",
-                      color: "white",
-                      padding: "2px 8px",
-                      borderRadius: 999,
-                      fontSize: "12px",
-                      fontWeight: 700,
-                    }}>
-                      {unread > 99 ? "99+" : unread}
-                    </span>
-                  )}
-                </span>}
-              </Link>
 
-              {/* Tooltip when collapsed */}
-              {collapsed && <div className="sidebar-tooltip">{l.label}</div>}
+                {!collapsed && (
+                  <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span>{l.label}</span>
+
+                    {l.path === "/chat" && unread > 0 && (
+                      <span
+                        style={{
+                          background: "#ef4444",
+                          color: "white",
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          fontSize: "12px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {unread > 99 ? "99+" : unread}
+                      </span>
+                    )}
+                  </span>
+                )}
+              </Link>
             </div>
           );
         })}
       </div>
-
-      <style>
-        {`
-            .sidebar-tooltip {
-                position: absolute;
-                left: 80px;
-                top: 50%;
-                transform: translateY(-50%);
-                background: var(--card-bg);
-                padding: 6px 10px;
-                border-radius: 6px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.25);
-                white-space: nowrap;
-                opacity: 0;
-                pointer-events: none;
-                transition: 0.2s ease;
-                color: var(--text-color);
-                border: 1px solid var(--card-border);
-            }
-            a:hover + .sidebar-tooltip {
-                opacity: 1;
-            }
-        `}
-      </style>
     </aside>
   );
 }
-

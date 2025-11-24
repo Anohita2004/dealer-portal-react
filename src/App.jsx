@@ -47,6 +47,7 @@ import AdminOrders from "./pages/orders/AdminOrders";
 import CreateOrder from "./pages/orders/CreateOrders";
 import MyOrders from "./pages/orders/MyOrders";
 import Materials from "./pages/Materials";
+import ChatUI from "./pages/ChatUI";
 
 
 
@@ -58,6 +59,26 @@ export default function App() {
 
           {/* ================= PUBLIC ROUTES ================= */}
           <Route path="/login" element={<Login />} />
+          <Route
+  path="chat"
+  element={
+    <ProtectedRoute allowed={[
+      "super_admin",
+      "dealer_admin",
+      "dealer_staff",
+      "regional_manager",
+      "area_manager",
+      "territory_manager",
+      "technical_admin",
+      "finance_admin",
+      "inventory_user",
+      "accounts_user"
+    ]}>
+      <ChatUI />
+    </ProtectedRoute>
+  }
+/>
+
 
 
           {/* ================= PROTECTED LAYOUT (Navbar + Sidebar) ================= */}

@@ -90,6 +90,7 @@ src/pages/AdminDocuments.jsx
 src/pages/AdminPricing.jsx
 src/pages/Campaigns.jsx
 src/pages/Chat.css
+src/pages/ChatUI.jsx
 src/pages/Dashboard.jsx
 src/pages/dashboards/AccountsDashboard.jsx
 src/pages/dashboards/AdminDashboard.jsx
@@ -117,6 +118,9 @@ src/pages/orders/AdminOrders.jsx
 src/pages/orders/CreateOrders.jsx
 src/pages/orders/MyOrders.jsx
 src/pages/OTPVerify.jsx
+src/pages/payments/CreatePaymentRequest.jsx
+src/pages/payments/DealerAdminPayments.jsx
+src/pages/payments/FinancePendingPayments.jsx
 src/pages/PricingApprovals.jsx
 src/pages/Reports.jsx
 src/pages/reports/AccountStatementReport.jsx
@@ -144,6 +148,287 @@ vite.config.js
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/pages/ChatUI.jsx">
+import React, { useEffect, useState, useRef } from "react";
+import api from "../services/api";
+import socket, {
+  joinChatRoom,
+  leaveChatRoom,
+  sendChatMessage,
+  onReceiveMessage,
+  onNewMessageNotification,
+} from "../services/socket";
+
+export default function ChatUI() {
+  const user = JSON.parse(localStorage.getItem("user")); // logged-in user
+
+  const [contacts, setContacts] = useState([]);
+  const [selected, setSelected] = useState(null);
+  const [messages, setMessages] = useState([]);
+  const [text, setText] = useState("");
+
+  const chatBoxRef = useRef(null);
+
+  // Auto-scroll
+  const scrollToBottom = () => {
+    setTimeout(() => {
+      if (chatBoxRef.current) {
+        chatBoxRef.current.scrollTop = chatBoxRef.current.scrollHeight;
+      }
+    }, 100);
+  };
+
+  // Fetch allowed contacts
+  useEffect(() => {
+    api
+      .get("/chat/allowed-users")
+      .then((res) => {
+        const raw = res.data.users || [];
+
+        // 🔥 FIXED: map roleDetails.name → role
+        const mapped = raw.map((u) => ({
+          ...u,
+          role: u.roleDetails?.name || "unknown",
+        }));
+
+        setContacts(mapped);
+      })
+      .catch((err) => console.error("Failed to fetch contacts:", err));
+
+    // Chat opened → reset unread
+    socket.emit("chat:read");
+  }, []);
+
+  // Open a chat
+  const openConversation = async (partner) => {
+    if (selected) leaveChatRoom(user.id, selected.id);
+
+    setSelected(partner);
+    joinChatRoom(user.id, partner.id);
+
+    try {
+      const res = await api.get(`/chat/conversation/${partner.id}`);
+      setMessages(res.data.messages || []);
+      scrollToBottom();
+
+      // Reset unread for this conversation
+      api.patch(`/chat/mark-read/${partner.id}`).catch(() => {});
+      socket.emit("chat:read", { partnerId: partner.id });
+    } catch (err) {
+      console.error("Failed to load conversation", err);
+    }
+  };
+
+  // Real-time incoming messages
+  useEffect(() => {
+    onReceiveMessage((msg) => {
+      if (!selected) return;
+
+      const room = makeRoomId(msg.senderId, msg.recipientId);
+      const myRoom = makeRoomId(user.id, selected.id);
+
+      if (room === myRoom) {
+        setMessages((prev) => [...prev, msg]);
+        scrollToBottom();
+
+        socket.emit("chat:read", { partnerId: selected.id });
+        api.patch(`/chat/mark-read/${selected.id}`).catch(() => {});
+      }
+    });
+
+    onNewMessageNotification((notif) => {
+      console.log("🔔 New message notification:", notif);
+    });
+  }, [selected]);
+
+  // Send a message
+  const sendMessage = () => {
+    if (!text.trim() || !selected) return;
+
+    const payload = {
+      senderId: user.id,
+      recipientId: selected.id,
+      body: text.trim(),
+    };
+
+    sendChatMessage(payload);
+
+    // Optimistic UI
+    setMessages((prev) => [
+      ...prev,
+      {
+        id: "tmp-" + Date.now(),
+        senderId: user.id,
+        recipientId: selected.id,
+        body: text.trim(),
+        createdAt: new Date().toISOString(),
+      },
+    ]);
+
+    setText("");
+    scrollToBottom();
+  };
+
+  return (
+    <div style={{ display: "flex", height: "100vh", background: "#f8f9fa" }}>
+      {/* CONTACTS */}
+      <div
+        style={{
+          width: "300px",
+          borderRight: "1px solid #e0e0e0",
+          padding: "15px",
+          overflowY: "auto",
+        }}
+      >
+        <h3 style={{ marginBottom: "15px" }}>Contacts</h3>
+
+        {contacts.length === 0 && (
+          <div style={{ color: "#777" }}>No contacts available</div>
+        )}
+
+        {contacts.map((c) => (
+          <div
+            key={c.id}
+            onClick={() => openConversation(c)}
+            style={{
+              padding: "12px",
+              background: selected?.id === c.id ? "#eaf1ff" : "white",
+              borderRadius: "8px",
+              marginBottom: "10px",
+              cursor: "pointer",
+              border: "1px solid #ddd",
+            }}
+          >
+            <div style={{ fontWeight: "600", fontSize: "15px" }}>
+              {c.username}
+            </div>
+
+            {/* 🔥 FIXED: Show proper role */}
+            <div style={{ fontSize: "12px", color: "#666" }}>
+              {c.roleDetails?.name || c.role || "unknown"}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* CHAT AREA */}
+      <div style={{ flex: 1, display: "flex", flexDirection: "column" }}>
+        <div
+          style={{
+            padding: "15px",
+            borderBottom: "1px solid #e0e0e0",
+            fontWeight: "600",
+            fontSize: "16px",
+          }}
+        >
+          {selected ? selected.username : "Select a contact to start chatting"}
+        </div>
+
+        {/* MESSAGES */}
+        <div
+          ref={chatBoxRef}
+          style={{
+            flex: 1,
+            overflowY: "auto",
+            padding: "20px",
+            display: "flex",
+            flexDirection: "column",
+            gap: "12px",
+            background: "#f4f5f7",
+          }}
+        >
+          {messages.map((m, idx) => {
+            const isMe = m.senderId === user.id;
+
+            return (
+              <div
+                key={m.id || idx}
+                style={{
+                  display: "flex",
+                  flexDirection: "column",
+                  alignItems: isMe ? "flex-end" : "flex-start",
+                }}
+              >
+                <div
+                  style={{
+                    background: isMe ? "#4f8cff" : "#ffffff",
+                    color: isMe ? "#fff" : "#333",
+                    padding: "10px 14px",
+                    borderRadius: "14px",
+                    maxWidth: "70%",
+                    boxShadow: "0 2px 6px rgba(0,0,0,0.08)",
+                    fontSize: "14px",
+                  }}
+                >
+                  {m.body}
+                  <div
+                    style={{
+                      fontSize: "11px",
+                      opacity: 0.6,
+                      marginTop: "6px",
+                      textAlign: "right",
+                    }}
+                  >
+                    {new Date(m.createdAt).toLocaleString()}
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* INPUT */}
+        <div
+          style={{
+            padding: "15px",
+            borderTop: "1px solid #e0e0e0",
+            display: "flex",
+            gap: "10px",
+          }}
+        >
+          <input
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && sendMessage()}
+            placeholder={
+              selected ? "Type a message..." : "Select a contact to message"
+            }
+            style={{
+              flex: 1,
+              padding: "12px",
+              borderRadius: "20px",
+              border: "1px solid #ccc",
+              outline: "none",
+            }}
+            disabled={!selected}
+          />
+
+          <button
+            onClick={sendMessage}
+            disabled={!selected}
+            style={{
+              padding: "10px 18px",
+              background: "#4f8cff",
+              border: "none",
+              borderRadius: "20px",
+              color: "#fff",
+              cursor: "pointer",
+            }}
+          >
+            Send
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+// Utility
+function makeRoomId(a, b) {
+  return `chat:${[a, b].sort().join("-")}`;
+}
+</file>
 
 <file path=".gitignore">
 # Logs
@@ -2647,6 +2932,306 @@ export default function Materials() {
 }
 </file>
 
+<file path="src/pages/payments/CreatePaymentRequest.jsx">
+import React, { useState, useEffect } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  Button,
+  MenuItem
+} from "@mui/material";
+import api from "../../services/api";
+import { useParams, useNavigate } from "react-router-dom";
+
+export default function CreatePaymentRequest() {
+  const { invoiceId } = useParams();
+  const navigate = useNavigate();
+
+  const [invoice, setInvoice] = useState(null);
+  const [paymentMode, setPaymentMode] = useState("");
+  const [utrNumber, setUtrNumber] = useState("");
+  const [proofFile, setProofFile] = useState(null);
+
+  useEffect(() => {
+    api.get(`/invoices/${invoiceId}`).then((res) => {
+      setInvoice(res.data.invoice);
+    });
+  }, [invoiceId]);
+
+  const submitRequest = async () => {
+    if (!proofFile || !paymentMode) {
+      return alert("Please upload proof & select payment mode.");
+    }
+
+    const formData = new FormData();
+    formData.append("invoiceId", invoiceId);
+    formData.append("amount", invoice.balanceAmount);
+    formData.append("paymentMode", paymentMode);
+    formData.append("utrNumber", utrNumber);
+    formData.append("proofFile", proofFile);
+
+    try {
+      await api.post("/payments/request", formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      alert("Payment Request Sent to Dealer Admin!");
+      navigate("/payments/mine");
+    } catch (err) {
+      console.error(err);
+      alert("Failed to submit payment request");
+    }
+  };
+
+  if (!invoice) return <div>Loading...</div>;
+
+  return (
+    <Box p={3}>
+      <Card>
+        <CardContent>
+          <Typography variant="h5" mb={2}>
+            Make Payment Request
+          </Typography>
+
+          <Typography>
+            <strong>Invoice:</strong> {invoice.invoiceNumber}
+          </Typography>
+          <Typography>
+            <strong>Pending Amount:</strong> ₹{invoice.balanceAmount}
+          </Typography>
+
+          <TextField
+            fullWidth
+            label="Payment Mode"
+            select
+            margin="normal"
+            value={paymentMode}
+            onChange={(e) => setPaymentMode(e.target.value)}
+          >
+            <MenuItem value="NEFT">NEFT</MenuItem>
+            <MenuItem value="RTGS">RTGS</MenuItem>
+            <MenuItem value="UPI">UPI</MenuItem>
+            <MenuItem value="CHEQUE">Cheque</MenuItem>
+          </TextField>
+
+          <TextField
+            fullWidth
+            label="UTR Number (optional)"
+            margin="normal"
+            value={utrNumber}
+            onChange={(e) => setUtrNumber(e.target.value)}
+          />
+
+          <Button variant="contained" component="label" sx={{ mt: 2 }}>
+            Upload Payment Proof
+            <input
+              type="file"
+              hidden
+              accept="image/*,application/pdf"
+              onChange={(e) => setProofFile(e.target.files[0])}
+            />
+          </Button>
+
+          {proofFile && <Typography mt={1}>{proofFile.name}</Typography>}
+
+          <Button
+            variant="contained"
+            color="primary"
+            sx={{ mt: 4 }}
+            onClick={submitRequest}
+          >
+            Submit Payment Request
+          </Button>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}
+</file>
+
+<file path="src/pages/payments/DealerAdminPayments.jsx">
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Table,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell
+} from "@mui/material";
+import api from "../../services/api";
+
+export default function DealerAdminPayments() {
+  const [payments, setPayments] = useState([]);
+
+  const loadData = async () => {
+    const res = await api.get("/payments/dealer/pending");
+    setPayments(res.data.pending);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const reviewPayment = async (id, action) => {
+    await api.post(`/payments/dealer/${id}/review`, { action });
+    loadData();
+  };
+
+  return (
+    <Box p={3}>
+      <Typography variant="h5" mb={3}>
+        Pending Payment Requests (Dealer Admin)
+      </Typography>
+
+      <Card>
+        <CardContent>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Invoice</TableCell>
+                <TableCell>Amount</TableCell>
+                <TableCell>Payment Mode</TableCell>
+                <TableCell>Proof</TableCell>
+                <TableCell>Action</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {payments.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell>{p.Invoice?.invoiceNumber}</TableCell>
+                  <TableCell>₹{p.amount}</TableCell>
+                  <TableCell>{p.paymentMode}</TableCell>
+                  <TableCell>
+                    {p.proofFile && (
+                      <a href={p.proofFile} target="_blank" rel="noreferrer">
+                        View
+                      </a>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      color="success"
+                      onClick={() => reviewPayment(p.id, "approve")}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      color="error"
+                      onClick={() => reviewPayment(p.id, "reject")}
+                    >
+                      Reject
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}
+</file>
+
+<file path="src/pages/payments/FinancePendingPayments.jsx">
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Typography,
+  Table,
+  TableBody,
+  TableHead,
+  TableRow,
+  TableCell,
+  Button,
+  Card,
+  CardContent
+} from "@mui/material";
+import api from "../../services/api";
+
+export default function FinancePendingPayments() {
+  const [payments, setPayments] = useState([]);
+
+  const loadData = async () => {
+    const res = await api.get("/payments/pending");
+    setPayments(res.data.pending);
+  };
+
+  useEffect(() => {
+    loadData();
+  }, []);
+
+  const reviewPayment = async (id, action) => {
+    await api.post(`/payments/${id}/review`, { action });
+    loadData();
+  };
+
+  return (
+    <Box p={3}>
+      <Typography variant="h5" mb={3}>
+        Finance Pending Payment Approvals
+      </Typography>
+
+      <Card>
+        <CardContent>
+          <Table>
+            <TableHead>
+              <TableRow>
+                <TableCell>Dealer</TableCell>
+                <TableCell>Invoice</TableCell>
+                <TableCell>Amount</TableCell>
+                <TableCell>Proof</TableCell>
+                <TableCell>Action</TableCell>
+              </TableRow>
+            </TableHead>
+
+            <TableBody>
+              {payments.map((p) => (
+                <TableRow key={p.id}>
+                  <TableCell>{p.Dealer?.name}</TableCell>
+                  <TableCell>{p.Invoice?.invoiceNumber}</TableCell>
+                  <TableCell>₹{p.amount}</TableCell>
+                  <TableCell>
+                    {p.proofFile && (
+                      <a href={p.proofFile} target="_blank" rel="noreferrer">
+                        View
+                      </a>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    <Button
+                      sx={{ mr: 1 }}
+                      color="success"
+                      onClick={() => reviewPayment(p.id, "approve")}
+                    >
+                      Approve
+                    </Button>
+                    <Button
+                      color="error"
+                      onClick={() => reviewPayment(p.id, "reject")}
+                    >
+                      Reject
+                    </Button>
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </CardContent>
+      </Card>
+    </Box>
+  );
+}
+</file>
+
 <file path="src/pages/PricingApprovals.jsx">
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
@@ -4916,13 +5501,58 @@ export default function Users() {
 // src/services/socket.js
 import { io } from "socket.io-client";
 
-const socket = io(import.meta.env.VITE_API_URL.replace("/api", ""), {
+const BASE_URL = import.meta.env.VITE_API_URL.replace("/api", "");
+
+// 🔥 Initialize socket
+const socket = io(BASE_URL, {
   transports: ["websocket"],
   auth: {
-    token: localStorage.getItem("token"), // JWT from backend auth
+    token: localStorage.getItem("token"),
   },
   reconnection: true,
 });
+
+// 🔥 When socket connects, authenticate with backend  
+socket.on("connect", () => {
+  try {
+    const user = JSON.parse(localStorage.getItem("user"));
+    if (!user) return;
+
+    socket.emit("authenticate", {
+      userId: user.id,
+      role: user.role, // role string like "dealer_admin"
+    });
+
+    console.log("🔐 Socket authenticated:", user.id, user.role);
+  } catch (err) {
+    console.error("Socket auth error:", err);
+  }
+});
+
+// 👉 Join a specific chat (1-to-1)
+export const joinChatRoom = (user1, user2) => {
+  socket.emit("join_chat", { user1, user2 });
+};
+
+// 👉 Leave chat room
+export const leaveChatRoom = (user1, user2) => {
+  socket.emit("leave_chat", { user1, user2 });
+};
+
+// 👉 Send message
+export const sendChatMessage = (msg) => {
+  socket.emit("send_message", msg);
+};
+
+// 👉 Listen to messages (used inside ChatUI)
+export const onReceiveMessage = (callback) => {
+  socket.on("receive_message", callback);
+};
+
+// 👉 Listen to notifications
+export const onNewMessageNotification = (callback) => {
+  socket.on("new_message_notification", callback);
+};
 
 export default socket;
 </file>
@@ -10596,6 +11226,11 @@ import Invoices from "./pages/Invoices";
 import Documents from "./pages/Documents";
 import Campaigns from "./pages/Campaigns";
 import Reports from "./pages/Reports";
+import CreatePaymentRequest from "./pages/payments/CreatePaymentRequest";
+
+import DealerAdminPayments from "./pages/payments/DealerAdminPayments";
+import FinancePendingPayments from "./pages/payments/FinancePendingPayments";
+
 
 // 🛠 Admin & Config
 import Admin from "./pages/Admin";
@@ -10619,6 +11254,7 @@ import AdminOrders from "./pages/orders/AdminOrders";
 import CreateOrder from "./pages/orders/CreateOrders";
 import MyOrders from "./pages/orders/MyOrders";
 import Materials from "./pages/Materials";
+import ChatUI from "./pages/ChatUI";
 
 
 
@@ -10630,6 +11266,26 @@ export default function App() {
 
           {/* ================= PUBLIC ROUTES ================= */}
           <Route path="/login" element={<Login />} />
+          <Route
+  path="chat"
+  element={
+    <ProtectedRoute allowed={[
+      "super_admin",
+      "dealer_admin",
+      "dealer_staff",
+      "regional_manager",
+      "area_manager",
+      "territory_manager",
+      "technical_admin",
+      "finance_admin",
+      "inventory_user",
+      "accounts_user"
+    ]}>
+      <ChatUI />
+    </ProtectedRoute>
+  }
+/>
+
 
 
           {/* ================= PROTECTED LAYOUT (Navbar + Sidebar) ================= */}
@@ -10768,6 +11424,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+<Route
+  path="payments/finance/pending"
+  element={
+    <ProtectedRoute allowed={["finance_admin"]}>
+      <FinancePendingPayments />
+    </ProtectedRoute>
+  }
+/>
 
 
             {/* ============================================================
@@ -10864,6 +11528,15 @@ export default function App() {
     </ProtectedRoute>
   }
 />
+<Route
+  path="payments/dealer/pending"
+  element={
+    <ProtectedRoute allowed={["dealer_admin"]}>
+      <DealerAdminPayments />
+    </ProtectedRoute>
+  }
+/>
+
 
             {/* ============================================================
                DEALER STAFF
@@ -10893,6 +11566,17 @@ export default function App() {
     </ProtectedRoute>
   }
 />
+<Route
+  path="payments/create/:invoiceId"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <CreatePaymentRequest />
+    </ProtectedRoute>
+  }
+/>
+
+
+
 
             {/* ============================================================
                INVENTORY USER
@@ -10987,295 +11671,6 @@ export default function App() {
         </Routes>
       </BrowserRouter>
     </AuthProvider>
-  );
-}
-</file>
-
-<file path="src/components/Sidebar.jsx">
-import React, { useContext, useState, useEffect } from "react";
-import { AuthContext } from "../context/AuthContext";
-import { Link, useLocation } from "react-router-dom";
-import api from "../services/api";
-import {
-  FaHome,
-  FaFileInvoice,
-  FaFileAlt,
-  FaChartBar,
-  FaCogs,
-  FaUsers,
-  FaWarehouse,
-  FaBars,
-} from "react-icons/fa";
-
-export default function Sidebar() {
-  const { user } = useContext(AuthContext);
-  const { pathname } = useLocation();
-
-  const [collapsed, setCollapsed] = useState(false);
-
-  const role = user?.role?.toLowerCase() || "user";
-
-  const baseLinks = [
-    { path: "/dashboard", label: "Dashboard", icon: <FaHome /> },
-    { path: "/chat", label: "Chat", icon: <FaUsers /> },
-  ];
-
- const roleLinks = {
-  super_admin: [
-    { label: "Users", path: "/users", icon: <FaUsers /> },
-    { label: "Roles & Permissions", path: "/roles", icon: <FaCogs /> },
-    { label: "Documents", path: "/documents", icon: <FaFileAlt /> },
-    { label: "Pricing", path: "/pricing", icon: <FaChartBar /> },
-    { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
-    { label: "Accounts", path: "/accounts", icon: <FaFileInvoice /> },
-  ],
-
-  technical_admin: [
-    { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
-    {
-  label: "Material Master",
-  path: "/materials",
-  roles: ["technical_admin", "super_admin"],
-}
-
-  ],
-
-  regional_admin: [
-    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-    { label: "Regions", path: "/regions", icon: <FaChartBar /> },
-  ],
-
-  finance_admin: [
-    { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-    { label: "Accounts", path: "/accounts", icon: <FaUsers /> },
-  ],
-
-  regional_manager: [
-    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-    { label: "Approvals", path: "/approvals", icon: <FaChartBar /> },
-  ],
-
-  area_manager: [
-    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-  ],
-
-  territory_manager: [
-    { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-  ],
-
-  dealer_admin: [
-    { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
-    { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
-    { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-    {label:"Order Approvals" ,path:"/orders/approvals",icon: <FaChartBar /> },
-  ],
-
-  dealer_staff: [
-    { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
-    {label:"Create Order",path: "/orders/create",icon: <FaChartBar /> },
-    {label:"My Orders",path: "/orders/my" ,icon: <FaChartBar /> },
-  ],
-
-  inventory_user: [
-    { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
-    { label: "Pricing Updates", path: "/pricing", icon: <FaChartBar /> },
-  ],
-
-  accounts_user: [
-    { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-    { label: "Statements", path: "/statements", icon: <FaFileAlt /> },
-  ],
-};
-
-
-
-  const links = [...baseLinks, ...(roleLinks[role] || [])];
-
-  // Unread chat badge state
-  const [unread, setUnread] = useState(0);
-
-  useEffect(() => {
-    let mounted = true;
-
-    // Don't call unread-count unless we have a token / user — avoids triggering 401s
-    const token = localStorage.getItem("token");
-    if (!token && !user) {
-      // ensure badge reset
-      setUnread(0);
-      return () => (mounted = false);
-    }
-
-    const load = async () => {
-      try {
-        const res = await api.get("/chats/unread-count");
-        const data = res.data ?? res; // handle different shapes
-        const count = data.count ?? data.unread ?? data.unreadCount ?? 0;
-        if (mounted) setUnread(Number(count) || 0);
-      } catch (err) {
-        // ignore non-fatal errors — do not force logout here
-        console.debug("Sidebar: unread-count fetch failed", err?.message || err);
-      }
-    };
-
-    load();
-
-    // live updates via socket (if available globally)
-    try {
-      // eslint-disable-next-line no-undef
-      const socket = require("../services/socket").default;
-      const onNew = () => {
-        // increment unread only if user not on /chat
-        if (pathname !== "/chat") setUnread((v) => v + 1);
-      };
-      const onReadReset = (data) => {
-        if (data?.path === "/chat" || pathname === "/chat") setUnread(0);
-      };
-
-      socket.on("message:new", onNew);
-      socket.on("chat:read", onReadReset);
-
-      return () => {
-        mounted = false;
-        socket.off("message:new", onNew);
-        socket.off("chat:read", onReadReset);
-      };
-    } catch {
-      // no socket available
-      return () => (mounted = false);
-    }
-  }, [pathname, user]);
-
-  return (
-    <aside
-      style={{
-        width: collapsed ? "70px" : "240px",
-        background: "var(--sidebar-bg)",
-        backdropFilter: "blur(14px)",
-        borderRight: "1px solid var(--card-border)",
-        padding: "1rem",
-        display: "flex",
-        flexDirection: "column",
-        transition: "width 0.3s ease",
-        overflowY: "auto",
-        overflowX: "hidden",
-      }}
-    >
-      {/* HEADER + TOGGLE */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: collapsed ? "center" : "space-between",
-          alignItems: "center",
-          marginBottom: "2rem",
-          paddingBottom: "1rem",
-          borderBottom: "1px solid var(--card-border)",
-        }}
-      >
-        {!collapsed && (
-          <h3 style={{ color: "#f97316", fontWeight: "700" }}>
-            {role.toUpperCase()}
-          </h3>
-        )}
-
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          style={{
-            background: "var(--card-bg)",
-            border: "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.5rem",
-            cursor: "pointer",
-            color: "var(--text-color)",
-          }}
-        >
-          <FaBars />
-        </button>
-      </div>
-
-      {/* NAV LINKS */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        {links.map((l) => {
-          const active = pathname === l.path;
-
-          return (
-            <div style={{ position: "relative" }} key={l.path}>
-              <Link
-                to={l.path}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: collapsed ? "0" : "0.75rem",
-                  padding: "0.75rem 1rem",
-                  borderRadius: "10px",
-                  color: active ? "#f97316" : "var(--text-color)",
-                  textDecoration: "none",
-                  background: active
-                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
-                    : "transparent",
-                  fontWeight: active ? "600" : "400",
-                  transition: "0.25s ease",
-                }}
-                onMouseEnter={(e) => {
-                  e.target.style.background =
-                    "linear-gradient(90deg, rgba(249,115,22,0.15), rgba(249,115,22,0.05))";
-                  e.target.style.color = "#f97316";
-                }}
-                onMouseLeave={(e) => {
-                  e.target.style.background = active
-                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
-                    : "transparent";
-                  e.target.style.color = active ? "#f97316" : "var(--text-color)";
-                }}
-              >
-                <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
-                {!collapsed && <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                  <span>{l.label}</span>
-                  {l.path === "/chat" && unread > 0 && (
-                    <span style={{
-                      background: "#ef4444",
-                      color: "white",
-                      padding: "2px 8px",
-                      borderRadius: 999,
-                      fontSize: "12px",
-                      fontWeight: 700,
-                    }}>
-                      {unread > 99 ? "99+" : unread}
-                    </span>
-                  )}
-                </span>}
-              </Link>
-
-              {/* Tooltip when collapsed */}
-              {collapsed && <div className="sidebar-tooltip">{l.label}</div>}
-            </div>
-          );
-        })}
-      </div>
-
-      <style>
-        {`
-            .sidebar-tooltip {
-                position: absolute;
-                left: 80px;
-                top: 50%;
-                transform: translateY(-50%);
-                background: var(--card-bg);
-                padding: 6px 10px;
-                border-radius: 6px;
-                box-shadow: 0 2px 10px rgba(0,0,0,0.25);
-                white-space: nowrap;
-                opacity: 0;
-                pointer-events: none;
-                transition: 0.2s ease;
-                color: var(--text-color);
-                border: 1px solid var(--card-border);
-            }
-            a:hover + .sidebar-tooltip {
-                opacity: 1;
-            }
-        `}
-      </style>
-    </aside>
   );
 }
 </file>
@@ -11711,6 +12106,265 @@ export default function DealerDashboard() {
 
       <PricingRequestModal open={showPriceModal} onClose={() => setShowPriceModal(false)} />
     </div>
+  );
+}
+</file>
+
+<file path="src/components/Sidebar.jsx">
+import React, { useContext, useState, useEffect } from "react";
+import { AuthContext } from "../context/AuthContext";
+import { Link, useLocation } from "react-router-dom";
+import api from "../services/api";
+import socket from "../services/socket";
+
+import {
+  FaHome,
+  FaFileInvoice,
+  FaFileAlt,
+  FaChartBar,
+  FaCogs,
+  FaUsers,
+  FaWarehouse,
+  FaBars,
+} from "react-icons/fa";
+import { FaMoneyCheckAlt } from "react-icons/fa";
+
+export default function Sidebar() {
+  const { user } = useContext(AuthContext);
+  const { pathname } = useLocation();
+
+  const [collapsed, setCollapsed] = useState(false);
+  const [unread, setUnread] = useState(0);
+
+  const role = user?.role?.toLowerCase() || "user";
+
+  // -------------------------
+  // BASE MENU LINKS
+  // -------------------------
+  const baseLinks = [
+    { path: "/dashboard", label: "Dashboard", icon: <FaHome /> },
+    { path: "/chat", label: "Chat", icon: <FaUsers /> },
+  ];
+
+  // -------------------------
+  // ROLE-BASED NAVIGATION
+  // -------------------------
+  const roleLinks = {
+    super_admin: [
+      { label: "Users", path: "/users", icon: <FaUsers /> },
+      { label: "Roles & Permissions", path: "/roles", icon: <FaCogs /> },
+      { label: "Documents", path: "/documents", icon: <FaFileAlt /> },
+      { label: "Pricing", path: "/pricing", icon: <FaChartBar /> },
+      { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
+      { label: "Accounts", path: "/accounts", icon: <FaFileInvoice /> },
+    ],
+
+    technical_admin: [
+      { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
+      { label: "Material Master", path: "/materials", icon: <FaCogs /> },
+    ],
+
+    regional_admin: [
+      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+      { label: "Regions", path: "/regions", icon: <FaChartBar /> },
+    ],
+
+    finance_admin: [
+      { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+      {
+        label: "Payment Approvals",
+        path: "/payments/finance/pending",
+        icon: <FaMoneyCheckAlt />,
+      },
+      { label: "Accounts", path: "/accounts", icon: <FaUsers /> },
+    ],
+
+    regional_manager: [
+      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+      { label: "Approvals", path: "/approvals", icon: <FaChartBar /> },
+    ],
+
+    area_manager: [{ label: "Dealers", path: "/dealers", icon: <FaUsers /> }],
+
+    territory_manager: [
+      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+    ],
+
+    dealer_admin: [
+      { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
+      { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
+      { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+      {
+        label: "Order Approvals",
+        path: "/orders/approvals",
+        icon: <FaChartBar />,
+      },
+      {
+        label: "Payment Approvals",
+        path: "/payments/dealer/pending",
+        icon: <FaMoneyCheckAlt />,
+      },
+    ],
+
+    dealer_staff: [
+      { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
+      { label: "Create Order", path: "/orders/create", icon: <FaChartBar /> },
+      { label: "My Orders", path: "/orders/my", icon: <FaChartBar /> },
+
+      // NEW: payment
+      { label: "Make Payment", path: "/payments/create", icon: <FaMoneyCheckAlt /> },
+    ],
+
+    inventory_user: [
+      { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
+      { label: "Pricing Updates", path: "/pricing", icon: <FaChartBar /> },
+    ],
+
+    accounts_user: [
+      { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+      { label: "Statements", path: "/statements", icon: <FaFileAlt /> },
+    ],
+  };
+
+  const links = [...baseLinks, ...(roleLinks[role] || [])];
+
+  // -------------------------
+  // UNREAD BADGE LOGIC
+  // -------------------------
+  useEffect(() => {
+    let mounted = true;
+
+    const loadUnread = async () => {
+      try {
+        const res = await api.get("/chat/unread-count");
+        const count = res.data.count || res.data.unread || 0;
+
+        if (mounted) setUnread(count);
+      } catch (err) {
+        console.log("Unread fetch error:", err);
+      }
+    };
+
+    loadUnread();
+
+    // 📌 LIVE socket updates
+    socket.on("message:new", () => {
+      if (pathname !== "/chat") {
+        setUnread((v) => v + 1);
+      }
+    });
+
+    // 📌 When chat UI tells us messages are read
+    socket.on("chat:read", () => {
+      if (mounted) setUnread(0);
+    });
+
+    return () => {
+      mounted = false;
+      socket.off("message:new");
+      socket.off("chat:read");
+    };
+  }, [pathname]);
+
+  return (
+    <aside
+      style={{
+        width: collapsed ? "70px" : "240px",
+        background: "var(--sidebar-bg)",
+        backdropFilter: "blur(14px)",
+        borderRight: "1px solid var(--card-border)",
+        padding: "1rem",
+        display: "flex",
+        flexDirection: "column",
+        transition: "width 0.3s ease",
+        overflowY: "auto",
+        overflowX: "hidden",
+      }}
+    >
+      {/* HEADER */}
+      <div
+        style={{
+          display: "flex",
+          justifyContent: collapsed ? "center" : "space-between",
+          alignItems: "center",
+          marginBottom: "2rem",
+          paddingBottom: "1rem",
+          borderBottom: "1px solid var(--card-border)",
+        }}
+      >
+        {!collapsed && (
+          <h3 style={{ color: "#f97316", fontWeight: "700" }}>
+            {role.toUpperCase()}
+          </h3>
+        )}
+
+        <button
+          onClick={() => setCollapsed(!collapsed)}
+          style={{
+            background: "var(--card-bg)",
+            border: "1px solid var(--card-border)",
+            borderRadius: "8px",
+            padding: "0.5rem",
+            cursor: "pointer",
+            color: "var(--text-color)",
+          }}
+        >
+          <FaBars />
+        </button>
+      </div>
+
+      {/* NAV LINKS */}
+      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
+        {links.map((l) => {
+          const active = pathname === l.path;
+
+          return (
+            <div style={{ position: "relative" }} key={l.path}>
+              <Link
+                to={l.path}
+                style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: collapsed ? "0" : "0.75rem",
+                  padding: "0.75rem 1rem",
+                  borderRadius: "10px",
+                  color: active ? "#f97316" : "var(--text-color)",
+                  textDecoration: "none",
+                  background: active
+                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
+                    : "transparent",
+                  fontWeight: active ? "600" : "400",
+                  transition: "0.25s ease",
+                }}
+              >
+                <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
+
+                {!collapsed && (
+                  <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                    <span>{l.label}</span>
+
+                    {l.path === "/chat" && unread > 0 && (
+                      <span
+                        style={{
+                          background: "#ef4444",
+                          color: "white",
+                          padding: "2px 8px",
+                          borderRadius: 999,
+                          fontSize: "12px",
+                          fontWeight: 700,
+                        }}
+                      >
+                        {unread > 99 ? "99+" : unread}
+                      </span>
+                    )}
+                  </span>
+                )}
+              </Link>
+            </div>
+          );
+        })}
+      </div>
+    </aside>
   );
 }
 </file>
