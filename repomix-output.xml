@@ -93,12 +93,19 @@ src/pages/Chat.css
 src/pages/Dashboard.jsx
 src/pages/dashboards/AccountsDashboard.jsx
 src/pages/dashboards/AdminDashboard.jsx
+src/pages/dashboards/AreaManagerDashboard.jsx
 src/pages/dashboards/DashboardLayout.css
 src/pages/dashboards/DealerDashboard.jsx
+src/pages/dashboards/DealerStaffDashboard.jsx
+src/pages/dashboards/FinanceAdminDashboard.jsx
 src/pages/dashboards/InventoryDashboard.jsx
 src/pages/dashboards/ManagerDashboard.css
 src/pages/dashboards/ManagerDashboard.jsx
+src/pages/dashboards/RegionalAdminDashboard.jsx
+src/pages/dashboards/RegionalManagerDashboard.jsx
 src/pages/dashboards/SuperAdminDashboard.jsx
+src/pages/dashboards/TechnicalAdminDashboard.jsx
+src/pages/dashboards/TerritoryManagerDashboard.jsx
 src/pages/DealerChat.jsx
 src/pages/Documents.jsx
 src/pages/InvoiceDetail.jsx
@@ -1852,6 +1859,298 @@ export default function AdminPricing() {
   border-radius: 6px;
   padding: 8px 14px;
   cursor: pointer;
+}
+</file>
+
+<file path="src/pages/dashboards/AreaManagerDashboard.jsx">
+import React from "react";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import "./DashboardLayout.css";
+
+export default function AreaManagerDashboard() {
+  const summary = { dealers: 12, tasks: 7 };
+
+  return (
+    <div style={{ padding: "1rem" }}>
+      <PageHeader title="Area Manager Dashboard" subtitle="Overview for area-level management" />
+
+      <div className="stat-grid">
+        <StatCard title="Dealers" value={summary.dealers} />
+        <StatCard title="Open Tasks" value={summary.tasks} />
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="column">
+          <Card title="Area Tasks">
+            <ul>
+              <li>Follow up with underperforming dealers</li>
+              <li>Coordinate logistics</li>
+            </ul>
+          </Card>
+        </div>
+
+        <div className="column">
+          <Card title="Notifications">
+            <p className="text-muted">Alerts and important updates for your area.</p>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/DealerStaffDashboard.jsx">
+import React from "react";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import "./DashboardLayout.css";
+
+export default function DealerStaffDashboard() {
+  const summary = { myOrders: 5, drafts: 2, unreadDocs: 3 };
+
+  return (
+    <div style={{ padding: "1rem" }}>
+      <PageHeader title="Dealer Staff Dashboard" subtitle="Quick actions and personal stats" />
+
+      <div className="stat-grid">
+        <StatCard title="My Orders" value={summary.myOrders} />
+        <StatCard title="Drafts" value={summary.drafts} />
+        <StatCard title="Unread Documents" value={summary.unreadDocs} />
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="column">
+          <Card title="Recent Orders">
+            <p className="text-muted">Your recent order activity and statuses.</p>
+          </Card>
+        </div>
+
+        <div className="column">
+          <Card title="Quick Actions">
+            <ul>
+              <li>Create new order</li>
+              <li>Upload documents</li>
+            </ul>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/FinanceAdminDashboard.jsx">
+import React from "react";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import "./DashboardLayout.css";
+
+export default function FinanceAdminDashboard() {
+  const summary = { invoices: 124, overdue: 8, receipts: 102 };
+
+  return (
+    <div style={{ padding: "1rem" }}>
+      <PageHeader title="Finance Dashboard" subtitle="Invoices, statements and accounts" />
+
+      <div className="stat-grid">
+        <StatCard title="Invoices" value={summary.invoices} />
+        <StatCard title="Overdue" value={summary.overdue} />
+        <StatCard title="Receipts" value={summary.receipts} />
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="column">
+          <Card title="Recent Invoices">
+            <p className="text-muted">Latest invoices and payment status.</p>
+          </Card>
+        </div>
+
+        <div className="column">
+          <Card title="Accounts Tasks">
+            <ul>
+              <li>Reconcile statements</li>
+              <li>Review credit notes</li>
+            </ul>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/RegionalAdminDashboard.jsx">
+import React from "react";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import "./DashboardLayout.css";
+
+export default function RegionalAdminDashboard() {
+  const summary = { dealers: 42, regions: 6, activeCampaigns: 3 };
+
+  return (
+    <div style={{ padding: "1rem" }}>
+      <PageHeader title="Regional Admin Dashboard" subtitle="Overview of regions and dealers" />
+
+      <div className="stat-grid">
+        <StatCard title="Dealers" value={summary.dealers} />
+        <StatCard title="Regions" value={summary.regions} />
+        <StatCard title="Active Campaigns" value={summary.activeCampaigns} />
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="column">
+          <Card title="Top Performing Dealers">
+            <p className="text-muted">Shows dealers in the region with best metrics.</p>
+          </Card>
+        </div>
+
+        <div className="column">
+          <Card title="Regional Tasks">
+            <ul>
+              <li>Approve dealer onboarding</li>
+              <li>Schedule regional visit</li>
+            </ul>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/RegionalManagerDashboard.jsx">
+import React from "react";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import "./DashboardLayout.css";
+
+export default function RegionalManagerDashboard() {
+  const summary = { dealers: 28, approvals: 5, visits: 2 };
+
+  return (
+    <div style={{ padding: "1rem" }}>
+      <PageHeader title="Regional Manager Dashboard" subtitle="Operations and approvals for your region" />
+
+      <div className="stat-grid">
+        <StatCard title="Dealers" value={summary.dealers} />
+        <StatCard title="Pending Approvals" value={summary.approvals} />
+        <StatCard title="Upcoming Visits" value={summary.visits} />
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="column">
+          <Card title="Approvals">
+            <p className="text-muted">Approve dealer documents and pricing requests.</p>
+          </Card>
+        </div>
+
+        <div className="column">
+          <Card title="Region Activity">
+            <p className="text-muted">Summary of dealer activity and alerts.</p>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/TechnicalAdminDashboard.jsx">
+import React from "react";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import "./DashboardLayout.css";
+
+export default function TechnicalAdminDashboard() {
+  const summary = {
+    permissions: 128,
+    materials: 542,
+    pendingChanges: 6,
+  };
+
+  return (
+    <div style={{ padding: "1rem" }}>
+      <PageHeader
+        title="Technical Admin Dashboard"
+        subtitle="Manage material master and technical permissions"
+      />
+
+      <div className="stat-grid">
+        <StatCard title="Permissions" value={summary.permissions} />
+        <StatCard title="Materials" value={summary.materials} />
+        <StatCard title="Pending Changes" value={summary.pendingChanges} />
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="column">
+          <Card title="Material Master">
+            <p className="text-muted">Quick actions for material records and mapping.</p>
+            <ul>
+              <li>Review recently updated materials</li>
+              <li>Approve pending material imports</li>
+              <li>Manage attribute mappings</li>
+            </ul>
+          </Card>
+        </div>
+
+        <div className="column">
+          <Card title="Permission Audit">
+            <p className="text-muted">Recent permission changes and audit trail.</p>
+            <div className="text-muted small">No critical changes in last 7 days.</div>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/TerritoryManagerDashboard.jsx">
+import React from "react";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import "./DashboardLayout.css";
+
+export default function TerritoryManagerDashboard() {
+  const summary = { dealers: 8, approvals: 2 };
+
+  return (
+    <div style={{ padding: "1rem" }}>
+      <PageHeader title="Territory Manager Dashboard" subtitle="Territory overview and approvals" />
+
+      <div className="stat-grid">
+        <StatCard title="Dealers" value={summary.dealers} />
+        <StatCard title="Pending Approvals" value={summary.approvals} />
+      </div>
+
+      <div className="dashboard-grid">
+        <div className="column">
+          <Card title="Territory Activity">
+            <p className="text-muted">Recent activity from dealers in your territory.</p>
+          </Card>
+        </div>
+
+        <div className="column">
+          <Card title="Tasks">
+            <ul>
+              <li>Review pricing exceptions</li>
+              <li>Approve new dealer requests</li>
+            </ul>
+          </Card>
+        </div>
+      </div>
+    </div>
+  );
 }
 </file>
 
@@ -6807,42 +7106,6 @@ createRoot(document.getElementById("root")).render(
 );
 </file>
 
-<file path="src/pages/Dashboard.jsx">
-import React, { useContext } from "react";
-import { AuthContext } from "../context/AuthContext";
-
-import SuperAdminDashboard from "./dashboards/SuperAdminDashboard";
-import AdminDashboard from "./dashboards/AdminDashboard";
-import ManagerDashboard from "./dashboards/ManagerDashboard";
-import DealerDashboard from "./dashboards/DealerDashboard";
-import AccountsDashboard from "./dashboards/AccountsDashboard";
-import InventoryDashboard from "./dashboards/InventoryDashboard";
-
-export default function Dashboard() {
-  const { user } = useContext(AuthContext);
-
-  if (!user) return <p>Loading...</p>;
-
-  const role = user.role?.toLowerCase();
-
-  const roleMap = {
-    super_admin: <SuperAdminDashboard />,
-    technical_admin: <AdminDashboard />,
-    regional_admin: <AdminDashboard />,
-    finance_admin: <AccountsDashboard />,
-    regional_manager: <ManagerDashboard />,
-    area_manager: <ManagerDashboard />,
-    territory_manager: <ManagerDashboard />,
-    dealer_admin: <DealerDashboard />,
-    dealer_staff: <DealerDashboard />,
-    inventory_user: <InventoryDashboard />,
-    accounts_user: <AccountsDashboard />,
-  };
-
-  return roleMap[role] || <p>No dashboard available for role: {role}</p>;
-}
-</file>
-
 <file path="src/pages/Documents.jsx">
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
@@ -8142,6 +8405,49 @@ const styles = {
     cursor: "pointer",
   },
 };
+</file>
+
+<file path="src/pages/Dashboard.jsx">
+import React, { useContext } from "react";
+import { AuthContext } from "../context/AuthContext";
+
+import SuperAdminDashboard from "./dashboards/SuperAdminDashboard";
+import AdminDashboard from "./dashboards/AdminDashboard";
+import ManagerDashboard from "./dashboards/ManagerDashboard";
+import DealerDashboard from "./dashboards/DealerDashboard";
+import AccountsDashboard from "./dashboards/AccountsDashboard";
+import InventoryDashboard from "./dashboards/InventoryDashboard";
+import TechnicalAdminDashboard from "./dashboards/TechnicalAdminDashboard";
+import RegionalAdminDashboard from "./dashboards/RegionalAdminDashboard";
+import FinanceAdminDashboard from "./dashboards/FinanceAdminDashboard";
+import RegionalManagerDashboard from "./dashboards/RegionalManagerDashboard";
+import AreaManagerDashboard from "./dashboards/AreaManagerDashboard";
+import TerritoryManagerDashboard from "./dashboards/TerritoryManagerDashboard";
+import DealerStaffDashboard from "./dashboards/DealerStaffDashboard";
+
+export default function Dashboard() {
+  const { user } = useContext(AuthContext);
+
+  if (!user) return <p>Loading...</p>;
+
+  const role = user.role?.toLowerCase();
+
+  const roleMap = {
+    super_admin: <SuperAdminDashboard />,
+    technical_admin: <TechnicalAdminDashboard />,
+    regional_admin: <RegionalAdminDashboard />,
+    finance_admin: <FinanceAdminDashboard />,
+    regional_manager: <RegionalManagerDashboard />,
+    area_manager: <AreaManagerDashboard />,
+    territory_manager: <TerritoryManagerDashboard />,
+    dealer_admin: <DealerDashboard />,
+    dealer_staff: <DealerStaffDashboard />,
+    inventory_user: <InventoryDashboard />,
+    accounts_user: <AccountsDashboard />,
+  };
+
+  return roleMap[role] || <p>No dashboard available for role: {role}</p>;
+}
 </file>
 
 <file path="src/components/Navbar.jsx">
@@ -10686,9 +10992,10 @@ export default function App() {
 </file>
 
 <file path="src/components/Sidebar.jsx">
-import React, { useContext, useState } from "react";
+import React, { useContext, useState, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { Link, useLocation } from "react-router-dom";
+import api from "../services/api";
 import {
   FaHome,
   FaFileInvoice,
@@ -10708,7 +11015,10 @@ export default function Sidebar() {
 
   const role = user?.role?.toLowerCase() || "user";
 
-  const baseLinks = [{ path: "/dashboard", label: "Dashboard", icon: <FaHome /> }];
+  const baseLinks = [
+    { path: "/dashboard", label: "Dashboard", icon: <FaHome /> },
+    { path: "/chat", label: "Chat", icon: <FaUsers /> },
+  ];
 
  const roleLinks = {
   super_admin: [
@@ -10757,7 +11067,6 @@ export default function Sidebar() {
     { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
     { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
     { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-    { label: "Chat", path: "/chat", icon: <FaUsers /> },
     {label:"Order Approvals" ,path:"/orders/approvals",icon: <FaChartBar /> },
   ],
 
@@ -10781,6 +11090,60 @@ export default function Sidebar() {
 
 
   const links = [...baseLinks, ...(roleLinks[role] || [])];
+
+  // Unread chat badge state
+  const [unread, setUnread] = useState(0);
+
+  useEffect(() => {
+    let mounted = true;
+
+    // Don't call unread-count unless we have a token / user — avoids triggering 401s
+    const token = localStorage.getItem("token");
+    if (!token && !user) {
+      // ensure badge reset
+      setUnread(0);
+      return () => (mounted = false);
+    }
+
+    const load = async () => {
+      try {
+        const res = await api.get("/chats/unread-count");
+        const data = res.data ?? res; // handle different shapes
+        const count = data.count ?? data.unread ?? data.unreadCount ?? 0;
+        if (mounted) setUnread(Number(count) || 0);
+      } catch (err) {
+        // ignore non-fatal errors — do not force logout here
+        console.debug("Sidebar: unread-count fetch failed", err?.message || err);
+      }
+    };
+
+    load();
+
+    // live updates via socket (if available globally)
+    try {
+      // eslint-disable-next-line no-undef
+      const socket = require("../services/socket").default;
+      const onNew = () => {
+        // increment unread only if user not on /chat
+        if (pathname !== "/chat") setUnread((v) => v + 1);
+      };
+      const onReadReset = (data) => {
+        if (data?.path === "/chat" || pathname === "/chat") setUnread(0);
+      };
+
+      socket.on("message:new", onNew);
+      socket.on("chat:read", onReadReset);
+
+      return () => {
+        mounted = false;
+        socket.off("message:new", onNew);
+        socket.off("chat:read", onReadReset);
+      };
+    } catch {
+      // no socket available
+      return () => (mounted = false);
+    }
+  }, [pathname, user]);
 
   return (
     <aside
@@ -10865,7 +11228,21 @@ export default function Sidebar() {
                 }}
               >
                 <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
-                {!collapsed && <span>{l.label}</span>}
+                {!collapsed && <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <span>{l.label}</span>
+                  {l.path === "/chat" && unread > 0 && (
+                    <span style={{
+                      background: "#ef4444",
+                      color: "white",
+                      padding: "2px 8px",
+                      borderRadius: 999,
+                      fontSize: "12px",
+                      fontWeight: 700,
+                    }}>
+                      {unread > 99 ? "99+" : unread}
+                    </span>
+                  )}
+                </span>}
               </Link>
 
               {/* Tooltip when collapsed */}

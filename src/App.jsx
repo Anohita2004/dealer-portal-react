@@ -19,6 +19,11 @@ import Invoices from "./pages/Invoices";
 import Documents from "./pages/Documents";
 import Campaigns from "./pages/Campaigns";
 import Reports from "./pages/Reports";
+import CreatePaymentRequest from "./pages/payments/CreatePaymentRequest";
+
+import DealerAdminPayments from "./pages/payments/DealerAdminPayments";
+import FinancePendingPayments from "./pages/payments/FinancePendingPayments";
+
 
 // 🛠 Admin & Config
 import Admin from "./pages/Admin";
@@ -191,6 +196,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+<Route
+  path="payments/finance/pending"
+  element={
+    <ProtectedRoute allowed={["finance_admin"]}>
+      <FinancePendingPayments />
+    </ProtectedRoute>
+  }
+/>
 
 
             {/* ============================================================
@@ -287,6 +300,15 @@ export default function App() {
     </ProtectedRoute>
   }
 />
+<Route
+  path="payments/dealer/pending"
+  element={
+    <ProtectedRoute allowed={["dealer_admin"]}>
+      <DealerAdminPayments />
+    </ProtectedRoute>
+  }
+/>
+
 
             {/* ============================================================
                DEALER STAFF
@@ -316,6 +338,17 @@ export default function App() {
     </ProtectedRoute>
   }
 />
+<Route
+  path="payments/create/:invoiceId"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <CreatePaymentRequest />
+    </ProtectedRoute>
+  }
+/>
+
+
+
 
             {/* ============================================================
                INVENTORY USER

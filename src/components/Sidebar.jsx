@@ -12,6 +12,7 @@ import {
   FaWarehouse,
   FaBars,
 } from "react-icons/fa";
+import { FaMoneyCheckAlt } from "react-icons/fa";
 
 export default function Sidebar() {
   const { user } = useContext(AuthContext);
@@ -39,11 +40,10 @@ export default function Sidebar() {
   technical_admin: [
     { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
     {
-  label: "Material Master",
-  path: "/materials",
-  roles: ["technical_admin", "super_admin"],
-}
-
+      label: "Material Master",
+      path: "/materials",
+      icon: <FaCogs />,
+    }
   ],
 
   regional_admin: [
@@ -53,6 +53,7 @@ export default function Sidebar() {
 
   finance_admin: [
     { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+    { label: "Payment Approvals", path: "/payments/finance/pending", icon: <FaMoneyCheckAlt /> },
     { label: "Accounts", path: "/accounts", icon: <FaUsers /> },
   ],
 
@@ -73,13 +74,18 @@ export default function Sidebar() {
     { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
     { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
     { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-    {label:"Order Approvals" ,path:"/orders/approvals",icon: <FaChartBar /> },
+    { label: "Order Approvals", path: "/orders/approvals", icon: <FaChartBar /> },
+    { label: "Payment Approvals", path: "/payments/dealer/pending", icon: <FaMoneyCheckAlt /> },
   ],
 
   dealer_staff: [
     { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
-    {label:"Create Order",path: "/orders/create",icon: <FaChartBar /> },
-    {label:"My Orders",path: "/orders/my" ,icon: <FaChartBar /> },
+    { label: "Create Order", path: "/orders/create", icon: <FaChartBar /> },
+    { label: "My Orders", path: "/orders/my", icon: <FaChartBar /> },
+
+    // NEW PAYMENT LINKS
+    { label: "Make Payment", path: "/payments/create", icon: <FaMoneyCheckAlt /> },
+    //{ label: "My Payments", path: "/payments/mine", icon: <FaMoneyCheckAlt /> },
   ],
 
   inventory_user: [
@@ -92,6 +98,7 @@ export default function Sidebar() {
     { label: "Statements", path: "/statements", icon: <FaFileAlt /> },
   ],
 };
+
 
 
 
