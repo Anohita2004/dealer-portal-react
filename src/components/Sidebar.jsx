@@ -13,6 +13,8 @@ import {
   FaUsers,
   FaWarehouse,
   FaBars,
+  FaBell,
+  FaUpload,
 } from "react-icons/fa";
 import { FaMoneyCheckAlt } from "react-icons/fa";
 
@@ -44,11 +46,17 @@ export default function Sidebar() {
       { label: "Pricing", path: "/pricing", icon: <FaChartBar /> },
       { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
       { label: "Accounts", path: "/accounts", icon: <FaFileInvoice /> },
+      { label: "Materials", path: "/materials", icon: <FaWarehouse /> },
+      { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
+      { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
+      { label: "Material Alerts", path: "/alerts/materials", icon: <FaBell /> },
     ],
 
     technical_admin: [
       { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
       { label: "Material Master", path: "/materials", icon: <FaCogs /> },
+      { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
+      { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
     ],
 
     regional_admin: [
@@ -105,6 +113,7 @@ export default function Sidebar() {
     inventory_user: [
       { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
       { label: "Pricing Updates", path: "/pricing", icon: <FaChartBar /> },
+      { label: "Material Alerts", path: "/alerts/materials", icon: <FaBell /> },
     ],
 
     accounts_user: [

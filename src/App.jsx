@@ -48,6 +48,9 @@ import CreateOrder from "./pages/orders/CreateOrders";
 import MyOrders from "./pages/orders/MyOrders";
 import Materials from "./pages/Materials";
 import ChatUI from "./pages/ChatUI";
+import MaterialImport from "./pages/Materials/MaterialImport";
+import MaterialAnalytics from "./pages/Materials/MaterialAnalytics";
+import MaterialAlerts from "./pages/Alerts/MaterialAlerts";
 
 
 
@@ -173,6 +176,33 @@ export default function App() {
     </ProtectedRoute>
   }
 />
+
+            <Route
+              path="materials/import"
+              element={
+                <ProtectedRoute allowed={["technical_admin", "super_admin"]}>
+                  <MaterialImport />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="materials/analytics"
+              element={
+                <ProtectedRoute allowed={["technical_admin", "super_admin"]}>
+                  <MaterialAnalytics />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="alerts/materials"
+              element={
+                <ProtectedRoute allowed={["technical_admin", "super_admin", "inventory_user"]}>
+                  <MaterialAlerts />
+                </ProtectedRoute>
+              }
+            />
 
 
             {/* ============================================================
