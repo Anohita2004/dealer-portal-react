@@ -76,7 +76,8 @@ export default function App() {
       "technical_admin",
       "finance_admin",
       "inventory_user",
-      "accounts_user"
+      "accounts_user",
+      "regional_admin"
     ]}>
       <ChatUI />
     </ProtectedRoute>
@@ -112,7 +113,8 @@ export default function App() {
         "area_manager",
         "territory_manager",
         "dealer_admin",
-        "technical_admin"
+        "technical_admin",
+        "regional_admin"
       ]}
     >
       <RegionMap />
