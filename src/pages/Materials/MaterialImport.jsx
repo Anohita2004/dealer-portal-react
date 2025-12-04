@@ -41,7 +41,7 @@ const downloadTemplate = async () => {
     try {
       const form = new FormData();
       form.append('file', file);
-      const res = await api.post('/materials/import/validate', form, {
+      const res = await api.post('/materials/upload-preview', form, {
         headers: { 'Content-Type': 'multipart/form-data' },
       });
       setPreviewRows(res.data.preview || []);
