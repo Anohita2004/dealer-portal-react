@@ -122,10 +122,10 @@ export default function RegionMap() {
 
       try {
         const [dRes, rRes, tRes, hRes] = await Promise.all([
-          axios.get(`/api/maps/dealers?start=${startDate}&end=${endDate}`, { signal: ac.signal }),
-          axios.get(`/api/maps/regions`, { signal: ac.signal }),
-          axios.get(`/api/maps/territories`, { signal: ac.signal }),
-          axios.get(`/api/maps/heatmap?granularity=${granularity}&start=${startDate}&end=${endDate}`, { signal: ac.signal })
+          axios.get(`http://localhost:3000/api/maps/dealers?start=${startDate}&end=${endDate}`, { signal: ac.signal }),
+          axios.get(`http://localhost:3000/api/maps/regions`, { signal: ac.signal }),
+          axios.get(`http://localhost:3000/api/maps/territories`, { signal: ac.signal }),
+          axios.get(`http://localhost:3000/api/maps/heatmap?granularity=${granularity}&start=${startDate}&end=${endDate}`, { signal: ac.signal })
         ]);
 
         // DEALERS: ensure array
@@ -178,7 +178,7 @@ export default function RegionMap() {
 
   const reloadHeat = async () => {
     try {
-      const res = await axios.get(`/api/maps/heatmap?granularity=${granularity}&start=${startDate}&end=${endDate}`);
+      const res = await axios.get(`http://localhost:3000/api/maps/heatmap?granularity=${granularity}&start=${startDate}&end=${endDate}`);
       const arr = Array.isArray(res.data) ? res.data : (Array.isArray(res.data.points) ? res.data.points : []);
       setHeatPoints(arr.filter(p => p && Number.isFinite(p.lat) && Number.isFinite(p.lng)).map(p => ({ lat: Number(p.lat), lng: Number(p.lng), weight: Number(p.weight || 0) })));
     } catch (err) {

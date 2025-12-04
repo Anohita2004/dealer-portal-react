@@ -115,6 +115,7 @@ src/pages/InvoiceDetail.jsx
 src/pages/Invoices.jsx
 src/pages/Login.jsx
 src/pages/ManagerChat.jsx
+src/pages/maps/RegionMaps.jsx
 src/pages/Materials.jsx
 src/pages/Materials/MaterialAnalytics.jsx
 src/pages/Materials/MaterialImport.jsx
@@ -2477,6 +2478,277 @@ export default function ManagerChat() {
           <div className="empty-chat">Select a dealer to start chatting</div>
         )}
       </main>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/maps/RegionMaps.jsx">
+// src/pages/maps/RegionMap.jsx
+// Rewritten, robust Region & Territory map page
+// Reference/uploaded repo snapshot (if needed): sandbox:/mnt/data/repomix-output.xml
+
+import React, { useEffect, useState, useRef, useMemo } from 'react';
+import { MapContainer, TileLayer, GeoJSON, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import 'leaflet.heat';
+import axios from 'axios';
+
+// small helper: safe array
+const safeArray = (v) => (Array.isArray(v) ? v : []);
+
+// small helper to ensure a FeatureCollection
+const normalizeFeatureCollection = (payload) => {
+  if (!payload) return { type: 'FeatureCollection', features: [] };
+  if (Array.isArray(payload)) {
+    // Received raw features array
+    return { type: 'FeatureCollection', features: payload.filter(f => f && f.type === 'Feature' && f.geometry) };
+  }
+  if (payload.type === 'FeatureCollection' && Array.isArray(payload.features)) {
+    return {
+      type: 'FeatureCollection',
+      features: payload.features.filter(f => f && f.type === 'Feature' && f.geometry && f.geometry.type)
+    };
+  }
+  // unknown shape
+  return { type: 'FeatureCollection', features: [] };
+};
+
+// Heat layer component (wrapper for useMap inside MapContainer)
+function HeatLayer({ points, radius = 25, blur = 20 }) {
+  const map = useMap();
+  useEffect(() => {
+    if (!map) return;
+    if (map._heat) {
+      try { map.removeLayer(map._heat); } catch (_) {}
+      map._heat = null;
+    }
+
+    const heatPoints = (points || [])
+      .filter(p => Number.isFinite(p.lat) && Number.isFinite(p.lng) && Number.isFinite(p.weight))
+      .map(p => [p.lat, p.lng, Math.max(0.001, Number(p.weight) / 10000)]);
+
+    if (!heatPoints.length) return;
+
+    const heat = L.heatLayer(heatPoints, { radius, blur, maxZoom: 17 });
+    map._heat = heat;
+    heat.addTo(map);
+
+    return () => {
+      if (map._heat) {
+        try { map.removeLayer(map._heat); } catch (_) {}
+        map._heat = null;
+      }
+    };
+  }, [map, points, radius, blur]);
+
+  return null;
+}
+
+export default function RegionMap() {
+  const [dealers, setDealers] = useState([]);
+  const [heatPoints, setHeatPoints] = useState([]);
+  const [regions, setRegions] = useState({ type: 'FeatureCollection', features: [] });
+  const [territories, setTerritories] = useState({ type: 'FeatureCollection', features: [] });
+
+  const [granularity, setGranularity] = useState('dealer');
+  const [startDate, setStartDate] = useState(() => new Date().toISOString().slice(0, 10)); // today
+  const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10)); // today
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
+
+  // map center fallback
+  const mapCenter = [20.5937, 78.9629]; // India center
+  const mapRef = useRef();
+
+  // compute a bounds from dealers and region centroids to auto-fit map
+  const computedBounds = useMemo(() => {
+    const latlngs = [];
+
+    dealers.forEach(d => {
+      if (Number.isFinite(d.lat) && Number.isFinite(d.lng)) latlngs.push([d.lat, d.lng]);
+    });
+
+    regions.features.forEach(f => {
+      const cLat = f.properties?.centroidLat;
+      const cLng = f.properties?.centroidLng;
+      if (Number.isFinite(cLat) && Number.isFinite(cLng)) latlngs.push([cLat, cLng]);
+    });
+
+    territories.features.forEach(f => {
+      const cLat = f.properties?.centroidLat;
+      const cLng = f.properties?.centroidLng;
+      if (Number.isFinite(cLat) && Number.isFinite(cLng)) latlngs.push([cLat, cLng]);
+    });
+
+    if (!latlngs.length) return null;
+    return L.latLngBounds(latlngs);
+  }, [dealers, regions, territories]);
+
+  // auto-fit map when data changes
+  useEffect(() => {
+    if (!mapRef.current || !computedBounds) return;
+    const map = mapRef.current;
+    try {
+      map.fitBounds(computedBounds, { padding: [40, 40], maxZoom: 9 });
+    } catch (e) {
+      // ignore fit errors
+    }
+  }, [computedBounds]);
+
+  // fetch all data (cancelable)
+  useEffect(() => {
+    let mounted = true;
+    const ac = new AbortController();
+
+    const fetchAll = async () => {
+      setLoading(true);
+      setError(null);
+
+      try {
+        const [dRes, rRes, tRes, hRes] = await Promise.all([
+          axios.get(`/api/maps/dealers?start=${startDate}&end=${endDate}`, { signal: ac.signal }),
+          axios.get(`/api/maps/regions`, { signal: ac.signal }),
+          axios.get(`/api/maps/territories`, { signal: ac.signal }),
+          axios.get(`/api/maps/heatmap?granularity=${granularity}&start=${startDate}&end=${endDate}`, { signal: ac.signal })
+        ]);
+
+        // DEALERS: ensure array
+        const dealersArr = Array.isArray(dRes.data) ? dRes.data : (Array.isArray(dRes.data.dealers) ? dRes.data.dealers : []);
+        const cleanedDealers = dealersArr
+          .filter(d => d && Number.isFinite(Number(d.lat)) && Number.isFinite(Number(d.lng)))
+          .map(d => ({
+            id: d.id,
+            name: d.name || d.businessName || d.dealerCode || 'Dealer',
+            dealerCode: d.dealerCode || '',
+            lat: Number(d.lat),
+            lng: Number(d.lng),
+            totalSales: Number(d.totalSales || 0),
+            territoryId: d.territoryId || null,
+            regionId: d.regionId || null
+          }));
+
+        // REGIONS & TERRITORIES: normalize to FeatureCollection
+        const regionsFC = normalizeFeatureCollection(rRes.data);
+        const territoriesFC = normalizeFeatureCollection(tRes.data);
+
+        // HEAT: ensure array of {lat,lng,weight}
+        const heatArr = Array.isArray(hRes.data) ? hRes.data : (Array.isArray(hRes.data.points) ? hRes.data.points : []);
+        const cleanedHeat = heatArr
+          .filter(p => p && Number.isFinite(Number(p.lat)) && Number.isFinite(Number(p.lng)))
+          .map(p => ({ lat: Number(p.lat), lng: Number(p.lng), weight: Number(p.weight || 0) }));
+
+        if (!mounted) return;
+
+        setDealers(cleanedDealers);
+        setRegions(regionsFC);
+        setTerritories(territoriesFC);
+        setHeatPoints(cleanedHeat);
+      } catch (err) {
+        if (axios.isCancel(err)) return;
+        console.error('RegionMap fetch error', err);
+        if (mounted) setError('Failed to load map data');
+      } finally {
+        if (mounted) setLoading(false);
+      }
+    };
+
+    fetchAll();
+
+    return () => {
+      mounted = false;
+      ac.abort();
+    };
+  }, [granularity, startDate, endDate]);
+
+  const reloadHeat = async () => {
+    try {
+      const res = await axios.get(`/api/maps/heatmap?granularity=${granularity}&start=${startDate}&end=${endDate}`);
+      const arr = Array.isArray(res.data) ? res.data : (Array.isArray(res.data.points) ? res.data.points : []);
+      setHeatPoints(arr.filter(p => p && Number.isFinite(p.lat) && Number.isFinite(p.lng)).map(p => ({ lat: Number(p.lat), lng: Number(p.lng), weight: Number(p.weight || 0) })));
+    } catch (err) {
+      console.error('reloadHeat error', err);
+    }
+  };
+
+  return (
+    <div style={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 8 }}>
+      <div style={{ display: 'flex', gap: 8, alignItems: 'center', padding: 8 }}>
+        <label style={{ fontWeight: 600 }}>Heat Granularity:</label>
+        <select value={granularity} onChange={e => setGranularity(e.target.value)}>
+          <option value="dealer">Dealer</option>
+          <option value="territory">Territory</option>
+          <option value="region">Region</option>
+        </select>
+
+        <label style={{ marginLeft: 12 }}>Start</label>
+        <input type="date" value={startDate} onChange={e => setStartDate(e.target.value)} />
+
+        <label>End</label>
+        <input type="date" value={endDate} onChange={e => setEndDate(e.target.value)} />
+
+        <button onClick={reloadHeat} style={{ marginLeft: 8 }}>Reload Heat</button>
+
+        <div style={{ marginLeft: 'auto', fontSize: 13, color: '#666' }}>
+          {loading ? 'Loading map...' : error ? error : `Dealers: ${dealers.length} • Regions: ${regions.features.length} • Territories: ${territories.features.length}`}
+        </div>
+      </div>
+
+      <div style={{ height: '720px', borderRadius: 8, overflow: 'hidden' }}>
+        <MapContainer
+          whenCreated={map => { mapRef.current = map; }}
+          center={mapCenter}
+          zoom={5}
+          style={{ height: '100%', width: '100%' }}
+        >
+          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+
+          {/* Regions (choropleth-ready) */}
+          {regions && regions.features && regions.features.length > 0 && (
+            <GeoJSON
+              data={regions}
+              style={(feature) => {
+                // simple style; you can color by property later
+                return { fillColor: '#f2f2f2', color: '#666', weight: 1, fillOpacity: 0.35 };
+              }}
+              onEachFeature={(feature, layer) => {
+                const props = feature.properties || {};
+                const name = props.name || props.title || 'Region';
+                layer.bindPopup(`<strong>${name}</strong>`);
+              }}
+            />
+          )}
+
+          {/* Territories */}
+          {territories && territories.features && territories.features.length > 0 && (
+            <GeoJSON
+              data={territories}
+              style={() => ({ fillColor: 'transparent', color: '#1f78b4', weight: 1 })}
+              onEachFeature={(feature, layer) => {
+                const props = feature.properties || {};
+                layer.bindPopup(`<strong>${props.name || 'Territory'}</strong>`);
+              }}
+            />
+          )}
+
+          {/* Dealer markers */}
+          {dealers.map(d => (
+            <Marker key={d.id} position={[d.lat, d.lng]}>
+              <Popup>
+                <div style={{ minWidth: 160 }}>
+                  <strong>{d.name}</strong><br />
+                  Code: {d.dealerCode || '—'}<br />
+                  Sales: ₹{Number(d.totalSales || 0).toLocaleString()}
+                </div>
+              </Popup>
+            </Marker>
+          ))}
+
+          {/* Heat */}
+          <HeatLayer points={heatPoints} />
+        </MapContainer>
+      </div>
     </div>
   );
 }
@@ -10964,56 +11236,6 @@ export default function InventoryDashboard() {
 }
 </file>
 
-<file path="package.json">
-{
-  "name": "dealer-portal-react",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@hugeicons/react": "^1.1.1",
-    "@mui/icons-material": "^7.3.5",
-    "@mui/material": "^7.3.4",
-    "axios": "^1.13.1",
-    "framer-motion": "^12.23.24",
-    "lucide-react": "^0.552.0",
-    "react": "^19.1.1",
-    "react-apexcharts": "^1.8.0",
-    "react-countup": "^6.5.3",
-    "react-dom": "^19.1.1",
-    "react-hook-form": "^7.65.0",
-    "react-icons": "^5.5.0",
-    "react-router-dom": "^7.9.5",
-    "react-toastify": "^11.0.5",
-    "recharts": "^3.3.0",
-    "socket.io-client": "^4.8.1"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "@types/react": "^19.1.16",
-    "@types/react-dom": "^19.1.9",
-    "@vitejs/plugin-react": "^5.0.4",
-    "autoprefixer": "^10.4.21",
-    "babel-plugin-react-compiler": "^19.1.0-rc.3",
-    "eslint": "^9.36.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.22",
-    "globals": "^16.4.0",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.16",
-    "vite": "^7.1.7"
-  }
-}
-</file>
-
 <file path="src/pages/dashboards/ManagerDashboard.jsx">
 // src/pages/dashboards/ManagerDashboard.jsx
 import React, { useEffect, useState, useCallback } from "react";
@@ -11652,6 +11874,59 @@ export const chatAPI = {
 };
 </file>
 
+<file path="package.json">
+{
+  "name": "dealer-portal-react",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@hugeicons/react": "^1.1.1",
+    "@mui/icons-material": "^7.3.5",
+    "@mui/material": "^7.3.4",
+    "axios": "^1.13.2",
+    "framer-motion": "^12.23.24",
+    "leaflet": "^1.9.4",
+    "leaflet.heat": "^0.2.0",
+    "lucide-react": "^0.552.0",
+    "react": "^19.1.1",
+    "react-apexcharts": "^1.8.0",
+    "react-countup": "^6.5.3",
+    "react-dom": "^19.1.1",
+    "react-hook-form": "^7.65.0",
+    "react-icons": "^5.5.0",
+    "react-leaflet": "^5.0.0",
+    "react-router-dom": "^7.9.5",
+    "react-toastify": "^11.0.5",
+    "recharts": "^3.3.0",
+    "socket.io-client": "^4.8.1"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.21",
+    "babel-plugin-react-compiler": "^19.1.0-rc.3",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.22",
+    "globals": "^16.4.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.16",
+    "vite": "^7.1.7"
+  }
+}
+</file>
+
 <file path="src/pages/dashboards/DealerDashboard.jsx">
 // src/pages/dashboard/DealerDashboard.jsx
 import React, { useEffect, useState } from "react";
@@ -12142,6 +12417,7 @@ import MaterialImport from "./pages/Materials/MaterialImport";
 import MaterialAnalytics from "./pages/Materials/MaterialAnalytics";
 import MaterialAlerts from "./pages/Alerts/MaterialAlerts";
 
+import RegionMap from "./pages/maps/RegionMaps";
 
 
 export default function App() {
@@ -12188,6 +12464,26 @@ export default function App() {
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
 
+             {/* ============================================================
+   REGION & TERRITORY MAP VIEW
+============================================================ */}
+<Route
+  path="map-view"
+  element={
+    <ProtectedRoute
+      allowed={[
+        "super_admin",
+        "regional_manager",
+        "area_manager",
+        "territory_manager",
+        "dealer_admin",
+        "technical_admin"
+      ]}
+    >
+      <RegionMap />
+    </ProtectedRoute>
+  }
+/>
 
             {/* ============================================================
                SUPER ADMIN ONLY
@@ -12608,6 +12904,7 @@ import {
   FaUpload,
 } from "react-icons/fa";
 import { FaMoneyCheckAlt } from "react-icons/fa";
+import { FaMapMarkedAlt } from "react-icons/fa";
 
 export default function Sidebar() {
   const { user } = useContext(AuthContext);
@@ -12641,6 +12938,9 @@ export default function Sidebar() {
       { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
       { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
       { label: "Material Alerts", path: "/alerts/materials", icon: <FaBell /> },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
     technical_admin: [
@@ -12648,11 +12948,17 @@ export default function Sidebar() {
       { label: "Material Master", path: "/materials", icon: <FaCogs /> },
       { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
       { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
     regional_admin: [
       { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
       { label: "Regions", path: "/regions", icon: <FaChartBar /> },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
     finance_admin: [
@@ -12668,12 +12974,23 @@ export default function Sidebar() {
     regional_manager: [
       { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
       { label: "Approvals", path: "/approvals", icon: <FaChartBar /> },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
-    area_manager: [{ label: "Dealers", path: "/dealers", icon: <FaUsers /> }],
+    area_manager: [
+      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
+    ],
 
     territory_manager: [
       { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
     dealer_admin: [
@@ -12690,14 +13007,15 @@ export default function Sidebar() {
         path: "/payments/dealer/pending",
         icon: <FaMoneyCheckAlt />,
       },
+
+      // ⭐ NEW MAP VIEW
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
     dealer_staff: [
       { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
       { label: "Create Order", path: "/orders/create", icon: <FaChartBar /> },
       { label: "My Orders", path: "/orders/my", icon: <FaChartBar /> },
-
-      // NEW: payment
       { label: "Make Payment", path: "/payments/create", icon: <FaMoneyCheckAlt /> },
     ],
 
@@ -12705,6 +13023,9 @@ export default function Sidebar() {
       { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
       { label: "Pricing Updates", path: "/pricing", icon: <FaChartBar /> },
       { label: "Material Alerts", path: "/alerts/materials", icon: <FaBell /> },
+
+      // ⭐ NEW MAP VIEW (optional)
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
 
     accounts_user: [
@@ -12734,14 +13055,12 @@ export default function Sidebar() {
 
     loadUnread();
 
-    // 📌 LIVE socket updates
     socket.on("message:new", () => {
       if (pathname !== "/chat") {
         setUnread((v) => v + 1);
       }
     });
 
-    // 📌 When chat UI tells us messages are read
     socket.on("chat:read", () => {
       if (mounted) setUnread(0);
     });
@@ -12754,7 +13073,7 @@ export default function Sidebar() {
   }, [pathname]);
 
   return (
-      <aside
+    <aside
       style={{
         width: collapsed ? "70px" : "240px",
         background: "var(--sidebar-bg)",
@@ -12851,7 +13170,7 @@ export default function Sidebar() {
           );
         })}
       </div>
-      </aside>
+    </aside>
   );
 }
 </file>
