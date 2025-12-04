@@ -65,6 +65,10 @@ export const materialAPI = {
 // ======================== ORDER FLOW APIs (FIXED) =======================
 // =======================================================================
 
+// =======================================================================
+// ======================== ORDER FLOW APIs (ROLE-AWARE) =================
+// =======================================================================
+
 export const orderAPI = {
   // Dealer creates order
   createOrder: (payload) =>
@@ -75,20 +79,20 @@ export const orderAPI = {
     api.get("/orders/my", { params: { mine: true } }).then((r) => r.data),
 
   // Admin/Manager view all orders
-  getAllOrders: (params) =>
-    api.get("/orders", { params }).then((r) => r.data),
+  getAllOrders: (role) =>
+    api.get("/orders", { params: { role } }).then((r) => r.data),
 
   // Admin/Manager update status
   updateOrderStatus: (id, status) =>
     api.patch(`/orders/${id}/status`, { status }).then((r) => r.data),
 
-  // Admin approves order
-  approveOrder: (id) =>
-    api.patch(`/orders/${id}/approve`).then((r) => r.data),
+  // Admin/Manager approves order (role-aware)
+  approveOrder: (id, role) =>
+    api.patch(`/orders/${id}/approve`, { role }).then((r) => r.data),
 
-  // Admin rejects order
-  rejectOrder: (id, reason) =>
-    api.patch(`/orders/${id}/reject`, { reason }).then((r) => r.data),
+  // Admin/Manager rejects order (role-aware)
+  rejectOrder: (id, reason, role) =>
+    api.patch(`/orders/${id}/reject`, { reason, role }).then((r) => r.data),
 };
 
 

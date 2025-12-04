@@ -121,6 +121,14 @@ export default function App() {
     </ProtectedRoute>
   }
 />
+<Route
+  path="orders/approvals"
+  element={
+    <ProtectedRoute allowed={["dealer_admin", "regional_manager", "regional_admin", "super_admin"]}>
+      <AdminOrders />
+    </ProtectedRoute>
+  }
+/>
 
             {/* ============================================================
                SUPER ADMIN ONLY

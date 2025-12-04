@@ -1,6 +1,6 @@
 import React, { useContext, useState, useEffect } from "react";
-import { AuthContext } from "../context/AuthContext";
 import { Link, useLocation } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 import api from "../services/api";
 import socket from "../services/socket";
 
@@ -15,9 +15,9 @@ import {
   FaBars,
   FaBell,
   FaUpload,
+  FaMoneyCheckAlt,
+  FaMapMarkedAlt,
 } from "react-icons/fa";
-import { FaMoneyCheckAlt } from "react-icons/fa";
-import { FaMapMarkedAlt } from "react-icons/fa";
 
 export default function Sidebar() {
   const { user } = useContext(AuthContext);
@@ -29,6 +29,11 @@ export default function Sidebar() {
   const role = user?.role?.toLowerCase() || "user";
 
   // -------------------------
+  // ROLES ALLOWED TO SEE ORDER APPROVALS
+  // -------------------------
+  const orderApprovalRoles = ["super_admin", "regional_admin", "regional_manager", "dealer_admin"];
+
+  // -------------------------
   // BASE MENU LINKS
   // -------------------------
   const baseLinks = [
@@ -37,7 +42,7 @@ export default function Sidebar() {
   ];
 
   // -------------------------
-  // ROLE-BASED NAVIGATION
+  // ROLE-BASED LINKS
   // -------------------------
   const roleLinks = {
     super_admin: [
@@ -51,106 +56,56 @@ export default function Sidebar() {
       { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
       { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
       { label: "Material Alerts", path: "/alerts/materials", icon: <FaBell /> },
-
-      // ⭐ NEW MAP VIEW
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
-
     technical_admin: [
       { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
       { label: "Material Master", path: "/materials", icon: <FaCogs /> },
       { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
       { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
-
-      // ⭐ NEW MAP VIEW
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
-
     regional_admin: [
       { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
       { label: "Regions", path: "/regions", icon: <FaChartBar /> },
-
-      // ⭐ NEW MAP VIEW
-      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
-
-    finance_admin: [
-      { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-      {
-        label: "Payment Approvals",
-        path: "/payments/finance/pending",
-        icon: <FaMoneyCheckAlt />,
-      },
-      { label: "Accounts", path: "/accounts", icon: <FaUsers /> },
-    ],
-
     regional_manager: [
       { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
       { label: "Approvals", path: "/approvals", icon: <FaChartBar /> },
-
-      // ⭐ NEW MAP VIEW
-      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
-
-    area_manager: [
-      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-
-      // ⭐ NEW MAP VIEW
-      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
-    ],
-
-    territory_manager: [
-      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-
-      // ⭐ NEW MAP VIEW
-      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
-    ],
-
     dealer_admin: [
       { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
       { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
       { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-      {
-        label: "Order Approvals",
-        path: "/orders/approvals",
-        icon: <FaChartBar />,
-      },
-      {
-        label: "Payment Approvals",
-        path: "/payments/dealer/pending",
-        icon: <FaMoneyCheckAlt />,
-      },
-
-      // ⭐ NEW MAP VIEW
+      { label: "Payment Approvals", path: "/payments/dealer/pending", icon: <FaMoneyCheckAlt /> },
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
-
     dealer_staff: [
       { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
       { label: "Create Order", path: "/orders/create", icon: <FaChartBar /> },
       { label: "My Orders", path: "/orders/my", icon: <FaChartBar /> },
       { label: "Make Payment", path: "/payments/create", icon: <FaMoneyCheckAlt /> },
     ],
-
-    inventory_user: [
-      { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
-      { label: "Pricing Updates", path: "/pricing", icon: <FaChartBar /> },
-      { label: "Material Alerts", path: "/alerts/materials", icon: <FaBell /> },
-
-      // ⭐ NEW MAP VIEW (optional)
-      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
-    ],
-
-    accounts_user: [
-      { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-      { label: "Statements", path: "/statements", icon: <FaFileAlt /> },
-    ],
   };
 
+  // -------------------------
+  // BUILD FINAL LINKS ARRAY
+  // -------------------------
   const links = [...baseLinks, ...(roleLinks[role] || [])];
 
+  // Add Order Approvals link dynamically for allowed roles
+  if (orderApprovalRoles.includes(role)) {
+    links.push({
+      label: "Order Approvals",
+      path: "/orders/approvals",
+      icon: <FaChartBar />,
+    });
+  }
+
   // -------------------------
-  // UNREAD BADGE LOGIC
+  // UNREAD CHAT COUNT
   // -------------------------
   useEffect(() => {
     let mounted = true;
@@ -159,7 +114,6 @@ export default function Sidebar() {
       try {
         const res = await api.get("/chat/unread-count");
         const count = res.data.count || res.data.unread || 0;
-
         if (mounted) setUnread(count);
       } catch (err) {
         console.log("Unread fetch error:", err);
@@ -169,9 +123,7 @@ export default function Sidebar() {
     loadUnread();
 
     socket.on("message:new", () => {
-      if (pathname !== "/chat") {
-        setUnread((v) => v + 1);
-      }
+      if (pathname !== "/chat") setUnread((v) => v + 1);
     });
 
     socket.on("chat:read", () => {
@@ -185,6 +137,9 @@ export default function Sidebar() {
     };
   }, [pathname]);
 
+  // -------------------------
+  // RENDER SIDEBAR
+  // -------------------------
   return (
     <aside
       style={{
@@ -216,7 +171,6 @@ export default function Sidebar() {
             {role.toUpperCase()}
           </h3>
         )}
-
         <button
           onClick={() => setCollapsed(!collapsed)}
           style={{
@@ -232,11 +186,10 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* NAV LINKS */}
+      {/* LINKS */}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         {links.map((l) => {
           const active = pathname === l.path;
-
           return (
             <div style={{ position: "relative" }} key={l.path}>
               <Link
@@ -257,11 +210,9 @@ export default function Sidebar() {
                 }}
               >
                 <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
-
                 {!collapsed && (
                   <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span>{l.label}</span>
-
                     {l.path === "/chat" && unread > 0 && (
                       <span
                         style={{
