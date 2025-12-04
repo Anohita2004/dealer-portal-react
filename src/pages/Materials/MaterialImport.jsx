@@ -9,10 +9,24 @@ export default function MaterialImport() {
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState(null);
 
-  const downloadTemplate = () => {
-    // Try backend endpoint first, fallback to static file
-    window.open('/api/materials/template', '_blank');
-  };
+const downloadTemplate = async () => {
+  try {
+    const res = await api.get('/materials/template', {
+      responseType: 'blob' // important for files
+    });
+    const url = window.URL.createObjectURL(new Blob([res.data]));
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', 'material_template.xlsx');
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+  } catch (err) {
+    console.error(err);
+    alert('Failed to download template');
+  }
+};
+
 
   const onFileChange = (e) => {
     setFile(e.target.files[0] || null);
