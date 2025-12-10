@@ -1,57 +1,94 @@
 // src/services/socket.js
 import { io } from "socket.io-client";
 
-const BASE_URL = import.meta.env.VITE_API_URL.replace("/api", "");
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
 
-// 🔥 Initialize socket
-const socket = io(BASE_URL, {
-  transports: ["websocket"],
-  auth: {
-    token: localStorage.getItem("token"),
-  },
-  reconnection: true,
-});
+let socket = null;
 
-// 🔥 When socket connects, authenticate with backend  
-socket.on("connect", () => {
-  try {
-    const user = JSON.parse(localStorage.getItem("user"));
-    if (!user) return;
+// =========================================================
+// INITIALIZE SOCKET
+// =========================================================
+export const connectSocket = () => {
+  const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user") || "null");
 
-    socket.emit("authenticate", {
-      userId: user.id,
-      role: user.role, // role string like "dealer_admin"
+  if (!token || !user) return null;
+
+  if (!socket || !socket.connected) {
+    socket = io(SOCKET_URL, {
+      auth: { token },
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000
     });
 
-    console.log("🔐 Socket authenticated:", user.id, user.role);
-  } catch (err) {
-    console.error("Socket auth error:", err);
+    socket.on("connect", () => {
+      console.log("🔌 Socket Connected:", socket.id);
+      socket.emit("authenticate", {
+        userId: user.id,
+        role: user.role,
+        username: user.username
+      });
+    });
   }
-});
 
-// 👉 Join a specific chat (1-to-1)
-export const joinChatRoom = (user1, user2) => {
-  socket.emit("join_chat", { user1, user2 });
+  return socket;
 };
 
-// 👉 Leave chat room
-export const leaveChatRoom = (user1, user2) => {
-  socket.emit("leave_chat", { user1, user2 });
+// =========================================================
+// SAFE ACCESSOR
+// =========================================================
+export const getSocket = () => {
+  if (!socket) socket = connectSocket();  // <-- AUTO INITIALIZE SAFELY
+  return socket;
 };
 
-// 👉 Send message
-export const sendChatMessage = (msg) => {
-  socket.emit("send_message", msg);
+export const disconnectSocket = () => {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
 };
 
-// 👉 Listen to messages (used inside ChatUI)
-export const onReceiveMessage = (callback) => {
-  socket.on("receive_message", callback);
-};
+// =========================================================
+// EVENTS (no change, this is fine)
+// =========================================================
+export const joinChatRoom = (u1, u2) => getSocket()?.emit("join_chat", { u1, u2 });
+export const leaveChatRoom = (u1, u2) => getSocket()?.emit("leave_chat", { u1, u2 });
+export const sendChatMessage = (msg) => getSocket()?.emit("send_message", msg);
 
-// 👉 Listen to notifications
-export const onNewMessageNotification = (callback) => {
-  socket.on("new_message_notification", callback);
-};
+export const onReceiveMessage = cb => getSocket()?.on("receive_message", cb);
+export const offReceiveMessage = () => getSocket()?.off("receive_message");
 
-export default socket;
+export const onNewMessageNotification = cb => getSocket()?.on("new_message_notification", cb);
+export const onTyping = cb => getSocket()?.on("typing", cb);
+
+export const onUserOnline = cb => getSocket()?.on("user_online", cb);
+export const onUserOffline = cb => getSocket()?.on("user_offline", cb);
+
+export const onNewNotification = cb => getSocket()?.on("notification:new", cb);
+export const offNewNotification = () => getSocket()?.off("notification:new");
+
+// dynamic event shortcuts
+export const onEvent = (e, cb) => getSocket()?.on(e, cb);
+export const offEvent = (e) => getSocket()?.off(e);
+
+export const emitEvent = (e, data) => getSocket()?.emit(e, data);
+
+export const isSocketConnected = () => getSocket()?.connected || false;
+export const getSocketId = () => getSocket()?.id;
+
+// 🚨 REMOVED THIS ↓
+// export default socket;
+
+// Instead ⬇ ensures no null import
+export default {
+  connectSocket,
+  getSocket,
+  disconnectSocket,
+  sendChatMessage,
+  onReceiveMessage,
+  onTyping,
+  emitEvent
+};

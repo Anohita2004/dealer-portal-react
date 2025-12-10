@@ -55,6 +55,9 @@ import MaterialAlerts from "./pages/Alerts/MaterialAlerts";
 import RegionMap from "./pages/maps/RegionMaps";
 
 
+import MyPaymentRequests from "./pages/payments/MyPaymentRequest";
+
+
 export default function App() {
   return (
     <AuthProvider>
@@ -429,6 +432,23 @@ export default function App() {
   }
 />
 
+<Route
+  path="payments/create"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <CreatePaymentRequest />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="payments/my"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <MyPaymentRequests />
+    </ProtectedRoute>
+  }
+/>
 
 
 

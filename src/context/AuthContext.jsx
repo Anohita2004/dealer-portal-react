@@ -1,5 +1,6 @@
 import React, { createContext, useState, useContext, useEffect } from "react";
 import api from "../services/api";
+import { connectSocket, disconnectSocket } from "../services/socket";
 
 export const AuthContext = createContext();
 
@@ -8,25 +9,53 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem("token") || null);
   const [loading, setLoading] = useState(false);
 
+  // Connect socket on mount if user is already logged in
+  useEffect(() => {
+    if (user && token) {
+      connectSocket();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      disconnectSocket();
+    };
+  }, []);
+
   const login = async (username, password) => {
-    const res = await api.post("/auth/login", { username, password });
-    return res.data;
+    setLoading(true);
+    try {
+      const res = await api.post("/auth/login", { username, password });
+      return res.data;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const verifyOTP = async (userId, otp) => {
-    const res = await api.post("/auth/verify-otp", { userId, otp });
-    const { token, user } = res.data;
+    setLoading(true);
+    try {
+      const res = await api.post("/auth/verify-otp", { userId, otp });
+      const { token, user } = res.data;
 
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
 
-    setToken(token);
-    setUser(user);
+      setToken(token);
+      setUser(user);
 
-    return user;
+      // Connect socket after successful authentication
+      connectSocket();
+
+      return user;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
+    // Disconnect socket before clearing data
+    disconnectSocket();
+
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);

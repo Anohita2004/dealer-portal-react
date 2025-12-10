@@ -1,88 +1,68 @@
+// src/pages/payments/FinancePendingPayments.jsx
 import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Typography,
-  Table,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-  Button,
-  Card,
-  CardContent
-} from "@mui/material";
 import api from "../../services/api";
+import { toast } from "react-toastify";
 
-export default function FinancePendingPayments() {
-  const [payments, setPayments] = useState([]);
+export default function FinancePendingPayments({ currentUserStage = "finance_admin" }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [remarks, setRemarks] = useState({});
 
-  const loadData = async () => {
-    const res = await api.get("/payments/pending");
-    setPayments(res.data.pending);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/payment/pending");
+      setRows(res.data.requests || res.data || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const act = async (id, action) => {
+    try {
+      await api.post(`/payment/${id}/${action}`, { remarks: remarks[id] || "" });
+      toast.success(`${action}ed`);
+      setRows(rows.filter(r => r.id !== id));
+    } catch (e) { console.error(e); toast.error("Failed"); }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const reviewPayment = async (id, action) => {
-    await api.post(`/payments/${id}/review`, { action });
-    loadData();
+  const reconcile = async () => {
+    try {
+      await api.post("/payment/reconcile/trigger");
+      toast.success("Reconcile triggered");
+      load();
+    } catch (e) { console.error(e); toast.error("Failed"); }
   };
 
   return (
-    <Box p={3}>
-      <Typography variant="h5" mb={3}>
-        Finance Pending Payment Approvals
-      </Typography>
-
-      <Card>
-        <CardContent>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Dealer</TableCell>
-                <TableCell>Invoice</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Proof</TableCell>
-                <TableCell>Action</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {payments.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>{p.Dealer?.name}</TableCell>
-                  <TableCell>{p.Invoice?.invoiceNumber}</TableCell>
-                  <TableCell>₹{p.amount}</TableCell>
-                  <TableCell>
-                    {p.proofFile && (
-                      <a href={p.proofFile} target="_blank" rel="noreferrer">
-                        View
-                      </a>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      sx={{ mr: 1 }}
-                      color="success"
-                      onClick={() => reviewPayment(p.id, "approve")}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      color="error"
-                      onClick={() => reviewPayment(p.id, "reject")}
-                    >
-                      Reject
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </Box>
+    <div>
+      <h2>Finance — Pending Payments</h2>
+      <div style={{ marginBottom: 12 }}>
+        <button onClick={reconcile}>Trigger Auto-Reconcile</button>
+      </div>
+      <table style={{ width: "100%" }}>
+        <thead><tr><th>Invoice</th><th>Dealer</th><th>Amount</th><th>Proof</th><th>Remarks</th><th>Actions</th></tr></thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.id}>
+              <td>{r.invoiceNumber}</td>
+              <td>{r.dealerName}</td>
+              <td>{r.amount}</td>
+              <td>{r.proofUrl ? <a href={r.proofUrl} target="_blank" rel="noreferrer">View</a> : "—"}</td>
+              <td><input value={remarks[r.id] || ""} onChange={(e) => setRemarks({ ...remarks, [r.id]: e.target.value })} placeholder="remarks" /></td>
+              <td>
+                {r.currentStage === currentUserStage ? (
+                  <>
+                    <button onClick={() => act(r.id, "approve")}>Approve</button>
+                    <button onClick={() => act(r.id, "reject")}>Reject</button>
+                  </>
+                ) : "Not your stage"}
+              </td>
+            </tr>
+          ))}
+          {rows.length === 0 && <tr><td colSpan={6}>No pending payments</td></tr>}
+        </tbody>
+      </table>
+    </div>
   );
 }

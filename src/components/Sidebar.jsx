@@ -2,7 +2,7 @@ import React, { useContext, useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import api from "../services/api";
-import socket from "../services/socket";
+import { getSocket, connectSocket } from "../services/socket";   // ← FIXED IMPORT
 
 import {
   FaHome,
@@ -28,22 +28,13 @@ export default function Sidebar() {
 
   const role = user?.role?.toLowerCase() || "user";
 
-  // -------------------------
-  // ROLES ALLOWED TO SEE ORDER APPROVALS
-  // -------------------------
   const orderApprovalRoles = ["super_admin", "regional_admin", "regional_manager", "dealer_admin"];
 
-  // -------------------------
-  // BASE MENU LINKS
-  // -------------------------
   const baseLinks = [
     { path: "/dashboard", label: "Dashboard", icon: <FaHome /> },
     { path: "/chat", label: "Chat", icon: <FaUsers /> },
   ];
 
-  // -------------------------
-  // ROLE-BASED LINKS
-  // -------------------------
   const roleLinks = {
     super_admin: [
       { label: "Users", path: "/users", icon: <FaUsers /> },
@@ -88,152 +79,80 @@ export default function Sidebar() {
       { label: "My Orders", path: "/orders/my", icon: <FaChartBar /> },
       { label: "Make Payment", path: "/payments/create", icon: <FaMoneyCheckAlt /> },
     ],
+    finance_admin: [
+      { label: "Payment Approvals", path: "/payments/finance/pending", icon: <FaMoneyCheckAlt /> }
+    ],
   };
 
-  // -------------------------
-  // BUILD FINAL LINKS ARRAY
-  // -------------------------
   const links = [...baseLinks, ...(roleLinks[role] || [])];
 
-  // Add Order Approvals link dynamically for allowed roles
   if (orderApprovalRoles.includes(role)) {
-    links.push({
-      label: "Order Approvals",
-      path: "/orders/approvals",
-      icon: <FaChartBar />,
-    });
+    links.push({ label: "Order Approvals", path: "/orders/approvals", icon: <FaChartBar /> });
   }
 
-  // -------------------------
-  // UNREAD CHAT COUNT
-  // -------------------------
+  // -----  UNREAD CHAT LISTENER FIXED COMPLETELY  -----
   useEffect(() => {
     let mounted = true;
+    const s = getSocket() || connectSocket();
 
-    const loadUnread = async () => {
-      try {
-        const res = await api.get("/chat/unread-count");
-        const count = res.data.count || res.data.unread || 0;
-        if (mounted) setUnread(count);
-      } catch (err) {
-        console.log("Unread fetch error:", err);
-      }
-    };
+    if (!s) return;
 
-    loadUnread();
+    api.get("/chat/unread-count")
+      .then(res => mounted && setUnread(res.data.count || 0))
+      .catch(() => null);
 
-    socket.on("message:new", () => {
-      if (pathname !== "/chat") setUnread((v) => v + 1);
-    });
+    const msg = () => pathname !== "/chat" && setUnread(prev => prev + 1);
+    const read = () => mounted && setUnread(0);
 
-    socket.on("chat:read", () => {
-      if (mounted) setUnread(0);
-    });
+    s.on("message:new", msg);
+    s.on("chat:read", read);
 
     return () => {
       mounted = false;
-      socket.off("message:new");
-      socket.off("chat:read");
+      s.off("message:new", msg);
+      s.off("chat:read", read);
     };
   }, [pathname]);
 
-  // -------------------------
-  // RENDER SIDEBAR
-  // -------------------------
   return (
-    <aside
-      style={{
-        width: collapsed ? "70px" : "240px",
-        background: "var(--sidebar-bg)",
-        backdropFilter: "blur(14px)",
-        borderRight: "1px solid var(--card-border)",
-        padding: "1rem",
-        display: "flex",
-        flexDirection: "column",
-        transition: "width 0.3s ease",
-        overflowY: "auto",
-        overflowX: "hidden",
-      }}
-    >
-      {/* HEADER */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: collapsed ? "center" : "space-between",
-          alignItems: "center",
-          marginBottom: "2rem",
-          paddingBottom: "1rem",
-          borderBottom: "1px solid var(--card-border)",
-        }}
-      >
-        {!collapsed && (
-          <h3 style={{ color: "#f97316", fontWeight: "700" }}>
-            {role.toUpperCase()}
-          </h3>
-        )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          style={{
-            background: "var(--card-bg)",
-            border: "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.5rem",
-            cursor: "pointer",
-            color: "var(--text-color)",
-          }}
-        >
+    <aside style={{
+      width: collapsed ? "70px" : "240px",
+      background: "var(--sidebar-bg)",
+      borderRight: "1px solid var(--card-border)",
+      padding: "1rem",
+      display: "flex",
+      flexDirection: "column",
+      transition: "width .3s",
+      overflowY: "auto"
+    }}>
+      <div style={{display:"flex",justifyContent:collapsed?"center":"space-between",alignItems:"center",marginBottom:"1.5rem"}}>
+        {!collapsed && <h3 style={{color:"#f97316",fontWeight:"700"}}>{role.toUpperCase()}</h3>}
+        <button onClick={()=>setCollapsed(!collapsed)} style={{padding:"6px",borderRadius:"6px"}}>
           <FaBars />
         </button>
       </div>
 
-      {/* LINKS */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        {links.map((l) => {
-          const active = pathname === l.path;
-          return (
-            <div style={{ position: "relative" }} key={l.path}>
-              <Link
-                to={l.path}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: collapsed ? "0" : "0.75rem",
-                  padding: "0.75rem 1rem",
-                  borderRadius: "10px",
-                  color: active ? "#f97316" : "var(--text-color)",
-                  textDecoration: "none",
-                  background: active
-                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
-                    : "transparent",
-                  fontWeight: active ? "600" : "400",
-                  transition: "0.25s ease",
-                }}
-              >
-                <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
-                {!collapsed && (
-                  <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span>{l.label}</span>
-                    {l.path === "/chat" && unread > 0 && (
-                      <span
-                        style={{
-                          background: "#ef4444",
-                          color: "white",
-                          padding: "2px 8px",
-                          borderRadius: 999,
-                          fontSize: "12px",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {unread > 99 ? "99+" : unread}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </Link>
-            </div>
-          );
-        })}
-      </div>
+      {links.map(l=>(
+        <Link key={l.path} to={l.path}
+          style={{
+            display:"flex",alignItems:"center",gap:"10px",
+            padding:"10px",borderRadius:"8px",
+            color:pathname===l.path?"#f97316":"var(--text-color)",
+            fontWeight:pathname===l.path?600:400
+          }}>
+          <span>{l.icon}</span>
+          {!collapsed && (
+            <span style={{display:"flex",alignItems:"center",gap:"6px"}}>
+              {l.label}
+              {l.path==="/chat" && unread>0 && (
+                <span style={{background:"#ef4444",color:"#fff",padding:"1px 7px",borderRadius:"999px",fontSize:"11px"}}>
+                  {unread>99?"99+":unread}
+                </span>
+              )}
+            </span>
+          )}
+        </Link>
+      ))}
     </aside>
   );
 }

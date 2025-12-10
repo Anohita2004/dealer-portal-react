@@ -1,8 +1,8 @@
 import React, { createContext, useState, useEffect, useContext } from "react";
-import socket from "../services/socket";
-import api from "../services/api";
+import { getSocket, onNewNotification, offNewNotification } from "../services/socket";
+import { notificationAPI } from "../services/api";
 import { toast } from "react-toastify";
-import { AuthContext } from "./AuthContext"; // ✅ ensure AuthContext exists
+import { AuthContext } from "./AuthContext";
 
 export const NotificationContext = createContext();
 
@@ -10,49 +10,118 @@ export const NotificationProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
   const [notifications, setNotifications] = useState([]);
   const [unread, setUnread] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch notifications from backend
+  const fetchNotifications = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      const data = await notificationAPI.getNotifications();
+      setNotifications(data.notifications || data || []);
+      
+      // Count unread notifications
+      const unreadCount = Array.isArray(data.notifications || data)
+        ? (data.notifications || data).filter((n) => !n.isRead && !n.read).length
+        : 0;
+      setUnread(unreadCount);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+      toast.error("Failed to load notifications");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
 
-    // 1️⃣ Fetch saved notifications from backend
-    const fetchNotifications = async () => {
-      try {
-        const res = await api.get("/notifications");
-        setNotifications(res.data.notifications || []);
-        setUnread(res.data.notifications.filter((n) => !n.isRead).length);
-      } catch (err) {
-        console.error("Failed to fetch notifications", err);
-      }
-    };
+    // Fetch initial notifications
     fetchNotifications();
 
-    // 2️⃣ Authenticate socket
-    socket.emit("authenticate", { userId: user.id, role: user.role });
+    // Set up real-time notification listener
+    const handleNewNotification = (data) => {
+      console.log("📩 New notification received:", data);
+      
+      // Show toast notification
+      toast.info(data.message || `${data.title}: ${data.body}`, {
+        position: "top-right",
+        autoClose: 5000,
+      });
 
-    // 3️⃣ Listen for real-time notifications
-    socket.on("notification", (data) => {
-      toast.info(`${data.title}: ${data.message}`);
+      // Add to notifications list
       setNotifications((prev) => [data, ...prev]);
       setUnread((prev) => prev + 1);
-    });
+    };
 
-    return () => socket.off("notification");
+    onNewNotification(handleNewNotification);
+
+    // Cleanup
+    return () => {
+      offNewNotification();
+    };
   }, [user]);
 
+  // Mark all notifications as read
   const markAllAsRead = async () => {
     try {
-      await api.patch("/notifications/read-all");
+      await notificationAPI.markAllRead();
       setUnread(0);
       setNotifications((prev) =>
-        prev.map((n) => ({ ...n, isRead: true }))
+        prev.map((n) => ({ ...n, isRead: true, read: true }))
       );
+      toast.success("All notifications marked as read");
     } catch (err) {
-      console.error("Failed to mark notifications read", err);
+      console.error("Failed to mark notifications read:", err);
+      toast.error("Failed to mark notifications as read");
     }
   };
 
+  // Mark single notification as read
+  const markAsRead = async (notificationId) => {
+    try {
+      await notificationAPI.markNotificationRead(notificationId);
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notificationId ? { ...n, isRead: true, read: true } : n
+        )
+      );
+      setUnread((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error("Failed to mark notification read:", err);
+    }
+  };
+
+  // Delete notification
+  const deleteNotification = async (notificationId) => {
+    try {
+      await notificationAPI.deleteNotification(notificationId);
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      toast.success("Notification deleted");
+    } catch (err) {
+      console.error("Failed to delete notification:", err);
+      toast.error("Failed to delete notification");
+    }
+  };
+
+  // Refresh notifications
+  const refreshNotifications = () => {
+    fetchNotifications();
+  };
+
   return (
-    <NotificationContext.Provider value={{ notifications, unread, markAllAsRead }}>
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        unread,
+        loading,
+        markAllAsRead,
+        markAsRead,
+        deleteNotification,
+        refreshNotifications,
+      }}
+    >
       {children}
     </NotificationContext.Provider>
   );

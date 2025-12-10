@@ -126,6 +126,7 @@ src/pages/OTPVerify.jsx
 src/pages/payments/CreatePaymentRequest.jsx
 src/pages/payments/DealerAdminPayments.jsx
 src/pages/payments/FinancePendingPayments.jsx
+src/pages/payments/MyPaymentRequest.jsx
 src/pages/PricingApprovals.jsx
 src/pages/Reports.jsx
 src/pages/reports/AccountStatementReport.jsx
@@ -153,6 +154,80 @@ vite.config.js
 
 <files>
 This section contains the contents of the repository's files.
+
+<file path="src/pages/payments/MyPaymentRequest.jsx">
+// src/pages/payments/MyPaymentRequests.jsx
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import { format } from "date-fns";
+
+const Badge = ({ status }) => {
+  const color = status === "approved" ? "#16a34a" : status === "rejected" ? "#dc2626" : "#f59e0b";
+  return <span style={{ padding: "6px 10px", borderRadius: 999, background: `${color}22`, color, fontWeight: 600 }}>{status}</span>;
+};
+
+export default function MyPaymentRequests() {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/payment/mine");
+      setRows(res.data.requests || res.data || []);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const canEdit = (r) => r.status === "pending";
+
+  const downloadProof = (r) => {
+    if (!r.proofUrl) return;
+    window.open(r.proofUrl, "_blank");
+  };
+
+  return (
+    <div>
+      <h2>My Payment Requests</h2>
+      {loading ? <p>Loading…</p> : null}
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            <th>Invoice</th><th>Amount</th><th>Status</th><th>Stage</th><th>Proof</th><th>Actions</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => (
+            <tr key={r.id}>
+              <td>{r.invoiceNumber || r.invoice?.invoiceNumber}</td>
+              <td>{r.amount}</td>
+              <td><Badge status={r.status} /></td>
+              <td>{r.currentStage || r.approvalStage || "dealer_admin"}</td>
+              <td>{r.proofUrl ? <button onClick={() => downloadProof(r)}>View</button> : "—"}</td>
+              <td>
+                {canEdit(r) && <button onClick={async () => {
+                  // allow cancel/edit flow - example: cancel
+                  if (!confirm("Cancel this request?")) return;
+                  try {
+                    await api.post(`/payment/${r.id}/cancel`);
+                    setRows(rows.filter(x => x.id !== r.id));
+                  } catch (e) { console.error(e); alert("Failed"); }
+                }}>Cancel</button>}
+              </td>
+            </tr>
+          ))}
+          {rows.length === 0 && <tr><td colSpan={6}>No payment requests yet.</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+</file>
 
 <file path=".gitignore">
 # Logs
@@ -235,27 +310,6 @@ export default defineConfig([
 
 <file path="public/vite.svg">
 <svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="31.88" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 257"><defs><linearGradient id="IconifyId1813088fe1fbc01fb466" x1="-.828%" x2="57.636%" y1="7.652%" y2="78.411%"><stop offset="0%" stop-color="#41D1FF"></stop><stop offset="100%" stop-color="#BD34FE"></stop></linearGradient><linearGradient id="IconifyId1813088fe1fbc01fb467" x1="43.376%" x2="50.316%" y1="2.242%" y2="89.03%"><stop offset="0%" stop-color="#FFEA83"></stop><stop offset="8.333%" stop-color="#FFDD35"></stop><stop offset="100%" stop-color="#FFA800"></stop></linearGradient></defs><path fill="url(#IconifyId1813088fe1fbc01fb466)" d="M255.153 37.938L134.897 252.976c-2.483 4.44-8.862 4.466-11.382.048L.875 37.958c-2.746-4.814 1.371-10.646 6.827-9.67l120.385 21.517a6.537 6.537 0 0 0 2.322-.004l117.867-21.483c5.438-.991 9.574 4.796 6.877 9.62Z"></path><path fill="url(#IconifyId1813088fe1fbc01fb467)" d="M185.432.063L96.44 17.501a3.268 3.268 0 0 0-2.634 3.014l-5.474 92.456a3.268 3.268 0 0 0 3.997 3.378l24.777-5.718c2.318-.535 4.413 1.507 3.936 3.838l-7.361 36.047c-.495 2.426 1.782 4.5 4.151 3.78l15.304-4.649c2.372-.72 4.652 1.36 4.15 3.788l-11.698 56.621c-.732 3.542 3.979 5.473 5.943 2.437l1.313-2.028l72.516-144.72c1.215-2.423-.88-5.186-3.54-4.672l-25.505 4.922c-2.396.462-4.435-1.77-3.759-4.114l16.646-57.705c.677-2.35-1.37-4.583-3.769-4.113Z"></path></svg>
-</file>
-
-<file path="README.md">
-# React + Vite
-
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
-
-Currently, two official plugins are available:
-
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Babel](https://babeljs.io/) (or [oxc](https://oxc.rs) when used in [rolldown-vite](https://vite.dev/guide/rolldown)) for Fast Refresh
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/) for Fast Refresh
-
-## React Compiler
-
-The React Compiler is enabled on this template. See [this documentation](https://react.dev/learn/react-compiler) for more information.
-
-Note: This will impact Vite dev & build performances.
-
-## Expanding the ESLint configuration
-
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
 </file>
 
 <file path="src/App.css">
@@ -1054,10 +1108,10 @@ export default function Toolbar({ children, right }) {
 
 <file path="src/context/NotificationContext.jsx">
 import React, { createContext, useState, useEffect, useContext } from "react";
-import socket from "../services/socket";
-import api from "../services/api";
+import { getSocket, onNewNotification, offNewNotification } from "../services/socket";
+import { notificationAPI } from "../services/api";
 import { toast } from "react-toastify";
-import { AuthContext } from "./AuthContext"; // ✅ ensure AuthContext exists
+import { AuthContext } from "./AuthContext";
 
 export const NotificationContext = createContext();
 
@@ -1065,49 +1119,118 @@ export const NotificationProvider = ({ children }) => {
   const { user } = useContext(AuthContext);
   const [notifications, setNotifications] = useState([]);
   const [unread, setUnread] = useState(0);
+  const [loading, setLoading] = useState(false);
+
+  // Fetch notifications from backend
+  const fetchNotifications = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      const data = await notificationAPI.getNotifications();
+      setNotifications(data.notifications || data || []);
+      
+      // Count unread notifications
+      const unreadCount = Array.isArray(data.notifications || data)
+        ? (data.notifications || data).filter((n) => !n.isRead && !n.read).length
+        : 0;
+      setUnread(unreadCount);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+      toast.error("Failed to load notifications");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   useEffect(() => {
     if (!user) return;
 
-    // 1️⃣ Fetch saved notifications from backend
-    const fetchNotifications = async () => {
-      try {
-        const res = await api.get("/notifications");
-        setNotifications(res.data.notifications || []);
-        setUnread(res.data.notifications.filter((n) => !n.isRead).length);
-      } catch (err) {
-        console.error("Failed to fetch notifications", err);
-      }
-    };
+    // Fetch initial notifications
     fetchNotifications();
 
-    // 2️⃣ Authenticate socket
-    socket.emit("authenticate", { userId: user.id, role: user.role });
+    // Set up real-time notification listener
+    const handleNewNotification = (data) => {
+      console.log("📩 New notification received:", data);
+      
+      // Show toast notification
+      toast.info(data.message || `${data.title}: ${data.body}`, {
+        position: "top-right",
+        autoClose: 5000,
+      });
 
-    // 3️⃣ Listen for real-time notifications
-    socket.on("notification", (data) => {
-      toast.info(`${data.title}: ${data.message}`);
+      // Add to notifications list
       setNotifications((prev) => [data, ...prev]);
       setUnread((prev) => prev + 1);
-    });
+    };
 
-    return () => socket.off("notification");
+    onNewNotification(handleNewNotification);
+
+    // Cleanup
+    return () => {
+      offNewNotification();
+    };
   }, [user]);
 
+  // Mark all notifications as read
   const markAllAsRead = async () => {
     try {
-      await api.patch("/notifications/read-all");
+      await notificationAPI.markAllRead();
       setUnread(0);
       setNotifications((prev) =>
-        prev.map((n) => ({ ...n, isRead: true }))
+        prev.map((n) => ({ ...n, isRead: true, read: true }))
       );
+      toast.success("All notifications marked as read");
     } catch (err) {
-      console.error("Failed to mark notifications read", err);
+      console.error("Failed to mark notifications read:", err);
+      toast.error("Failed to mark notifications as read");
     }
   };
 
+  // Mark single notification as read
+  const markAsRead = async (notificationId) => {
+    try {
+      await notificationAPI.markNotificationRead(notificationId);
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notificationId ? { ...n, isRead: true, read: true } : n
+        )
+      );
+      setUnread((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error("Failed to mark notification read:", err);
+    }
+  };
+
+  // Delete notification
+  const deleteNotification = async (notificationId) => {
+    try {
+      await notificationAPI.deleteNotification(notificationId);
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      toast.success("Notification deleted");
+    } catch (err) {
+      console.error("Failed to delete notification:", err);
+      toast.error("Failed to delete notification");
+    }
+  };
+
+  // Refresh notifications
+  const refreshNotifications = () => {
+    fetchNotifications();
+  };
+
   return (
-    <NotificationContext.Provider value={{ notifications, unread, markAllAsRead }}>
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        unread,
+        loading,
+        markAllAsRead,
+        markAsRead,
+        deleteNotification,
+        refreshNotifications,
+      }}
+    >
       {children}
     </NotificationContext.Provider>
   );
@@ -2047,37 +2170,450 @@ export default function RegionalAdminDashboard() {
 </file>
 
 <file path="src/pages/dashboards/RegionalManagerDashboard.jsx">
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { dashboardAPI, orderAPI, pricingAPI } from "../../services/api";
 import PageHeader from "../../components/PageHeader";
 import StatCard from "../../components/StatCard";
 import Card from "../../components/Card";
+import Chart from "react-apexcharts";
 import "./DashboardLayout.css";
+import { 
+  TrendingUp, 
+  Users, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle,
+  MapPin,
+  FileText,
+  DollarSign
+} from "lucide-react";
 
 export default function RegionalManagerDashboard() {
-  const summary = { dealers: 28, approvals: 5, visits: 2 };
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalDealers: 0,
+    pendingApprovals: 0,
+    upcomingVisits: 0,
+    activeOrders: 0,
+    monthlyRevenue: 0,
+    approvalRate: 0,
+  });
+  const [pendingItems, setPendingItems] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [performanceData, setPerformanceData] = useState([]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch manager summary
+      const summaryRes = await dashboardAPI.getManagerSummary();
+      setStats({
+        totalDealers: summaryRes.totalDealers || 0,
+        pendingApprovals: summaryRes.pendingApprovals || 0,
+        upcomingVisits: summaryRes.upcomingVisits || 0,
+        activeOrders: summaryRes.activeOrders || 0,
+        monthlyRevenue: summaryRes.monthlyRevenue || 0,
+        approvalRate: summaryRes.approvalRate || 0,
+      });
+
+      // Fetch pending approvals
+      const approvalsRes = await dashboardAPI.getManagerApprovalQueue();
+      setPendingItems(approvalsRes.items || []);
+
+      // Fetch performance data for chart
+      setPerformanceData(summaryRes.performanceData || [
+        { month: "Jan", revenue: 45000 },
+        { month: "Feb", revenue: 52000 },
+        { month: "Mar", revenue: 48000 },
+        { month: "Apr", revenue: 61000 },
+        { month: "May", revenue: 55000 },
+        { month: "Jun", revenue: 67000 },
+      ]);
+
+      setRecentActivity(summaryRes.recentActivity || []);
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+      // Set fallback data
+      setStats({
+        totalDealers: 28,
+        pendingApprovals: 5,
+        upcomingVisits: 2,
+        activeOrders: 18,
+        monthlyRevenue: 245000,
+        approvalRate: 92,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprovalAction = async (itemId, action) => {
+    try {
+      await orderAPI.approveOrder(itemId, { action });
+      fetchDashboardData(); // Refresh data
+    } catch (error) {
+      console.error(`Failed to ${action} item:`, error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ padding: "2rem", textAlign: "center" }}>
+        <div className="spinner">Loading dashboard...</div>
+      </div>
+    );
+  }
 
   return (
-    <div style={{ padding: "1rem" }}>
-      <PageHeader title="Regional Manager Dashboard" subtitle="Operations and approvals for your region" />
+    <div style={{ padding: "1.5rem", maxWidth: "1400px", margin: "0 auto" }}>
+      <PageHeader 
+        title="Regional Manager Dashboard" 
+        subtitle="Operations and approvals for your region"
+      />
 
-      <div className="stat-grid">
-        <StatCard title="Dealers" value={summary.dealers} />
-        <StatCard title="Pending Approvals" value={summary.approvals} />
-        <StatCard title="Upcoming Visits" value={summary.visits} />
+      {/* KPI Cards Grid */}
+      <div className="stat-grid" style={{ marginBottom: "2rem" }}>
+        <StatCard 
+          title="Total Dealers" 
+          value={stats.totalDealers}
+          icon={<Users size={24} />}
+          trend="+3 this month"
+          color="#3b82f6"
+        />
+        <StatCard 
+          title="Pending Approvals" 
+          value={stats.pendingApprovals}
+          icon={<Clock size={24} />}
+          color="#f59e0b"
+          onClick={() => navigate("/orders/approvals")}
+        />
+        <StatCard 
+          title="Upcoming Visits" 
+          value={stats.upcomingVisits}
+          icon={<MapPin size={24} />}
+          color="#8b5cf6"
+        />
+        <StatCard 
+          title="Active Orders" 
+          value={stats.activeOrders}
+          icon={<TrendingUp size={24} />}
+          trend="+12% vs last month"
+          color="#10b981"
+        />
+        <StatCard 
+          title="Monthly Revenue" 
+          value={`₹${(stats.monthlyRevenue / 1000).toFixed(0)}K`}
+          icon={<DollarSign size={24} />}
+          trend="+8.5%"
+          color="#06b6d4"
+        />
+        <StatCard 
+          title="Approval Rate" 
+          value={`${stats.approvalRate}%`}
+          icon={<CheckCircle size={24} />}
+          color="#22c55e"
+        />
       </div>
 
-      <div className="dashboard-grid">
-        <div className="column">
-          <Card title="Approvals">
-            <p className="text-muted">Approve dealer documents and pricing requests.</p>
-          </Card>
-        </div>
+      {/* Main Content Grid */}
+      <div style={{ 
+        display: "grid", 
+        gridTemplateColumns: "repeat(auto-fit, minmax(450px, 1fr))", 
+        gap: "1.5rem",
+        marginBottom: "2rem"
+      }}>
+        {/* Performance Chart */}
+        <Card title="Regional Performance" icon={<TrendingUp size={20} />}>
+          <Chart
+            type="area"
+            height={280}
+            series={[{
+              name: "Revenue",
+              data: performanceData.map(d => d.revenue)
+            }]}
+            options={{
+              chart: {
+                toolbar: { show: false },
+                sparkline: { enabled: false }
+              },
+              colors: ["#3b82f6"],
+              stroke: { curve: "smooth", width: 3 },
+              fill: {
+                type: "gradient",
+                gradient: {
+                  shadeIntensity: 1,
+                  opacityFrom: 0.5,
+                  opacityTo: 0.1,
+                }
+              },
+              xaxis: {
+                categories: performanceData.map(d => d.month),
+                labels: { style: { colors: "#94a3b8" } }
+              },
+              yaxis: {
+                labels: { 
+                  style: { colors: "#94a3b8" },
+                  formatter: (val) => `₹${(val / 1000).toFixed(0)}K`
+                }
+              },
+              tooltip: {
+                theme: "dark",
+                y: {
+                  formatter: (val) => `₹${val.toLocaleString()}`
+                }
+              },
+              grid: {
+                borderColor: "rgba(148, 163, 184, 0.1)"
+              }
+            }}
+          />
+        </Card>
 
-        <div className="column">
-          <Card title="Region Activity">
-            <p className="text-muted">Summary of dealer activity and alerts.</p>
-          </Card>
+        {/* Pending Approvals */}
+        <Card title="Pending Approvals" icon={<FileText size={20} />}>
+          {pendingItems.length === 0 ? (
+            <div style={{ 
+              textAlign: "center", 
+              padding: "2rem",
+              color: "var(--text-secondary)" 
+            }}>
+              <CheckCircle size={48} style={{ opacity: 0.3, marginBottom: "1rem" }} />
+              <p>No pending approvals</p>
+            </div>
+          ) : (
+            <div style={{ maxHeight: "280px", overflowY: "auto" }}>
+              {pendingItems.slice(0, 5).map((item, idx) => (
+                <div 
+                  key={idx}
+                  style={{
+                    padding: "0.75rem",
+                    borderBottom: "1px solid var(--card-border)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{item.title || `Order #${item.id}`}</div>
+                    <div style={{ 
+                      fontSize: "0.85rem", 
+                      color: "var(--text-secondary)" 
+                    }}>
+                      {item.dealer || "Unknown"} • {item.type || "Order"}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button
+                      onClick={() => handleApprovalAction(item.id, "approve")}
+                      style={{
+                        padding: "0.25rem 0.75rem",
+                        borderRadius: "6px",
+                        border: "none",
+                        background: "#22c55e",
+                        color: "#fff",
+                        cursor: "pointer",
+                        fontSize: "0.85rem"
+                      }}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleApprovalAction(item.id, "reject")}
+                      style={{
+                        padding: "0.25rem 0.75rem",
+                        borderRadius: "6px",
+                        border: "none",
+                        background: "#ef4444",
+                        color: "#fff",
+                        cursor: "pointer",
+                        fontSize: "0.85rem"
+                      }}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {pendingItems.length > 5 && (
+            <button
+              onClick={() => navigate("/orders/approvals")}
+              style={{
+                width: "100%",
+                marginTop: "0.75rem",
+                padding: "0.5rem",
+                background: "transparent",
+                border: "1px solid var(--card-border)",
+                borderRadius: "6px",
+                cursor: "pointer",
+                color: "var(--text-primary)"
+              }}
+            >
+              View All ({pendingItems.length})
+            </button>
+          )}
+        </Card>
+      </div>
+
+      {/* Recent Activity */}
+      <Card title="Recent Activity" icon={<AlertCircle size={20} />}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ 
+            width: "100%", 
+            borderCollapse: "collapse",
+            fontSize: "0.9rem"
+          }}>
+            <thead>
+              <tr style={{ 
+                borderBottom: "1px solid var(--card-border)",
+                textAlign: "left"
+              }}>
+                <th style={{ padding: "0.75rem" }}>Activity</th>
+                <th style={{ padding: "0.75rem" }}>Dealer</th>
+                <th style={{ padding: "0.75rem" }}>Status</th>
+                <th style={{ padding: "0.75rem" }}>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentActivity.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ 
+                    padding: "2rem", 
+                    textAlign: "center",
+                    color: "var(--text-secondary)"
+                  }}>
+                    No recent activity
+                  </td>
+                </tr>
+              ) : (
+                recentActivity.map((activity, idx) => (
+                  <tr 
+                    key={idx}
+                    style={{ borderBottom: "1px solid var(--card-border)" }}
+                  >
+                    <td style={{ padding: "0.75rem" }}>{activity.action}</td>
+                    <td style={{ padding: "0.75rem" }}>{activity.dealer}</td>
+                    <td style={{ padding: "0.75rem" }}>
+                      <span style={{
+                        padding: "0.25rem 0.5rem",
+                        borderRadius: "12px",
+                        fontSize: "0.75rem",
+                        background: activity.status === "approved" ? "#22c55e20" : 
+                                  activity.status === "rejected" ? "#ef444420" : "#f59e0b20",
+                        color: activity.status === "approved" ? "#22c55e" : 
+                              activity.status === "rejected" ? "#ef4444" : "#f59e0b"
+                      }}>
+                        {activity.status}
+                      </span>
+                    </td>
+                    <td style={{ 
+                      padding: "0.75rem",
+                      color: "var(--text-secondary)",
+                      fontSize: "0.85rem"
+                    }}>
+                      {new Date(activity.date).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
         </div>
+      </Card>
+
+      {/* Quick Actions */}
+      <div style={{ 
+        display: "grid", 
+        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+        gap: "1rem",
+        marginTop: "1.5rem"
+      }}>
+        <button
+          onClick={() => navigate("/map-view")}
+          style={{
+            padding: "1rem",
+            borderRadius: "12px",
+            border: "1px solid var(--card-border)",
+            background: "var(--card-bg)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            color: "var(--text-primary)",
+            transition: "all 0.2s"
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          <MapPin size={20} />
+          View Territory Map
+        </button>
+        <button
+          onClick={() => navigate("/orders/approvals")}
+          style={{
+            padding: "1rem",
+            borderRadius: "12px",
+            border: "1px solid var(--card-border)",
+            background: "var(--card-bg)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            color: "var(--text-primary)",
+            transition: "all 0.2s"
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          <FileText size={20} />
+          Review Approvals
+        </button>
+        <button
+          onClick={() => navigate("/chat")}
+          style={{
+            padding: "1rem",
+            borderRadius: "12px",
+            border: "1px solid var(--card-border)",
+            background: "var(--card-bg)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            color: "var(--text-primary)",
+            transition: "all 0.2s"
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          <Users size={20} />
+          Team Communication
+        </button>
       </div>
     </div>
   );
@@ -2669,301 +3205,310 @@ export default function Materials() {
 </file>
 
 <file path="src/pages/payments/CreatePaymentRequest.jsx">
-import React, { useState, useEffect } from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  TextField,
-  Button,
-  MenuItem
-} from "@mui/material";
+// src/pages/payments/CreatePaymentRequest.jsx
+import React, { useEffect, useState } from "react";
 import api from "../../services/api";
-import { useParams, useNavigate } from "react-router-dom";
+import { toast } from "react-toastify";
 
 export default function CreatePaymentRequest() {
-  const { invoiceId } = useParams();
-  const navigate = useNavigate();
-
-  const [invoice, setInvoice] = useState(null);
-  const [paymentMode, setPaymentMode] = useState("");
-  const [utrNumber, setUtrNumber] = useState("");
+  const [invoices, setInvoices] = useState([]);
+  const [invoiceId, setInvoiceId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [paymentMode, setPaymentMode] = useState("bank_transfer");
+  const [utr, setUtr] = useState("");
   const [proofFile, setProofFile] = useState(null);
+  const [loading, setLoading] = useState(false);
 
+  // ========================================================================
+  // LOAD INVOICES
+  // ========================================================================
   useEffect(() => {
-    api.get(`/invoices/${invoiceId}`).then((res) => {
-      setInvoice(res.data.invoice);
-    });
-  }, [invoiceId]);
+    const loadInvoices = async () => {
+      try {
+        const res = await api.get("/invoices");
+        setInvoices(res.data.invoices || res.data);
+      } catch (err) {
+        console.error("Failed to load invoices:", err);
+        toast.error("Failed to load invoices");
+      }
+    };
+    loadInvoices();
+  }, []);
 
-  const submitRequest = async () => {
-    if (!proofFile || !paymentMode) {
-      return alert("Please upload proof & select payment mode.");
-    }
+  // ========================================================================
+  // UPDATE AMOUNT WHEN INVOICE SELECTED
+  // ========================================================================
+  useEffect(() => {
+    if (!invoiceId) return;
+    const inv = invoices.find((i) => String(i.id) === String(invoiceId));
+    setAmount(inv ? inv.balanceAmount ?? inv.balance ?? 0 : "");
+  }, [invoiceId, invoices]);
 
-    const formData = new FormData();
-    formData.append("invoiceId", invoiceId);
-    formData.append("amount", invoice.balanceAmount);
-    formData.append("paymentMode", paymentMode);
-    formData.append("utrNumber", utrNumber);
-    formData.append("proofFile", proofFile);
+  // ========================================================================
+  // HANDLE FILE INPUT
+  // ========================================================================
+  const handleFile = (e) => setProofFile(e.target.files[0]);
+
+  // ========================================================================
+  // SUBMIT PAYMENT REQUEST
+  // ========================================================================
+  const submit = async (e) => {
+    e.preventDefault();
+
+    if (!invoiceId || !amount) return toast.error("Please select invoice & amount");
+
+    const form = new FormData();
+    form.append("invoiceId", invoiceId);
+    form.append("amount", amount);
+    form.append("paymentMode", paymentMode);
+    if (utr) form.append("utrNumber", utr);
+    if (proofFile) form.append("proofFile", proofFile);
 
     try {
-      await api.post("/payments/request", formData, {
+      setLoading(true);
+      await api.post("/payments/request", form, {
         headers: { "Content-Type": "multipart/form-data" },
       });
-      alert("Payment Request Sent to Dealer Admin!");
-      navigate("/payments/mine");
+      toast.success("Payment request submitted");
+
+      // Reset form
+      setInvoiceId("");
+      setAmount("");
+      setPaymentMode("bank_transfer");
+      setUtr("");
+      setProofFile(null);
     } catch (err) {
-      console.error(err);
-      alert("Failed to submit payment request");
+      console.error("Payment request error:", err);
+      toast.error(err?.response?.data?.error || "Submission failed");
+    } finally {
+      setLoading(false);
     }
   };
 
-  if (!invoice) return <div>Loading...</div>;
-
+  // ========================================================================
+  // RENDER FORM
+  // ========================================================================
   return (
-    <Box p={3}>
-      <Card>
-        <CardContent>
-          <Typography variant="h5" mb={2}>
-            Make Payment Request
-          </Typography>
+    <div style={{ maxWidth: 860, margin: "20px auto" }}>
+      <h2>Create Payment Request</h2>
+      <form onSubmit={submit}>
+        {/* Invoice Select */}
+        <label>Invoice</label>
+        <select
+          value={invoiceId}
+          onChange={(e) => setInvoiceId(e.target.value)}
+          style={{ width: "100%", padding: 8, marginBottom: 12 }}
+        >
+          <option value="">Select invoice</option>
+          {invoices.map((inv) => (
+            <option key={inv.id} value={inv.id}>
+              {inv.invoiceNumber || inv.number} — Balance: {inv.balanceAmount ?? inv.balance}
+            </option>
+          ))}
+        </select>
 
-          <Typography>
-            <strong>Invoice:</strong> {invoice.invoiceNumber}
-          </Typography>
-          <Typography>
-            <strong>Pending Amount:</strong> ₹{invoice.balanceAmount}
-          </Typography>
+        {/* Amount */}
+        <label>Amount</label>
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          style={{ width: "100%", padding: 8, marginBottom: 12 }}
+        />
 
-          <TextField
-            fullWidth
-            label="Payment Mode"
-            select
-            margin="normal"
-            value={paymentMode}
-            onChange={(e) => setPaymentMode(e.target.value)}
+        {/* Payment Mode */}
+        <label>Payment Mode</label>
+        <select
+          value={paymentMode}
+          onChange={(e) => setPaymentMode(e.target.value)}
+          style={{ width: "100%", padding: 8, marginBottom: 12 }}
+        >
+          <option value="bank_transfer">Bank Transfer</option>
+          <option value="upi">UPI</option>
+          <option value="cheque">Cheque</option>
+          <option value="cash">Cash</option>
+        </select>
+
+        {/* UTR / Reference */}
+        <label>UTR / Reference (optional)</label>
+        <input
+          value={utr}
+          onChange={(e) => setUtr(e.target.value)}
+          style={{ width: "100%", padding: 8, marginBottom: 12 }}
+        />
+
+        {/* Proof File */}
+        <label>Proof (optional)</label>
+        <input type="file" onChange={handleFile} style={{ width: "100%", marginBottom: 12 }} />
+        {proofFile && <div style={{ marginBottom: 12 }}>{proofFile.name}</div>}
+
+        {/* Buttons */}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            onClick={() => {
+              setInvoiceId("");
+              setAmount("");
+              setPaymentMode("bank_transfer");
+              setUtr("");
+              setProofFile(null);
+            }}
+            style={{ padding: "8px 12px" }}
           >
-            <MenuItem value="NEFT">NEFT</MenuItem>
-            <MenuItem value="RTGS">RTGS</MenuItem>
-            <MenuItem value="UPI">UPI</MenuItem>
-            <MenuItem value="CHEQUE">Cheque</MenuItem>
-          </TextField>
-
-          <TextField
-            fullWidth
-            label="UTR Number (optional)"
-            margin="normal"
-            value={utrNumber}
-            onChange={(e) => setUtrNumber(e.target.value)}
-          />
-
-          <Button variant="contained" component="label" sx={{ mt: 2 }}>
-            Upload Payment Proof
-            <input
-              type="file"
-              hidden
-              accept="image/*,application/pdf"
-              onChange={(e) => setProofFile(e.target.files[0])}
-            />
-          </Button>
-
-          {proofFile && <Typography mt={1}>{proofFile.name}</Typography>}
-
-          <Button
-            variant="contained"
-            color="primary"
-            sx={{ mt: 4 }}
-            onClick={submitRequest}
-          >
-            Submit Payment Request
-          </Button>
-        </CardContent>
-      </Card>
-    </Box>
+            Reset
+          </button>
+          <button type="submit" disabled={loading} style={{ padding: "8px 12px" }}>
+            {loading ? "Submitting..." : "Submit Request"}
+          </button>
+        </div>
+      </form>
+    </div>
   );
 }
 </file>
 
 <file path="src/pages/payments/DealerAdminPayments.jsx">
+// src/pages/payments/DealerAdminPayments.jsx
 import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Table,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell
-} from "@mui/material";
 import api from "../../services/api";
+import { toast } from "react-toastify";
 
-export default function DealerAdminPayments() {
-  const [payments, setPayments] = useState([]);
+const Badge = ({ status }) => {
+  const color = status === "approved" ? "#16a34a" : status === "rejected" ? "#dc2626" : "#f59e0b";
+  return <span style={{ padding: "6px 10px", borderRadius: 8, background: `${color}22`, color }}>{status}</span>;
+};
 
-  const loadData = async () => {
-    const res = await api.get("/payments/dealer/pending");
-    setPayments(res.data.pending);
+export default function DealerAdminPayments({ currentUserStage = "dealer_admin" }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [remarksFor, setRemarksFor] = useState({}); // {id: text}
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/payment/dealer/pending");
+      setRows(res.data.requests || res.data || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
+  useEffect(() => { load(); }, []);
 
-  const reviewPayment = async (id, action) => {
-    await api.post(`/payments/dealer/${id}/review`, { action });
-    loadData();
+  const act = async (id, action) => {
+    try {
+      const payload = { remarks: remarksFor[id] || "" };
+      await api.post(`/payment/dealer/${id}/${action}`, payload);
+      toast.success(`${action}ed`);
+      setRows(rows.filter(r => r.id !== id));
+    } catch (e) {
+      console.error(e);
+      toast.error("Action failed");
+    }
   };
+
+  const viewProof = (r) => { if (r.proofUrl) window.open(r.proofUrl, "_blank"); };
 
   return (
-    <Box p={3}>
-      <Typography variant="h5" mb={3}>
-        Pending Payment Requests (Dealer Admin)
-      </Typography>
-
-      <Card>
-        <CardContent>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Invoice</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Payment Mode</TableCell>
-                <TableCell>Proof</TableCell>
-                <TableCell>Action</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {payments.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>{p.Invoice?.invoiceNumber}</TableCell>
-                  <TableCell>₹{p.amount}</TableCell>
-                  <TableCell>{p.paymentMode}</TableCell>
-                  <TableCell>
-                    {p.proofFile && (
-                      <a href={p.proofFile} target="_blank" rel="noreferrer">
-                        View
-                      </a>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      color="success"
-                      onClick={() => reviewPayment(p.id, "approve")}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      color="error"
-                      onClick={() => reviewPayment(p.id, "reject")}
-                    >
-                      Reject
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </Box>
+    <div>
+      <h2>Dealer Admin — Pending Payment Requests</h2>
+      {loading ? <p>Loading…</p> : null}
+      <table style={{ width: "100%" }}>
+        <thead><tr><th>Invoice</th><th>Dealer</th><th>Amount</th><th>Proof</th><th>Remarks</th><th>Actions</th></tr></thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.id}>
+              <td>{r.invoiceNumber || r.invoice?.invoiceNumber}</td>
+              <td>{r.dealerName || r.dealer?.name}</td>
+              <td>{r.amount}</td>
+              <td>{r.proofUrl ? <button onClick={() => viewProof(r)}>View</button> : "—"}</td>
+              <td>
+                <input value={remarksFor[r.id] || ""} onChange={(e) => setRemarksFor({ ...remarksFor, [r.id]: e.target.value })} placeholder="Optional remarks" />
+              </td>
+              <td>
+                {r.currentStage === currentUserStage ? (
+                  <>
+                    <button onClick={() => act(r.id, "approve")}>Approve</button>
+                    <button onClick={() => act(r.id, "reject")}>Reject</button>
+                  </>
+                ) : <div>Not your stage</div>}
+              </td>
+            </tr>
+          ))}
+          {rows.length === 0 && <tr><td colSpan={6}>No pending requests</td></tr>}
+        </tbody>
+      </table>
+    </div>
   );
 }
 </file>
 
 <file path="src/pages/payments/FinancePendingPayments.jsx">
+// src/pages/payments/FinancePendingPayments.jsx
 import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Typography,
-  Table,
-  TableBody,
-  TableHead,
-  TableRow,
-  TableCell,
-  Button,
-  Card,
-  CardContent
-} from "@mui/material";
 import api from "../../services/api";
+import { toast } from "react-toastify";
 
-export default function FinancePendingPayments() {
-  const [payments, setPayments] = useState([]);
+export default function FinancePendingPayments({ currentUserStage = "finance_admin" }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [remarks, setRemarks] = useState({});
 
-  const loadData = async () => {
-    const res = await api.get("/payments/pending");
-    setPayments(res.data.pending);
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/payment/pending");
+      setRows(res.data.requests || res.data || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const act = async (id, action) => {
+    try {
+      await api.post(`/payment/${id}/${action}`, { remarks: remarks[id] || "" });
+      toast.success(`${action}ed`);
+      setRows(rows.filter(r => r.id !== id));
+    } catch (e) { console.error(e); toast.error("Failed"); }
   };
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const reviewPayment = async (id, action) => {
-    await api.post(`/payments/${id}/review`, { action });
-    loadData();
+  const reconcile = async () => {
+    try {
+      await api.post("/payment/reconcile/trigger");
+      toast.success("Reconcile triggered");
+      load();
+    } catch (e) { console.error(e); toast.error("Failed"); }
   };
 
   return (
-    <Box p={3}>
-      <Typography variant="h5" mb={3}>
-        Finance Pending Payment Approvals
-      </Typography>
-
-      <Card>
-        <CardContent>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Dealer</TableCell>
-                <TableCell>Invoice</TableCell>
-                <TableCell>Amount</TableCell>
-                <TableCell>Proof</TableCell>
-                <TableCell>Action</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {payments.map((p) => (
-                <TableRow key={p.id}>
-                  <TableCell>{p.Dealer?.name}</TableCell>
-                  <TableCell>{p.Invoice?.invoiceNumber}</TableCell>
-                  <TableCell>₹{p.amount}</TableCell>
-                  <TableCell>
-                    {p.proofFile && (
-                      <a href={p.proofFile} target="_blank" rel="noreferrer">
-                        View
-                      </a>
-                    )}
-                  </TableCell>
-                  <TableCell>
-                    <Button
-                      sx={{ mr: 1 }}
-                      color="success"
-                      onClick={() => reviewPayment(p.id, "approve")}
-                    >
-                      Approve
-                    </Button>
-                    <Button
-                      color="error"
-                      onClick={() => reviewPayment(p.id, "reject")}
-                    >
-                      Reject
-                    </Button>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </Box>
+    <div>
+      <h2>Finance — Pending Payments</h2>
+      <div style={{ marginBottom: 12 }}>
+        <button onClick={reconcile}>Trigger Auto-Reconcile</button>
+      </div>
+      <table style={{ width: "100%" }}>
+        <thead><tr><th>Invoice</th><th>Dealer</th><th>Amount</th><th>Proof</th><th>Remarks</th><th>Actions</th></tr></thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.id}>
+              <td>{r.invoiceNumber}</td>
+              <td>{r.dealerName}</td>
+              <td>{r.amount}</td>
+              <td>{r.proofUrl ? <a href={r.proofUrl} target="_blank" rel="noreferrer">View</a> : "—"}</td>
+              <td><input value={remarks[r.id] || ""} onChange={(e) => setRemarks({ ...remarks, [r.id]: e.target.value })} placeholder="remarks" /></td>
+              <td>
+                {r.currentStage === currentUserStage ? (
+                  <>
+                    <button onClick={() => act(r.id, "approve")}>Approve</button>
+                    <button onClick={() => act(r.id, "reject")}>Reject</button>
+                  </>
+                ) : "Not your stage"}
+              </td>
+            </tr>
+          ))}
+          {rows.length === 0 && <tr><td colSpan={6}>No pending payments</td></tr>}
+        </tbody>
+      </table>
+    </div>
   );
 }
 </file>
@@ -5249,6 +5794,269 @@ export default defineConfig({
 })
 </file>
 
+<file path="README.md">
+#  Dealer Portal – Full Stack Application
+
+A complete Dealer Management Portal featuring authentication (OTP login), role-based dashboards, orders, invoices, payments, pricing updates, materials, regions/territories, chat, notifications, and reporting.
+
+---
+
+##  Tech Stack
+
+### **Frontend**
+
+* React + Vite
+* React Router
+* Axios
+* Material UI
+* Recharts
+* Socket.io Client
+* Context API (Auth, Themes, Notifications)
+
+### **Backend**
+
+* Node.js + Express
+* PostgreSQL + Sequelize ORM
+* JWT Authentication
+* Multer File Upload
+* Nodemailer for OTP
+* Socket.io
+* PDF/Excel generation
+* Helmet + Rate Limiting
+
+---
+
+#  Installation & Setup
+
+## 1️⃣ Clone the Repository
+
+```sh
+git clone <your-repo-url>
+cd dealer-portal
+```
+
+---
+
+## 2️⃣ Backend Setup (`/backend`)
+
+### Install dependencies
+
+```sh
+cd backend
+npm install
+```
+
+### Configure environment
+
+Copy `.env.example` → `.env`
+
+```sh
+cp .env.example .env
+```
+
+Update the values:
+
+```
+PORT=3000
+DB_HOST=localhost
+DB_USER=postgres
+DB_PASSWORD=postgres
+DB_NAME=dealer_portal
+JWT_SECRET=your-secret
+EMAIL_USER=your-email
+EMAIL_PASSWORD=your-password
+UPLOAD_PATH=./uploads
+```
+
+### Run DB migrations
+
+```sh
+npx sequelize-cli db:migrate
+```
+
+### Seed base data (roles, permissions, products, etc.)
+
+```sh
+node src/utils/seed.js
+```
+
+### Start backend server
+
+```sh
+npm run dev
+```
+
+Backend runs at: `http://localhost:3000`
+
+---
+
+## 3️⃣ Frontend Setup (`/frontend`)
+
+### Install dependencies
+
+```sh
+cd frontend
+npm install
+```
+
+### Start development server
+
+```sh
+npm run dev
+```
+
+Frontend runs at: `http://localhost:5173`
+
+---
+
+# 🔐 Login Flow (2-Step OTP)
+
+1. User enters **username + password**
+2. Server validates & generates **OTP**
+3. User enters OTP → receives **JWT token**
+4. Role decides dashboard & permissions
+
+---
+
+# 🗂 Folder Structure (Simplified)
+
+### **Backend**
+
+```
+backend/
+ ├── src/
+ │   ├── controllers/
+ │   ├── middleware/
+ │   ├── migrations/
+ │   ├── models/
+ │   ├── routes/
+ │   ├── utils/
+ │   └── server.js
+ ├── uploads/
+ ├── package.json
+ └── .env
+```
+
+### **Frontend**
+
+```
+frontend/
+ ├── src/
+ │   ├── components/
+ │   ├── context/
+ │   ├── pages/
+ │   ├── services/
+ │   ├── utils/
+ │   └── App.jsx
+ ├── public/
+ ├── index.html
+ ├── package.json
+ └── vite.config.js
+```
+
+---
+
+# 🧩 Major Features
+
+### ✔ Authentication & Roles
+
+* OTP-based login
+* JWT secure routes
+* Role-based permission checks
+* Roles: SuperAdmin, Technical Admin, Regional Admin, Dealer Admin, Dealer Staff, Manager, etc.
+
+### ✔ Dealer & User Management
+
+* Create/edit/delete users
+* Assign roles & regions
+* Verify dealers
+* Block/unblock dealers
+
+### ✔ Materials & Inventory
+
+* Upload via Excel
+* Material analytics
+* Pricing requests & approvals
+
+### ✔ Orders Module
+
+* Order creation
+* Approval flows
+* Order tracking
+
+### ✔ Invoice & Payments
+
+* Invoice listing
+* Credit/Debit notes
+* Payment request creation
+* Finance approval dashboard
+
+### ✔ Reports
+
+* Dealer performance
+* Region/territory summary
+* Outstanding receivables
+* Admin KPIs (users, docs, pricing trends)
+
+### ✔ Maps (Regions/Territories)
+
+* Upload GeoJSON
+* Territory assignments
+
+### ✔ Real-time Chat
+
+* Dealer ↔ Admin chat
+* Socket.io notifications
+
+---
+
+# ⚙ API Base URL
+
+Update inside `frontend/src/services/api.js`
+
+```js
+const api = axios.create({
+  baseURL: "http://localhost:3000",
+});
+```
+
+---
+
+# ▶ Running Both Servers Together
+
+Backend:
+
+```sh
+cd backend
+npm run dev
+```
+
+Frontend:
+
+```sh
+cd frontend
+npm run dev
+```
+
+---
+
+# 🧪 Testing Credentials (Example)
+
+```
+username: admin
+password: admin123
+OTP: (sent via email or console)
+```
+
+---
+
+# 📄 License
+
+Private/Proprietary – for internal company use only.
+
+---
+</file>
+
 <file path="src/components/DonutProgress.jsx">
 import React from "react";
 import { PieChart, Pie, Cell, ResponsiveContainer } from "recharts";
@@ -5390,6 +6198,7 @@ export default function StatCard({ title, value, icon, accent = "#f97316" }) {
 <file path="src/context/AuthContext.jsx">
 import React, { createContext, useState, useContext, useEffect } from "react";
 import api from "../services/api";
+import { connectSocket, disconnectSocket } from "../services/socket";
 
 export const AuthContext = createContext();
 
@@ -5398,25 +6207,53 @@ export const AuthProvider = ({ children }) => {
   const [token, setToken] = useState(localStorage.getItem("token") || null);
   const [loading, setLoading] = useState(false);
 
+  // Connect socket on mount if user is already logged in
+  useEffect(() => {
+    if (user && token) {
+      connectSocket();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      disconnectSocket();
+    };
+  }, []);
+
   const login = async (username, password) => {
-    const res = await api.post("/auth/login", { username, password });
-    return res.data;
+    setLoading(true);
+    try {
+      const res = await api.post("/auth/login", { username, password });
+      return res.data;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const verifyOTP = async (userId, otp) => {
-    const res = await api.post("/auth/verify-otp", { userId, otp });
-    const { token, user } = res.data;
+    setLoading(true);
+    try {
+      const res = await api.post("/auth/verify-otp", { userId, otp });
+      const { token, user } = res.data;
 
-    localStorage.setItem("token", token);
-    localStorage.setItem("user", JSON.stringify(user));
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
 
-    setToken(token);
-    setUser(user);
+      setToken(token);
+      setUser(user);
 
-    return user;
+      // Connect socket after successful authentication
+      connectSocket();
+
+      return user;
+    } finally {
+      setLoading(false);
+    }
   };
 
   const logout = () => {
+    // Disconnect socket before clearing data
+    disconnectSocket();
+
     localStorage.removeItem("token");
     localStorage.removeItem("user");
     setUser(null);
@@ -6565,59 +7402,464 @@ export default function TechnicalAdminDashboard() {
 // src/services/socket.js
 import { io } from "socket.io-client";
 
-const BASE_URL = import.meta.env.VITE_API_URL.replace("/api", "");
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
 
-// 🔥 Initialize socket
-const socket = io(BASE_URL, {
-  transports: ["websocket"],
-  auth: {
-    token: localStorage.getItem("token"),
-  },
-  reconnection: true,
-});
+let socket = null;
 
-// 🔥 When socket connects, authenticate with backend  
-socket.on("connect", () => {
-  try {
-    const user = JSON.parse(localStorage.getItem("user"));
-    if (!user) return;
+// =======================================================================
+// ======================== SOCKET CONNECTION ============================
+// =======================================================================
 
+/**
+ * Initialize and connect socket with authentication
+ */
+export const connectSocket = () => {
+  const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+
+  if (!token || !user) {
+    console.warn("⚠️ No token or user found. Socket connection aborted.");
+    return null;
+  }
+
+  if (socket?.connected) {
+    console.log("✅ Socket already connected");
+    return socket;
+  }
+
+  socket = io(SOCKET_URL, {
+    auth: { token },
+    transports: ["websocket", "polling"],
+    reconnection: true,
+    reconnectionAttempts: 5,
+    reconnectionDelay: 1000,
+    reconnectionDelayMax: 5000,
+    timeout: 20000,
+  });
+
+  // Connection events
+  socket.on("connect", () => {
+    console.log("🔌 Socket connected:", socket.id);
+    
+    // Authenticate with user details
     socket.emit("authenticate", {
       userId: user.id,
-      role: user.role, // role string like "dealer_admin"
+      role: user.role,
+      username: user.username,
     });
+  });
 
-    console.log("🔐 Socket authenticated:", user.id, user.role);
-  } catch (err) {
-    console.error("Socket auth error:", err);
+  socket.on("authenticated", (data) => {
+    console.log("🔐 Socket authenticated:", data);
+  });
+
+  socket.on("connect_error", (error) => {
+    console.error("❌ Socket connection error:", error.message);
+  });
+
+  socket.on("disconnect", (reason) => {
+    console.log("🔌 Socket disconnected:", reason);
+    
+    // Auto-reconnect if disconnected unexpectedly
+    if (reason === "io server disconnect") {
+      socket.connect();
+    }
+  });
+
+  socket.on("reconnect", (attemptNumber) => {
+    console.log("🔄 Socket reconnected after", attemptNumber, "attempts");
+  });
+
+  socket.on("reconnect_error", (error) => {
+    console.error("❌ Socket reconnection error:", error.message);
+  });
+
+  socket.on("error", (error) => {
+    console.error("❌ Socket error:", error);
+  });
+
+  return socket;
+};
+
+/**
+ * Disconnect socket
+ */
+export const disconnectSocket = () => {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+    console.log("🔌 Socket disconnected manually");
   }
-});
+};
 
-// 👉 Join a specific chat (1-to-1)
+/**
+ * Get current socket instance
+ */
+export const getSocket = () => {
+  if (!socket) {
+    console.warn("⚠️ Socket not initialized. Call connectSocket() first.");
+  }
+  return socket;
+};
+
+// =======================================================================
+// ======================== CHAT EVENTS ==================================
+// =======================================================================
+
+/**
+ * Join a specific chat room (1-to-1)
+ */
 export const joinChatRoom = (user1, user2) => {
+  if (!socket) return;
   socket.emit("join_chat", { user1, user2 });
+  console.log("💬 Joined chat room:", { user1, user2 });
 };
 
-// 👉 Leave chat room
+/**
+ * Leave chat room
+ */
 export const leaveChatRoom = (user1, user2) => {
+  if (!socket) return;
   socket.emit("leave_chat", { user1, user2 });
+  console.log("💬 Left chat room:", { user1, user2 });
 };
 
-// 👉 Send message
-export const sendChatMessage = (msg) => {
-  socket.emit("send_message", msg);
+/**
+ * Send message
+ */
+export const sendChatMessage = (messageData) => {
+  if (!socket) return;
+  socket.emit("send_message", messageData);
 };
 
-// 👉 Listen to messages (used inside ChatUI)
+/**
+ * Listen to incoming messages
+ */
 export const onReceiveMessage = (callback) => {
+  if (!socket) return;
   socket.on("receive_message", callback);
 };
 
-// 👉 Listen to notifications
+/**
+ * Remove message listener
+ */
+export const offReceiveMessage = () => {
+  if (!socket) return;
+  socket.off("receive_message");
+};
+
+/**
+ * Listen to new message notifications
+ */
 export const onNewMessageNotification = (callback) => {
+  if (!socket) return;
   socket.on("new_message_notification", callback);
 };
 
+/**
+ * Emit typing indicator
+ */
+export const emitTyping = (partnerId) => {
+  if (!socket) return;
+  socket.emit("typing", { partnerId });
+};
+
+/**
+ * Listen to typing indicator
+ */
+export const onTyping = (callback) => {
+  if (!socket) return;
+  socket.on("typing", callback);
+};
+
+/**
+ * Listen to user online status
+ */
+export const onUserOnline = (callback) => {
+  if (!socket) return;
+  socket.on("user_online", callback);
+};
+
+/**
+ * Listen to user offline status
+ */
+export const onUserOffline = (callback) => {
+  if (!socket) return;
+  socket.on("user_offline", callback);
+};
+
+// =======================================================================
+// ======================== NOTIFICATION EVENTS ==========================
+// =======================================================================
+
+/**
+ * Listen to new notifications
+ */
+export const onNewNotification = (callback) => {
+  if (!socket) return;
+  socket.on("notification:new", callback);
+};
+
+/**
+ * Remove notification listener
+ */
+export const offNewNotification = () => {
+  if (!socket) return;
+  socket.off("notification:new");
+};
+
+// =======================================================================
+// ======================== APPROVAL EVENTS ==============================
+// =======================================================================
+
+/**
+ * Listen to new order events
+ */
+export const onOrderNew = (callback) => {
+  if (!socket) return;
+  socket.on("order:new", callback);
+};
+
+/**
+ * Listen to order updates
+ */
+export const onOrderUpdated = (callback) => {
+  if (!socket) return;
+  socket.on("order:updated", callback);
+};
+
+/**
+ * Listen to order approvals
+ */
+export const onOrderApproved = (callback) => {
+  if (!socket) return;
+  socket.on("order:approved", callback);
+};
+
+/**
+ * Listen to order rejections
+ */
+export const onOrderRejected = (callback) => {
+  if (!socket) return;
+  socket.on("order:rejected", callback);
+};
+
+/**
+ * Listen to new payment requests
+ */
+export const onPaymentNew = (callback) => {
+  if (!socket) return;
+  socket.on("payment:new", callback);
+};
+
+/**
+ * Listen to payment updates
+ */
+export const onPaymentUpdated = (callback) => {
+  if (!socket) return;
+  socket.on("payment:updated", callback);
+};
+
+/**
+ * Listen to payment approvals
+ */
+export const onPaymentApproved = (callback) => {
+  if (!socket) return;
+  socket.on("payment:approved", callback);
+};
+
+/**
+ * Listen to payment rejections
+ */
+export const onPaymentRejected = (callback) => {
+  if (!socket) return;
+  socket.on("payment:rejected", callback);
+};
+
+/**
+ * Listen to new document uploads
+ */
+export const onDocumentNew = (callback) => {
+  if (!socket) return;
+  socket.on("document:new", callback);
+};
+
+/**
+ * Listen to document updates
+ */
+export const onDocumentUpdated = (callback) => {
+  if (!socket) return;
+  socket.on("document:updated", callback);
+};
+
+/**
+ * Listen to document approvals
+ */
+export const onDocumentApproved = (callback) => {
+  if (!socket) return;
+  socket.on("document:approved", callback);
+};
+
+/**
+ * Listen to document rejections
+ */
+export const onDocumentRejected = (callback) => {
+  if (!socket) return;
+  socket.on("document:rejected", callback);
+};
+
+/**
+ * Listen to new pricing requests
+ */
+export const onPricingNew = (callback) => {
+  if (!socket) return;
+  socket.on("pricing:new", callback);
+};
+
+/**
+ * Listen to pricing updates
+ */
+export const onPricingUpdated = (callback) => {
+  if (!socket) return;
+  socket.on("pricing:updated", callback);
+};
+
+/**
+ * Listen to pricing approvals
+ */
+export const onPricingApproved = (callback) => {
+  if (!socket) return;
+  socket.on("pricing:approved", callback);
+};
+
+/**
+ * Listen to pricing rejections
+ */
+export const onPricingRejected = (callback) => {
+  if (!socket) return;
+  socket.on("pricing:rejected", callback);
+};
+
+// =======================================================================
+// ======================== INVOICE EVENTS ===============================
+// =======================================================================
+
+/**
+ * Listen to new invoice creation
+ */
+export const onInvoiceNew = (callback) => {
+  if (!socket) return;
+  socket.on("invoice:new", callback);
+};
+
+/**
+ * Listen to invoice updates
+ */
+export const onInvoiceUpdated = (callback) => {
+  if (!socket) return;
+  socket.on("invoice:updated", callback);
+};
+
+// =======================================================================
+// ======================== CAMPAIGN EVENTS ==============================
+// =======================================================================
+
+/**
+ * Listen to new campaign creation
+ */
+export const onCampaignNew = (callback) => {
+  if (!socket) return;
+  socket.on("campaign:new", callback);
+};
+
+/**
+ * Listen to campaign updates
+ */
+export const onCampaignUpdated = (callback) => {
+  if (!socket) return;
+  socket.on("campaign:updated", callback);
+};
+
+// =======================================================================
+// ======================== MATERIAL EVENTS ==============================
+// =======================================================================
+
+/**
+ * Listen to material alerts
+ */
+export const onMaterialAlert = (callback) => {
+  if (!socket) return;
+  socket.on("material:alert", callback);
+};
+
+/**
+ * Listen to material updates
+ */
+export const onMaterialUpdated = (callback) => {
+  if (!socket) return;
+  socket.on("material:updated", callback);
+};
+
+// =======================================================================
+// ======================== GENERIC EVENT LISTENERS ======================
+// =======================================================================
+
+/**
+ * Register a custom event listener
+ */
+export const onEvent = (eventName, callback) => {
+  if (!socket) return;
+  socket.on(eventName, callback);
+};
+
+/**
+ * Remove a custom event listener
+ */
+export const offEvent = (eventName, callback) => {
+  if (!socket) return;
+  if (callback) {
+    socket.off(eventName, callback);
+  } else {
+    socket.off(eventName);
+  }
+};
+
+/**
+ * Emit a custom event
+ */
+export const emitEvent = (eventName, data) => {
+  if (!socket) return;
+  socket.emit(eventName, data);
+};
+
+// =======================================================================
+// ======================== UTILITY FUNCTIONS ============================
+// =======================================================================
+
+/**
+ * Check if socket is connected
+ */
+export const isSocketConnected = () => {
+  return socket?.connected || false;
+};
+
+/**
+ * Get socket ID
+ */
+export const getSocketId = () => {
+  return socket?.id || null;
+};
+
+/**
+ * Remove all event listeners
+ */
+export const removeAllListeners = () => {
+  if (!socket) return;
+  socket.removeAllListeners();
+  console.log("🧹 Removed all socket listeners");
+};
+
+// Default export
 export default socket;
 </file>
 
@@ -7974,138 +9216,6 @@ const downloadTemplate = async () => {
         </div>
       )}
     </div>
-  );
-}
-</file>
-
-<file path="src/pages/orders/AdminOrders.jsx">
-import React, { useEffect, useState } from "react";
-import {
-  Box,
-  Card,
-  CardContent,
-  Typography,
-  Button,
-  Chip,
-  Table,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableHead,
-} from "@mui/material";
-import { orderAPI } from "../../services/api";
-
-export default function AdminOrders() {
-  const [orders, setOrders] = useState([]);
-
-  const fetchOrders = async () => {
-    try {
-      const res = await orderAPI.getAllOrders();
-      setOrders(res?.orders || []);
-    } catch (err) {
-      console.error(err);
-    }
-  };
-
-  useEffect(() => {
-    fetchOrders();
-  }, []);
-
-  const approve = async (id) => {
-    try {
-      await orderAPI.approveOrder(id);
-      fetchOrders();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to approve");
-    }
-  };
-
-  const reject = async (id) => {
-    const reason = prompt("Reason for rejection:");
-    if (!reason) return;
-
-    try {
-      await orderAPI.rejectOrder(id, reason);
-      fetchOrders();
-    } catch (err) {
-      console.error(err);
-      alert("Failed to reject");
-    }
-  };
-
-  const statusColor = {
-    Pending: "warning",
-    Approved: "success",
-    Rejected: "error",
-  };
-
-  return (
-    <Box p={4}>
-      <Typography variant="h5" mb={3}>
-        Dealer Orders (Approval Panel)
-      </Typography>
-
-      <Card>
-        <CardContent>
-          <Table>
-            <TableHead>
-              <TableRow>
-                <TableCell>Order No</TableCell>
-                <TableCell>Material</TableCell>
-                <TableCell>Quantity</TableCell>
-                <TableCell>Status</TableCell>
-                <TableCell>Actions</TableCell>
-              </TableRow>
-            </TableHead>
-
-            <TableBody>
-              {orders.map((order) =>
-                (order.items || []).map((item) => (
-                  <TableRow key={item.id}>
-                    <TableCell>{order.orderNumber}</TableCell>
-                    <TableCell>{item.material?.name || "Unknown Material"}</TableCell>
-                    <TableCell>{item.qty}</TableCell>
-
-                    <TableCell>
-                      <Chip
-                        label={order.status}
-                        color={statusColor[order.status] || "default"}
-                      />
-                    </TableCell>
-
-                    <TableCell>
-                      {order.status === "Pending" && (
-                        <>
-                          <Button
-                            variant="contained"
-                            color="success"
-                            size="small"
-                            onClick={() => approve(order.id)}
-                            sx={{ mr: 1 }}
-                          >
-                            Approve
-                          </Button>
-
-                          <Button
-                            variant="contained"
-                            color="error"
-                            size="small"
-                            onClick={() => reject(order.id)}
-                          >
-                            Reject
-                          </Button>
-                        </>
-                      )}
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </Box>
   );
 }
 </file>
@@ -9765,6 +10875,185 @@ export default function Dashboard() {
   };
 
   return roleMap[role] || <p>No dashboard available for role: {role}</p>;
+}
+</file>
+
+<file path="src/pages/orders/AdminOrders.jsx">
+import React, { useEffect, useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Button,
+  Chip,
+  Table,
+  TableBody,
+  TableRow,
+  TableCell,
+  TableHead,
+} from "@mui/material";
+import { orderAPI } from "../../services/api";
+import { useAuth } from "../../context/AuthContext";
+
+export default function AdminOrders() {
+  const { user } = useAuth();
+  const role = user?.role;
+
+  const [orders, setOrders] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  // ===== Fetch orders for this user =====
+  const fetchOrders = async () => {
+    if (!role) return;
+    setLoading(true);
+    try {
+      const res = await orderAPI.getAllOrders(role);
+      console.log("Fetched orders:", res.orders);
+
+      // Show orders that are pending for this role
+      const filtered = (res.orders || []).filter((o) => {
+        // If approvalStage is null, show to all allowed roles
+        if (!o.approvalStage) return true;
+        return o.approvalStage.toLowerCase() === role?.toLowerCase();
+      });
+
+      setOrders(filtered);
+    } catch (err) {
+      console.error(err);
+      alert("Failed to fetch orders");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchOrders();
+  }, [role]);
+
+  // ===== Approve order =====
+  const approve = async (orderId) => {
+    try {
+      await orderAPI.approveOrder(orderId, role);
+      fetchOrders();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Failed to approve order");
+    }
+  };
+
+  // ===== Reject order =====
+  const reject = async (orderId) => {
+    const reason = prompt("Reason for rejection:");
+    if (!reason) return;
+
+    try {
+      await orderAPI.rejectOrder(orderId, reason, role);
+      fetchOrders();
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.error || "Failed to reject order");
+    }
+  };
+
+  // ===== Status colors =====
+  const statusColor = {
+    draft: "default",
+    pending: "warning",
+    approved: "success",
+    rejected: "error",
+  };
+
+  if (loading) return <Typography>Loading orders...</Typography>;
+
+  return (
+    <Box p={4}>
+      <Typography variant="h5" mb={3}>
+        {role === "regional_manager"
+          ? "Regional Manager Approval Panel"
+          : role === "regional_admin"
+          ? "Regional Admin Approval Panel"
+          : role === "super_admin"
+          ? "Super Admin Approval Panel"
+          : "Dealer Orders (Approval Panel)"}
+      </Typography>
+
+      <Card>
+        <CardContent>
+          {orders.length === 0 ? (
+            <Typography>No orders pending for your approval.</Typography>
+          ) : (
+            <Table>
+              <TableHead>
+                <TableRow>
+                  <TableCell>Order No</TableCell>
+                  <TableCell>Material</TableCell>
+                  <TableCell>Quantity</TableCell>
+                  <TableCell>Status</TableCell>
+                  <TableCell>Actions</TableCell>
+                </TableRow>
+              </TableHead>
+
+              <TableBody>
+                {orders.map((order) => {
+                  const items =
+                    order.items && order.items.length
+                      ? order.items
+                      : [{ id: "dummy", material: { name: "N/A" }, qty: 0 }];
+
+                  const status =
+                    (order.approvalStatus || order.status || "").toLowerCase();
+
+                  const canAct = status === "pending" || status === "draft";
+
+                  return items.map((item) => (
+                    <TableRow key={order.id + "_" + item.id}>
+                      <TableCell>{order.orderNumber}</TableCell>
+                      <TableCell>{item.material?.name || "Unknown Material"}</TableCell>
+                      <TableCell>{item.qty || 0}</TableCell>
+                      <TableCell>
+                        <Chip
+                          label={order.approvalStatus || order.status}
+                          color={statusColor[status] || "default"}
+                        />
+                      </TableCell>
+                      <TableCell>
+                        {canAct ? (
+                          <>
+                            <Button
+                              variant="contained"
+                              color="success"
+                              size="small"
+                              onClick={() => approve(order.id)}
+                              sx={{ mr: 1 }}
+                            >
+                              Approve
+                            </Button>
+                            <Button
+                              variant="contained"
+                              color="error"
+                              size="small"
+                              onClick={() => reject(order.id)}
+                            >
+                              Reject
+                            </Button>
+                          </>
+                        ) : (
+                          <Typography variant="body2" color="textSecondary">
+                            No actions available
+                          </Typography>
+                        )}
+                      </TableCell>
+                    </TableRow>
+                  ));
+                })}
+              </TableBody>
+            </Table>
+          )}
+        </CardContent>
+      </Card>
+    </Box>
+  );
 }
 </file>
 
@@ -11708,6 +12997,62 @@ export default function ManagerDashboard() {
 }
 </file>
 
+<file path="package.json">
+{
+  "name": "dealer-portal-react",
+  "private": true,
+  "version": "0.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite build",
+    "lint": "eslint .",
+    "preview": "vite preview"
+  },
+  "dependencies": {
+    "@emotion/react": "^11.14.0",
+    "@emotion/styled": "^11.14.1",
+    "@hookform/resolvers": "^5.2.2",
+    "@hugeicons/react": "^1.1.1",
+    "@mui/icons-material": "^7.3.5",
+    "@mui/material": "^7.3.4",
+    "axios": "^1.13.2",
+    "date-fns": "^4.1.0",
+    "framer-motion": "^12.23.24",
+    "leaflet": "^1.9.4",
+    "leaflet.heat": "^0.2.0",
+    "lucide-react": "^0.552.0",
+    "react": "^19.1.1",
+    "react-apexcharts": "^1.8.0",
+    "react-countup": "^6.5.3",
+    "react-dom": "^19.1.1",
+    "react-hook-form": "^7.65.0",
+    "react-icons": "^5.5.0",
+    "react-leaflet": "^5.0.0",
+    "react-router-dom": "^7.9.5",
+    "react-toastify": "^11.0.5",
+    "recharts": "^3.3.0",
+    "socket.io-client": "^4.8.1",
+    "zod": "^4.1.13"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.36.0",
+    "@types/react": "^19.1.16",
+    "@types/react-dom": "^19.1.9",
+    "@vitejs/plugin-react": "^5.0.4",
+    "autoprefixer": "^10.4.21",
+    "babel-plugin-react-compiler": "^19.1.0-rc.3",
+    "eslint": "^9.36.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "eslint-plugin-react-refresh": "^0.4.22",
+    "globals": "^16.4.0",
+    "postcss": "^8.5.6",
+    "tailwindcss": "^4.1.16",
+    "vite": "^7.1.7"
+  }
+}
+</file>
+
 <file path="src/services/api.js">
 import axios from "axios";
 
@@ -11716,7 +13061,7 @@ const api = axios.create({
   withCredentials: true,
 });
 
-// ====== INTERCEPTORS (keep as is) ======
+// ====== INTERCEPTORS ======
 api.interceptors.request.use((config) => {
   const noAuthNeeded = [
     "/auth/login",
@@ -11737,14 +13082,13 @@ api.interceptors.response.use(
   (res) => res,
   (err) => {
     const originalUrl = err.config?.url || "";
-
     const safeRoutes = ["/auth/login", "/auth/verify-otp"];
     const isSafe = safeRoutes.some((path) => originalUrl.includes(path));
 
     if (err.response?.status === 401 && !isSafe) {
       localStorage.removeItem("token");
       localStorage.removeItem("user");
-      window.history.pushState({}, "", "/login");
+      window.location.href = "/login";
     }
 
     return Promise.reject(err);
@@ -11752,28 +13096,141 @@ api.interceptors.response.use(
 );
 
 // =======================================================================
-// ======================= MATERIAL MASTER APIs ===========================
+// ======================== AUTHENTICATION APIs ==========================
 // =======================================================================
 
-export const materialAPI = {
-  getMaterials: () => api.get("/materials").then((r) => r.data),
-  getMaterialGroups: () => api.get("/material-groups").then((r) => r.data),
+export const authAPI = {
+  // OTP Login Flow
+  login: (username, password) =>
+    api.post("/auth/login", { username, password }).then((r) => r.data),
 
-  createMaterial: (payload) =>
-    api.post("/materials", payload).then((r) => r.data),
+  verifyOTP: (userId, otp) =>
+    api.post("/auth/verify-otp", { userId, otp }).then((r) => r.data),
 
-  updateMaterial: (id, payload) =>
-    api.patch(`/materials/${id}`, payload).then((r) => r.data),
+  resetPassword: (email) =>
+    api.post("/auth/reset-password", { email }).then((r) => r.data),
 
-  deleteMaterial: (id) =>
-    api.delete(`/materials/${id}`).then((r) => r.data),
-  
+  resetPasswordConfirm: (token, newPassword) =>
+    api.post("/auth/reset-password-confirm", { token, newPassword }).then((r) => r.data),
 
-
+  logout: () =>
+    api.post("/auth/logout").then((r) => r.data),
 };
 
 // =======================================================================
-// ======================== ORDER FLOW APIs (FIXED) =======================
+// ======================== DASHBOARD APIs ===============================
+// =======================================================================
+
+export const dashboardAPI = {
+  // Super Admin Dashboard
+  getSuperAdminKPI: () =>
+    api.get("/admin/reports/kpi-summary").then((r) => r.data),
+
+  getUserActivity: () =>
+    api.get("/admin/reports/user-activity").then((r) => r.data),
+
+  getRoleDistribution: () =>
+    api.get("/admin/reports/role-distribution").then((r) => r.data),
+
+  getMonthlyGrowth: () =>
+    api.get("/admin/reports/monthly-growth").then((r) => r.data),
+
+  // Technical Admin Dashboard
+  getPermissionMatrix: () =>
+    api.get("/technical-admin/permissions/matrix").then((r) => r.data),
+
+  getSystemAuditLogs: (params) =>
+    api.get("/technical-admin/audit-logs", { params }).then((r) => r.data),
+
+  // Manager Dashboards (Regional/Area/Territory)
+  getManagerSummary: () =>
+    api.get("/managers/summary").then((r) => r.data),
+
+  getManagerApprovalQueue: () =>
+    api.get("/managers/approval-queue").then((r) => r.data),
+
+  // Dealer Dashboard
+  getDealerDashboard: () =>
+    api.get("/dealer/dashboard").then((r) => r.data),
+
+  getDealerApprovals: () =>
+    api.get("/dealer/approvals").then((r) => r.data),
+
+  // Finance Admin Dashboard
+  getFinanceDashboard: () =>
+    api.get("/finance/dashboard").then((r) => r.data),
+
+  // Accounts Dashboard
+  getAccountsDashboard: () =>
+    api.get("/accounts/dashboard").then((r) => r.data),
+
+  // Inventory Dashboard
+  getInventoryDashboard: () =>
+    api.get("/inventory/dashboard").then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== USER MANAGEMENT APIs =========================
+// =======================================================================
+
+export const userAPI = {
+  // Super Admin User Management
+  getUsers: (params) =>
+    api.get("/admin/users", { params }).then((r) => r.data),
+
+  getUserById: (id) =>
+    api.get(`/admin/users/${id}`).then((r) => r.data),
+
+  createUser: (payload) =>
+    api.post("/admin/users", payload).then((r) => r.data),
+
+  updateUser: (id, payload) =>
+    api.put(`/admin/users/${id}`, payload).then((r) => r.data),
+
+  deleteUser: (id) =>
+    api.delete(`/admin/users/${id}`).then((r) => r.data),
+
+  // Bulk operations
+  bulkCreateUsers: (users) =>
+    api.post("/admin/users/bulk", { users }).then((r) => r.data),
+
+  // User activation/deactivation
+  activateUser: (id) =>
+    api.patch(`/admin/users/${id}/activate`).then((r) => r.data),
+
+  deactivateUser: (id) =>
+    api.patch(`/admin/users/${id}/deactivate`).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== ROLE & PERMISSION APIs =======================
+// =======================================================================
+
+export const roleAPI = {
+  getRoles: () =>
+    api.get("/roles").then((r) => r.data),
+
+  getPermissions: () =>
+    api.get("/permissions").then((r) => r.data),
+
+  getRolePermissions: (roleId) =>
+    api.get(`/roles/${roleId}/permissions`).then((r) => r.data),
+
+  updateRolePermissions: (roleId, permissions) =>
+    api.post(`/roles/${roleId}/permissions`, { permissions }).then((r) => r.data),
+
+  createRole: (payload) =>
+    api.post("/roles", payload).then((r) => r.data),
+
+  updateRole: (id, payload) =>
+    api.put(`/roles/${id}`, payload).then((r) => r.data),
+
+  deleteRole: (id) =>
+    api.delete(`/roles/${id}`).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== ORDER WORKFLOW APIs ==========================
 // =======================================================================
 
 export const orderAPI = {
@@ -11782,174 +13239,515 @@ export const orderAPI = {
     api.post("/orders", payload).then((r) => r.data),
 
   // Dealer views own orders
-  getMyOrders: () =>
-    api.get("/orders/my", { params: { mine: true } }).then((r) => r.data),
+  getMyOrders: (params) =>
+    api.get("/orders/my", { params }).then((r) => r.data),
 
-  // Admin/Manager view all orders
+  // Admin/Manager view all orders (role-scoped)
   getAllOrders: (params) =>
     api.get("/orders", { params }).then((r) => r.data),
 
-  // Admin/Manager update status
+  // Get order by ID
+  getOrderById: (id) =>
+    api.get(`/orders/${id}`).then((r) => r.data),
+
+  // Get pending approvals for current user's role
+  getPendingApprovals: () =>
+    api.get("/orders/approvals/pending").then((r) => r.data),
+
+  // Approve order (multi-stage: Territory → Area → Regional → Super Admin)
+  approveOrder: (id, payload) =>
+    api.post(`/orders/${id}/approve`, payload).then((r) => r.data),
+
+  // Reject order
+  rejectOrder: (id, payload) =>
+    api.post(`/orders/${id}/reject`, payload).then((r) => r.data),
+
+  // Update order status
   updateOrderStatus: (id, status) =>
     api.patch(`/orders/${id}/status`, { status }).then((r) => r.data),
 
-  // Admin approves order
-  approveOrder: (id) =>
-    api.patch(`/orders/${id}/approve`).then((r) => r.data),
-
-  // Admin rejects order
-  rejectOrder: (id, reason) =>
-    api.patch(`/orders/${id}/reject`, { reason }).then((r) => r.data),
+  // Cancel order
+  cancelOrder: (id, reason) =>
+    api.post(`/orders/${id}/cancel`, { reason }).then((r) => r.data),
 };
 
-
-
 // =======================================================================
-// ======================= NOTIFICATIONS APIs =============================
+// ======================== PAYMENT WORKFLOW APIs ========================
 // =======================================================================
 
-export const notificationAPI = {
-  getNotifications: () =>
-    api.get("/notifications").then((r) => r.data),
+export const paymentAPI = {
+  // Dealer Staff: Create payment request
+  createRequest: (formData) =>
+    api.post("/payment/request", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }).then((r) => r.data),
 
-  markNotificationRead: (id) =>
-    api.patch(`/notifications/${id}/read`).then((r) => r.data),
+  // Dealer: View own payment requests
+  getMyRequests: (params) =>
+    api.get("/payment/mine", { params }).then((r) => r.data),
+
+  // Get payment by ID
+  getPaymentById: (id) =>
+    api.get(`/payment/${id}`).then((r) => r.data),
+
+  // ================= DEALER ADMIN APPROVAL =================
+  getDealerPending: () =>
+    api.get("/payment/dealer/pending").then((r) => r.data),
+
+  approveByDealer: (id, payload) =>
+    api.post(`/payment/dealer/${id}/approve`, payload).then((r) => r.data),
+
+  rejectByDealer: (id, payload) =>
+    api.post(`/payment/dealer/${id}/reject`, payload).then((r) => r.data),
+
+  // ================= FINANCE ADMIN APPROVAL =================
+  getFinancePending: () =>
+    api.get("/payment/pending").then((r) => r.data),
+
+  approveByFinance: (id, payload) =>
+    api.post(`/payment/${id}/approve`, payload).then((r) => r.data),
+
+  rejectByFinance: (id, payload) =>
+    api.post(`/payment/${id}/reject`, payload).then((r) => r.data),
+
+  // ================== RECONCILIATION ==================
+  getReconcileSummary: () =>
+    api.get("/payment/reconcile").then((r) => r.data),
+
+  triggerReconcile: () =>
+    api.post("/payment/reconcile/trigger").then((r) => r.data),
 };
-/* =======================================================================
-   INVOICE / PAYMENT APIs
-   ======================================================================= */
+
+// =======================================================================
+// ======================== DOCUMENT MANAGEMENT APIs =====================
+// =======================================================================
+
+export const documentAPI = {
+  // Upload document
+  uploadDocument: (formData) =>
+    api.post("/documents/upload", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }).then((r) => r.data),
+
+  // Get documents
+  getDocuments: (params) =>
+    api.get("/documents", { params }).then((r) => r.data),
+
+  // Get document by ID
+  getDocumentById: (id) =>
+    api.get(`/documents/${id}`).then((r) => r.data),
+
+  // Download document
+  downloadDocument: (id) =>
+    api.get(`/documents/${id}/download`, { responseType: "blob" }).then((r) => r.data),
+
+  // Get pending approvals
+  getPendingApprovals: () =>
+    api.get("/documents/pending-approvals").then((r) => r.data),
+
+  // Approve/Reject document
+  approveRejectDocument: (id, payload) =>
+    api.post(`/documents/${id}/approve-reject`, payload).then((r) => r.data),
+
+  // Update document status
+  updateDocumentStatus: (id, status) =>
+    api.post(`/documents/${id}/status`, { status }).then((r) => r.data),
+
+  // Delete document
+  deleteDocument: (id) =>
+    api.delete(`/documents/${id}`).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== PRICING APPROVAL APIs ========================
+// =======================================================================
+
+export const pricingAPI = {
+  // Create pricing request
+  createRequest: (payload) =>
+    api.post("/pricing/request", payload).then((r) => r.data),
+
+  // Get pricing requests
+  getRequests: (params) =>
+    api.get("/pricing/requests", { params }).then((r) => r.data),
+
+  // Get pending approvals for current stage
+  getPendingByStage: (stage) =>
+    api.get(`/pricing/pending/${stage}`).then((r) => r.data),
+
+  // Approve pricing request (multi-stage: Area → Regional → Super Admin)
+  approve: (id, payload) =>
+    api.post(`/pricing/${id}/approve`, payload).then((r) => r.data),
+
+  // Reject pricing request
+  reject: (id, payload) =>
+    api.post(`/pricing/${id}/reject`, payload).then((r) => r.data),
+
+  // Get pricing history
+  getHistory: (params) =>
+    api.get("/pricing/history", { params }).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== INVOICE APIs =================================
+// =======================================================================
 
 export const invoiceAPI = {
-  // Create invoice (dealer_staff may call with { orderId } — backend derives other fields)
-  createInvoice: (payload) => api.post('/invoices', payload).then((r) => r.data),
+  // Create invoice
+  createInvoice: (payload) =>
+    api.post("/invoices", payload).then((r) => r.data),
 
-  // Get invoices (list) - supports query params
-  getInvoices: (params) => api.get('/invoices', { params }).then((r) => r.data),
+  // Get invoices (role-filtered)
+  getInvoices: (params) =>
+    api.get("/invoices", { params }).then((r) => r.data),
 
   // Get single invoice by id
-  getInvoiceById: (id) => api.get(`/invoices/${id}`).then((r) => r.data),
+  getInvoiceById: (id) =>
+    api.get(`/invoices/${id}`).then((r) => r.data),
 
-  // Update invoice (admin / key_user)
-  updateInvoice: (id, payload) => api.put(`/invoices/${id}`, payload).then((r) => r.data),
+  // Update invoice
+  updateInvoice: (id, payload) =>
+    api.put(`/invoices/${id}`, payload).then((r) => r.data),
 
-  // Download invoice PDF — returns ArrayBuffer blob
+  // Download invoice PDF
   downloadInvoicePDF: (id) =>
-    api
-      .get(`/invoices/${id}/pdf`, { responseType: 'arraybuffer' })
-      .then((r) => r.data),
-};
-// Default export for compatibility
-export default api;
+    api.get(`/invoices/${id}/pdf`, { responseType: "arraybuffer" }).then((r) => r.data),
 
-// ======================= CHAT APIs (resilient mark-read) =================
+  // Get invoice summary
+  getInvoiceSummary: (params) =>
+    api.get("/invoices/summary", { params }).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== MATERIAL MASTER APIs =========================
+// =======================================================================
+
+export const materialAPI = {
+  // Get materials
+  getMaterials: (params) =>
+    api.get("/materials", { params }).then((r) => r.data),
+
+  // Get material groups
+  getMaterialGroups: () =>
+    api.get("/material-groups").then((r) => r.data),
+
+  // Get material by ID
+  getMaterialById: (id) =>
+    api.get(`/materials/${id}`).then((r) => r.data),
+
+  // Create material
+  createMaterial: (payload) =>
+    api.post("/materials", payload).then((r) => r.data),
+
+  // Update material
+  updateMaterial: (id, payload) =>
+    api.patch(`/materials/${id}`, payload).then((r) => r.data),
+
+  // Delete material
+  deleteMaterial: (id) =>
+    api.delete(`/materials/${id}`).then((r) => r.data),
+
+  // Bulk import from Excel
+  bulkImport: (formData) =>
+    api.post("/materials/bulk-import", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    }).then((r) => r.data),
+
+  // Download template
+  downloadTemplate: () =>
+    api.get("/materials/template", { responseType: "blob" }).then((r) => r.data),
+
+  // Get material analytics
+  getAnalytics: (params) =>
+    api.get("/materials/analytics", { params }).then((r) => r.data),
+
+  // Get material alerts
+  getAlerts: () =>
+    api.get("/materials/alerts").then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== GEOGRAPHIC MANAGEMENT APIs ===================
+// =======================================================================
+
+export const geoAPI = {
+  // Regions
+  getRegions: (params) =>
+    api.get("/regions", { params }).then((r) => r.data),
+
+  getRegionById: (id) =>
+    api.get(`/regions/${id}`).then((r) => r.data),
+
+  createRegion: (payload) =>
+    api.post("/regions", payload).then((r) => r.data),
+
+  updateRegion: (id, payload) =>
+    api.put(`/regions/${id}`, payload).then((r) => r.data),
+
+  deleteRegion: (id) =>
+    api.delete(`/regions/${id}`).then((r) => r.data),
+
+  // Areas
+  getAreas: (params) =>
+    api.get("/areas", { params }).then((r) => r.data),
+
+  getAreaById: (id) =>
+    api.get(`/areas/${id}`).then((r) => r.data),
+
+  getAreasByRegion: (regionId) =>
+    api.get(`/areas/region/${regionId}`).then((r) => r.data),
+
+  createArea: (payload) =>
+    api.post("/areas", payload).then((r) => r.data),
+
+  updateArea: (id, payload) =>
+    api.put(`/areas/${id}`, payload).then((r) => r.data),
+
+  deleteArea: (id) =>
+    api.delete(`/areas/${id}`).then((r) => r.data),
+
+  // Territories
+  getTerritories: (params) =>
+    api.get("/territories", { params }).then((r) => r.data),
+
+  getTerritoryById: (id) =>
+    api.get(`/territories/${id}`).then((r) => r.data),
+
+  getTerritoriesByArea: (areaId) =>
+    api.get(`/areas/${areaId}/territories`).then((r) => r.data),
+
+  createTerritory: (payload) =>
+    api.post("/territories", payload).then((r) => r.data),
+
+  updateTerritory: (id, payload) =>
+    api.put(`/territories/${id}`, payload).then((r) => r.data),
+
+  deleteTerritory: (id) =>
+    api.delete(`/territories/${id}`).then((r) => r.data),
+
+  // Map Data (GeoJSON)
+  getMapData: (level, params) =>
+    api.get(`/maps/${level}`, { params }).then((r) => r.data),
+
+  // Sales heatmap data
+  getHeatmapData: (params) =>
+    api.get("/maps/heatmap", { params }).then((r) => r.data),
+
+  // Dealer locations
+  getDealerLocations: (params) =>
+    api.get("/maps/dealers", { params }).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== CHAT APIs ====================================
+// =======================================================================
+
 export const chatAPI = {
-  // Try several endpoint variants to mark a conversation as read.
-  // Some backends expose different paths or use POST instead of PATCH.
-  // We attempt likely candidates and ignore 404s.
+  // Get allowed users to chat with (hierarchical filtering)
+  getAllowedUsers: () =>
+    api.get("/chat/allowed-users").then((r) => r.data),
+
+  // Get conversation with a partner
+  getConversation: (partnerId, params) =>
+    api.get(`/chat/conversation/${partnerId}`, { params }).then((r) => r.data),
+
+  // Send message
+  sendMessage: (payload) =>
+    api.post("/chat/messages", payload).then((r) => r.data),
+
+  // Mark conversation as read
   markRead: async (partnerId) => {
     const candidates = [
-      // Prefer the backend's declared route: PATCH /api/chat/:partnerId/read
       { method: "patch", url: `/chat/${partnerId}/read` },
-
-      // original chat endpoints (fallbacks)
+      { method: "post", url: `/chat/${partnerId}/read` },
       { method: "patch", url: `/chat/mark-read/${partnerId}` },
       { method: "post", url: `/chat/mark-read/${partnerId}` },
-      { method: "post", url: `/chat/${partnerId}/read` },
-      { method: "patch", url: `/chat/read/${partnerId}` },
-      { method: "post", url: `/chat/read/${partnerId}` },
-
-      // messages-based endpoints (used elsewhere in repo)
-      { method: "patch", url: `/messages/mark-read/${partnerId}` },
-      { method: "post", url: `/messages/mark-read/${partnerId}` },
-      { method: "patch", url: `/messages/${partnerId}/read` },
-      { method: "post", url: `/messages/${partnerId}/read` },
-      { method: "patch", url: `/messages/read/${partnerId}` },
-      { method: "post", url: `/messages/read/${partnerId}` },
-
-      // conversation-based endpoints
-      { method: "patch", url: `/conversations/${partnerId}/read` },
-      { method: "post", url: `/conversations/${partnerId}/read` },
-      { method: "patch", url: `/conversations/mark-read/${partnerId}` },
-      { method: "post", url: `/conversations/mark-read/${partnerId}` },
-
-      // query param variants
-      { method: "patch", url: `/chat/mark-read?partnerId=${partnerId}` },
-      { method: "post", url: `/chat/mark-read?partnerId=${partnerId}` },
-
-      // snake_case variants
-      { method: "patch", url: `/chat/mark_as_read/${partnerId}` },
-      { method: "post", url: `/chat/mark_as_read/${partnerId}` },
     ];
 
     let lastErr = null;
     for (const c of candidates) {
       try {
         const res = await api[c.method](c.url);
-        // helpful debug: which candidate succeeded
-        console.debug(`[chatAPI.markRead] succeeded: ${c.method.toUpperCase()} ${c.url}`);
         return res.data;
       } catch (err) {
         lastErr = err;
         if (err.response && err.response.status === 404) continue;
       }
     }
-
     return Promise.reject(lastErr || new Error("Failed to mark chat read"));
   },
-};
-</file>
 
-<file path="package.json">
-{
-  "name": "dealer-portal-react",
-  "private": true,
-  "version": "0.0.0",
-  "type": "module",
-  "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "lint": "eslint .",
-    "preview": "vite preview"
-  },
-  "dependencies": {
-    "@emotion/react": "^11.14.0",
-    "@emotion/styled": "^11.14.1",
-    "@hugeicons/react": "^1.1.1",
-    "@mui/icons-material": "^7.3.5",
-    "@mui/material": "^7.3.4",
-    "axios": "^1.13.2",
-    "framer-motion": "^12.23.24",
-    "leaflet": "^1.9.4",
-    "leaflet.heat": "^0.2.0",
-    "lucide-react": "^0.552.0",
-    "react": "^19.1.1",
-    "react-apexcharts": "^1.8.0",
-    "react-countup": "^6.5.3",
-    "react-dom": "^19.1.1",
-    "react-hook-form": "^7.65.0",
-    "react-icons": "^5.5.0",
-    "react-leaflet": "^5.0.0",
-    "react-router-dom": "^7.9.5",
-    "react-toastify": "^11.0.5",
-    "recharts": "^3.3.0",
-    "socket.io-client": "^4.8.1"
-  },
-  "devDependencies": {
-    "@eslint/js": "^9.36.0",
-    "@types/react": "^19.1.16",
-    "@types/react-dom": "^19.1.9",
-    "@vitejs/plugin-react": "^5.0.4",
-    "autoprefixer": "^10.4.21",
-    "babel-plugin-react-compiler": "^19.1.0-rc.3",
-    "eslint": "^9.36.0",
-    "eslint-plugin-react-hooks": "^5.2.0",
-    "eslint-plugin-react-refresh": "^0.4.22",
-    "globals": "^16.4.0",
-    "postcss": "^8.5.6",
-    "tailwindcss": "^4.1.16",
-    "vite": "^7.1.7"
-  }
-}
+  // Get unread count
+  getUnreadCount: () =>
+    api.get("/chat/unread-count").then((r) => r.data),
+
+  // Get recent conversations
+  getRecentConversations: () =>
+    api.get("/chat/conversations").then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== NOTIFICATION APIs ============================
+// =======================================================================
+
+export const notificationAPI = {
+  // Get notifications
+  getNotifications: (params) =>
+    api.get("/notifications", { params }).then((r) => r.data),
+
+  // Mark notification as read
+  markNotificationRead: (id) =>
+    api.patch(`/notifications/${id}/read`).then((r) => r.data),
+
+  // Mark all as read
+  markAllRead: () =>
+    api.patch("/notifications/mark-all-read").then((r) => r.data),
+
+  // Get unread count
+  getUnreadCount: () =>
+    api.get("/notifications/unread-count").then((r) => r.data),
+
+  // Delete notification
+  deleteNotification: (id) =>
+    api.delete(`/notifications/${id}`).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== CAMPAIGN MANAGEMENT APIs =====================
+// =======================================================================
+
+export const campaignAPI = {
+  // Get campaigns (scoped by region)
+  getCampaigns: (params) =>
+    api.get("/campaigns", { params }).then((r) => r.data),
+
+  // Get campaign by ID
+  getCampaignById: (id) =>
+    api.get(`/campaigns/${id}`).then((r) => r.data),
+
+  // Create campaign
+  createCampaign: (payload) =>
+    api.post("/campaigns/create", payload).then((r) => r.data),
+
+  // Update campaign
+  updateCampaign: (id, payload) =>
+    api.put(`/campaigns/${id}`, payload).then((r) => r.data),
+
+  // Delete campaign
+  deleteCampaign: (id) =>
+    api.delete(`/campaigns/${id}`).then((r) => r.data),
+
+  // Get campaign analytics
+  getCampaignAnalytics: (id) =>
+    api.get(`/campaigns/${id}/analytics`).then((r) => r.data),
+
+  // Get targeted dealers
+  getTargetedDealers: (id) =>
+    api.get(`/campaigns/${id}/dealers`).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== REPORTING & ANALYTICS APIs ===================
+// =======================================================================
+
+export const reportAPI = {
+  // Dealer Performance Report
+  getDealerPerformance: (params) =>
+    api.get("/reports/dealer-performance", { params }).then((r) => r.data),
+
+  // Territorial Summary Report
+  getTerritorialSummary: (params) =>
+    api.get("/reports/territorial-summary", { params }).then((r) => r.data),
+
+  // Regional Sales Summary
+  getRegionalSales: (params) =>
+    api.get("/reports/regional-sales", { params }).then((r) => r.data),
+
+  // Account Statement Report
+  getAccountStatement: (params) =>
+    api.get("/reports/account-statement", { params }).then((r) => r.data),
+
+  // Invoice Register Report
+  getInvoiceRegister: (params) =>
+    api.get("/reports/invoice-register", { params }).then((r) => r.data),
+
+  // Credit/Debit Notes Report
+  getCreditDebitNotes: (params) =>
+    api.get("/reports/credit-debit-notes", { params }).then((r) => r.data),
+
+  // Outstanding Receivables Report
+  getOutstandingReceivables: (params) =>
+    api.get("/reports/outstanding-receivables", { params }).then((r) => r.data),
+
+  // Pending Approvals Report
+  getPendingApprovals: (params) =>
+    api.get("/reports/pending-approvals", { params }).then((r) => r.data),
+
+  // Admin Summary Report
+  getAdminSummary: (params) =>
+    api.get("/reports/admin-summary", { params }).then((r) => r.data),
+
+  // Financial Dashboard Report
+  getFinancialDashboard: (params) =>
+    api.get("/reports/financial-dashboard", { params }).then((r) => r.data),
+
+  // Export to PDF
+  exportPDF: (reportType, params) =>
+    api.post("/reports/export/pdf", { reportType, ...params }, {
+      responseType: "blob"
+    }).then((r) => r.data),
+
+  // Export to Excel
+  exportExcel: (reportType, params) =>
+    api.post("/reports/export/excel", { reportType, ...params }, {
+      responseType: "blob"
+    }).then((r) => r.data),
+
+  // Role-specific dashboard data
+  getRoleDashboardData: (role) =>
+    api.get(`/reports/${role}/dashboard-data`).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== DEALER MANAGEMENT APIs =======================
+// =======================================================================
+
+export const dealerAPI = {
+  // Get dealers (scoped by role)
+  getDealers: (params) =>
+    api.get("/dealers", { params }).then((r) => r.data),
+
+  // Get dealer by ID
+  getDealerById: (id) =>
+    api.get(`/dealers/${id}`).then((r) => r.data),
+
+  // Create dealer
+  createDealer: (payload) =>
+    api.post("/dealers", payload).then((r) => r.data),
+
+  // Update dealer
+  updateDealer: (id, payload) =>
+    api.put(`/dealers/${id}`, payload).then((r) => r.data),
+
+  // Approve dealer registration
+  approveDealer: (id, payload) =>
+    api.post(`/dealers/${id}/approve`, payload).then((r) => r.data),
+
+  // Reject dealer registration
+  rejectDealer: (id, payload) =>
+    api.post(`/dealers/${id}/reject`, payload).then((r) => r.data),
+
+  // Get dealer performance
+  getDealerPerformance: (id, params) =>
+    api.get(`/dealers/${id}/performance`, { params }).then((r) => r.data),
+
+  // Get dealer hierarchy
+  getDealerHierarchy: (id) =>
+    api.get(`/dealers/${id}/hierarchy`).then((r) => r.data),
+};
+
+// Default export
+export default api;
 </file>
 
 <file path="src/pages/dashboards/DealerDashboard.jsx">
@@ -12445,6 +14243,9 @@ import MaterialAlerts from "./pages/Alerts/MaterialAlerts";
 import RegionMap from "./pages/maps/RegionMaps";
 
 
+import MyPaymentRequests from "./pages/payments/MyPaymentRequest";
+
+
 export default function App() {
   return (
     <AuthProvider>
@@ -12508,6 +14309,14 @@ export default function App() {
       ]}
     >
       <RegionMap />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="orders/approvals"
+  element={
+    <ProtectedRoute allowed={["dealer_admin", "regional_manager", "regional_admin", "super_admin"]}>
+      <AdminOrders />
     </ProtectedRoute>
   }
 />
@@ -12811,6 +14620,23 @@ export default function App() {
   }
 />
 
+<Route
+  path="payments/create"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <CreatePaymentRequest />
+    </ProtectedRoute>
+  }
+/>
+
+<Route
+  path="payments/my"
+  element={
+    <ProtectedRoute allowed={["dealer_staff"]}>
+      <MyPaymentRequests />
+    </ProtectedRoute>
+  }
+/>
 
 
 
@@ -12913,8 +14739,8 @@ export default function App() {
 
 <file path="src/components/Sidebar.jsx">
 import React, { useContext, useState, useEffect } from "react";
-import { AuthContext } from "../context/AuthContext";
 import { Link, useLocation } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 import api from "../services/api";
 import socket from "../services/socket";
 
@@ -12929,9 +14755,9 @@ import {
   FaBars,
   FaBell,
   FaUpload,
+  FaMoneyCheckAlt,
+  FaMapMarkedAlt,
 } from "react-icons/fa";
-import { FaMoneyCheckAlt } from "react-icons/fa";
-import { FaMapMarkedAlt } from "react-icons/fa";
 
 export default function Sidebar() {
   const { user } = useContext(AuthContext);
@@ -12943,6 +14769,11 @@ export default function Sidebar() {
   const role = user?.role?.toLowerCase() || "user";
 
   // -------------------------
+  // ROLES ALLOWED TO SEE ORDER APPROVALS
+  // -------------------------
+  const orderApprovalRoles = ["super_admin", "regional_admin", "regional_manager", "dealer_admin"];
+
+  // -------------------------
   // BASE MENU LINKS
   // -------------------------
   const baseLinks = [
@@ -12951,7 +14782,7 @@ export default function Sidebar() {
   ];
 
   // -------------------------
-  // ROLE-BASED NAVIGATION
+  // ROLE-BASED LINKS
   // -------------------------
   const roleLinks = {
     super_admin: [
@@ -12965,106 +14796,64 @@ export default function Sidebar() {
       { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
       { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
       { label: "Material Alerts", path: "/alerts/materials", icon: <FaBell /> },
-
-      // ⭐ NEW MAP VIEW
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
-
     technical_admin: [
       { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
       { label: "Material Master", path: "/materials", icon: <FaCogs /> },
       { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
       { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
-
-      // ⭐ NEW MAP VIEW
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
-
     regional_admin: [
       { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
       { label: "Regions", path: "/regions", icon: <FaChartBar /> },
-
-      // ⭐ NEW MAP VIEW
-      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
-
-    finance_admin: [
-      { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-      {
-        label: "Payment Approvals",
-        path: "/payments/finance/pending",
-        icon: <FaMoneyCheckAlt />,
-      },
-      { label: "Accounts", path: "/accounts", icon: <FaUsers /> },
-    ],
-
     regional_manager: [
       { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
       { label: "Approvals", path: "/approvals", icon: <FaChartBar /> },
-
-      // ⭐ NEW MAP VIEW
-      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
-
-    area_manager: [
-      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-
-      // ⭐ NEW MAP VIEW
-      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
-    ],
-
-    territory_manager: [
-      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-
-      // ⭐ NEW MAP VIEW
-      { label: "Map View", path: "/map-view", icon: <FaMapMarkedAlt /> },
-    ],
-
     dealer_admin: [
       { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
       { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
       { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-      {
-        label: "Order Approvals",
-        path: "/orders/approvals",
-        icon: <FaChartBar />,
-      },
-      {
-        label: "Payment Approvals",
-        path: "/payments/dealer/pending",
-        icon: <FaMoneyCheckAlt />,
-      },
-
-      // ⭐ NEW MAP VIEW
+      { label: "Payment Approvals", path: "/payments/dealer/pending", icon: <FaMoneyCheckAlt /> },
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
-    ],
+      { label: "Payment Approvals", path: "/payments/dealer/pending", icon: <FaMoneyCheckAlt /> },
 
+    ],
     dealer_staff: [
       { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
       { label: "Create Order", path: "/orders/create", icon: <FaChartBar /> },
       { label: "My Orders", path: "/orders/my", icon: <FaChartBar /> },
       { label: "Make Payment", path: "/payments/create", icon: <FaMoneyCheckAlt /> },
-    ],
+      { label: "Make Payment", path: "/payments/create", icon: <FaMoneyCheckAlt /> },
 
-    inventory_user: [
-      { label: "Inventory", path: "/inventory", icon: <FaWarehouse /> },
-      { label: "Pricing Updates", path: "/pricing", icon: <FaChartBar /> },
-      { label: "Material Alerts", path: "/alerts/materials", icon: <FaBell /> },
-
-      // ⭐ NEW MAP VIEW (optional)
-      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
+    finance_admin: [
+  { label: "Payment Approvals", path: "/payments/finance/pending", icon: <FaMoneyCheckAlt /> }
+],
 
-    accounts_user: [
-      { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
-      { label: "Statements", path: "/statements", icon: <FaFileAlt /> },
-    ],
   };
 
+  // -------------------------
+  // BUILD FINAL LINKS ARRAY
+  // -------------------------
   const links = [...baseLinks, ...(roleLinks[role] || [])];
 
+  // Add Order Approvals link dynamically for allowed roles
+  if (orderApprovalRoles.includes(role)) {
+    links.push({
+      label: "Order Approvals",
+      path: "/orders/approvals",
+      icon: <FaChartBar />,
+    });
+  }
+
   // -------------------------
-  // UNREAD BADGE LOGIC
+  // UNREAD CHAT COUNT
   // -------------------------
   useEffect(() => {
     let mounted = true;
@@ -13073,7 +14862,6 @@ export default function Sidebar() {
       try {
         const res = await api.get("/chat/unread-count");
         const count = res.data.count || res.data.unread || 0;
-
         if (mounted) setUnread(count);
       } catch (err) {
         console.log("Unread fetch error:", err);
@@ -13083,9 +14871,7 @@ export default function Sidebar() {
     loadUnread();
 
     socket.on("message:new", () => {
-      if (pathname !== "/chat") {
-        setUnread((v) => v + 1);
-      }
+      if (pathname !== "/chat") setUnread((v) => v + 1);
     });
 
     socket.on("chat:read", () => {
@@ -13099,6 +14885,9 @@ export default function Sidebar() {
     };
   }, [pathname]);
 
+  // -------------------------
+  // RENDER SIDEBAR
+  // -------------------------
   return (
     <aside
       style={{
@@ -13130,7 +14919,6 @@ export default function Sidebar() {
             {role.toUpperCase()}
           </h3>
         )}
-
         <button
           onClick={() => setCollapsed(!collapsed)}
           style={{
@@ -13146,11 +14934,10 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {/* NAV LINKS */}
+      {/* LINKS */}
       <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
         {links.map((l) => {
           const active = pathname === l.path;
-
           return (
             <div style={{ position: "relative" }} key={l.path}>
               <Link
@@ -13171,11 +14958,9 @@ export default function Sidebar() {
                 }}
               >
                 <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
-
                 {!collapsed && (
                   <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
                     <span>{l.label}</span>
-
                     {l.path === "/chat" && unread > 0 && (
                       <span
                         style={{
