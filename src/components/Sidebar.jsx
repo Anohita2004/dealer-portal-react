@@ -37,7 +37,7 @@ export default function Sidebar() {
 
   const roleLinks = {
     super_admin: [
-      { label: "Users", path: "/users", icon: <FaUsers /> },
+       { label: "Users", path: "/superadmin/users", icon: <FaUsers /> },
       { label: "Roles & Permissions", path: "/roles", icon: <FaCogs /> },
       { label: "Documents", path: "/documents", icon: <FaFileAlt /> },
       { label: "Pricing", path: "/pricing", icon: <FaChartBar /> },

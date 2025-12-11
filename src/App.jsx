@@ -23,6 +23,10 @@ import CreatePaymentRequest from "./pages/payments/CreatePaymentRequest";
 
 import DealerAdminPayments from "./pages/payments/DealerAdminPayments";
 import FinancePendingPayments from "./pages/payments/FinancePendingPayments";
+import SuperAdminUsers from "./pages/superadmin/Users";
+import SuperAdminRoles from "./pages/superadmin/Roles";
+import SuperAdminTeamManagement from "./pages/superadmin/TeamManagement";
+import UserFormPage from "./pages/superadmin/UserFormPage"; // if using it
 
 
 // 🛠 Admin & Config
@@ -134,62 +138,67 @@ export default function App() {
 />
 
             {/* ============================================================
-               SUPER ADMIN ONLY
-            ============================================================ */}
-            <Route
-              path="users"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <Users />
-                </ProtectedRoute>
-              }
-            />
+   SUPER ADMIN ONLY (NAMESPACED & CLEAN)
+============================================================ */}
 
-            <Route
-              path="roles"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <Roles />
-                </ProtectedRoute>
-              }
-            />
+<Route path="superadmin">
+  
+  <Route
+    path="users"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <Users />
+      </ProtectedRoute>
+    }
+  />
 
-            <Route
-              path="documents"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <Documents />
-                </ProtectedRoute>
-              }
-            />
+  <Route
+    path="roles"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <Roles />
+      </ProtectedRoute>
+    }
+  />
 
-            <Route
-              path="pricing"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <PricingApprovals />
-                </ProtectedRoute>
-              }
-            />
+  <Route
+    path="documents"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <Documents />
+      </ProtectedRoute>
+    }
+  />
 
-            <Route
-              path="inventory"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <InventoryDashboard />
-                </ProtectedRoute>
-              }
-            />
+  <Route
+    path="pricing"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <PricingApprovals />
+      </ProtectedRoute>
+    }
+  />
 
-            <Route
-              path="accounts"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <AccountsDashboard />
-                </ProtectedRoute>
-              }
-            />
+  <Route
+    path="inventory"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <InventoryDashboard />
+      </ProtectedRoute>
+    }
+  />
 
+  <Route
+    path="accounts"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <AccountsDashboard />
+      </ProtectedRoute>
+    }
+  />
+
+</Route>
+<Route path="superadmin/users/new" element={<ProtectedRoute allowed={["super_admin"]}><UserFormPage /></ProtectedRoute>} />
 
             {/* ============================================================
                TECHNICAL ADMIN

@@ -143,6 +143,9 @@ src/pages/reports/PendingApprovals.jsx
 src/pages/reports/RegionalSalesSummary.jsx
 src/pages/reports/TerritorySummary.jsx
 src/pages/superadmin/Roles.jsx
+src/pages/superadmin/TeamManagement.jsx
+src/pages/superadmin/Teams.jsx
+src/pages/superadmin/UserFormPage.jsx
 src/pages/superadmin/Users.jsx
 src/pages/technicaladmin/TechnicalAdmin.jsx
 src/services/api.js
@@ -155,75 +158,617 @@ vite.config.js
 <files>
 This section contains the contents of the repository's files.
 
-<file path="src/pages/payments/MyPaymentRequest.jsx">
-// src/pages/payments/MyPaymentRequests.jsx
-import React, { useEffect, useState } from "react";
+<file path="src/pages/superadmin/TeamManagement.jsx">
+import React, { useState, useEffect } from "react";
 import api from "../../services/api";
-import { format } from "date-fns";
 
-const Badge = ({ status }) => {
-  const color = status === "approved" ? "#16a34a" : status === "rejected" ? "#dc2626" : "#f59e0b";
-  return <span style={{ padding: "6px 10px", borderRadius: 999, background: `${color}22`, color, fontWeight: 600 }}>{status}</span>;
-};
+export default function TeamManagement() {
+  const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [createModalOpen, setCreateModalOpen] = useState(false);
+  const [editModalOpen, setEditModalOpen] = useState({ open: false, team: null });
+  const [assignManagerModal, setAssignManagerModal] = useState({ open: false, teamId: null });
+  const [addDealerModal, setAddDealerModal] = useState({ open: false, teamId: null });
+  const [removeDealerModal, setRemoveDealerModal] = useState({ open: false, teamId: null });
+  const [form, setForm] = useState({ name: "", description: "" });
+  const [editForm, setEditForm] = useState({ name: "", description: "" });
+  const [assignForm, setAssignForm] = useState({ managerId: "" });
+  const [dealerForm, setDealerForm] = useState({ dealerId: "" });
+  const [removeDealerForm, setRemoveDealerForm] = useState({ dealerId: "" });
 
-export default function MyPaymentRequests() {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
-
-  const load = async () => {
-    setLoading(true);
+  const fetchTeams = async () => {
     try {
-      const res = await api.get("/payment/mine");
-      setRows(res.data.requests || res.data || []);
-    } catch (e) {
-      console.error(e);
+      const res = await api.get("/team");
+      setTeams(res.data);
+    } catch (err) {
+      console.error("Failed to fetch teams:", err);
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => {
+    fetchTeams();
+  }, []);
 
-  const canEdit = (r) => r.status === "pending";
+  const handleCreateTeam = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post("/team", form);
+      setCreateModalOpen(false);
+      setForm({ name: "", description: "" });
+      fetchTeams();
+    } catch (err) {
+      console.error("Failed to create team:", err);
+      alert("Failed to create team");
+    }
+  };
 
-  const downloadProof = (r) => {
-    if (!r.proofUrl) return;
-    window.open(r.proofUrl, "_blank");
+  const handleEditTeam = async (e) => {
+    e.preventDefault();
+    try {
+      await api.put(`/team/${editModalOpen.team.id}`, editForm);
+      setEditModalOpen({ open: false, team: null });
+      setEditForm({ name: "", description: "" });
+      fetchTeams();
+    } catch (err) {
+      console.error("Failed to edit team:", err);
+      alert("Failed to edit team");
+    }
+  };
+
+  const handleDeleteTeam = async (teamId) => {
+    if (!window.confirm("Are you sure you want to delete this team?")) return;
+    try {
+      await api.delete(`/team/${teamId}`);
+      fetchTeams();
+    } catch (err) {
+      console.error("Failed to delete team:", err);
+      alert("Failed to delete team");
+    }
+  };
+
+  const handleAssignManager = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post("/team/assign-manager", { teamId: assignManagerModal.teamId, ...assignForm });
+      setAssignManagerModal({ open: false, teamId: null });
+      setAssignForm({ managerId: "" });
+      fetchTeams();
+    } catch (err) {
+      console.error("Failed to assign manager:", err);
+      alert("Failed to assign manager");
+    }
+  };
+
+  const handleRemoveManager = async (teamId) => {
+    if (!window.confirm("Are you sure you want to remove the manager from this team?")) return;
+    try {
+      await api.delete(`/team/remove-manager/${teamId}`);
+      fetchTeams();
+    } catch (err) {
+      console.error("Failed to remove manager:", err);
+      alert("Failed to remove manager");
+    }
+  };
+
+  const handleAddDealer = async (e) => {
+    e.preventDefault();
+    try {
+      await api.post(`/team/add-dealer/${addDealerModal.teamId}`, dealerForm);
+      setAddDealerModal({ open: false, teamId: null });
+      setDealerForm({ dealerId: "" });
+      fetchTeams();
+    } catch (err) {
+      console.error("Failed to add dealer:", err);
+      alert("Failed to add dealer");
+    }
+  };
+
+  const handleRemoveDealer = async (e) => {
+    e.preventDefault();
+    try {
+      await api.delete(`/team/remove-dealer/${removeDealerModal.teamId}/${removeDealerForm.dealerId}`);
+      setRemoveDealerModal({ open: false, teamId: null });
+      setRemoveDealerForm({ dealerId: "" });
+      fetchTeams();
+    } catch (err) {
+      console.error("Failed to remove dealer:", err);
+      alert("Failed to remove dealer");
+    }
+  };
+
+  if (loading) return <p>Loading teams...</p>;
+
+  return (
+    <div style={{ padding: "2rem" }}>
+      <h1>Team Management</h1>
+      <button
+        onClick={() => setCreateModalOpen(true)}
+        style={{ padding: "0.5rem 1rem", background: "#f97316", color: "white", border: "none", borderRadius: "6px", marginBottom: "1rem" }}
+      >
+        Create Team
+      </button>
+
+      <div style={{ display: "grid", gap: "1rem" }}>
+        {teams.map((team) => (
+          <div key={team.id} style={{ border: "1px solid #ccc", padding: "1rem", borderRadius: "8px" }}>
+            <h3>{team.name}</h3>
+            <p>Manager: {team.managers?.[0]?.username || "None"}</p>
+            <p>Dealer Admins / Staff Count: {team.dealers?.length || 0}</p>
+            <div style={{ marginTop: "1rem" }}>
+              <button
+                onClick={() => { setEditForm({ name: team.name, description: team.description || "" }); setEditModalOpen({ open: true, team }); }}
+                style={{ padding: "0.3rem 0.6rem", background: "#fbbf24", color: "white", border: "none", borderRadius: "4px", marginRight: "0.5rem" }}
+              >
+                Edit
+              </button>
+              <button
+                onClick={() => handleDeleteTeam(team.id)}
+                style={{ padding: "0.3rem 0.6rem", background: "#ef4444", color: "white", border: "none", borderRadius: "4px", marginRight: "0.5rem" }}
+              >
+                Delete
+              </button>
+              {team.managers?.[0] && (
+                <button
+                  onClick={() => handleRemoveManager(team.id)}
+                  style={{ padding: "0.3rem 0.6rem", background: "#f59e0b", color: "white", border: "none", borderRadius: "4px", marginRight: "0.5rem" }}
+                >
+                  Remove Manager
+                </button>
+              )}
+              <button
+                onClick={() => setAssignManagerModal({ open: true, teamId: team.id })}
+                style={{ padding: "0.3rem 0.6rem", background: "#3b82f6", color: "white", border: "none", borderRadius: "4px", marginRight: "0.5rem" }}
+              >
+                Add Manager
+              </button>
+              <button
+                onClick={() => setAddDealerModal({ open: true, teamId: team.id })}
+                style={{ padding: "0.3rem 0.6rem", background: "#10b981", color: "white", border: "none", borderRadius: "4px", marginRight: "0.5rem" }}
+              >
+                Add Dealer
+              </button>
+              {team.dealers?.length > 0 && (
+                <button
+                  onClick={() => setRemoveDealerModal({ open: true, teamId: team.id })}
+                  style={{ padding: "0.3rem 0.6rem", background: "#dc2626", color: "white", border: "none", borderRadius: "4px" }}
+                >
+                  Remove Dealer
+                </button>
+              )}
+            </div>
+          </div>
+        ))}
+      </div>
+
+      {/* Create Team Modal */}
+      {createModalOpen && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <form onSubmit={handleCreateTeam} style={{ background: "white", padding: "2rem", borderRadius: "12px", width: "400px" }}>
+            <h2>Create Team</h2>
+            <input
+              placeholder="Team Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+              style={{ display: "block", marginBottom: "1rem", padding: "0.5rem", width: "100%" }}
+            />
+            <textarea
+              placeholder="Description"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+              style={{ display: "block", marginBottom: "1rem", padding: "0.5rem", width: "100%" }}
+            />
+            <button type="submit" style={{ padding: "0.5rem 1rem", background: "#f97316", color: "white", border: "none", borderRadius: "6px" }}>
+              Create
+            </button>
+            <button type="button" onClick={() => setCreateModalOpen(false)} style={{ marginLeft: "1rem", padding: "0.5rem 1rem", border: "1px solid #ccc", borderRadius: "6px" }}>
+              Cancel
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Edit Team Modal */}
+      {editModalOpen.open && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <form onSubmit={handleEditTeam} style={{ background: "white", padding: "2rem", borderRadius: "12px", width: "400px" }}>
+            <h2>Edit Team</h2>
+            <input
+              placeholder="Team Name"
+              value={editForm.name}
+              onChange={(e) => setEditForm({ ...editForm, name: e.target.value })}
+              required
+              style={{ display: "block", marginBottom: "1rem", padding: "0.5rem", width: "100%" }}
+            />
+            <textarea
+              placeholder="Description"
+              value={editForm.description}
+              onChange={(e) => setEditForm({ ...editForm, description: e.target.value })}
+              style={{ display: "block", marginBottom: "1rem", padding: "0.5rem", width: "100%" }}
+            />
+            <button type="submit" style={{ padding: "0.5rem 1rem", background: "#f97316", color: "white", border: "none", borderRadius: "6px" }}>
+              Update
+            </button>
+            <button type="button" onClick={() => setEditModalOpen({ open: false, team: null })} style={{ marginLeft: "1rem", padding: "0.5rem 1rem", border: "1px solid #ccc", borderRadius: "6px" }}>
+              Cancel
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Assign Manager Modal */}
+      {assignManagerModal.open && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <form onSubmit={handleAssignManager} style={{ background: "white", padding: "2rem", borderRadius: "12px", width: "400px" }}>
+            <h2>Assign Sales Manager</h2>
+            <input
+              placeholder="Manager ID"
+              value={assignForm.managerId}
+              onChange={(e) => setAssignForm({ managerId: e.target.value })}
+              required
+              style={{ display: "block", marginBottom: "1rem", padding: "0.5rem", width: "100%" }}
+            />
+            <button type="submit" style={{ padding: "0.5rem 1rem", background: "#f97316", color: "white", border: "none", borderRadius: "6px" }}>
+              Assign
+            </button>
+            <button type="button" onClick={() => setAssignManagerModal({ open: false, teamId: null })} style={{ marginLeft: "1rem", padding: "0.5rem 1rem", border: "1px solid #ccc", borderRadius: "6px" }}>
+              Cancel
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Add Dealer Modal */}
+      {addDealerModal.open && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <form onSubmit={handleAddDealer} style={{ background: "white", padding: "2rem", borderRadius: "12px", width: "400px" }}>
+            <h2>Add Dealer Admin/Staff</h2>
+            <input
+              placeholder="Dealer ID"
+              value={dealerForm.dealerId}
+              onChange={(e) => setDealerForm({ dealerId: e.target.value })}
+              required
+              style={{ display: "block", marginBottom: "1rem", padding: "0.5rem", width: "100%" }}
+            />
+            <button type="submit" style={{ padding: "0.5rem 1rem", background: "#f97316", color: "white", border: "none", borderRadius: "6px" }}>
+              Add
+            </button>
+            <button type="button" onClick={() => setAddDealerModal({ open: false, teamId: null })} style={{ marginLeft: "1rem", padding: "0.5rem 1rem", border: "1px solid #ccc", borderRadius: "6px" }}>
+              Cancel
+            </button>
+          </form>
+        </div>
+      )}
+
+      {/* Remove Dealer Modal */}
+      {removeDealerModal.open && (
+        <div style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", display: "flex", justifyContent: "center", alignItems: "center" }}>
+          <form onSubmit={handleRemoveDealer} style={{ background: "white", padding: "2rem", borderRadius: "12px", width: "400px" }}>
+            <h2>Remove Dealer Admin/Staff</h2>
+            <input
+              placeholder="Dealer ID"
+              value={removeDealerForm.dealerId}
+              onChange={(e) => setRemoveDealerForm({ dealerId: e.target.value })}
+              required
+              style={{ display: "block", marginBottom: "1rem", padding: "0.5rem", width: "100%" }}
+            />
+            <button type="submit" style={{ padding: "0.5rem 1rem", background: "#f97316", color: "white", border: "none", borderRadius: "6px" }}>
+              Remove
+            </button>
+            <button type="button" onClick={() => setRemoveDealerModal({ open: false, teamId: null })} style={{ marginLeft: "1rem", padding: "0.5rem 1rem", border: "1px solid #ccc", borderRadius: "6px" }}>
+              Cancel
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/superadmin/Teams.jsx">
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+
+export default function Teams() {
+  const [teams, setTeams] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [form, setForm] = useState({
+    name: "",
+    regionId: "",
+    description: "",
+  });
+  const [modalOpen, setModalOpen] = useState(false);
+  const [editingTeam, setEditingTeam] = useState(null);
+  const [regions, setRegions] = useState([]);
+
+  const fetchTeams = async () => {
+    try {
+      setLoading(true);
+      const res = await api.get("/teams");
+      setTeams(res.data.teams || res.data);
+    } catch (err) {
+      console.error("Failed to fetch teams:", err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const fetchRegions = async () => {
+    try {
+      const res = await api.get("/regions");
+      setRegions(res.data.regions || res.data);
+    } catch (err) {
+      console.error("Failed to fetch regions:", err);
+    }
+  };
+
+  useEffect(() => {
+    fetchTeams();
+    fetchRegions();
+  }, []);
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      if (editingTeam) {
+        await api.put(`/teams/${editingTeam.id}`, form);
+      } else {
+        await api.post("/teams", form);
+      }
+      setModalOpen(false);
+      setForm({ name: "", regionId: "", description: "" });
+      setEditingTeam(null);
+      fetchTeams();
+    } catch (err) {
+      console.error("Failed to save team:", err);
+      alert("Failed to save team");
+    }
+  };
+
+  const handleEdit = (team) => {
+    setEditingTeam(team);
+    setForm({
+      name: team.name,
+      regionId: team.regionId || "",
+      description: team.description || "",
+    });
+    setModalOpen(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this team?")) return;
+    try {
+      await api.delete(`/teams/${id}`);
+      fetchTeams();
+    } catch (err) {
+      console.error("Failed to delete team:", err);
+      alert("Failed to delete team");
+    }
+  };
+
+  const addDealerToTeam = async (teamId, dealerId) => {
+    try {
+      await api.post(`/teams/${teamId}/dealers`, { dealerId });
+      fetchTeams();
+    } catch (err) {
+      console.error("Failed to add dealer:", err);
+    }
+  };
+
+  const removeDealerFromTeam = async (teamId, dealerId) => {
+    try {
+      await api.delete(`/teams/${teamId}/dealers/${dealerId}`);
+      fetchTeams();
+    } catch (err) {
+      console.error("Failed to remove dealer:", err);
+    }
   };
 
   return (
-    <div>
-      <h2>My Payment Requests</h2>
-      {loading ? <p>Loading…</p> : null}
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr>
-            <th>Invoice</th><th>Amount</th><th>Status</th><th>Stage</th><th>Proof</th><th>Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((r) => (
-            <tr key={r.id}>
-              <td>{r.invoiceNumber || r.invoice?.invoiceNumber}</td>
-              <td>{r.amount}</td>
-              <td><Badge status={r.status} /></td>
-              <td>{r.currentStage || r.approvalStage || "dealer_admin"}</td>
-              <td>{r.proofUrl ? <button onClick={() => downloadProof(r)}>View</button> : "—"}</td>
-              <td>
-                {canEdit(r) && <button onClick={async () => {
-                  // allow cancel/edit flow - example: cancel
-                  if (!confirm("Cancel this request?")) return;
-                  try {
-                    await api.post(`/payment/${r.id}/cancel`);
-                    setRows(rows.filter(x => x.id !== r.id));
-                  } catch (e) { console.error(e); alert("Failed"); }
-                }}>Cancel</button>}
-              </td>
-            </tr>
+    <div className="p-6">
+      <h1 className="text-2xl font-bold mb-4">Team Management</h1>
+      <button
+        onClick={() => setModalOpen(true)}
+        className="bg-blue-500 text-white px-4 py-2 rounded mb-4"
+      >
+        Add Team
+      </button>
+
+      {loading ? (
+        <p>Loading...</p>
+      ) : (
+        <div className="grid gap-4">
+          {teams.map((team) => (
+            <div key={team.id} className="border p-4 rounded">
+              <h3 className="font-bold">{team.name}</h3>
+              <p>{team.description}</p>
+              <p>Region: {team.region?.name || "N/A"}</p>
+              <div className="mt-2">
+                <h4>Dealers:</h4>
+                <ul>
+                  {team.dealers?.map((dealer) => (
+                    <li key={dealer.id}>
+                      {dealer.businessName}
+                      <button
+                        onClick={() => removeDealerFromTeam(team.id, dealer.id)}
+                        className="ml-2 text-red-500"
+                      >
+                        Remove
+                      </button>
+                    </li>
+                  )) || <li>No dealers</li>}
+                </ul>
+                {/* Add dealer form */}
+                <input
+                  type="text"
+                  placeholder="Dealer ID"
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      addDealerToTeam(team.id, e.target.value);
+                      e.target.value = "";
+                    }
+                  }}
+                />
+              </div>
+              <button onClick={() => handleEdit(team)} className="mr-2 text-blue-500">
+                Edit
+              </button>
+              <button onClick={() => handleDelete(team.id)} className="text-red-500">
+                Delete
+              </button>
+            </div>
           ))}
-          {rows.length === 0 && <tr><td colSpan={6}>No payment requests yet.</td></tr>}
-        </tbody>
-      </table>
+        </div>
+      )}
+
+      {modalOpen && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center">
+          <form onSubmit={handleSubmit} className="bg-white p-6 rounded">
+            <h2>{editingTeam ? "Edit Team" : "Add Team"}</h2>
+            <input
+              type="text"
+              placeholder="Name"
+              value={form.name}
+              onChange={(e) => setForm({ ...form, name: e.target.value })}
+              required
+            />
+            <select
+              value={form.regionId}
+              onChange={(e) => setForm({ ...form, regionId: e.target.value })}
+            >
+              <option value="">Select Region</option>
+              {regions.map((r) => (
+                <option key={r.id} value={r.id}>
+                  {r.name}
+                </option>
+              ))}
+            </select>
+            <textarea
+              placeholder="Description"
+              value={form.description}
+              onChange={(e) => setForm({ ...form, description: e.target.value })}
+            />
+            <button type="submit" className="bg-blue-500 text-white px-4 py-2 rounded">
+              Save
+            </button>
+            <button
+              type="button"
+              onClick={() => setModalOpen(false)}
+              className="ml-2"
+            >
+              Cancel
+            </button>
+          </form>
+        </div>
+      )}
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/superadmin/UserFormPage.jsx">
+// src/pages/superadmin/UserFormPage.jsx
+import React, { useEffect, useState } from "react";
+import { useNavigate, useParams } from "react-router-dom";
+import api from "../../services/api";
+import AdminUserForm from "../admin/UserForm";
+
+export default function UserFormPage() {
+  const navigate = useNavigate();
+  const { id } = useParams(); // /dashboard/users/:id/edit
+  const isEdit = !!id;
+
+  const [roles, setRoles] = useState([]);
+  const [userData, setUserData] = useState(null);
+  const [loading, setLoading] = useState(true);
+
+  // Load roles + user (if editing)
+  useEffect(() => {
+    const load = async () => {
+      try {
+        setLoading(true);
+
+        // 1️⃣ Load roles (for dropdown)
+        const rolesRes = await api.get("/roles");
+        setRoles(rolesRes.data || []);
+
+        // 2️⃣ If editing, load user
+        if (isEdit) {
+          const userRes = await api.get(`/admin/users/${id}`);
+          setUserData(userRes.data);
+        }
+      } catch (err) {
+        console.error("UserFormPage load error:", err);
+        alert("Failed to load form data");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [id, isEdit]);
+
+  const handleClose = () => {
+    navigate("/dashboard/users");
+  };
+
+  // We don’t actually need reload here, list page will refetch on mount
+  const handleReload = () => {};
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-slate-50 flex items-center justify-center">
+        <div className="text-slate-500">Loading...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="min-h-screen bg-slate-50">
+      {/* Top bar */}
+      <div className="border-b bg-white sticky top-0 z-10">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
+          <div>
+            <button
+              onClick={handleClose}
+              className="text-sm text-slate-500 hover:text-slate-900 mb-1"
+            >
+              ← Back to Users
+            </button>
+            <h1 className="text-2xl font-semibold text-slate-900 flex items-center gap-2">
+              {isEdit ? "Edit User" : "Create User"}
+              <span className="text-xs px-2 py-0.5 rounded-full bg-orange-100 text-orange-700">
+                Super Admin
+              </span>
+            </h1>
+            <p className="text-sm text-slate-500 mt-1">
+              {isEdit
+                ? "Update role, region, dealer and status for this user."
+                : "Create a new user with correct role & hierarchy mapping."}
+            </p>
+          </div>
+
+          {/* You can add step/badge info here later */}
+        </div>
+      </div>
+
+      {/* Content */}
+      <div className="max-w-6xl mx-auto px-6 py-6">
+        <div className="bg-white shadow-sm rounded-xl border border-slate-100 p-6">
+          {/* Reuse existing form as the inner engine */}
+          <AdminUserForm
+            roles={roles}
+            userData={userData}
+            onClose={handleClose}
+            reload={handleReload}
+          />
+        </div>
+
+        {/* Future: you can add “Hierarchy Preview” or “Summary” on the side */}
+      </div>
     </div>
   );
 }
@@ -1106,139 +1651,6 @@ export default function Toolbar({ children, right }) {
 }
 </file>
 
-<file path="src/context/NotificationContext.jsx">
-import React, { createContext, useState, useEffect, useContext } from "react";
-import { getSocket, onNewNotification, offNewNotification } from "../services/socket";
-import { notificationAPI } from "../services/api";
-import { toast } from "react-toastify";
-import { AuthContext } from "./AuthContext";
-
-export const NotificationContext = createContext();
-
-export const NotificationProvider = ({ children }) => {
-  const { user } = useContext(AuthContext);
-  const [notifications, setNotifications] = useState([]);
-  const [unread, setUnread] = useState(0);
-  const [loading, setLoading] = useState(false);
-
-  // Fetch notifications from backend
-  const fetchNotifications = async () => {
-    if (!user) return;
-    
-    setLoading(true);
-    try {
-      const data = await notificationAPI.getNotifications();
-      setNotifications(data.notifications || data || []);
-      
-      // Count unread notifications
-      const unreadCount = Array.isArray(data.notifications || data)
-        ? (data.notifications || data).filter((n) => !n.isRead && !n.read).length
-        : 0;
-      setUnread(unreadCount);
-    } catch (err) {
-      console.error("Failed to fetch notifications:", err);
-      toast.error("Failed to load notifications");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  useEffect(() => {
-    if (!user) return;
-
-    // Fetch initial notifications
-    fetchNotifications();
-
-    // Set up real-time notification listener
-    const handleNewNotification = (data) => {
-      console.log("📩 New notification received:", data);
-      
-      // Show toast notification
-      toast.info(data.message || `${data.title}: ${data.body}`, {
-        position: "top-right",
-        autoClose: 5000,
-      });
-
-      // Add to notifications list
-      setNotifications((prev) => [data, ...prev]);
-      setUnread((prev) => prev + 1);
-    };
-
-    onNewNotification(handleNewNotification);
-
-    // Cleanup
-    return () => {
-      offNewNotification();
-    };
-  }, [user]);
-
-  // Mark all notifications as read
-  const markAllAsRead = async () => {
-    try {
-      await notificationAPI.markAllRead();
-      setUnread(0);
-      setNotifications((prev) =>
-        prev.map((n) => ({ ...n, isRead: true, read: true }))
-      );
-      toast.success("All notifications marked as read");
-    } catch (err) {
-      console.error("Failed to mark notifications read:", err);
-      toast.error("Failed to mark notifications as read");
-    }
-  };
-
-  // Mark single notification as read
-  const markAsRead = async (notificationId) => {
-    try {
-      await notificationAPI.markNotificationRead(notificationId);
-      setNotifications((prev) =>
-        prev.map((n) =>
-          n.id === notificationId ? { ...n, isRead: true, read: true } : n
-        )
-      );
-      setUnread((prev) => Math.max(0, prev - 1));
-    } catch (err) {
-      console.error("Failed to mark notification read:", err);
-    }
-  };
-
-  // Delete notification
-  const deleteNotification = async (notificationId) => {
-    try {
-      await notificationAPI.deleteNotification(notificationId);
-      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
-      toast.success("Notification deleted");
-    } catch (err) {
-      console.error("Failed to delete notification:", err);
-      toast.error("Failed to delete notification");
-    }
-  };
-
-  // Refresh notifications
-  const refreshNotifications = () => {
-    fetchNotifications();
-  };
-
-  return (
-    <NotificationContext.Provider
-      value={{
-        notifications,
-        unread,
-        loading,
-        markAllAsRead,
-        markAsRead,
-        deleteNotification,
-        refreshNotifications,
-      }}
-    >
-      {children}
-    </NotificationContext.Provider>
-  );
-};
-
-export const useNotifications = () => useContext(NotificationContext);
-</file>
-
 <file path="src/context/ThemeContext.jsx">
 import React, { createContext, useContext, useEffect, useMemo, useState } from "react";
 
@@ -1404,171 +1816,189 @@ export default function AccountsReports() {
 import React, { useState, useEffect } from "react";
 import api from "../../services/api";
 
-export default function UserForm({ onClose, reload, userData, roles }) {
+export default function UserForm({ onClose, reload, userData }) {
   const [form, setForm] = useState({
     username: "",
     email: "",
     password: "",
-    roleId: "",
-    dealerId: "",
+    role: "",
     regionId: "",
+    areaId: "",
+    territoryId: "",
+    dealerId: "",
   });
 
-  const [dealers, setDealers] = useState([]);
+  const [roles, setRoles] = useState([]);
   const [regions, setRegions] = useState([]);
+  const [areas, setAreas] = useState([]);
+  const [territories, setTerritories] = useState([]);
+  const [dealers, setDealers] = useState([]);
 
   const isEdit = !!userData;
 
+  const extract = (data) =>
+    Array.isArray(data) ? data :
+    Array.isArray(data?.data) ? data.data :
+    data?.roles || data?.regions || data?.areas || data?.territories || data?.dealers || [];
+
   useEffect(() => {
-    async function fetchDropdowns() {
-      const d = await api.get("/dealers");
-      const r = await api.get("/regions");
-
-      setDealers(d.data);
-      setRegions(r.data);
-    }
-    fetchDropdowns();
-
-    if (isEdit) {
+    loadFormData();
+    if (isEdit && userData) {
       setForm({
-        username: userData.username,
-        email: userData.email,
+        username: userData.username ?? "",
+        email: userData.email ?? "",
         password: "",
-        roleId: userData.roleId,
-        dealerId: userData.dealerId || "",
-        regionId: userData.regionId || "",
+        role: (userData.role || "").toLowerCase(),
+        regionId: userData.regionId ?? "",
+        areaId: userData.areaId ?? "",
+        territoryId: userData.territoryId ?? "",
+        dealerId: userData.dealerId ?? "",
       });
     }
   }, [userData]);
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-
+  async function loadFormData() {
     try {
-      if (isEdit) {
-        await api.put(`/admin/users/${userData.id}`, form);
-      } else {
-        await api.post("/admin/users", form);
-      }
+      const [r, rg, a, t, d] = await Promise.all([
+        api.get("/roles"),
+        api.get("/regions"),
+        api.get("/areas"),
+        api.get("/territories"),
+        api.get("/dealers"),
+      ]);
 
-      reload();
-      onClose();
+      setRoles(extract(r.data));
+      setRegions(extract(rg.data));
+      setAreas(extract(a.data));
+      setTerritories(extract(t.data));
+      setDealers(extract(d.data));
+
     } catch (err) {
-      console.error("Save failed:", err);
+      console.log("Dropdown fetch error →", err);
     }
+  }
+
+  // ROLE MAP — stable, fast & scalable
+  const access = {
+    super_admin       : [],
+    regional_admin    : ["region"],
+    sales_manager     : ["region","area"],
+    area_manager      : ["region","area"],
+    territory_manager : ["region","area","territory"],
+    dealer_admin      : ["region","dealer"],
+    dealer_staff      : ["region","area","territory","dealer"]
   };
 
+  const allowed = access[form.role] || [];
+
+  const showRegion    = allowed.includes("region");
+  const showArea      = allowed.includes("area");
+  const showTerritory = allowed.includes("territory");
+  const showDealer    = allowed.includes("dealer");
+
+  const filteredAreas       = areas.filter(a => !form.regionId || a.regionId === form.regionId);
+  const filteredTerritories = territories.filter(t => !form.areaId || t.areaId === form.areaId);
+  const filteredDealers     = dealers.filter(d =>
+    (form.territoryId && d.territoryId === form.territoryId) ||
+    (form.regionId && d.regionId === form.regionId)
+  );
+
+  function update(name, value) {
+    setForm(prev => {
+      const next = { ...prev, [name]: value };
+      if (name === "regionId") next.areaId = next.territoryId = next.dealerId = "";
+      if (name === "areaId") next.territoryId = next.dealerId = "";
+      if (name === "territoryId") next.dealerId = "";
+      return next;
+    });
+  }
+
+  async function saveUser(e) {
+    e.preventDefault();
+
+    const payload = { ...form, role: form.role };  // backend expects "role:string"
+    if (!payload.password) delete payload.password;
+
+    try {
+      isEdit
+        ? await api.put(`/admin/users/${userData.id}`, payload)
+        : await api.post("/admin/users", payload);
+
+      reload?.();
+      onClose?.();
+    } catch (err) {
+      console.log(err);
+      alert("User save failed — likely missing region/territory mapping");
+    }
+  }
+
   return (
-    <div
-      style={{
-        position: "fixed",
-        inset: 0,
-        background: "rgba(0,0,0,0.5)",
-        display: "flex",
-        justifyContent: "center",
-        alignItems: "center",
-      }}
-    >
-      <form
-        onSubmit={handleSubmit}
-        style={{
-          background: "white",
-          padding: "2rem",
-          borderRadius: "12px",
-          width: "420px",
-          display: "flex",
-          flexDirection: "column",
-          gap: "1rem",
-        }}
-      >
-        <h2>{isEdit ? "Edit User" : "Add User"}</h2>
+    <div className="fixed inset-0 bg-black/40 flex items-center justify-center z-50 backdrop-blur-sm">
+      <form onSubmit={saveUser}
+        className="bg-white rounded-xl p-8 w-[480px] max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-200 space-y-4">
+        
+        <h2 className="text-2xl font-bold text-orange-500">
+          {isEdit ? "Update User" : "Create New User"}
+        </h2>
 
-        <input
-          placeholder="Username"
-          value={form.username}
-          onChange={(e) => setForm({ ...form, username: e.target.value })}
-        />
+        <input className="border p-3 rounded" placeholder="Username" required
+          value={form.username} onChange={e => update("username", e.target.value)} />
 
-        <input
-          placeholder="Email"
-          value={form.email}
-          onChange={(e) => setForm({ ...form, email: e.target.value })}
-        />
+        <input className="border p-3 rounded" type="email" placeholder="Email" required
+          value={form.email} onChange={e => update("email", e.target.value)} />
 
         {!isEdit && (
-          <input
-            placeholder="Password"
-            type="password"
-            value={form.password}
-            onChange={(e) => setForm({ ...form, password: e.target.value })}
-          />
+          <input className="border p-3 rounded" type="password" placeholder="Password" required
+            value={form.password} onChange={e => update("password", e.target.value)} />
         )}
 
-        {/* Roles */}
-        <select
-          value={form.roleId}
-          onChange={(e) => setForm({ ...form, roleId: e.target.value })}
-        >
+        <select className="border p-3 rounded" required
+          value={form.role} onChange={(e) => update("role", e.target.value)}>
           <option value="">Select Role</option>
-          {roles.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
+          {roles.map(r => (
+            <option key={r.id} value={r.name.toLowerCase()}>{r.name}</option>
           ))}
         </select>
 
-        {/* Dealers */}
-        <select
-          value={form.dealerId}
-          onChange={(e) => setForm({ ...form, dealerId: e.target.value })}
-        >
-          <option value="">Assign Dealer (Optional)</option>
-          {dealers.map((d) => (
-            <option key={d.id} value={d.id}>
-              {d.businessName}
-            </option>
-          ))}
-        </select>
+        {showRegion && (
+          <select className="border p-3 rounded" value={form.regionId}
+            onChange={(e) => update("regionId", e.target.value)} required>
+            <option value="">Select Region</option>
+            {regions.map(r => <option key={r.id} value={r.id}>{r.name}</option>)}
+          </select>
+        )}
 
-        {/* Regions */}
-        <select
-          value={form.regionId}
-          onChange={(e) => setForm({ ...form, regionId: e.target.value })}
-        >
-          <option value="">Assign Region (Optional)</option>
-          {regions.map((r) => (
-            <option key={r.id} value={r.id}>
-              {r.name}
-            </option>
-          ))}
-        </select>
+        {showArea && (
+          <select className="border p-3 rounded" value={form.areaId}
+            onChange={(e) => update("areaId", e.target.value)} required>
+            <option value="">Select Area</option>
+            {filteredAreas.map(a => <option key={a.id} value={a.id}>{a.name}</option>)}
+          </select>
+        )}
 
-        <button
-          type="submit"
-          style={{
-            padding: "0.8rem",
-            background: "#f97316",
-            color: "white",
-            border: "none",
-            borderRadius: "6px",
-          }}
-        >
-          Save
-        </button>
+        {showTerritory && (
+          <select className="border p-3 rounded" value={form.territoryId}
+            onChange={(e) => update("territoryId", e.target.value)} required>
+            <option value="">Select Territory</option>
+            {filteredTerritories.map(t => <option key={t.id} value={t.id}>{t.name}</option>)}
+          </select>
+        )}
 
-        <button
-          onClick={onClose}
-          type="button"
-          style={{
-            marginTop: "0.5rem",
-            background: "transparent",
-            border: "1px solid #aaa",
-            padding: "0.6rem",
-            borderRadius: "6px",
-          }}
-        >
-          Cancel
-        </button>
+        {showDealer && (
+          <select className="border p-3 rounded" value={form.dealerId}
+            onChange={(e) => update("dealerId", e.target.value)} required>
+            <option value="">Select Dealer</option>
+            {filteredDealers.map(d => <option key={d.id} value={d.id}>{d.businessName}</option>)}
+          </select>
+        )}
+
+        <div className="flex gap-3 pt-2">
+          <button type="button" onClick={onClose}
+            className="flex-1 border bg-gray-100 py-2 rounded-lg">Cancel</button>
+          <button type="submit"
+            className="flex-1 bg-orange-500 hover:bg-orange-600 text-white font-semibold py-2 rounded-lg">Save</button>
+        </div>
+
       </form>
     </div>
   );
@@ -1576,184 +2006,650 @@ export default function UserForm({ onClose, reload, userData, roles }) {
 </file>
 
 <file path="src/pages/admin/Users.jsx">
-import React, { useEffect, useState } from "react";
+// src/pages/superadmin/Users.jsx
+import React, { useEffect, useMemo, useState, useRef } from "react";
 import api from "../../services/api";
-import UserForm from "./UserForm";
+import {
+  FaEdit,
+  FaTrash,
+  FaPlus,
+  FaSearch,
+  FaSort,
+  FaSortUp,
+  FaSortDown,
+} from "react-icons/fa";
+
+/**
+ * Users.jsx
+ *
+ * - Works with backend responses like: { users: [...], total?, totalPages? }
+ * - Features:
+ *   • Search (debounced)
+ *   • Filters (role / dealer / region)
+ *   • Sorting
+ *   • Pagination (works if backend returns total/totalPages, otherwise basic)
+ *   • Add / Edit user modal (assign role, dealer, region)
+ *   • Selecting a region in the modal filters dealers to that region
+ *   • When editing/creating a user, the backend endpoint is called and (server-side)
+ *     dealer.regionId will be updated as needed (this file expects that server logic)
+ *   • Bulk actions: delete / activate / deactivate
+ *
+ * Copy-paste ready.
+ */
 
 export default function Users() {
+  // data
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [selectedRole, setSelectedRole] = useState("");
+  const [dealers, setDealers] = useState([]);
+  const [regions, setRegions] = useState([]);
+
+  // ui state
+  const [loading, setLoading] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
+  const [totalPages, setTotalPages] = useState(1);
+  const [total, setTotal] = useState(0);
+
+  // search / filters / sort
+  const [searchTerm, setSearchTerm] = useState("");
+  const [filterRole, setFilterRole] = useState("");
+  const [filterDealer, setFilterDealer] = useState("");
+  const [filterRegion, setFilterRegion] = useState("");
+  const [sortBy, setSortBy] = useState("createdAt");
+  const [sortOrder, setSortOrder] = useState("desc");
+
+  // modal / form
   const [modalOpen, setModalOpen] = useState(false);
-  const [editUser, setEditUser] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
+  const [form, setForm] = useState({
+    username: "",
+    email: "",
+    password: "",
+    roleId: "",
+    dealerId: "",
+    regionId: "",
+    isActive: true,
+  });
 
-  // Load users + roles
+  // bulk selection
+  const [selected, setSelected] = useState(new Set());
+
+  // debounce for search
+  const debounceRef = useRef(null);
   useEffect(() => {
-    loadData();
-  }, []);
+    // whenever filter/sort/pageSize/searchTerm changes, reset to page 1 and fetch
+    if (debounceRef.current) clearTimeout(debounceRef.current);
+    debounceRef.current = setTimeout(() => {
+      setPage(1);
+      fetchData(1);
+    }, 350);
 
-  const loadData = async () => {
+    return () => clearTimeout(debounceRef.current);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm, filterRole, filterDealer, filterRegion, sortBy, sortOrder, pageSize]);
+
+  // fetch data
+  const fetchData = async (requestedPage = page) => {
     try {
-      const u = await api.get("/admin/users");
-      const r = await api.get("/roles");
+      setLoading(true);
 
-      setUsers(u.data);
-      setRoles(r.data);
+      const params = {
+        page: requestedPage,
+        pageSize,
+        search: searchTerm || undefined,
+        role: filterRole || undefined,
+        dealer: filterDealer || undefined,
+        region: filterRegion || undefined,
+        sort: sortBy,
+        order: sortOrder,
+      };
+
+      const [usersRes, rolesRes, dealersRes, regionsRes] = await Promise.all([
+        api.get("/admin/users", { params }),
+        api.get("/roles"),
+        api.get("/dealers"),
+        api.get("/regions"),
+      ]);
+
+      // Users (normalize)
+      // Backend might return { users: [...] } or { data: [...] } or array
+      const usersData = usersRes?.data?.users ?? usersRes?.data?.data ?? usersRes?.data ?? [];
+      setUsers(Array.isArray(usersData) ? usersData : []);
+
+      // Pagination metadata (if any)
+      const totalFromRes = usersRes?.data?.total ?? usersRes?.data?.totalCount ?? null;
+      const totalPagesFromRes = usersRes?.data?.totalPages ?? null;
+      setTotal(totalFromRes ?? usersData.length);
+      if (totalPagesFromRes) setTotalPages(totalPagesFromRes);
+      else setTotalPages(Math.max(1, Math.ceil((totalFromRes ?? usersData.length) / pageSize)));
+
+      // Roles / Dealers / Regions normalization (safe access)
+      setRoles(rolesRes?.data?.roles ?? rolesRes?.data ?? []);
+      setDealers(dealersRes?.data?.dealers ?? dealersRes?.data ?? []);
+      setRegions(regionsRes?.data?.regions ?? regionsRes?.data ?? []);
     } catch (err) {
-      console.error("Failed loading users:", err);
+      console.error("Failed to load users & meta:", err);
+      alert("Failed to load data. See console for details.");
     } finally {
       setLoading(false);
     }
   };
 
-  // DELETE USER
-  const handleDelete = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this user?")) return;
+  // initial load + page changes
+  useEffect(() => {
+    fetchData(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [page]);
 
+  // helpers
+  const resetForm = () => {
+    setForm({
+      username: "",
+      email: "",
+      password: "",
+      roleId: "",
+      dealerId: "",
+      regionId: "",
+      isActive: true,
+    });
+    setEditingUser(null);
+  };
+
+  const openEdit = (user) => {
+    setEditingUser(user);
+    setForm({
+      username: user.username ?? "",
+      email: user.email ?? "",
+      password: "",
+      roleId: user.roleId ?? user.role ?? "",
+      dealerId: user.dealerId ?? user.dealerId ?? user.dealer ?? "",
+      regionId: user.regionId ?? user.regionId ?? "",
+      isActive: typeof user.isActive === "boolean" ? user.isActive : true,
+    });
+    setModalOpen(true);
+  };
+
+  const openAdd = () => {
+    resetForm();
+    setModalOpen(true);
+  };
+
+  const handleInput = (e) => {
+    const { name, value, type, checked } = e.target;
+    setForm((prev) => {
+      const next = { ...prev, [name]: type === "checkbox" ? checked : value };
+
+      // If region changed in modal, clear dealer selection (so dealer chosen matches region)
+      if (name === "regionId") next.dealerId = "";
+      return next;
+    });
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
     try {
-      await api.delete(`/admin/users/${id}`);
-      loadData();
+      setSaving(true);
+
+      const payload = {
+        username: form.username,
+        email: form.email,
+        password: form.password || undefined, // don't send empty password if editing
+        roleId: form.roleId || undefined,
+        dealerId: form.dealerId || null,
+        regionId: form.regionId || null,
+        isActive: form.isActive,
+      };
+
+      if (editingUser) {
+        await api.put(`/admin/users/${editingUser.id}`, payload);
+      } else {
+        await api.post(`/admin/users`, payload);
+      }
+
+      setModalOpen(false);
+      resetForm();
+      fetchData(1);
     } catch (err) {
-      console.error("Delete failed:", err);
+      console.error("Save user error:", err);
+      // try to show server message if present
+      const serverMsg = err?.response?.data?.error ?? err?.response?.data?.message;
+      alert(serverMsg || "Failed to save user - check console.");
+    } finally {
+      setSaving(false);
     }
   };
 
-  const filteredUsers = users.filter((u) => {
-    const matchSearch =
-      u.username.toLowerCase().includes(search.toLowerCase()) ||
-      u.email.toLowerCase().includes(search.toLowerCase());
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this user? This action is irreversible.")) return;
+    try {
+      await api.delete(`/admin/users/${id}`);
+      fetchData(1);
+    } catch (err) {
+      console.error("Delete user:", err);
+      alert("Failed to delete user");
+    }
+  };
 
-    const matchRole = selectedRole ? u.role?.toLowerCase() === selectedRole : true;
+  const toggleActive = async (user) => {
+    try {
+      await api.put(`/admin/users/${user.id}`, { ...user, isActive: !user.isActive });
+      fetchData(page);
+    } catch (err) {
+      console.error("Toggle active:", err);
+      alert("Failed to change active status");
+    }
+  };
 
-    return matchSearch && matchRole;
-  });
+  // sorting
+  const toggleSort = (column) => {
+    if (sortBy === column) {
+      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(column);
+      setSortOrder("asc");
+    }
+    setPage(1);
+    fetchData(1);
+  };
 
-  if (loading) return <p>Loading users...</p>;
+  const renderSortIcon = (column) => {
+    if (sortBy !== column) return <FaSort className="inline-block ml-2 opacity-50" />;
+    return sortOrder === "asc" ? <FaSortUp className="inline-block ml-2" /> : <FaSortDown className="inline-block ml-2" />;
+  };
+
+  // bulk selection
+  const toggleSelect = (id) => {
+    setSelected((s) => {
+      const copy = new Set(s);
+      if (copy.has(id)) copy.delete(id);
+      else copy.add(id);
+      return copy;
+    });
+  };
+
+  const toggleSelectAll = () => {
+    if (selected.size === users.length) {
+      setSelected(new Set());
+    } else {
+      setSelected(new Set(users.map((u) => u.id)));
+    }
+  };
+
+  const bulkDelete = async () => {
+    if (selected.size === 0) {
+      alert("Select at least one user.");
+      return;
+    }
+    if (!window.confirm(`Delete ${selected.size} users?`)) return;
+    try {
+      setLoading(true);
+      // replace with a real bulk endpoint if available for performance
+      await Promise.all(Array.from(selected).map((id) => api.delete(`/admin/users/${id}`)));
+      setSelected(new Set());
+      fetchData(1);
+    } catch (err) {
+      console.error("Bulk delete failed:", err);
+      alert("Some deletes failed. See console.");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const bulkSetActive = async (active) => {
+    if (selected.size === 0) {
+      alert("Select at least one user.");
+      return;
+    }
+    if (!window.confirm(`${active ? "Activate" : "Deactivate"} ${selected.size} users?`)) return;
+    try {
+      setLoading(true);
+      await Promise.all(Array.from(selected).map((id) => api.put(`/admin/users/${id}`, { isActive: active })));
+      setSelected(new Set());
+      fetchData(page);
+    } catch (err) {
+      console.error("Bulk update active failed:", err);
+      alert("Bulk update failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // derived UI values
+  const selectedCount = selected.size;
+  const isAllSelected = users.length > 0 && selected.size === users.length;
+
+  // memoized options
+  const roleOptions = useMemo(() => roles, [roles]);
+  const dealerOptions = useMemo(() => dealers, [dealers]);
+  const regionOptions = useMemo(() => regions, [regions]);
+
+  // When modal region selected, filter dealers shown in modal
+  const filteredDealersForModal = useMemo(() => {
+    if (!form.regionId) return dealerOptions;
+    return dealerOptions.filter((d) => {
+      // dealer.table may store regionId as "regionId" or "RegionId" — handle both
+      return (d.regionId ?? d.RegionId ?? d.regionId ?? null) === form.regionId;
+    });
+  }, [dealerOptions, form.regionId]);
+
+  // pagination helpers
+  const gotoPage = (p) => {
+    const newPage = Math.max(1, Math.min(p, totalPages));
+    setPage(newPage);
+    fetchData(newPage);
+  };
+
+  // small UI components
+  const Badge = ({ children, color = "gray" }) => {
+    const bg = {
+      green: "bg-green-100 text-green-800",
+      red: "bg-red-100 text-red-800",
+      yellow: "bg-yellow-100 text-yellow-800",
+      blue: "bg-blue-100 text-blue-800",
+      gray: "bg-gray-100 text-gray-800",
+    }[color];
+    return <span className={`px-2 py-1 rounded-full text-xs font-medium ${bg}`}>{children}</span>;
+  };
 
   return (
-    <div style={{ padding: "2rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between" }}>
-        <h1 style={{ marginBottom: "1rem" }}>Users</h1>
-        <button
-          onClick={() => {
-            setEditUser(null);
-            setModalOpen(true);
-          }}
-          style={{
-            padding: "0.6rem 1.2rem",
-            background: "#f97316",
-            color: "#fff",
-            border: "none",
-            borderRadius: "8px",
-            cursor: "pointer",
-          }}
-        >
-          + Add User
-        </button>
+    <div className="p-6">
+      {/* Header */}
+      <div className="flex items-center justify-between mb-4 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold">User Management</h1>
+          <p className="text-sm text-gray-500">Manage users, roles, dealers, and regions.</p>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            onClick={openAdd}
+            className="inline-flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded shadow hover:opacity-95"
+          >
+            <FaPlus /> Add User
+          </button>
+
+          <div className="flex items-center gap-2">
+            <button onClick={() => bulkSetActive(true)} className="px-3 py-2 border rounded hover:bg-green-50" title="Activate selected">
+              Activate
+            </button>
+            <button onClick={() => bulkSetActive(false)} className="px-3 py-2 border rounded hover:bg-yellow-50" title="Deactivate selected">
+              Deactivate
+            </button>
+            <button onClick={bulkDelete} className="px-3 py-2 border rounded hover:bg-red-50 text-red-600" title="Delete selected">
+              Delete
+            </button>
+          </div>
+        </div>
       </div>
 
-      {/* Search + Filter */}
-      <div style={{ display: "flex", gap: "1rem", marginBottom: "1.5rem" }}>
-        <input
-          placeholder="Search by username or email..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            padding: "0.6rem 1rem",
-            borderRadius: "8px",
-            border: "1px solid var(--card-border)",
-            width: "300px",
-          }}
-        />
+      {/* Filters/Search */}
+      <div className="flex flex-col md:flex-row gap-3 items-start md:items-end mb-4">
+        <div className="relative flex items-center w-full md:w-96">
+          <FaSearch className="absolute left-3 text-gray-400" />
+          <input
+            className="pl-10 pr-3 py-2 border rounded w-full"
+            placeholder="Search by username or email..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
 
         <select
-          value={selectedRole}
-          onChange={(e) => setSelectedRole(e.target.value)}
-          style={{
-            padding: "0.6rem",
-            borderRadius: "8px",
-            border: "1px solid var(--card-border)",
+          value={filterRole}
+          onChange={(e) => {
+            setFilterRole(e.target.value);
+            setPage(1);
+            fetchData(1);
           }}
+          className="border px-2 py-2 rounded"
         >
           <option value="">All Roles</option>
-          {roles.map((r) => (
-            <option key={r.id} value={r.name.toLowerCase()}>
+          {roleOptions.map((r) => (
+            <option key={r.id} value={r.id}>
               {r.name}
             </option>
           ))}
         </select>
+
+        <select
+          value={filterDealer}
+          onChange={(e) => {
+            setFilterDealer(e.target.value);
+            setPage(1);
+            fetchData(1);
+          }}
+          className="border px-2 py-2 rounded"
+        >
+          <option value="">All Dealers</option>
+          {dealerOptions.map((d) => (
+            <option key={d.id} value={d.id}>
+              {d.businessName}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={filterRegion}
+          onChange={(e) => {
+            setFilterRegion(e.target.value);
+            setPage(1);
+            fetchData(1);
+          }}
+          className="border px-2 py-2 rounded"
+        >
+          <option value="">All Regions</option>
+          {regionOptions.map((r) => (
+            <option key={r.id} value={r.id}>
+              {r.name}
+            </option>
+          ))}
+        </select>
+
+        <select
+          value={pageSize}
+          onChange={(e) => {
+            setPageSize(Number(e.target.value));
+            setPage(1);
+            fetchData(1);
+          }}
+          className="border px-2 py-2 rounded"
+        >
+          <option value={5}>5 / page</option>
+          <option value={10}>10 / page</option>
+          <option value={25}>25 / page</option>
+          <option value={50}>50 / page</option>
+        </select>
       </div>
 
-      {/* Users Table */}
-      <table style={{ width: "100%", borderCollapse: "collapse" }}>
-        <thead>
-          <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
-            <th>Username</th>
-            <th>Email</th>
-            <th>Role</th>
-            <th>Dealer</th>
-            <th>Region</th>
-            <th style={{ textAlign: "right" }}>Actions</th>
-          </tr>
-        </thead>
-
-        <tbody>
-          {filteredUsers.map((u) => (
-            <tr key={u.id} style={{ borderBottom: "1px solid var(--card-border)" }}>
-              <td>{u.username}</td>
-              <td>{u.email}</td>
-              <td>{u.role || "—"}</td>
-              <td>{u.dealer?.businessName || "—"}</td>
-              <td>{u.region?.name || "—"}</td>
-
-              <td style={{ textAlign: "right" }}>
-                <button
-                  onClick={() => {
-                    setEditUser(u);
-                    setModalOpen(true);
-                  }}
-                  style={{
-                    marginRight: "10px",
-                    background: "#3b82f6",
-                    color: "#fff",
-                    padding: "0.4rem 0.8rem",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Edit
-                </button>
-
-                <button
-                  onClick={() => handleDelete(u.id)}
-                  style={{
-                    background: "#ef4444",
-                    color: "#fff",
-                    padding: "0.4rem 0.8rem",
-                    border: "none",
-                    borderRadius: "6px",
-                    cursor: "pointer",
-                  }}
-                >
-                  Delete
-                </button>
-              </td>
+      {/* Table */}
+      <div className="overflow-x-auto border rounded">
+        <table className="min-w-full divide-y">
+          <thead className="bg-gray-50">
+            <tr>
+              <th className="p-3">
+                <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} />
+              </th>
+              <th className="p-3 text-left cursor-pointer" onClick={() => toggleSort("username")}>
+                Username {renderSortIcon("username")}
+              </th>
+              <th className="p-3 text-left cursor-pointer" onClick={() => toggleSort("email")}>
+                Email {renderSortIcon("email")}
+              </th>
+              <th className="p-3 text-left">Role</th>
+              <th className="p-3 text-left">Dealer</th>
+              <th className="p-3 text-left">Region</th>
+              <th className="p-3 text-left cursor-pointer" onClick={() => toggleSort("isActive")}>
+                Status {renderSortIcon("isActive")}
+              </th>
+              <th className="p-3 text-left">Actions</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
+          </thead>
 
-      {/* MODAL */}
+          <tbody className="bg-white divide-y">
+            {loading ? (
+              <tr>
+                <td colSpan={8} className="p-6 text-center text-gray-500">
+                  Loading...
+                </td>
+              </tr>
+            ) : users.length === 0 ? (
+              <tr>
+                <td colSpan={8} className="p-6 text-center text-gray-500">
+                  No users found.
+                </td>
+              </tr>
+            ) : (
+              users.map((u) => (
+                <tr key={u.id} className="hover:bg-gray-50">
+                  <td className="p-3">
+                    <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleSelect(u.id)} />
+                  </td>
+
+                  <td className="p-3">
+                    <div className="font-medium">{u.username}</div>
+                    <div className="text-xs text-gray-500">{u.email}</div>
+                  </td>
+
+                  <td className="p-3 text-sm">{u.email}</td>
+
+                  <td className="p-3">
+                    <div className="inline-block">
+                      <Badge color="blue">{u.role ?? u.roleName ?? "—"}</Badge>
+                    </div>
+                  </td>
+
+                  <td className="p-3">
+                    {u.dealer ? (
+                      <div>
+                        <div className="font-medium">{u.dealer.businessName}</div>
+                        <div className="text-xs text-gray-500">{u.dealer.dealerCode || ""}</div>
+                      </div>
+                    ) : u.dealerId ? (
+                      <div className="text-sm text-gray-700">Dealer ID: {u.dealerId}</div>
+                    ) : (
+                      <span className="text-sm text-gray-400">—</span>
+                    )}
+                  </td>
+
+                  <td className="p-3">
+                    {u.region ? <Badge color="green">{u.region.name}</Badge> : u.regionId ? <Badge color="gray">assigned</Badge> : <span className="text-sm text-gray-400">—</span>}
+                  </td>
+
+                  <td className="p-3">
+                    {u.isBlocked ? (
+                      <Badge color="red">Blocked</Badge>
+                    ) : u.isActive ? (
+                      <Badge color="green">Active</Badge>
+                    ) : (
+                      <Badge color="yellow">Inactive</Badge>
+                    )}
+                  </td>
+
+                  <td className="p-3 flex gap-2">
+                    <button onClick={() => openEdit(u)} className="text-blue-600 hover:underline">
+                      <FaEdit />
+                    </button>
+                    <button onClick={() => handleDelete(u.id)} className="text-red-600 hover:underline">
+                      <FaTrash />
+                    </button>
+                  </td>
+                </tr>
+              ))
+            )}
+          </tbody>
+        </table>
+      </div>
+
+      {/* Pagination & summary */}
+      <div className="flex items-center justify-between gap-4 mt-4">
+        <div className="text-sm text-gray-600">
+          Showing page {page} of {totalPages} — {total ?? users.length} total
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button onClick={() => gotoPage(1)} disabled={page === 1} className="px-3 py-1 border rounded disabled:opacity-50">
+            « First
+          </button>
+          <button onClick={() => gotoPage(page - 1)} disabled={page === 1} className="px-3 py-1 border rounded disabled:opacity-50">
+            ‹ Prev
+          </button>
+
+          <span className="px-3 py-1 border rounded bg-gray-50">{page}</span>
+
+          <button onClick={() => gotoPage(page + 1)} disabled={page === totalPages} className="px-3 py-1 border rounded disabled:opacity-50">
+            Next ›
+          </button>
+          <button onClick={() => gotoPage(totalPages)} disabled={page === totalPages} className="px-3 py-1 border rounded disabled:opacity-50">
+            Last »
+          </button>
+        </div>
+      </div>
+
+      {/* Modal */}
       {modalOpen && (
-        <UserForm
-          onClose={() => setModalOpen(false)}
-          reload={loadData}
-          roles={roles}
-          userData={editUser}
-        />
+        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-lg w-full max-w-xl p-6">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-xl font-semibold">{editingUser ? "Edit User" : "Add User"}</h2>
+              <button onClick={() => { setModalOpen(false); resetForm(); }} className="text-gray-500">Close</button>
+            </div>
+
+            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div>
+                <label className="block text-sm font-medium mb-1">Username</label>
+                <input name="username" value={form.username} onChange={handleInput} required className="w-full border px-3 py-2 rounded" />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Email</label>
+                <input name="email" type="email" value={form.email} onChange={handleInput} required className="w-full border px-3 py-2 rounded" />
+              </div>
+
+              {!editingUser && (
+                <div>
+                  <label className="block text-sm font-medium mb-1">Password</label>
+                  <input name="password" type="password" value={form.password} onChange={handleInput} required className="w-full border px-3 py-2 rounded" />
+                </div>
+              )}
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Role</label>
+                <select name="roleId" value={form.roleId} onChange={handleInput} required className="w-full border px-3 py-2 rounded">
+                  <option value="">Select role</option>
+                  {roleOptions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Region</label>
+                <select name="regionId" value={form.regionId || ""} onChange={handleInput} className="w-full border px-3 py-2 rounded">
+                  <option value="">Select region</option>
+                  {regionOptions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium mb-1">Dealer</label>
+                <select name="dealerId" value={form.dealerId || ""} onChange={handleInput} className="w-full border px-3 py-2 rounded">
+                  <option value="">Select dealer</option>
+                  {filteredDealersForModal.map((d) => <option key={d.id} value={d.id}>{d.businessName}</option>)}
+                </select>
+              </div>
+
+              <div className="flex items-center gap-2">
+                <input type="checkbox" name="isActive" checked={form.isActive} onChange={handleInput} />
+                <label className="text-sm">Active</label>
+              </div>
+
+              <div className="md:col-span-2 flex justify-end gap-2 mt-3">
+                <button type="button" onClick={() => { setModalOpen(false); resetForm(); }} className="px-4 py-2 border rounded">Cancel</button>
+                <button type="submit" disabled={saving} className="px-4 py-2 bg-orange-500 text-white rounded">{saving ? "Saving..." : (editingUser ? "Update user" : "Create user")}</button>
+              </div>
+            </form>
+          </div>
+        </div>
       )}
     </div>
   );
@@ -2006,46 +2902,6 @@ export default function MaterialAlerts() {
 }
 </file>
 
-<file path="src/pages/dashboards/AreaManagerDashboard.jsx">
-import React from "react";
-import PageHeader from "../../components/PageHeader";
-import StatCard from "../../components/StatCard";
-import Card from "../../components/Card";
-import "./DashboardLayout.css";
-
-export default function AreaManagerDashboard() {
-  const summary = { dealers: 12, tasks: 7 };
-
-  return (
-    <div style={{ padding: "1rem" }}>
-      <PageHeader title="Area Manager Dashboard" subtitle="Overview for area-level management" />
-
-      <div className="stat-grid">
-        <StatCard title="Dealers" value={summary.dealers} />
-        <StatCard title="Open Tasks" value={summary.tasks} />
-      </div>
-
-      <div className="dashboard-grid">
-        <div className="column">
-          <Card title="Area Tasks">
-            <ul>
-              <li>Follow up with underperforming dealers</li>
-              <li>Coordinate logistics</li>
-            </ul>
-          </Card>
-        </div>
-
-        <div className="column">
-          <Card title="Notifications">
-            <p className="text-muted">Alerts and important updates for your area.</p>
-          </Card>
-        </div>
-      </div>
-    </div>
-  );
-}
-</file>
-
 <file path="src/pages/dashboards/DealerStaffDashboard.jsx">
 import React from "react";
 import PageHeader from "../../components/PageHeader";
@@ -2163,457 +3019,6 @@ export default function RegionalAdminDashboard() {
             </ul>
           </Card>
         </div>
-      </div>
-    </div>
-  );
-}
-</file>
-
-<file path="src/pages/dashboards/RegionalManagerDashboard.jsx">
-import React, { useEffect, useState } from "react";
-import { useNavigate } from "react-router-dom";
-import { dashboardAPI, orderAPI, pricingAPI } from "../../services/api";
-import PageHeader from "../../components/PageHeader";
-import StatCard from "../../components/StatCard";
-import Card from "../../components/Card";
-import Chart from "react-apexcharts";
-import "./DashboardLayout.css";
-import { 
-  TrendingUp, 
-  Users, 
-  Clock, 
-  CheckCircle, 
-  AlertCircle,
-  MapPin,
-  FileText,
-  DollarSign
-} from "lucide-react";
-
-export default function RegionalManagerDashboard() {
-  const navigate = useNavigate();
-  const [loading, setLoading] = useState(true);
-  const [stats, setStats] = useState({
-    totalDealers: 0,
-    pendingApprovals: 0,
-    upcomingVisits: 0,
-    activeOrders: 0,
-    monthlyRevenue: 0,
-    approvalRate: 0,
-  });
-  const [pendingItems, setPendingItems] = useState([]);
-  const [recentActivity, setRecentActivity] = useState([]);
-  const [performanceData, setPerformanceData] = useState([]);
-
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
-    try {
-      setLoading(true);
-      
-      // Fetch manager summary
-      const summaryRes = await dashboardAPI.getManagerSummary();
-      setStats({
-        totalDealers: summaryRes.totalDealers || 0,
-        pendingApprovals: summaryRes.pendingApprovals || 0,
-        upcomingVisits: summaryRes.upcomingVisits || 0,
-        activeOrders: summaryRes.activeOrders || 0,
-        monthlyRevenue: summaryRes.monthlyRevenue || 0,
-        approvalRate: summaryRes.approvalRate || 0,
-      });
-
-      // Fetch pending approvals
-      const approvalsRes = await dashboardAPI.getManagerApprovalQueue();
-      setPendingItems(approvalsRes.items || []);
-
-      // Fetch performance data for chart
-      setPerformanceData(summaryRes.performanceData || [
-        { month: "Jan", revenue: 45000 },
-        { month: "Feb", revenue: 52000 },
-        { month: "Mar", revenue: 48000 },
-        { month: "Apr", revenue: 61000 },
-        { month: "May", revenue: 55000 },
-        { month: "Jun", revenue: 67000 },
-      ]);
-
-      setRecentActivity(summaryRes.recentActivity || []);
-    } catch (error) {
-      console.error("Failed to fetch dashboard data:", error);
-      // Set fallback data
-      setStats({
-        totalDealers: 28,
-        pendingApprovals: 5,
-        upcomingVisits: 2,
-        activeOrders: 18,
-        monthlyRevenue: 245000,
-        approvalRate: 92,
-      });
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleApprovalAction = async (itemId, action) => {
-    try {
-      await orderAPI.approveOrder(itemId, { action });
-      fetchDashboardData(); // Refresh data
-    } catch (error) {
-      console.error(`Failed to ${action} item:`, error);
-    }
-  };
-
-  if (loading) {
-    return (
-      <div style={{ padding: "2rem", textAlign: "center" }}>
-        <div className="spinner">Loading dashboard...</div>
-      </div>
-    );
-  }
-
-  return (
-    <div style={{ padding: "1.5rem", maxWidth: "1400px", margin: "0 auto" }}>
-      <PageHeader 
-        title="Regional Manager Dashboard" 
-        subtitle="Operations and approvals for your region"
-      />
-
-      {/* KPI Cards Grid */}
-      <div className="stat-grid" style={{ marginBottom: "2rem" }}>
-        <StatCard 
-          title="Total Dealers" 
-          value={stats.totalDealers}
-          icon={<Users size={24} />}
-          trend="+3 this month"
-          color="#3b82f6"
-        />
-        <StatCard 
-          title="Pending Approvals" 
-          value={stats.pendingApprovals}
-          icon={<Clock size={24} />}
-          color="#f59e0b"
-          onClick={() => navigate("/orders/approvals")}
-        />
-        <StatCard 
-          title="Upcoming Visits" 
-          value={stats.upcomingVisits}
-          icon={<MapPin size={24} />}
-          color="#8b5cf6"
-        />
-        <StatCard 
-          title="Active Orders" 
-          value={stats.activeOrders}
-          icon={<TrendingUp size={24} />}
-          trend="+12% vs last month"
-          color="#10b981"
-        />
-        <StatCard 
-          title="Monthly Revenue" 
-          value={`₹${(stats.monthlyRevenue / 1000).toFixed(0)}K`}
-          icon={<DollarSign size={24} />}
-          trend="+8.5%"
-          color="#06b6d4"
-        />
-        <StatCard 
-          title="Approval Rate" 
-          value={`${stats.approvalRate}%`}
-          icon={<CheckCircle size={24} />}
-          color="#22c55e"
-        />
-      </div>
-
-      {/* Main Content Grid */}
-      <div style={{ 
-        display: "grid", 
-        gridTemplateColumns: "repeat(auto-fit, minmax(450px, 1fr))", 
-        gap: "1.5rem",
-        marginBottom: "2rem"
-      }}>
-        {/* Performance Chart */}
-        <Card title="Regional Performance" icon={<TrendingUp size={20} />}>
-          <Chart
-            type="area"
-            height={280}
-            series={[{
-              name: "Revenue",
-              data: performanceData.map(d => d.revenue)
-            }]}
-            options={{
-              chart: {
-                toolbar: { show: false },
-                sparkline: { enabled: false }
-              },
-              colors: ["#3b82f6"],
-              stroke: { curve: "smooth", width: 3 },
-              fill: {
-                type: "gradient",
-                gradient: {
-                  shadeIntensity: 1,
-                  opacityFrom: 0.5,
-                  opacityTo: 0.1,
-                }
-              },
-              xaxis: {
-                categories: performanceData.map(d => d.month),
-                labels: { style: { colors: "#94a3b8" } }
-              },
-              yaxis: {
-                labels: { 
-                  style: { colors: "#94a3b8" },
-                  formatter: (val) => `₹${(val / 1000).toFixed(0)}K`
-                }
-              },
-              tooltip: {
-                theme: "dark",
-                y: {
-                  formatter: (val) => `₹${val.toLocaleString()}`
-                }
-              },
-              grid: {
-                borderColor: "rgba(148, 163, 184, 0.1)"
-              }
-            }}
-          />
-        </Card>
-
-        {/* Pending Approvals */}
-        <Card title="Pending Approvals" icon={<FileText size={20} />}>
-          {pendingItems.length === 0 ? (
-            <div style={{ 
-              textAlign: "center", 
-              padding: "2rem",
-              color: "var(--text-secondary)" 
-            }}>
-              <CheckCircle size={48} style={{ opacity: 0.3, marginBottom: "1rem" }} />
-              <p>No pending approvals</p>
-            </div>
-          ) : (
-            <div style={{ maxHeight: "280px", overflowY: "auto" }}>
-              {pendingItems.slice(0, 5).map((item, idx) => (
-                <div 
-                  key={idx}
-                  style={{
-                    padding: "0.75rem",
-                    borderBottom: "1px solid var(--card-border)",
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center"
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 600 }}>{item.title || `Order #${item.id}`}</div>
-                    <div style={{ 
-                      fontSize: "0.85rem", 
-                      color: "var(--text-secondary)" 
-                    }}>
-                      {item.dealer || "Unknown"} • {item.type || "Order"}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: "0.5rem" }}>
-                    <button
-                      onClick={() => handleApprovalAction(item.id, "approve")}
-                      style={{
-                        padding: "0.25rem 0.75rem",
-                        borderRadius: "6px",
-                        border: "none",
-                        background: "#22c55e",
-                        color: "#fff",
-                        cursor: "pointer",
-                        fontSize: "0.85rem"
-                      }}
-                    >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleApprovalAction(item.id, "reject")}
-                      style={{
-                        padding: "0.25rem 0.75rem",
-                        borderRadius: "6px",
-                        border: "none",
-                        background: "#ef4444",
-                        color: "#fff",
-                        cursor: "pointer",
-                        fontSize: "0.85rem"
-                      }}
-                    >
-                      Reject
-                    </button>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {pendingItems.length > 5 && (
-            <button
-              onClick={() => navigate("/orders/approvals")}
-              style={{
-                width: "100%",
-                marginTop: "0.75rem",
-                padding: "0.5rem",
-                background: "transparent",
-                border: "1px solid var(--card-border)",
-                borderRadius: "6px",
-                cursor: "pointer",
-                color: "var(--text-primary)"
-              }}
-            >
-              View All ({pendingItems.length})
-            </button>
-          )}
-        </Card>
-      </div>
-
-      {/* Recent Activity */}
-      <Card title="Recent Activity" icon={<AlertCircle size={20} />}>
-        <div style={{ overflowX: "auto" }}>
-          <table style={{ 
-            width: "100%", 
-            borderCollapse: "collapse",
-            fontSize: "0.9rem"
-          }}>
-            <thead>
-              <tr style={{ 
-                borderBottom: "1px solid var(--card-border)",
-                textAlign: "left"
-              }}>
-                <th style={{ padding: "0.75rem" }}>Activity</th>
-                <th style={{ padding: "0.75rem" }}>Dealer</th>
-                <th style={{ padding: "0.75rem" }}>Status</th>
-                <th style={{ padding: "0.75rem" }}>Date</th>
-              </tr>
-            </thead>
-            <tbody>
-              {recentActivity.length === 0 ? (
-                <tr>
-                  <td colSpan="4" style={{ 
-                    padding: "2rem", 
-                    textAlign: "center",
-                    color: "var(--text-secondary)"
-                  }}>
-                    No recent activity
-                  </td>
-                </tr>
-              ) : (
-                recentActivity.map((activity, idx) => (
-                  <tr 
-                    key={idx}
-                    style={{ borderBottom: "1px solid var(--card-border)" }}
-                  >
-                    <td style={{ padding: "0.75rem" }}>{activity.action}</td>
-                    <td style={{ padding: "0.75rem" }}>{activity.dealer}</td>
-                    <td style={{ padding: "0.75rem" }}>
-                      <span style={{
-                        padding: "0.25rem 0.5rem",
-                        borderRadius: "12px",
-                        fontSize: "0.75rem",
-                        background: activity.status === "approved" ? "#22c55e20" : 
-                                  activity.status === "rejected" ? "#ef444420" : "#f59e0b20",
-                        color: activity.status === "approved" ? "#22c55e" : 
-                              activity.status === "rejected" ? "#ef4444" : "#f59e0b"
-                      }}>
-                        {activity.status}
-                      </span>
-                    </td>
-                    <td style={{ 
-                      padding: "0.75rem",
-                      color: "var(--text-secondary)",
-                      fontSize: "0.85rem"
-                    }}>
-                      {new Date(activity.date).toLocaleDateString()}
-                    </td>
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </Card>
-
-      {/* Quick Actions */}
-      <div style={{ 
-        display: "grid", 
-        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-        gap: "1rem",
-        marginTop: "1.5rem"
-      }}>
-        <button
-          onClick={() => navigate("/map-view")}
-          style={{
-            padding: "1rem",
-            borderRadius: "12px",
-            border: "1px solid var(--card-border)",
-            background: "var(--card-bg)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            color: "var(--text-primary)",
-            transition: "all 0.2s"
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "none";
-          }}
-        >
-          <MapPin size={20} />
-          View Territory Map
-        </button>
-        <button
-          onClick={() => navigate("/orders/approvals")}
-          style={{
-            padding: "1rem",
-            borderRadius: "12px",
-            border: "1px solid var(--card-border)",
-            background: "var(--card-bg)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            color: "var(--text-primary)",
-            transition: "all 0.2s"
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "none";
-          }}
-        >
-          <FileText size={20} />
-          Review Approvals
-        </button>
-        <button
-          onClick={() => navigate("/chat")}
-          style={{
-            padding: "1rem",
-            borderRadius: "12px",
-            border: "1px solid var(--card-border)",
-            background: "var(--card-bg)",
-            cursor: "pointer",
-            display: "flex",
-            alignItems: "center",
-            gap: "0.5rem",
-            color: "var(--text-primary)",
-            transition: "all 0.2s"
-          }}
-          onMouseOver={(e) => {
-            e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
-          }}
-          onMouseOut={(e) => {
-            e.currentTarget.style.transform = "translateY(0)";
-            e.currentTarget.style.boxShadow = "none";
-          }}
-        >
-          <Users size={20} />
-          Team Communication
-        </button>
       </div>
     </div>
   );
@@ -3204,308 +3609,73 @@ export default function Materials() {
 }
 </file>
 
-<file path="src/pages/payments/CreatePaymentRequest.jsx">
-// src/pages/payments/CreatePaymentRequest.jsx
+<file path="src/pages/payments/MyPaymentRequest.jsx">
+// src/pages/payments/MyPaymentRequests.jsx
 import React, { useEffect, useState } from "react";
 import api from "../../services/api";
-import { toast } from "react-toastify";
+import { format } from "date-fns";
 
-export default function CreatePaymentRequest() {
-  const [invoices, setInvoices] = useState([]);
-  const [invoiceId, setInvoiceId] = useState("");
-  const [amount, setAmount] = useState("");
-  const [paymentMode, setPaymentMode] = useState("bank_transfer");
-  const [utr, setUtr] = useState("");
-  const [proofFile, setProofFile] = useState(null);
+const Badge = ({ status }) => {
+  const color = status === "approved" ? "#16a34a" : status === "rejected" ? "#dc2626" : "#f59e0b";
+  return <span style={{ padding: "6px 10px", borderRadius: 999, background: `${color}22`, color, fontWeight: 600 }}>{status}</span>;
+};
+
+export default function MyPaymentRequests() {
+  const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(false);
 
-  // ========================================================================
-  // LOAD INVOICES
-  // ========================================================================
-  useEffect(() => {
-    const loadInvoices = async () => {
-      try {
-        const res = await api.get("/invoices");
-        setInvoices(res.data.invoices || res.data);
-      } catch (err) {
-        console.error("Failed to load invoices:", err);
-        toast.error("Failed to load invoices");
-      }
-    };
-    loadInvoices();
-  }, []);
-
-  // ========================================================================
-  // UPDATE AMOUNT WHEN INVOICE SELECTED
-  // ========================================================================
-  useEffect(() => {
-    if (!invoiceId) return;
-    const inv = invoices.find((i) => String(i.id) === String(invoiceId));
-    setAmount(inv ? inv.balanceAmount ?? inv.balance ?? 0 : "");
-  }, [invoiceId, invoices]);
-
-  // ========================================================================
-  // HANDLE FILE INPUT
-  // ========================================================================
-  const handleFile = (e) => setProofFile(e.target.files[0]);
-
-  // ========================================================================
-  // SUBMIT PAYMENT REQUEST
-  // ========================================================================
-  const submit = async (e) => {
-    e.preventDefault();
-
-    if (!invoiceId || !amount) return toast.error("Please select invoice & amount");
-
-    const form = new FormData();
-    form.append("invoiceId", invoiceId);
-    form.append("amount", amount);
-    form.append("paymentMode", paymentMode);
-    if (utr) form.append("utrNumber", utr);
-    if (proofFile) form.append("proofFile", proofFile);
-
+  const load = async () => {
+    setLoading(true);
     try {
-      setLoading(true);
-      await api.post("/payments/request", form, {
-        headers: { "Content-Type": "multipart/form-data" },
-      });
-      toast.success("Payment request submitted");
-
-      // Reset form
-      setInvoiceId("");
-      setAmount("");
-      setPaymentMode("bank_transfer");
-      setUtr("");
-      setProofFile(null);
-    } catch (err) {
-      console.error("Payment request error:", err);
-      toast.error(err?.response?.data?.error || "Submission failed");
+      const res = await api.get("/payment/mine");
+      setRows(res.data.requests || res.data || []);
+    } catch (e) {
+      console.error(e);
     } finally {
       setLoading(false);
     }
   };
 
-  // ========================================================================
-  // RENDER FORM
-  // ========================================================================
-  return (
-    <div style={{ maxWidth: 860, margin: "20px auto" }}>
-      <h2>Create Payment Request</h2>
-      <form onSubmit={submit}>
-        {/* Invoice Select */}
-        <label>Invoice</label>
-        <select
-          value={invoiceId}
-          onChange={(e) => setInvoiceId(e.target.value)}
-          style={{ width: "100%", padding: 8, marginBottom: 12 }}
-        >
-          <option value="">Select invoice</option>
-          {invoices.map((inv) => (
-            <option key={inv.id} value={inv.id}>
-              {inv.invoiceNumber || inv.number} — Balance: {inv.balanceAmount ?? inv.balance}
-            </option>
-          ))}
-        </select>
-
-        {/* Amount */}
-        <label>Amount</label>
-        <input
-          type="number"
-          value={amount}
-          onChange={(e) => setAmount(e.target.value)}
-          style={{ width: "100%", padding: 8, marginBottom: 12 }}
-        />
-
-        {/* Payment Mode */}
-        <label>Payment Mode</label>
-        <select
-          value={paymentMode}
-          onChange={(e) => setPaymentMode(e.target.value)}
-          style={{ width: "100%", padding: 8, marginBottom: 12 }}
-        >
-          <option value="bank_transfer">Bank Transfer</option>
-          <option value="upi">UPI</option>
-          <option value="cheque">Cheque</option>
-          <option value="cash">Cash</option>
-        </select>
-
-        {/* UTR / Reference */}
-        <label>UTR / Reference (optional)</label>
-        <input
-          value={utr}
-          onChange={(e) => setUtr(e.target.value)}
-          style={{ width: "100%", padding: 8, marginBottom: 12 }}
-        />
-
-        {/* Proof File */}
-        <label>Proof (optional)</label>
-        <input type="file" onChange={handleFile} style={{ width: "100%", marginBottom: 12 }} />
-        {proofFile && <div style={{ marginBottom: 12 }}>{proofFile.name}</div>}
-
-        {/* Buttons */}
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
-          <button
-            type="button"
-            onClick={() => {
-              setInvoiceId("");
-              setAmount("");
-              setPaymentMode("bank_transfer");
-              setUtr("");
-              setProofFile(null);
-            }}
-            style={{ padding: "8px 12px" }}
-          >
-            Reset
-          </button>
-          <button type="submit" disabled={loading} style={{ padding: "8px 12px" }}>
-            {loading ? "Submitting..." : "Submit Request"}
-          </button>
-        </div>
-      </form>
-    </div>
-  );
-}
-</file>
-
-<file path="src/pages/payments/DealerAdminPayments.jsx">
-// src/pages/payments/DealerAdminPayments.jsx
-import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import { toast } from "react-toastify";
-
-const Badge = ({ status }) => {
-  const color = status === "approved" ? "#16a34a" : status === "rejected" ? "#dc2626" : "#f59e0b";
-  return <span style={{ padding: "6px 10px", borderRadius: 8, background: `${color}22`, color }}>{status}</span>;
-};
-
-export default function DealerAdminPayments({ currentUserStage = "dealer_admin" }) {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [remarksFor, setRemarksFor] = useState({}); // {id: text}
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get("/payment/dealer/pending");
-      setRows(res.data.requests || res.data || []);
-    } catch (e) { console.error(e); }
-    setLoading(false);
-  };
-
   useEffect(() => { load(); }, []);
 
-  const act = async (id, action) => {
-    try {
-      const payload = { remarks: remarksFor[id] || "" };
-      await api.post(`/payment/dealer/${id}/${action}`, payload);
-      toast.success(`${action}ed`);
-      setRows(rows.filter(r => r.id !== id));
-    } catch (e) {
-      console.error(e);
-      toast.error("Action failed");
-    }
-  };
+  const canEdit = (r) => r.status === "pending";
 
-  const viewProof = (r) => { if (r.proofUrl) window.open(r.proofUrl, "_blank"); };
+  const downloadProof = (r) => {
+    if (!r.proofUrl) return;
+    window.open(r.proofUrl, "_blank");
+  };
 
   return (
     <div>
-      <h2>Dealer Admin — Pending Payment Requests</h2>
+      <h2>My Payment Requests</h2>
       {loading ? <p>Loading…</p> : null}
-      <table style={{ width: "100%" }}>
-        <thead><tr><th>Invoice</th><th>Dealer</th><th>Amount</th><th>Proof</th><th>Remarks</th><th>Actions</th></tr></thead>
+      <table style={{ width: "100%", borderCollapse: "collapse" }}>
+        <thead>
+          <tr>
+            <th>Invoice</th><th>Amount</th><th>Status</th><th>Stage</th><th>Proof</th><th>Actions</th>
+          </tr>
+        </thead>
         <tbody>
-          {rows.map(r => (
+          {rows.map((r) => (
             <tr key={r.id}>
               <td>{r.invoiceNumber || r.invoice?.invoiceNumber}</td>
-              <td>{r.dealerName || r.dealer?.name}</td>
               <td>{r.amount}</td>
-              <td>{r.proofUrl ? <button onClick={() => viewProof(r)}>View</button> : "—"}</td>
+              <td><Badge status={r.status} /></td>
+              <td>{r.currentStage || r.approvalStage || "dealer_admin"}</td>
+              <td>{r.proofUrl ? <button onClick={() => downloadProof(r)}>View</button> : "—"}</td>
               <td>
-                <input value={remarksFor[r.id] || ""} onChange={(e) => setRemarksFor({ ...remarksFor, [r.id]: e.target.value })} placeholder="Optional remarks" />
-              </td>
-              <td>
-                {r.currentStage === currentUserStage ? (
-                  <>
-                    <button onClick={() => act(r.id, "approve")}>Approve</button>
-                    <button onClick={() => act(r.id, "reject")}>Reject</button>
-                  </>
-                ) : <div>Not your stage</div>}
+                {canEdit(r) && <button onClick={async () => {
+                  // allow cancel/edit flow - example: cancel
+                  if (!confirm("Cancel this request?")) return;
+                  try {
+                    await api.post(`/payment/${r.id}/cancel`);
+                    setRows(rows.filter(x => x.id !== r.id));
+                  } catch (e) { console.error(e); alert("Failed"); }
+                }}>Cancel</button>}
               </td>
             </tr>
           ))}
-          {rows.length === 0 && <tr><td colSpan={6}>No pending requests</td></tr>}
-        </tbody>
-      </table>
-    </div>
-  );
-}
-</file>
-
-<file path="src/pages/payments/FinancePendingPayments.jsx">
-// src/pages/payments/FinancePendingPayments.jsx
-import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import { toast } from "react-toastify";
-
-export default function FinancePendingPayments({ currentUserStage = "finance_admin" }) {
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(false);
-  const [remarks, setRemarks] = useState({});
-
-  const load = async () => {
-    setLoading(true);
-    try {
-      const res = await api.get("/payment/pending");
-      setRows(res.data.requests || res.data || []);
-    } catch (e) { console.error(e); }
-    setLoading(false);
-  };
-  useEffect(() => { load(); }, []);
-
-  const act = async (id, action) => {
-    try {
-      await api.post(`/payment/${id}/${action}`, { remarks: remarks[id] || "" });
-      toast.success(`${action}ed`);
-      setRows(rows.filter(r => r.id !== id));
-    } catch (e) { console.error(e); toast.error("Failed"); }
-  };
-
-  const reconcile = async () => {
-    try {
-      await api.post("/payment/reconcile/trigger");
-      toast.success("Reconcile triggered");
-      load();
-    } catch (e) { console.error(e); toast.error("Failed"); }
-  };
-
-  return (
-    <div>
-      <h2>Finance — Pending Payments</h2>
-      <div style={{ marginBottom: 12 }}>
-        <button onClick={reconcile}>Trigger Auto-Reconcile</button>
-      </div>
-      <table style={{ width: "100%" }}>
-        <thead><tr><th>Invoice</th><th>Dealer</th><th>Amount</th><th>Proof</th><th>Remarks</th><th>Actions</th></tr></thead>
-        <tbody>
-          {rows.map(r => (
-            <tr key={r.id}>
-              <td>{r.invoiceNumber}</td>
-              <td>{r.dealerName}</td>
-              <td>{r.amount}</td>
-              <td>{r.proofUrl ? <a href={r.proofUrl} target="_blank" rel="noreferrer">View</a> : "—"}</td>
-              <td><input value={remarks[r.id] || ""} onChange={(e) => setRemarks({ ...remarks, [r.id]: e.target.value })} placeholder="remarks" /></td>
-              <td>
-                {r.currentStage === currentUserStage ? (
-                  <>
-                    <button onClick={() => act(r.id, "approve")}>Approve</button>
-                    <button onClick={() => act(r.id, "reject")}>Reject</button>
-                  </>
-                ) : "Not your stage"}
-              </td>
-            </tr>
-          ))}
-          {rows.length === 0 && <tr><td colSpan={6}>No pending payments</td></tr>}
+          {rows.length === 0 && <tr><td colSpan={6}>No payment requests yet.</td></tr>}
         </tbody>
       </table>
     </div>
@@ -5130,6 +5300,7 @@ function Modal({ title, onClose, children }) {
 <file path="src/pages/superadmin/Users.jsx">
 // src/pages/superadmin/Users.jsx
 import React, { useEffect, useMemo, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../../services/api";
 import {
   FaEdit,
@@ -5141,25 +5312,9 @@ import {
   FaSortDown,
 } from "react-icons/fa";
 
-/**
- * Users.jsx
- *
- * - Works with backend responses like: { users: [...], total?, totalPages? }
- * - Features:
- *   • Search (debounced)
- *   • Filters (role / dealer / region)
- *   • Sorting
- *   • Pagination (works if backend returns total/totalPages, otherwise basic)
- *   • Add / Edit user modal (assign role, dealer, region)
- *   • Selecting a region in the modal filters dealers to that region
- *   • When editing/creating a user, the backend endpoint is called and (server-side)
- *     dealer.regionId will be updated as needed (this file expects that server logic)
- *   • Bulk actions: delete / activate / deactivate
- *
- * Copy-paste ready.
- */
-
 export default function Users() {
+  const navigate = useNavigate();
+
   // data
   const [users, setUsers] = useState([]);
   const [roles, setRoles] = useState([]);
@@ -5168,7 +5323,6 @@ export default function Users() {
 
   // ui state
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving] = useState(false);
   const [page, setPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
   const [totalPages, setTotalPages] = useState(1);
@@ -5182,37 +5336,21 @@ export default function Users() {
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState("desc");
 
-  // modal / form
-  const [modalOpen, setModalOpen] = useState(false);
-  const [editingUser, setEditingUser] = useState(null);
-  const [form, setForm] = useState({
-    username: "",
-    email: "",
-    password: "",
-    roleId: "",
-    dealerId: "",
-    regionId: "",
-    isActive: true,
-  });
-
   // bulk selection
   const [selected, setSelected] = useState(new Set());
 
-  // debounce for search
+  // debounce for search / filters
   const debounceRef = useRef(null);
   useEffect(() => {
-    // whenever filter/sort/pageSize/searchTerm changes, reset to page 1 and fetch
     if (debounceRef.current) clearTimeout(debounceRef.current);
     debounceRef.current = setTimeout(() => {
       setPage(1);
       fetchData(1);
     }, 350);
-
     return () => clearTimeout(debounceRef.current);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchTerm, filterRole, filterDealer, filterRegion, sortBy, sortOrder, pageSize]);
 
-  // fetch data
   const fetchData = async (requestedPage = page) => {
     try {
       setLoading(true);
@@ -5235,19 +5373,26 @@ export default function Users() {
         api.get("/regions"),
       ]);
 
-      // Users (normalize)
-      // Backend might return { users: [...] } or { data: [...] } or array
-      const usersData = usersRes?.data?.users ?? usersRes?.data?.data ?? usersRes?.data ?? [];
-      setUsers(Array.isArray(usersData) ? usersData : []);
+      const usersData =
+        usersRes?.data?.users ??
+        usersRes?.data?.data ??
+        usersRes?.data ??
+        [];
 
-      // Pagination metadata (if any)
+      const safeUsers = Array.isArray(usersData) ? usersData : [];
+      setUsers(safeUsers);
+
       const totalFromRes = usersRes?.data?.total ?? usersRes?.data?.totalCount ?? null;
       const totalPagesFromRes = usersRes?.data?.totalPages ?? null;
-      setTotal(totalFromRes ?? usersData.length);
-      if (totalPagesFromRes) setTotalPages(totalPagesFromRes);
-      else setTotalPages(Math.max(1, Math.ceil((totalFromRes ?? usersData.length) / pageSize)));
+      setTotal(totalFromRes ?? safeUsers.length);
+      if (totalPagesFromRes) {
+        setTotalPages(totalPagesFromRes);
+      } else {
+        setTotalPages(
+          Math.max(1, Math.ceil((totalFromRes ?? safeUsers.length) / pageSize))
+        );
+      }
 
-      // Roles / Dealers / Regions normalization (safe access)
       setRoles(rolesRes?.data?.roles ?? rolesRes?.data ?? []);
       setDealers(dealersRes?.data?.dealers ?? dealersRes?.data ?? []);
       setRegions(regionsRes?.data?.regions ?? regionsRes?.data ?? []);
@@ -5265,123 +5410,7 @@ export default function Users() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
-  // helpers
-  const resetForm = () => {
-    setForm({
-      username: "",
-      email: "",
-      password: "",
-      roleId: "",
-      dealerId: "",
-      regionId: "",
-      isActive: true,
-    });
-    setEditingUser(null);
-  };
-
-  const openEdit = (user) => {
-    setEditingUser(user);
-    setForm({
-      username: user.username ?? "",
-      email: user.email ?? "",
-      password: "",
-      roleId: user.roleId ?? user.role ?? "",
-      dealerId: user.dealerId ?? user.dealerId ?? user.dealer ?? "",
-      regionId: user.regionId ?? user.regionId ?? "",
-      isActive: typeof user.isActive === "boolean" ? user.isActive : true,
-    });
-    setModalOpen(true);
-  };
-
-  const openAdd = () => {
-    resetForm();
-    setModalOpen(true);
-  };
-
-  const handleInput = (e) => {
-    const { name, value, type, checked } = e.target;
-    setForm((prev) => {
-      const next = { ...prev, [name]: type === "checkbox" ? checked : value };
-
-      // If region changed in modal, clear dealer selection (so dealer chosen matches region)
-      if (name === "regionId") next.dealerId = "";
-      return next;
-    });
-  };
-
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      setSaving(true);
-
-      const payload = {
-        username: form.username,
-        email: form.email,
-        password: form.password || undefined, // don't send empty password if editing
-        roleId: form.roleId || undefined,
-        dealerId: form.dealerId || null,
-        regionId: form.regionId || null,
-        isActive: form.isActive,
-      };
-
-      if (editingUser) {
-        await api.put(`/admin/users/${editingUser.id}`, payload);
-      } else {
-        await api.post(`/admin/users`, payload);
-      }
-
-      setModalOpen(false);
-      resetForm();
-      fetchData(1);
-    } catch (err) {
-      console.error("Save user error:", err);
-      // try to show server message if present
-      const serverMsg = err?.response?.data?.error ?? err?.response?.data?.message;
-      alert(serverMsg || "Failed to save user - check console.");
-    } finally {
-      setSaving(false);
-    }
-  };
-
-  const handleDelete = async (id) => {
-    if (!window.confirm("Delete this user? This action is irreversible.")) return;
-    try {
-      await api.delete(`/admin/users/${id}`);
-      fetchData(1);
-    } catch (err) {
-      console.error("Delete user:", err);
-      alert("Failed to delete user");
-    }
-  };
-
-  const toggleActive = async (user) => {
-    try {
-      await api.put(`/admin/users/${user.id}`, { ...user, isActive: !user.isActive });
-      fetchData(page);
-    } catch (err) {
-      console.error("Toggle active:", err);
-      alert("Failed to change active status");
-    }
-  };
-
-  // sorting
-  const toggleSort = (column) => {
-    if (sortBy === column) {
-      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
-    } else {
-      setSortBy(column);
-      setSortOrder("asc");
-    }
-    setPage(1);
-    fetchData(1);
-  };
-
-  const renderSortIcon = (column) => {
-    if (sortBy !== column) return <FaSort className="inline-block ml-2 opacity-50" />;
-    return sortOrder === "asc" ? <FaSortUp className="inline-block ml-2" /> : <FaSortDown className="inline-block ml-2" />;
-  };
-
-  // bulk selection
+  // bulk helpers
   const toggleSelect = (id) => {
     setSelected((s) => {
       const copy = new Set(s);
@@ -5400,15 +5429,17 @@ export default function Users() {
   };
 
   const bulkDelete = async () => {
-    if (selected.size === 0) {
+    if (!selected.size) {
       alert("Select at least one user.");
       return;
     }
     if (!window.confirm(`Delete ${selected.size} users?`)) return;
+
     try {
       setLoading(true);
-      // replace with a real bulk endpoint if available for performance
-      await Promise.all(Array.from(selected).map((id) => api.delete(`/admin/users/${id}`)));
+      await Promise.all(
+        Array.from(selected).map((id) => api.delete(`/admin/users/${id}`))
+      );
       setSelected(new Set());
       fetchData(1);
     } catch (err) {
@@ -5420,14 +5451,20 @@ export default function Users() {
   };
 
   const bulkSetActive = async (active) => {
-    if (selected.size === 0) {
+    if (!selected.size) {
       alert("Select at least one user.");
       return;
     }
-    if (!window.confirm(`${active ? "Activate" : "Deactivate"} ${selected.size} users?`)) return;
+    if (!window.confirm(`${active ? "Activate" : "Deactivate"} ${selected.size} users?`))
+      return;
+
     try {
       setLoading(true);
-      await Promise.all(Array.from(selected).map((id) => api.put(`/admin/users/${id}`, { isActive: active })));
+      await Promise.all(
+        Array.from(selected).map((id) =>
+          api.put(`/admin/users/${id}`, { isActive: active })
+        )
+      );
       setSelected(new Set());
       fetchData(page);
     } catch (err) {
@@ -5438,32 +5475,64 @@ export default function Users() {
     }
   };
 
-  // derived UI values
-  const selectedCount = selected.size;
-  const isAllSelected = users.length > 0 && selected.size === users.length;
+  // single actions
+  const handleDelete = async (id) => {
+    if (!window.confirm("Delete this user? This action is irreversible.")) return;
+    try {
+      await api.delete(`/admin/users/${id}`);
+      fetchData(1);
+    } catch (err) {
+      console.error("Delete user:", err);
+      alert("Failed to delete user");
+    }
+  };
 
-  // memoized options
+  const toggleActive = async (user) => {
+    try {
+      await api.put(`/admin/users/${user.id}`, {
+        ...user,
+        isActive: !user.isActive,
+      });
+      fetchData(page);
+    } catch (err) {
+      console.error("Toggle active:", err);
+      alert("Failed to change active status");
+    }
+  };
+
+  // sorting helpers
+  const toggleSort = (column) => {
+    if (sortBy === column) {
+      setSortOrder((o) => (o === "asc" ? "desc" : "asc"));
+    } else {
+      setSortBy(column);
+      setSortOrder("asc");
+    }
+    setPage(1);
+    fetchData(1);
+  };
+
+  const renderSortIcon = (column) => {
+    if (sortBy !== column) return <FaSort className="inline-block ml-2 opacity-50" />;
+    return sortOrder === "asc" ? (
+      <FaSortUp className="inline-block ml-2" />
+    ) : (
+      <FaSortDown className="inline-block ml-2" />
+    );
+  };
+
   const roleOptions = useMemo(() => roles, [roles]);
   const dealerOptions = useMemo(() => dealers, [dealers]);
   const regionOptions = useMemo(() => regions, [regions]);
 
-  // When modal region selected, filter dealers shown in modal
-  const filteredDealersForModal = useMemo(() => {
-    if (!form.regionId) return dealerOptions;
-    return dealerOptions.filter((d) => {
-      // dealer.table may store regionId as "regionId" or "RegionId" — handle both
-      return (d.regionId ?? d.RegionId ?? d.regionId ?? null) === form.regionId;
-    });
-  }, [dealerOptions, form.regionId]);
+  const isAllSelected = users.length > 0 && selected.size === users.length;
 
-  // pagination helpers
   const gotoPage = (p) => {
     const newPage = Math.max(1, Math.min(p, totalPages));
     setPage(newPage);
     fetchData(newPage);
   };
 
-  // small UI components
   const Badge = ({ children, color = "gray" }) => {
     const bg = {
       green: "bg-green-100 text-green-800",
@@ -5472,7 +5541,11 @@ export default function Users() {
       blue: "bg-blue-100 text-blue-800",
       gray: "bg-gray-100 text-gray-800",
     }[color];
-    return <span className={`px-2 py-1 rounded-full text-xs font-medium ${bg}`}>{children}</span>;
+    return (
+      <span className={`px-2 py-1 rounded-full text-xs font-medium ${bg}`}>
+        {children}
+      </span>
+    );
   };
 
   return (
@@ -5481,25 +5554,36 @@ export default function Users() {
       <div className="flex items-center justify-between mb-4 gap-4">
         <div>
           <h1 className="text-2xl font-bold">User Management</h1>
-          <p className="text-sm text-gray-500">Manage users, roles, dealers, and regions.</p>
+          <p className="text-sm text-gray-500">
+            Manage users, roles, dealers, and regions.
+          </p>
         </div>
 
         <div className="flex items-center gap-2">
           <button
-            onClick={openAdd}
+            onClick={() => navigate("/superadmin/users/new")}
             className="inline-flex items-center gap-2 bg-orange-500 text-white px-4 py-2 rounded shadow hover:opacity-95"
           >
             <FaPlus /> Add User
           </button>
 
           <div className="flex items-center gap-2">
-            <button onClick={() => bulkSetActive(true)} className="px-3 py-2 border rounded hover:bg-green-50" title="Activate selected">
+            <button
+              onClick={() => bulkSetActive(true)}
+              className="px-3 py-2 border rounded hover:bg-green-50"
+            >
               Activate
             </button>
-            <button onClick={() => bulkSetActive(false)} className="px-3 py-2 border rounded hover:bg-yellow-50" title="Deactivate selected">
+            <button
+              onClick={() => bulkSetActive(false)}
+              className="px-3 py-2 border rounded hover:bg-yellow-50"
+            >
               Deactivate
             </button>
-            <button onClick={bulkDelete} className="px-3 py-2 border rounded hover:bg-red-50 text-red-600" title="Delete selected">
+            <button
+              onClick={bulkDelete}
+              className="px-3 py-2 border rounded hover:bg-red-50 text-red-600"
+            >
               Delete
             </button>
           </div>
@@ -5591,18 +5675,31 @@ export default function Users() {
           <thead className="bg-gray-50">
             <tr>
               <th className="p-3">
-                <input type="checkbox" checked={isAllSelected} onChange={toggleSelectAll} />
+                <input
+                  type="checkbox"
+                  checked={isAllSelected}
+                  onChange={toggleSelectAll}
+                />
               </th>
-              <th className="p-3 text-left cursor-pointer" onClick={() => toggleSort("username")}>
+              <th
+                className="p-3 text-left cursor-pointer"
+                onClick={() => toggleSort("username")}
+              >
                 Username {renderSortIcon("username")}
               </th>
-              <th className="p-3 text-left cursor-pointer" onClick={() => toggleSort("email")}>
+              <th
+                className="p-3 text-left cursor-pointer"
+                onClick={() => toggleSort("email")}
+              >
                 Email {renderSortIcon("email")}
               </th>
               <th className="p-3 text-left">Role</th>
               <th className="p-3 text-left">Dealer</th>
               <th className="p-3 text-left">Region</th>
-              <th className="p-3 text-left cursor-pointer" onClick={() => toggleSort("isActive")}>
+              <th
+                className="p-3 text-left cursor-pointer"
+                onClick={() => toggleSort("isActive")}
+              >
                 Status {renderSortIcon("isActive")}
               </th>
               <th className="p-3 text-left">Actions</th>
@@ -5626,7 +5723,11 @@ export default function Users() {
               users.map((u) => (
                 <tr key={u.id} className="hover:bg-gray-50">
                   <td className="p-3">
-                    <input type="checkbox" checked={selected.has(u.id)} onChange={() => toggleSelect(u.id)} />
+                    <input
+                      type="checkbox"
+                      checked={selected.has(u.id)}
+                      onChange={() => toggleSelect(u.id)}
+                    />
                   </td>
 
                   <td className="p-3">
@@ -5637,43 +5738,66 @@ export default function Users() {
                   <td className="p-3 text-sm">{u.email}</td>
 
                   <td className="p-3">
-                    <div className="inline-block">
-                      <Badge color="blue">{u.role ?? u.roleName ?? "—"}</Badge>
-                    </div>
+                    <Badge color="blue">{u.role ?? u.roleName ?? "—"}</Badge>
                   </td>
 
                   <td className="p-3">
                     {u.dealer ? (
                       <div>
-                        <div className="font-medium">{u.dealer.businessName}</div>
-                        <div className="text-xs text-gray-500">{u.dealer.dealerCode || ""}</div>
+                        <div className="font-medium">
+                          {u.dealer.businessName}
+                        </div>
+                        <div className="text-xs text-gray-500">
+                          {u.dealer.dealerCode || ""}
+                        </div>
                       </div>
                     ) : u.dealerId ? (
-                      <div className="text-sm text-gray-700">Dealer ID: {u.dealerId}</div>
+                      <div className="text-sm text-gray-700">
+                        Dealer ID: {u.dealerId}
+                      </div>
                     ) : (
                       <span className="text-sm text-gray-400">—</span>
                     )}
                   </td>
 
                   <td className="p-3">
-                    {u.region ? <Badge color="green">{u.region.name}</Badge> : u.regionId ? <Badge color="gray">assigned</Badge> : <span className="text-sm text-gray-400">—</span>}
-                  </td>
-
-                  <td className="p-3">
-                    {u.isBlocked ? (
-                      <Badge color="red">Blocked</Badge>
-                    ) : u.isActive ? (
-                      <Badge color="green">Active</Badge>
+                    {u.region ? (
+                      <Badge color="green">{u.region.name}</Badge>
+                    ) : u.regionId ? (
+                      <Badge color="gray">assigned</Badge>
                     ) : (
-                      <Badge color="yellow">Inactive</Badge>
+                      <span className="text-sm text-gray-400">—</span>
                     )}
                   </td>
 
+                  <td className="p-3">
+                    <button
+                      onClick={() => toggleActive(u)}
+                      className="text-sm"
+                    >
+                      {u.isBlocked ? (
+                        <Badge color="red">Blocked</Badge>
+                      ) : u.isActive ? (
+                        <Badge color="green">Active</Badge>
+                      ) : (
+                        <Badge color="yellow">Inactive</Badge>
+                      )}
+                    </button>
+                  </td>
+
                   <td className="p-3 flex gap-2">
-                    <button onClick={() => openEdit(u)} className="text-blue-600 hover:underline">
+                    <button
+                      onClick={() =>
+                        navigate(`/superadmin/users/${u.id}/edit`)
+                      }
+                      className="text-blue-600 hover:underline"
+                    >
                       <FaEdit />
                     </button>
-                    <button onClick={() => handleDelete(u.id)} className="text-red-600 hover:underline">
+                    <button
+                      onClick={() => handleDelete(u.id)}
+                      className="text-red-600 hover:underline"
+                    >
                       <FaTrash />
                     </button>
                   </td>
@@ -5691,88 +5815,39 @@ export default function Users() {
         </div>
 
         <div className="flex items-center gap-2">
-          <button onClick={() => gotoPage(1)} disabled={page === 1} className="px-3 py-1 border rounded disabled:opacity-50">
+          <button
+            onClick={() => gotoPage(1)}
+            disabled={page === 1}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
             « First
           </button>
-          <button onClick={() => gotoPage(page - 1)} disabled={page === 1} className="px-3 py-1 border rounded disabled:opacity-50">
+          <button
+            onClick={() => gotoPage(page - 1)}
+            disabled={page === 1}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
             ‹ Prev
           </button>
 
           <span className="px-3 py-1 border rounded bg-gray-50">{page}</span>
 
-          <button onClick={() => gotoPage(page + 1)} disabled={page === totalPages} className="px-3 py-1 border rounded disabled:opacity-50">
+          <button
+            onClick={() => gotoPage(page + 1)}
+            disabled={page === totalPages}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
             Next ›
           </button>
-          <button onClick={() => gotoPage(totalPages)} disabled={page === totalPages} className="px-3 py-1 border rounded disabled:opacity-50">
+          <button
+            onClick={() => gotoPage(totalPages)}
+            disabled={page === totalPages}
+            className="px-3 py-1 border rounded disabled:opacity-50"
+          >
             Last »
           </button>
         </div>
       </div>
-
-      {/* Modal */}
-      {modalOpen && (
-        <div className="fixed inset-0 bg-black bg-opacity-40 flex items-center justify-center z-50">
-          <div className="bg-white rounded-lg shadow-lg w-full max-w-xl p-6">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-xl font-semibold">{editingUser ? "Edit User" : "Add User"}</h2>
-              <button onClick={() => { setModalOpen(false); resetForm(); }} className="text-gray-500">Close</button>
-            </div>
-
-            <form onSubmit={handleSubmit} className="grid grid-cols-1 md:grid-cols-2 gap-3">
-              <div>
-                <label className="block text-sm font-medium mb-1">Username</label>
-                <input name="username" value={form.username} onChange={handleInput} required className="w-full border px-3 py-2 rounded" />
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Email</label>
-                <input name="email" type="email" value={form.email} onChange={handleInput} required className="w-full border px-3 py-2 rounded" />
-              </div>
-
-              {!editingUser && (
-                <div>
-                  <label className="block text-sm font-medium mb-1">Password</label>
-                  <input name="password" type="password" value={form.password} onChange={handleInput} required className="w-full border px-3 py-2 rounded" />
-                </div>
-              )}
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Role</label>
-                <select name="roleId" value={form.roleId} onChange={handleInput} required className="w-full border px-3 py-2 rounded">
-                  <option value="">Select role</option>
-                  {roleOptions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Region</label>
-                <select name="regionId" value={form.regionId || ""} onChange={handleInput} className="w-full border px-3 py-2 rounded">
-                  <option value="">Select region</option>
-                  {regionOptions.map((r) => <option key={r.id} value={r.id}>{r.name}</option>)}
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium mb-1">Dealer</label>
-                <select name="dealerId" value={form.dealerId || ""} onChange={handleInput} className="w-full border px-3 py-2 rounded">
-                  <option value="">Select dealer</option>
-                  {filteredDealersForModal.map((d) => <option key={d.id} value={d.id}>{d.businessName}</option>)}
-                </select>
-              </div>
-
-              <div className="flex items-center gap-2">
-                <input type="checkbox" name="isActive" checked={form.isActive} onChange={handleInput} />
-                <label className="text-sm">Active</label>
-              </div>
-
-              <div className="md:col-span-2 flex justify-end gap-2 mt-3">
-                <button type="button" onClick={() => { setModalOpen(false); resetForm(); }} className="px-4 py-2 border rounded">Cancel</button>
-                <button type="submit" disabled={saving} className="px-4 py-2 bg-orange-500 text-white rounded">{saving ? "Saving..." : (editingUser ? "Update user" : "Create user")}</button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -6195,79 +6270,137 @@ export default function StatCard({ title, value, icon, accent = "#f97316" }) {
 }
 </file>
 
-<file path="src/context/AuthContext.jsx">
-import React, { createContext, useState, useContext, useEffect } from "react";
-import api from "../services/api";
-import { connectSocket, disconnectSocket } from "../services/socket";
+<file path="src/context/NotificationContext.jsx">
+import React, { createContext, useState, useEffect, useContext } from "react";
+import { getSocket, onNewNotification, offNewNotification } from "../services/socket";
+import { notificationAPI } from "../services/api";
+import { toast } from "react-toastify";
+import { AuthContext } from "./AuthContext";
 
-export const AuthContext = createContext();
+export const NotificationContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")) || null);
-  const [token, setToken] = useState(localStorage.getItem("token") || null);
+export const NotificationProvider = ({ children }) => {
+  const { user } = useContext(AuthContext);
+  const [notifications, setNotifications] = useState([]);
+  const [unread, setUnread] = useState(0);
   const [loading, setLoading] = useState(false);
 
-  // Connect socket on mount if user is already logged in
+  // Fetch notifications from backend
+  const fetchNotifications = async () => {
+    if (!user) return;
+    
+    setLoading(true);
+    try {
+      const data = await notificationAPI.getNotifications();
+      setNotifications(data.notifications || data || []);
+      
+      // Count unread notifications
+      const unreadCount = Array.isArray(data.notifications || data)
+        ? (data.notifications || data).filter((n) => !n.isRead && !n.read).length
+        : 0;
+      setUnread(unreadCount);
+    } catch (err) {
+      console.error("Failed to fetch notifications:", err);
+      toast.error("Failed to load notifications");
+    } finally {
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    if (user && token) {
-      connectSocket();
-    }
+    if (!user) return;
 
-    // Cleanup on unmount
-    return () => {
-      disconnectSocket();
+    // Fetch initial notifications
+    fetchNotifications();
+
+    // Set up real-time notification listener
+    const handleNewNotification = (data) => {
+      console.log("📩 New notification received:", data);
+      
+      // Show toast notification
+      toast.info(data.message || `${data.title}: ${data.body}`, {
+        position: "top-right",
+        autoClose: 5000,
+      });
+
+      // Add to notifications list
+      setNotifications((prev) => [data, ...prev]);
+      setUnread((prev) => prev + 1);
     };
-  }, []);
 
-  const login = async (username, password) => {
-    setLoading(true);
+    onNewNotification(handleNewNotification);
+
+    // Cleanup
+    return () => {
+      offNewNotification();
+    };
+  }, [user]);
+
+  // Mark all notifications as read
+  const markAllAsRead = async () => {
     try {
-      const res = await api.post("/auth/login", { username, password });
-      return res.data;
-    } finally {
-      setLoading(false);
+      await notificationAPI.markAllRead();
+      setUnread(0);
+      setNotifications((prev) =>
+        prev.map((n) => ({ ...n, isRead: true, read: true }))
+      );
+      toast.success("All notifications marked as read");
+    } catch (err) {
+      console.error("Failed to mark notifications read:", err);
+      toast.error("Failed to mark notifications as read");
     }
   };
 
-  const verifyOTP = async (userId, otp) => {
-    setLoading(true);
+  // Mark single notification as read
+  const markAsRead = async (notificationId) => {
     try {
-      const res = await api.post("/auth/verify-otp", { userId, otp });
-      const { token, user } = res.data;
-
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
-
-      setToken(token);
-      setUser(user);
-
-      // Connect socket after successful authentication
-      connectSocket();
-
-      return user;
-    } finally {
-      setLoading(false);
+      await notificationAPI.markNotificationRead(notificationId);
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.id === notificationId ? { ...n, isRead: true, read: true } : n
+        )
+      );
+      setUnread((prev) => Math.max(0, prev - 1));
+    } catch (err) {
+      console.error("Failed to mark notification read:", err);
     }
   };
 
-  const logout = () => {
-    // Disconnect socket before clearing data
-    disconnectSocket();
+  // Delete notification
+  const deleteNotification = async (notificationId) => {
+    try {
+      await notificationAPI.deleteNotification(notificationId);
+      setNotifications((prev) => prev.filter((n) => n.id !== notificationId));
+      toast.success("Notification deleted");
+    } catch (err) {
+      console.error("Failed to delete notification:", err);
+      toast.error("Failed to delete notification");
+    }
+  };
 
-    localStorage.removeItem("token");
-    localStorage.removeItem("user");
-    setUser(null);
-    setToken(null);
+  // Refresh notifications
+  const refreshNotifications = () => {
+    fetchNotifications();
   };
 
   return (
-    <AuthContext.Provider value={{ user, token, login, verifyOTP, loading, logout }}>
+    <NotificationContext.Provider
+      value={{
+        notifications,
+        unread,
+        loading,
+        markAllAsRead,
+        markAsRead,
+        deleteNotification,
+        refreshNotifications,
+      }}
+    >
       {children}
-    </AuthContext.Provider>
+    </NotificationContext.Provider>
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useNotifications = () => useContext(NotificationContext);
 </file>
 
 <file path="src/pages/AdminDocuments.jsx">
@@ -6580,6 +6713,554 @@ export default function AdminDocuments() {
   border-radius: 6px;
   padding: 8px 14px;
   cursor: pointer;
+}
+</file>
+
+<file path="src/pages/dashboards/AreaManagerDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import DataTable from "../../components/DataTable";
+import api from "../../services/api";
+import "./DashboardLayout.css";
+
+export default function AreaManagerDashboard() {
+  const [summary, setSummary] = useState(null);
+  const [dealers, setDealers] = useState([]);
+  const [approvals, setApprovals] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => { loadData(); }, []);
+
+  async function loadData() {
+    try {
+      const s = await api.get("/areas/dashboard/summary");
+      const d = await api.get("/areas/dashboard/dealers");
+      const a = await api.get("/areas/dashboard/approvals");
+
+      setSummary(s.data);
+      setDealers(d.data);
+      setApprovals(a.data || []);
+    } catch (err) {
+      console.error("Area Dashboard Load Error:", err);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  if (loading) return <p className="loader">Loading dashboard…</p>;
+
+  return (
+    <div style={{ padding: "1.2rem" }}>
+      <PageHeader 
+        title="Area Manager Dashboard" 
+        subtitle="Live analytics for your assigned region"
+      />
+
+      {/* ==================== Top Stats  ==================== */}
+      <div className="stat-grid">
+        <StatCard title="Dealers" value={summary.dealers} icon="🏬" />
+        <StatCard title="Territories" value={summary.territories} icon="🗺️" />
+        <StatCard title="Pending Approvals" value={summary.approvalsPending} icon="⚠️" highlight />
+        <StatCard title="Active Campaigns" value={summary.activeCampaigns} icon="📢" />
+      </div>
+
+      <div className="dashboard-3col">
+
+        {/* ==================== Approvals ==================== */}
+        <Card title="Pending Approvals">
+          {approvals.length === 0 && <p className="text-muted">No approvals pending 🎉</p>}
+          {approvals.slice(0, 5).map(a => (
+            <div className="approval-item" key={a.id}>
+              <b>{a.dealer?.businessName}</b>
+              <span>{a.documentType}</span>
+              <button className="btn-approve">Review</button>
+            </div>
+          ))}
+        </Card>
+
+        {/* ==================== Alerts ==================== */}
+        <Card title="Alerts & Notifications">
+          <ul className="alert-list">
+            <li>⚠ Low inventory for 3 dealers</li>
+            <li>📄 Contracts expiring this month</li>
+            <li>📉 Territory performance dips warning</li>
+          </ul>
+        </Card>
+
+        {/* ==================== (Placeholder) Performance ==================== */}
+        <Card title="30-Day Performance">
+          <p className="text-muted">Graph module coming next 🚀</p>
+        </Card>
+
+      </div>
+
+      {/* ==================== Dealer Table ==================== */}
+      <Card title="Dealers in My Area" style={{ marginTop: "1.5rem" }}>
+        <DataTable
+          columns={["Dealer Name", "Code", "Phone", "Active?"]}
+          data={dealers.map(d => [
+            d.businessName, 
+            d.dealerCode, 
+            d.phoneNumber || "-",
+            d.isActive ? "Active" : "Inactive"
+          ])}
+        />
+      </Card>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/dashboards/RegionalManagerDashboard.jsx">
+import React, { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+import { dashboardAPI, orderAPI, pricingAPI } from "../../services/api";
+import PageHeader from "../../components/PageHeader";
+import StatCard from "../../components/StatCard";
+import Card from "../../components/Card";
+import Chart from "react-apexcharts";
+import "./DashboardLayout.css";
+import { 
+  TrendingUp, 
+  Users, 
+  Clock, 
+  CheckCircle, 
+  AlertCircle,
+  MapPin,
+  FileText,
+  DollarSign
+} from "lucide-react";
+
+export default function RegionalManagerDashboard() {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalDealers: 0,
+    pendingApprovals: 0,
+    upcomingVisits: 0,
+    activeOrders: 0,
+    monthlyRevenue: 0,
+    approvalRate: 0,
+  });
+  const [pendingItems, setPendingItems] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
+  const [performanceData, setPerformanceData] = useState([]);
+
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
+
+  const fetchDashboardData = async () => {
+    try {
+      setLoading(true);
+      
+      // Fetch manager summary
+      const summaryRes = await dashboardAPI.getManagerSummary();
+      setStats({
+        totalDealers: summaryRes.totalDealers || 0,
+        pendingApprovals: summaryRes.pendingApprovals || 0,
+        upcomingVisits: summaryRes.upcomingVisits || 0,
+        activeOrders: summaryRes.activeOrders || 0,
+        monthlyRevenue: summaryRes.monthlyRevenue || 0,
+        approvalRate: summaryRes.approvalRate || 0,
+      });
+
+      // Fetch pending approvals
+      const approvalsRes = await dashboardAPI.getManagerApprovalQueue();
+      setPendingItems(approvalsRes.items || []);
+
+      // Fetch performance data for chart
+      setPerformanceData(summaryRes.performanceData || [
+        { month: "Jan", revenue: 45000 },
+        { month: "Feb", revenue: 52000 },
+        { month: "Mar", revenue: 48000 },
+        { month: "Apr", revenue: 61000 },
+        { month: "May", revenue: 55000 },
+        { month: "Jun", revenue: 67000 },
+      ]);
+
+      setRecentActivity(summaryRes.recentActivity || []);
+    } catch (error) {
+      console.error("Failed to fetch dashboard data:", error);
+      // Set fallback data
+      setStats({
+        totalDealers: 28,
+        pendingApprovals: 5,
+        upcomingVisits: 2,
+        activeOrders: 18,
+        monthlyRevenue: 245000,
+        approvalRate: 92,
+      });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleApprovalAction = async (itemId, action) => {
+    try {
+      await orderAPI.approveOrder(itemId, { action });
+      fetchDashboardData(); // Refresh data
+    } catch (error) {
+      console.error(`Failed to ${action} item:`, error);
+    }
+  };
+
+  if (loading) {
+    return (
+      <div style={{ padding: "2rem", textAlign: "center" }}>
+        <div className="spinner">Loading dashboard...</div>
+      </div>
+    );
+  }
+
+  return (
+    <div style={{ padding: "1.5rem", maxWidth: "1400px", margin: "0 auto" }}>
+      <PageHeader 
+        title="Regional Manager Dashboard" 
+        subtitle="Operations and approvals for your region"
+      />
+
+      {/* KPI Cards Grid */}
+      <div className="stat-grid" style={{ marginBottom: "2rem" }}>
+        <StatCard 
+          title="Total Dealers" 
+          value={stats.totalDealers}
+          icon={<Users size={24} />}
+          trend="+3 this month"
+          color="#3b82f6"
+        />
+        <StatCard 
+          title="Pending Approvals" 
+          value={stats.pendingApprovals}
+          icon={<Clock size={24} />}
+          color="#f59e0b"
+          onClick={() => navigate("/orders/approvals")}
+        />
+        <StatCard 
+          title="Upcoming Visits" 
+          value={stats.upcomingVisits}
+          icon={<MapPin size={24} />}
+          color="#8b5cf6"
+        />
+        <StatCard 
+          title="Active Orders" 
+          value={stats.activeOrders}
+          icon={<TrendingUp size={24} />}
+          trend="+12% vs last month"
+          color="#10b981"
+        />
+        <StatCard 
+          title="Monthly Revenue" 
+          value={`₹${(stats.monthlyRevenue / 1000).toFixed(0)}K`}
+          icon={<DollarSign size={24} />}
+          trend="+8.5%"
+          color="#06b6d4"
+        />
+        <StatCard 
+          title="Approval Rate" 
+          value={`${stats.approvalRate}%`}
+          icon={<CheckCircle size={24} />}
+          color="#22c55e"
+        />
+      </div>
+
+      {/* Main Content Grid */}
+      <div style={{ 
+        display: "grid", 
+        gridTemplateColumns: "repeat(auto-fit, minmax(450px, 1fr))", 
+        gap: "1.5rem",
+        marginBottom: "2rem"
+      }}>
+        {/* Performance Chart */}
+        <Card title="Regional Performance" icon={<TrendingUp size={20} />}>
+          <Chart
+            type="area"
+            height={280}
+            series={[{
+              name: "Revenue",
+              data: performanceData.map(d => d.revenue)
+            }]}
+            options={{
+              chart: {
+                toolbar: { show: false },
+                sparkline: { enabled: false }
+              },
+              colors: ["#3b82f6"],
+              stroke: { curve: "smooth", width: 3 },
+              fill: {
+                type: "gradient",
+                gradient: {
+                  shadeIntensity: 1,
+                  opacityFrom: 0.5,
+                  opacityTo: 0.1,
+                }
+              },
+              xaxis: {
+                categories: performanceData.map(d => d.month),
+                labels: { style: { colors: "#94a3b8" } }
+              },
+              yaxis: {
+                labels: { 
+                  style: { colors: "#94a3b8" },
+                  formatter: (val) => `₹${(val / 1000).toFixed(0)}K`
+                }
+              },
+              tooltip: {
+                theme: "dark",
+                y: {
+                  formatter: (val) => `₹${val.toLocaleString()}`
+                }
+              },
+              grid: {
+                borderColor: "rgba(148, 163, 184, 0.1)"
+              }
+            }}
+          />
+        </Card>
+
+        {/* Pending Approvals */}
+        <Card title="Pending Approvals" icon={<FileText size={20} />}>
+          {pendingItems.length === 0 ? (
+            <div style={{ 
+              textAlign: "center", 
+              padding: "2rem",
+              color: "var(--text-secondary)" 
+            }}>
+              <CheckCircle size={48} style={{ opacity: 0.3, marginBottom: "1rem" }} />
+              <p>No pending approvals</p>
+            </div>
+          ) : (
+            <div style={{ maxHeight: "280px", overflowY: "auto" }}>
+              {pendingItems.slice(0, 5).map((item, idx) => (
+                <div 
+                  key={idx}
+                  style={{
+                    padding: "0.75rem",
+                    borderBottom: "1px solid var(--card-border)",
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center"
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 600 }}>{item.title || `Order #${item.id}`}</div>
+                    <div style={{ 
+                      fontSize: "0.85rem", 
+                      color: "var(--text-secondary)" 
+                    }}>
+                      {item.dealer || "Unknown"} • {item.type || "Order"}
+                    </div>
+                  </div>
+                  <div style={{ display: "flex", gap: "0.5rem" }}>
+                    <button
+                      onClick={() => handleApprovalAction(item.id, "approve")}
+                      style={{
+                        padding: "0.25rem 0.75rem",
+                        borderRadius: "6px",
+                        border: "none",
+                        background: "#22c55e",
+                        color: "#fff",
+                        cursor: "pointer",
+                        fontSize: "0.85rem"
+                      }}
+                    >
+                      Approve
+                    </button>
+                    <button
+                      onClick={() => handleApprovalAction(item.id, "reject")}
+                      style={{
+                        padding: "0.25rem 0.75rem",
+                        borderRadius: "6px",
+                        border: "none",
+                        background: "#ef4444",
+                        color: "#fff",
+                        cursor: "pointer",
+                        fontSize: "0.85rem"
+                      }}
+                    >
+                      Reject
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
+          {pendingItems.length > 5 && (
+            <button
+              onClick={() => navigate("/orders/approvals")}
+              style={{
+                width: "100%",
+                marginTop: "0.75rem",
+                padding: "0.5rem",
+                background: "transparent",
+                border: "1px solid var(--card-border)",
+                borderRadius: "6px",
+                cursor: "pointer",
+                color: "var(--text-primary)"
+              }}
+            >
+              View All ({pendingItems.length})
+            </button>
+          )}
+        </Card>
+      </div>
+
+      {/* Recent Activity */}
+      <Card title="Recent Activity" icon={<AlertCircle size={20} />}>
+        <div style={{ overflowX: "auto" }}>
+          <table style={{ 
+            width: "100%", 
+            borderCollapse: "collapse",
+            fontSize: "0.9rem"
+          }}>
+            <thead>
+              <tr style={{ 
+                borderBottom: "1px solid var(--card-border)",
+                textAlign: "left"
+              }}>
+                <th style={{ padding: "0.75rem" }}>Activity</th>
+                <th style={{ padding: "0.75rem" }}>Dealer</th>
+                <th style={{ padding: "0.75rem" }}>Status</th>
+                <th style={{ padding: "0.75rem" }}>Date</th>
+              </tr>
+            </thead>
+            <tbody>
+              {recentActivity.length === 0 ? (
+                <tr>
+                  <td colSpan="4" style={{ 
+                    padding: "2rem", 
+                    textAlign: "center",
+                    color: "var(--text-secondary)"
+                  }}>
+                    No recent activity
+                  </td>
+                </tr>
+              ) : (
+                recentActivity.map((activity, idx) => (
+                  <tr 
+                    key={idx}
+                    style={{ borderBottom: "1px solid var(--card-border)" }}
+                  >
+                    <td style={{ padding: "0.75rem" }}>{activity.action}</td>
+                    <td style={{ padding: "0.75rem" }}>{activity.dealer}</td>
+                    <td style={{ padding: "0.75rem" }}>
+                      <span style={{
+                        padding: "0.25rem 0.5rem",
+                        borderRadius: "12px",
+                        fontSize: "0.75rem",
+                        background: activity.status === "approved" ? "#22c55e20" : 
+                                  activity.status === "rejected" ? "#ef444420" : "#f59e0b20",
+                        color: activity.status === "approved" ? "#22c55e" : 
+                              activity.status === "rejected" ? "#ef4444" : "#f59e0b"
+                      }}>
+                        {activity.status}
+                      </span>
+                    </td>
+                    <td style={{ 
+                      padding: "0.75rem",
+                      color: "var(--text-secondary)",
+                      fontSize: "0.85rem"
+                    }}>
+                      {new Date(activity.date).toLocaleDateString()}
+                    </td>
+                  </tr>
+                ))
+              )}
+            </tbody>
+          </table>
+        </div>
+      </Card>
+
+      {/* Quick Actions */}
+      <div style={{ 
+        display: "grid", 
+        gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+        gap: "1rem",
+        marginTop: "1.5rem"
+      }}>
+        <button
+          onClick={() => navigate("/map-view")}
+          style={{
+            padding: "1rem",
+            borderRadius: "12px",
+            border: "1px solid var(--card-border)",
+            background: "var(--card-bg)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            color: "var(--text-primary)",
+            transition: "all 0.2s"
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          <MapPin size={20} />
+          View Territory Map
+        </button>
+        <button
+          onClick={() => navigate("/orders/approvals")}
+          style={{
+            padding: "1rem",
+            borderRadius: "12px",
+            border: "1px solid var(--card-border)",
+            background: "var(--card-bg)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            color: "var(--text-primary)",
+            transition: "all 0.2s"
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          <FileText size={20} />
+          Review Approvals
+        </button>
+        <button
+          onClick={() => navigate("/chat")}
+          style={{
+            padding: "1rem",
+            borderRadius: "12px",
+            border: "1px solid var(--card-border)",
+            background: "var(--card-bg)",
+            cursor: "pointer",
+            display: "flex",
+            alignItems: "center",
+            gap: "0.5rem",
+            color: "var(--text-primary)",
+            transition: "all 0.2s"
+          }}
+          onMouseOver={(e) => {
+            e.currentTarget.style.transform = "translateY(-2px)";
+            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+          }}
+          onMouseOut={(e) => {
+            e.currentTarget.style.transform = "translateY(0)";
+            e.currentTarget.style.boxShadow = "none";
+          }}
+        >
+          <Users size={20} />
+          Team Communication
+        </button>
+      </div>
+    </div>
+  );
 }
 </file>
 
@@ -7170,6 +7851,315 @@ export default function MaterialAnalytics() {
 }
 </file>
 
+<file path="src/pages/payments/CreatePaymentRequest.jsx">
+// src/pages/payments/CreatePaymentRequest.jsx
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import { toast } from "react-toastify";
+
+export default function CreatePaymentRequest() {
+  const [invoices, setInvoices] = useState([]);
+  const [invoiceId, setInvoiceId] = useState("");
+  const [amount, setAmount] = useState("");
+  const [paymentMode, setPaymentMode] = useState("bank_transfer");
+  const [utr, setUtr] = useState("");
+  const [proofFile, setProofFile] = useState(null);
+  const [loading, setLoading] = useState(false);
+
+  // ========================================================================
+  // LOAD INVOICES
+  // ========================================================================
+  useEffect(() => {
+    const loadInvoices = async () => {
+      try {
+        const res = await api.get("/invoices");
+        setInvoices(res.data.invoices || res.data);
+      } catch (err) {
+        console.error("Failed to load invoices:", err);
+        toast.error("Failed to load invoices");
+      }
+    };
+    loadInvoices();
+  }, []);
+
+  // ========================================================================
+  // UPDATE AMOUNT WHEN INVOICE SELECTED
+  // ========================================================================
+  useEffect(() => {
+    if (!invoiceId) return;
+    const inv = invoices.find((i) => String(i.id) === String(invoiceId));
+    setAmount(inv ? inv.balanceAmount ?? inv.balance ?? 0 : "");
+  }, [invoiceId, invoices]);
+
+  // ========================================================================
+  // HANDLE FILE INPUT
+  // ========================================================================
+  const handleFile = (e) => setProofFile(e.target.files[0]);
+
+  // ========================================================================
+  // SUBMIT PAYMENT REQUEST
+  // ========================================================================
+  const submit = async (e) => {
+    e.preventDefault();
+
+    if (!invoiceId || !amount) return toast.error("Please select invoice & amount");
+
+    const form = new FormData();
+    form.append("invoiceId", invoiceId);
+    form.append("amount", amount);
+    form.append("paymentMode", paymentMode);
+    if (utr) form.append("utrNumber", utr);
+    if (proofFile) form.append("proofFile", proofFile);
+
+    try {
+      setLoading(true);
+      await api.post("/payments/request", form, {
+        headers: { "Content-Type": "multipart/form-data" },
+      });
+      toast.success("Payment request submitted");
+
+      // Reset form
+      setInvoiceId("");
+      setAmount("");
+      setPaymentMode("bank_transfer");
+      setUtr("");
+      setProofFile(null);
+    } catch (err) {
+      console.error("Payment request error:", err);
+      toast.error(err?.response?.data?.error || "Submission failed");
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ========================================================================
+  // RENDER FORM
+  // ========================================================================
+  return (
+    <div style={{ maxWidth: 860, margin: "20px auto" }}>
+      <h2>Create Payment Request</h2>
+      <form onSubmit={submit}>
+        {/* Invoice Select */}
+        <label>Invoice</label>
+        <select
+          value={invoiceId}
+          onChange={(e) => setInvoiceId(e.target.value)}
+          style={{ width: "100%", padding: 8, marginBottom: 12 }}
+        >
+          <option value="">Select invoice</option>
+          {invoices.map((inv) => (
+            <option key={inv.id} value={inv.id}>
+              {inv.invoiceNumber || inv.number} — Balance: {inv.balanceAmount ?? inv.balance}
+            </option>
+          ))}
+        </select>
+
+        {/* Amount */}
+        <label>Amount</label>
+        <input
+          type="number"
+          value={amount}
+          onChange={(e) => setAmount(e.target.value)}
+          style={{ width: "100%", padding: 8, marginBottom: 12 }}
+        />
+
+        {/* Payment Mode */}
+        <label>Payment Mode</label>
+        <select
+          value={paymentMode}
+          onChange={(e) => setPaymentMode(e.target.value)}
+          style={{ width: "100%", padding: 8, marginBottom: 12 }}
+        >
+          <option value="bank_transfer">Bank Transfer</option>
+          <option value="upi">UPI</option>
+          <option value="cheque">Cheque</option>
+          <option value="cash">Cash</option>
+        </select>
+
+        {/* UTR / Reference */}
+        <label>UTR / Reference (optional)</label>
+        <input
+          value={utr}
+          onChange={(e) => setUtr(e.target.value)}
+          style={{ width: "100%", padding: 8, marginBottom: 12 }}
+        />
+
+        {/* Proof File */}
+        <label>Proof (optional)</label>
+        <input type="file" onChange={handleFile} style={{ width: "100%", marginBottom: 12 }} />
+        {proofFile && <div style={{ marginBottom: 12 }}>{proofFile.name}</div>}
+
+        {/* Buttons */}
+        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+          <button
+            type="button"
+            onClick={() => {
+              setInvoiceId("");
+              setAmount("");
+              setPaymentMode("bank_transfer");
+              setUtr("");
+              setProofFile(null);
+            }}
+            style={{ padding: "8px 12px" }}
+          >
+            Reset
+          </button>
+          <button type="submit" disabled={loading} style={{ padding: "8px 12px" }}>
+            {loading ? "Submitting..." : "Submit Request"}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/payments/DealerAdminPayments.jsx">
+// src/pages/payments/DealerAdminPayments.jsx
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import { toast } from "react-toastify";
+
+const Badge = ({ status }) => {
+  const color = status === "approved" ? "#16a34a" : status === "rejected" ? "#dc2626" : "#f59e0b";
+  return <span style={{ padding: "6px 10px", borderRadius: 8, background: `${color}22`, color }}>{status}</span>;
+};
+
+export default function DealerAdminPayments({ currentUserStage = "dealer_admin" }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [remarksFor, setRemarksFor] = useState({}); // {id: text}
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/payment/dealer/pending");
+      setRows(res.data.requests || res.data || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+
+  useEffect(() => { load(); }, []);
+
+  const act = async (id, action) => {
+    try {
+      const payload = { remarks: remarksFor[id] || "" };
+      await api.post(`/payment/dealer/${id}/${action}`, payload);
+      toast.success(`${action}ed`);
+      setRows(rows.filter(r => r.id !== id));
+    } catch (e) {
+      console.error(e);
+      toast.error("Action failed");
+    }
+  };
+
+  const viewProof = (r) => { if (r.proofUrl) window.open(r.proofUrl, "_blank"); };
+
+  return (
+    <div>
+      <h2>Dealer Admin — Pending Payment Requests</h2>
+      {loading ? <p>Loading…</p> : null}
+      <table style={{ width: "100%" }}>
+        <thead><tr><th>Invoice</th><th>Dealer</th><th>Amount</th><th>Proof</th><th>Remarks</th><th>Actions</th></tr></thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.id}>
+              <td>{r.invoiceNumber || r.invoice?.invoiceNumber}</td>
+              <td>{r.dealerName || r.dealer?.name}</td>
+              <td>{r.amount}</td>
+              <td>{r.proofUrl ? <button onClick={() => viewProof(r)}>View</button> : "—"}</td>
+              <td>
+                <input value={remarksFor[r.id] || ""} onChange={(e) => setRemarksFor({ ...remarksFor, [r.id]: e.target.value })} placeholder="Optional remarks" />
+              </td>
+              <td>
+                {r.currentStage === currentUserStage ? (
+                  <>
+                    <button onClick={() => act(r.id, "approve")}>Approve</button>
+                    <button onClick={() => act(r.id, "reject")}>Reject</button>
+                  </>
+                ) : <div>Not your stage</div>}
+              </td>
+            </tr>
+          ))}
+          {rows.length === 0 && <tr><td colSpan={6}>No pending requests</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+</file>
+
+<file path="src/pages/payments/FinancePendingPayments.jsx">
+// src/pages/payments/FinancePendingPayments.jsx
+import React, { useEffect, useState } from "react";
+import api from "../../services/api";
+import { toast } from "react-toastify";
+
+export default function FinancePendingPayments({ currentUserStage = "finance_admin" }) {
+  const [rows, setRows] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [remarks, setRemarks] = useState({});
+
+  const load = async () => {
+    setLoading(true);
+    try {
+      const res = await api.get("/payment/pending");
+      setRows(res.data.requests || res.data || []);
+    } catch (e) { console.error(e); }
+    setLoading(false);
+  };
+  useEffect(() => { load(); }, []);
+
+  const act = async (id, action) => {
+    try {
+      await api.post(`/payment/${id}/${action}`, { remarks: remarks[id] || "" });
+      toast.success(`${action}ed`);
+      setRows(rows.filter(r => r.id !== id));
+    } catch (e) { console.error(e); toast.error("Failed"); }
+  };
+
+  const reconcile = async () => {
+    try {
+      await api.post("/payment/reconcile/trigger");
+      toast.success("Reconcile triggered");
+      load();
+    } catch (e) { console.error(e); toast.error("Failed"); }
+  };
+
+  return (
+    <div>
+      <h2>Finance — Pending Payments</h2>
+      <div style={{ marginBottom: 12 }}>
+        <button onClick={reconcile}>Trigger Auto-Reconcile</button>
+      </div>
+      <table style={{ width: "100%" }}>
+        <thead><tr><th>Invoice</th><th>Dealer</th><th>Amount</th><th>Proof</th><th>Remarks</th><th>Actions</th></tr></thead>
+        <tbody>
+          {rows.map(r => (
+            <tr key={r.id}>
+              <td>{r.invoiceNumber}</td>
+              <td>{r.dealerName}</td>
+              <td>{r.amount}</td>
+              <td>{r.proofUrl ? <a href={r.proofUrl} target="_blank" rel="noreferrer">View</a> : "—"}</td>
+              <td><input value={remarks[r.id] || ""} onChange={(e) => setRemarks({ ...remarks, [r.id]: e.target.value })} placeholder="remarks" /></td>
+              <td>
+                {r.currentStage === currentUserStage ? (
+                  <>
+                    <button onClick={() => act(r.id, "approve")}>Approve</button>
+                    <button onClick={() => act(r.id, "reject")}>Reject</button>
+                  </>
+                ) : "Not your stage"}
+              </td>
+            </tr>
+          ))}
+          {rows.length === 0 && <tr><td colSpan={6}>No pending payments</td></tr>}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+</file>
+
 <file path="src/pages/technicaladmin/TechnicalAdmin.jsx">
 import React, { useEffect, useState, useContext } from "react";
 import api from "../../services/api";
@@ -7398,471 +8388,6 @@ export default function TechnicalAdminDashboard() {
 }
 </file>
 
-<file path="src/services/socket.js">
-// src/services/socket.js
-import { io } from "socket.io-client";
-
-const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
-
-let socket = null;
-
-// =======================================================================
-// ======================== SOCKET CONNECTION ============================
-// =======================================================================
-
-/**
- * Initialize and connect socket with authentication
- */
-export const connectSocket = () => {
-  const token = localStorage.getItem("token");
-  const user = JSON.parse(localStorage.getItem("user") || "null");
-
-  if (!token || !user) {
-    console.warn("⚠️ No token or user found. Socket connection aborted.");
-    return null;
-  }
-
-  if (socket?.connected) {
-    console.log("✅ Socket already connected");
-    return socket;
-  }
-
-  socket = io(SOCKET_URL, {
-    auth: { token },
-    transports: ["websocket", "polling"],
-    reconnection: true,
-    reconnectionAttempts: 5,
-    reconnectionDelay: 1000,
-    reconnectionDelayMax: 5000,
-    timeout: 20000,
-  });
-
-  // Connection events
-  socket.on("connect", () => {
-    console.log("🔌 Socket connected:", socket.id);
-    
-    // Authenticate with user details
-    socket.emit("authenticate", {
-      userId: user.id,
-      role: user.role,
-      username: user.username,
-    });
-  });
-
-  socket.on("authenticated", (data) => {
-    console.log("🔐 Socket authenticated:", data);
-  });
-
-  socket.on("connect_error", (error) => {
-    console.error("❌ Socket connection error:", error.message);
-  });
-
-  socket.on("disconnect", (reason) => {
-    console.log("🔌 Socket disconnected:", reason);
-    
-    // Auto-reconnect if disconnected unexpectedly
-    if (reason === "io server disconnect") {
-      socket.connect();
-    }
-  });
-
-  socket.on("reconnect", (attemptNumber) => {
-    console.log("🔄 Socket reconnected after", attemptNumber, "attempts");
-  });
-
-  socket.on("reconnect_error", (error) => {
-    console.error("❌ Socket reconnection error:", error.message);
-  });
-
-  socket.on("error", (error) => {
-    console.error("❌ Socket error:", error);
-  });
-
-  return socket;
-};
-
-/**
- * Disconnect socket
- */
-export const disconnectSocket = () => {
-  if (socket) {
-    socket.disconnect();
-    socket = null;
-    console.log("🔌 Socket disconnected manually");
-  }
-};
-
-/**
- * Get current socket instance
- */
-export const getSocket = () => {
-  if (!socket) {
-    console.warn("⚠️ Socket not initialized. Call connectSocket() first.");
-  }
-  return socket;
-};
-
-// =======================================================================
-// ======================== CHAT EVENTS ==================================
-// =======================================================================
-
-/**
- * Join a specific chat room (1-to-1)
- */
-export const joinChatRoom = (user1, user2) => {
-  if (!socket) return;
-  socket.emit("join_chat", { user1, user2 });
-  console.log("💬 Joined chat room:", { user1, user2 });
-};
-
-/**
- * Leave chat room
- */
-export const leaveChatRoom = (user1, user2) => {
-  if (!socket) return;
-  socket.emit("leave_chat", { user1, user2 });
-  console.log("💬 Left chat room:", { user1, user2 });
-};
-
-/**
- * Send message
- */
-export const sendChatMessage = (messageData) => {
-  if (!socket) return;
-  socket.emit("send_message", messageData);
-};
-
-/**
- * Listen to incoming messages
- */
-export const onReceiveMessage = (callback) => {
-  if (!socket) return;
-  socket.on("receive_message", callback);
-};
-
-/**
- * Remove message listener
- */
-export const offReceiveMessage = () => {
-  if (!socket) return;
-  socket.off("receive_message");
-};
-
-/**
- * Listen to new message notifications
- */
-export const onNewMessageNotification = (callback) => {
-  if (!socket) return;
-  socket.on("new_message_notification", callback);
-};
-
-/**
- * Emit typing indicator
- */
-export const emitTyping = (partnerId) => {
-  if (!socket) return;
-  socket.emit("typing", { partnerId });
-};
-
-/**
- * Listen to typing indicator
- */
-export const onTyping = (callback) => {
-  if (!socket) return;
-  socket.on("typing", callback);
-};
-
-/**
- * Listen to user online status
- */
-export const onUserOnline = (callback) => {
-  if (!socket) return;
-  socket.on("user_online", callback);
-};
-
-/**
- * Listen to user offline status
- */
-export const onUserOffline = (callback) => {
-  if (!socket) return;
-  socket.on("user_offline", callback);
-};
-
-// =======================================================================
-// ======================== NOTIFICATION EVENTS ==========================
-// =======================================================================
-
-/**
- * Listen to new notifications
- */
-export const onNewNotification = (callback) => {
-  if (!socket) return;
-  socket.on("notification:new", callback);
-};
-
-/**
- * Remove notification listener
- */
-export const offNewNotification = () => {
-  if (!socket) return;
-  socket.off("notification:new");
-};
-
-// =======================================================================
-// ======================== APPROVAL EVENTS ==============================
-// =======================================================================
-
-/**
- * Listen to new order events
- */
-export const onOrderNew = (callback) => {
-  if (!socket) return;
-  socket.on("order:new", callback);
-};
-
-/**
- * Listen to order updates
- */
-export const onOrderUpdated = (callback) => {
-  if (!socket) return;
-  socket.on("order:updated", callback);
-};
-
-/**
- * Listen to order approvals
- */
-export const onOrderApproved = (callback) => {
-  if (!socket) return;
-  socket.on("order:approved", callback);
-};
-
-/**
- * Listen to order rejections
- */
-export const onOrderRejected = (callback) => {
-  if (!socket) return;
-  socket.on("order:rejected", callback);
-};
-
-/**
- * Listen to new payment requests
- */
-export const onPaymentNew = (callback) => {
-  if (!socket) return;
-  socket.on("payment:new", callback);
-};
-
-/**
- * Listen to payment updates
- */
-export const onPaymentUpdated = (callback) => {
-  if (!socket) return;
-  socket.on("payment:updated", callback);
-};
-
-/**
- * Listen to payment approvals
- */
-export const onPaymentApproved = (callback) => {
-  if (!socket) return;
-  socket.on("payment:approved", callback);
-};
-
-/**
- * Listen to payment rejections
- */
-export const onPaymentRejected = (callback) => {
-  if (!socket) return;
-  socket.on("payment:rejected", callback);
-};
-
-/**
- * Listen to new document uploads
- */
-export const onDocumentNew = (callback) => {
-  if (!socket) return;
-  socket.on("document:new", callback);
-};
-
-/**
- * Listen to document updates
- */
-export const onDocumentUpdated = (callback) => {
-  if (!socket) return;
-  socket.on("document:updated", callback);
-};
-
-/**
- * Listen to document approvals
- */
-export const onDocumentApproved = (callback) => {
-  if (!socket) return;
-  socket.on("document:approved", callback);
-};
-
-/**
- * Listen to document rejections
- */
-export const onDocumentRejected = (callback) => {
-  if (!socket) return;
-  socket.on("document:rejected", callback);
-};
-
-/**
- * Listen to new pricing requests
- */
-export const onPricingNew = (callback) => {
-  if (!socket) return;
-  socket.on("pricing:new", callback);
-};
-
-/**
- * Listen to pricing updates
- */
-export const onPricingUpdated = (callback) => {
-  if (!socket) return;
-  socket.on("pricing:updated", callback);
-};
-
-/**
- * Listen to pricing approvals
- */
-export const onPricingApproved = (callback) => {
-  if (!socket) return;
-  socket.on("pricing:approved", callback);
-};
-
-/**
- * Listen to pricing rejections
- */
-export const onPricingRejected = (callback) => {
-  if (!socket) return;
-  socket.on("pricing:rejected", callback);
-};
-
-// =======================================================================
-// ======================== INVOICE EVENTS ===============================
-// =======================================================================
-
-/**
- * Listen to new invoice creation
- */
-export const onInvoiceNew = (callback) => {
-  if (!socket) return;
-  socket.on("invoice:new", callback);
-};
-
-/**
- * Listen to invoice updates
- */
-export const onInvoiceUpdated = (callback) => {
-  if (!socket) return;
-  socket.on("invoice:updated", callback);
-};
-
-// =======================================================================
-// ======================== CAMPAIGN EVENTS ==============================
-// =======================================================================
-
-/**
- * Listen to new campaign creation
- */
-export const onCampaignNew = (callback) => {
-  if (!socket) return;
-  socket.on("campaign:new", callback);
-};
-
-/**
- * Listen to campaign updates
- */
-export const onCampaignUpdated = (callback) => {
-  if (!socket) return;
-  socket.on("campaign:updated", callback);
-};
-
-// =======================================================================
-// ======================== MATERIAL EVENTS ==============================
-// =======================================================================
-
-/**
- * Listen to material alerts
- */
-export const onMaterialAlert = (callback) => {
-  if (!socket) return;
-  socket.on("material:alert", callback);
-};
-
-/**
- * Listen to material updates
- */
-export const onMaterialUpdated = (callback) => {
-  if (!socket) return;
-  socket.on("material:updated", callback);
-};
-
-// =======================================================================
-// ======================== GENERIC EVENT LISTENERS ======================
-// =======================================================================
-
-/**
- * Register a custom event listener
- */
-export const onEvent = (eventName, callback) => {
-  if (!socket) return;
-  socket.on(eventName, callback);
-};
-
-/**
- * Remove a custom event listener
- */
-export const offEvent = (eventName, callback) => {
-  if (!socket) return;
-  if (callback) {
-    socket.off(eventName, callback);
-  } else {
-    socket.off(eventName);
-  }
-};
-
-/**
- * Emit a custom event
- */
-export const emitEvent = (eventName, data) => {
-  if (!socket) return;
-  socket.emit(eventName, data);
-};
-
-// =======================================================================
-// ======================== UTILITY FUNCTIONS ============================
-// =======================================================================
-
-/**
- * Check if socket is connected
- */
-export const isSocketConnected = () => {
-  return socket?.connected || false;
-};
-
-/**
- * Get socket ID
- */
-export const getSocketId = () => {
-  return socket?.id || null;
-};
-
-/**
- * Remove all event listeners
- */
-export const removeAllListeners = () => {
-  if (!socket) return;
-  socket.removeAllListeners();
-  console.log("🧹 Removed all socket listeners");
-};
-
-// Default export
-export default socket;
-</file>
-
 <file path="src/components/PieChartCard.jsx">
 import React from "react";
 import { Card, CardContent, Typography } from "@mui/material";
@@ -7975,6 +8500,81 @@ export default function ProtectedRoute({ children, allowed }) {
 
   return children;
 }
+</file>
+
+<file path="src/context/AuthContext.jsx">
+import React, { createContext, useState, useContext, useEffect } from "react";
+import api from "../services/api";
+import { connectSocket, disconnectSocket } from "../services/socket";
+
+export const AuthContext = createContext();
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")) || null);
+  const [token, setToken] = useState(localStorage.getItem("token") || null);
+  const [loading, setLoading] = useState(false);
+
+  // Connect socket on mount if user is already logged in
+  useEffect(() => {
+    if (user && token) {
+      connectSocket();
+    }
+
+    // Cleanup on unmount
+    return () => {
+      disconnectSocket();
+    };
+  }, []);
+
+  const login = async (username, password) => {
+    setLoading(true);
+    try {
+      const res = await api.post("/auth/login", { username, password });
+      return res.data;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const verifyOTP = async (userId, otp) => {
+    setLoading(true);
+    try {
+      const res = await api.post("/auth/verify-otp", { userId, otp });
+      const { token, user } = res.data;
+
+      localStorage.setItem("token", token);
+      localStorage.setItem("user", JSON.stringify(user));
+
+      setToken(token);
+      setUser(user);
+
+      // Connect socket after successful authentication
+      connectSocket();
+
+      return user;
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const logout = () => {
+    // Disconnect socket before clearing data
+    disconnectSocket();
+
+    localStorage.removeItem("token");
+    localStorage.removeItem("user");
+    setUser(null);
+    setToken(null);
+  };
+
+  return (
+    <AuthContext.Provider value={{ user, token, login, verifyOTP, loading, logout }}>
+      {children}
+    </AuthContext.Provider>
+  );
+};
+
+export const useAuth = () => useContext(AuthContext);
 </file>
 
 <file path="src/pages/Admin.jsx">
@@ -9358,6 +9958,103 @@ export default function CreateOrder() {
     </Box>
   );
 }
+</file>
+
+<file path="src/services/socket.js">
+// src/services/socket.js
+import { io } from "socket.io-client";
+
+const SOCKET_URL = import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
+
+let socket = null;
+
+// =========================================================
+// INITIALIZE SOCKET
+// =========================================================
+export const connectSocket = () => {
+  const token = localStorage.getItem("token");
+  const user = JSON.parse(localStorage.getItem("user") || "null");
+
+  if (!token || !user) return null;
+
+  if (!socket || !socket.connected) {
+    socket = io(SOCKET_URL, {
+      auth: { token },
+      transports: ["websocket", "polling"],
+      reconnection: true,
+      reconnectionAttempts: 10,
+      reconnectionDelay: 1000
+    });
+
+    socket.on("connect", () => {
+      console.log("🔌 Socket Connected:", socket.id);
+      socket.emit("authenticate", {
+        userId: user.id,
+        role: user.role,
+        username: user.username
+      });
+    });
+  }
+
+  return socket;
+};
+
+// =========================================================
+// SAFE ACCESSOR
+// =========================================================
+export const getSocket = () => {
+  if (!socket) socket = connectSocket();  // <-- AUTO INITIALIZE SAFELY
+  return socket;
+};
+
+export const disconnectSocket = () => {
+  if (socket) {
+    socket.disconnect();
+    socket = null;
+  }
+};
+
+// =========================================================
+// EVENTS (no change, this is fine)
+// =========================================================
+export const joinChatRoom = (u1, u2) => getSocket()?.emit("join_chat", { u1, u2 });
+export const leaveChatRoom = (u1, u2) => getSocket()?.emit("leave_chat", { u1, u2 });
+export const sendChatMessage = (msg) => getSocket()?.emit("send_message", msg);
+
+export const onReceiveMessage = cb => getSocket()?.on("receive_message", cb);
+export const offReceiveMessage = () => getSocket()?.off("receive_message");
+
+export const onNewMessageNotification = cb => getSocket()?.on("new_message_notification", cb);
+export const onTyping = cb => getSocket()?.on("typing", cb);
+
+export const onUserOnline = cb => getSocket()?.on("user_online", cb);
+export const onUserOffline = cb => getSocket()?.on("user_offline", cb);
+
+export const onNewNotification = cb => getSocket()?.on("notification:new", cb);
+export const offNewNotification = () => getSocket()?.off("notification:new");
+
+// dynamic event shortcuts
+export const onEvent = (e, cb) => getSocket()?.on(e, cb);
+export const offEvent = (e) => getSocket()?.off(e);
+
+export const emitEvent = (e, data) => getSocket()?.emit(e, data);
+
+export const isSocketConnected = () => getSocket()?.connected || false;
+export const getSocketId = () => getSocket()?.id;
+
+// 🚨 REMOVED THIS ↓
+// export default socket;
+
+// Instead ⬇ ensures no null import
+export default {
+  connectSocket,
+  getSocket,
+  disconnectSocket,
+  sendChatMessage,
+  onReceiveMessage,
+  onTyping,
+  emitEvent
+};
 </file>
 
 <file path="src/index.css">
@@ -14211,6 +14908,10 @@ import CreatePaymentRequest from "./pages/payments/CreatePaymentRequest";
 
 import DealerAdminPayments from "./pages/payments/DealerAdminPayments";
 import FinancePendingPayments from "./pages/payments/FinancePendingPayments";
+import SuperAdminUsers from "./pages/superadmin/Users";
+import SuperAdminRoles from "./pages/superadmin/Roles";
+import SuperAdminTeamManagement from "./pages/superadmin/TeamManagement";
+import UserFormPage from "./pages/superadmin/UserFormPage"; // if using it
 
 
 // 🛠 Admin & Config
@@ -14322,62 +15023,67 @@ export default function App() {
 />
 
             {/* ============================================================
-               SUPER ADMIN ONLY
-            ============================================================ */}
-            <Route
-              path="users"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <Users />
-                </ProtectedRoute>
-              }
-            />
+   SUPER ADMIN ONLY (NAMESPACED & CLEAN)
+============================================================ */}
 
-            <Route
-              path="roles"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <Roles />
-                </ProtectedRoute>
-              }
-            />
+<Route path="superadmin">
+  
+  <Route
+    path="users"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <Users />
+      </ProtectedRoute>
+    }
+  />
 
-            <Route
-              path="documents"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <Documents />
-                </ProtectedRoute>
-              }
-            />
+  <Route
+    path="roles"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <Roles />
+      </ProtectedRoute>
+    }
+  />
 
-            <Route
-              path="pricing"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <PricingApprovals />
-                </ProtectedRoute>
-              }
-            />
+  <Route
+    path="documents"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <Documents />
+      </ProtectedRoute>
+    }
+  />
 
-            <Route
-              path="inventory"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <InventoryDashboard />
-                </ProtectedRoute>
-              }
-            />
+  <Route
+    path="pricing"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <PricingApprovals />
+      </ProtectedRoute>
+    }
+  />
 
-            <Route
-              path="accounts"
-              element={
-                <ProtectedRoute allowed={["super_admin"]}>
-                  <AccountsDashboard />
-                </ProtectedRoute>
-              }
-            />
+  <Route
+    path="inventory"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <InventoryDashboard />
+      </ProtectedRoute>
+    }
+  />
 
+  <Route
+    path="accounts"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <AccountsDashboard />
+      </ProtectedRoute>
+    }
+  />
+
+</Route>
+<Route path="superadmin/users/new" element={<ProtectedRoute allowed={["super_admin"]}><UserFormPage /></ProtectedRoute>} />
 
             {/* ============================================================
                TECHNICAL ADMIN
@@ -14742,7 +15448,7 @@ import React, { useContext, useState, useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import api from "../services/api";
-import socket from "../services/socket";
+import { getSocket, connectSocket } from "../services/socket";   // ← FIXED IMPORT
 
 import {
   FaHome,
@@ -14768,25 +15474,16 @@ export default function Sidebar() {
 
   const role = user?.role?.toLowerCase() || "user";
 
-  // -------------------------
-  // ROLES ALLOWED TO SEE ORDER APPROVALS
-  // -------------------------
   const orderApprovalRoles = ["super_admin", "regional_admin", "regional_manager", "dealer_admin"];
 
-  // -------------------------
-  // BASE MENU LINKS
-  // -------------------------
   const baseLinks = [
     { path: "/dashboard", label: "Dashboard", icon: <FaHome /> },
     { path: "/chat", label: "Chat", icon: <FaUsers /> },
   ];
 
-  // -------------------------
-  // ROLE-BASED LINKS
-  // -------------------------
   const roleLinks = {
     super_admin: [
-      { label: "Users", path: "/users", icon: <FaUsers /> },
+       { label: "Users", path: "/superadmin/users", icon: <FaUsers /> },
       { label: "Roles & Permissions", path: "/roles", icon: <FaCogs /> },
       { label: "Documents", path: "/documents", icon: <FaFileAlt /> },
       { label: "Pricing", path: "/pricing", icon: <FaChartBar /> },
@@ -14821,167 +15518,87 @@ export default function Sidebar() {
       { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
       { label: "Payment Approvals", path: "/payments/dealer/pending", icon: <FaMoneyCheckAlt /> },
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
-      { label: "Payment Approvals", path: "/payments/dealer/pending", icon: <FaMoneyCheckAlt /> },
-
     ],
     dealer_staff: [
       { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
       { label: "Create Order", path: "/orders/create", icon: <FaChartBar /> },
       { label: "My Orders", path: "/orders/my", icon: <FaChartBar /> },
       { label: "Make Payment", path: "/payments/create", icon: <FaMoneyCheckAlt /> },
-      { label: "Make Payment", path: "/payments/create", icon: <FaMoneyCheckAlt /> },
-
     ],
     finance_admin: [
-  { label: "Payment Approvals", path: "/payments/finance/pending", icon: <FaMoneyCheckAlt /> }
-],
-
+      { label: "Payment Approvals", path: "/payments/finance/pending", icon: <FaMoneyCheckAlt /> }
+    ],
   };
 
-  // -------------------------
-  // BUILD FINAL LINKS ARRAY
-  // -------------------------
   const links = [...baseLinks, ...(roleLinks[role] || [])];
 
-  // Add Order Approvals link dynamically for allowed roles
   if (orderApprovalRoles.includes(role)) {
-    links.push({
-      label: "Order Approvals",
-      path: "/orders/approvals",
-      icon: <FaChartBar />,
-    });
+    links.push({ label: "Order Approvals", path: "/orders/approvals", icon: <FaChartBar /> });
   }
 
-  // -------------------------
-  // UNREAD CHAT COUNT
-  // -------------------------
+  // -----  UNREAD CHAT LISTENER FIXED COMPLETELY  -----
   useEffect(() => {
     let mounted = true;
+    const s = getSocket() || connectSocket();
 
-    const loadUnread = async () => {
-      try {
-        const res = await api.get("/chat/unread-count");
-        const count = res.data.count || res.data.unread || 0;
-        if (mounted) setUnread(count);
-      } catch (err) {
-        console.log("Unread fetch error:", err);
-      }
-    };
+    if (!s) return;
 
-    loadUnread();
+    api.get("/chat/unread-count")
+      .then(res => mounted && setUnread(res.data.count || 0))
+      .catch(() => null);
 
-    socket.on("message:new", () => {
-      if (pathname !== "/chat") setUnread((v) => v + 1);
-    });
+    const msg = () => pathname !== "/chat" && setUnread(prev => prev + 1);
+    const read = () => mounted && setUnread(0);
 
-    socket.on("chat:read", () => {
-      if (mounted) setUnread(0);
-    });
+    s.on("message:new", msg);
+    s.on("chat:read", read);
 
     return () => {
       mounted = false;
-      socket.off("message:new");
-      socket.off("chat:read");
+      s.off("message:new", msg);
+      s.off("chat:read", read);
     };
   }, [pathname]);
 
-  // -------------------------
-  // RENDER SIDEBAR
-  // -------------------------
   return (
-    <aside
-      style={{
-        width: collapsed ? "70px" : "240px",
-        background: "var(--sidebar-bg)",
-        backdropFilter: "blur(14px)",
-        borderRight: "1px solid var(--card-border)",
-        padding: "1rem",
-        display: "flex",
-        flexDirection: "column",
-        transition: "width 0.3s ease",
-        overflowY: "auto",
-        overflowX: "hidden",
-      }}
-    >
-      {/* HEADER */}
-      <div
-        style={{
-          display: "flex",
-          justifyContent: collapsed ? "center" : "space-between",
-          alignItems: "center",
-          marginBottom: "2rem",
-          paddingBottom: "1rem",
-          borderBottom: "1px solid var(--card-border)",
-        }}
-      >
-        {!collapsed && (
-          <h3 style={{ color: "#f97316", fontWeight: "700" }}>
-            {role.toUpperCase()}
-          </h3>
-        )}
-        <button
-          onClick={() => setCollapsed(!collapsed)}
-          style={{
-            background: "var(--card-bg)",
-            border: "1px solid var(--card-border)",
-            borderRadius: "8px",
-            padding: "0.5rem",
-            cursor: "pointer",
-            color: "var(--text-color)",
-          }}
-        >
+    <aside style={{
+      width: collapsed ? "70px" : "240px",
+      background: "var(--sidebar-bg)",
+      borderRight: "1px solid var(--card-border)",
+      padding: "1rem",
+      display: "flex",
+      flexDirection: "column",
+      transition: "width .3s",
+      overflowY: "auto"
+    }}>
+      <div style={{display:"flex",justifyContent:collapsed?"center":"space-between",alignItems:"center",marginBottom:"1.5rem"}}>
+        {!collapsed && <h3 style={{color:"#f97316",fontWeight:"700"}}>{role.toUpperCase()}</h3>}
+        <button onClick={()=>setCollapsed(!collapsed)} style={{padding:"6px",borderRadius:"6px"}}>
           <FaBars />
         </button>
       </div>
 
-      {/* LINKS */}
-      <div style={{ display: "flex", flexDirection: "column", gap: "0.5rem" }}>
-        {links.map((l) => {
-          const active = pathname === l.path;
-          return (
-            <div style={{ position: "relative" }} key={l.path}>
-              <Link
-                to={l.path}
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: collapsed ? "0" : "0.75rem",
-                  padding: "0.75rem 1rem",
-                  borderRadius: "10px",
-                  color: active ? "#f97316" : "var(--text-color)",
-                  textDecoration: "none",
-                  background: active
-                    ? "linear-gradient(90deg, rgba(249,115,22,0.25), rgba(249,115,22,0.1))"
-                    : "transparent",
-                  fontWeight: active ? "600" : "400",
-                  transition: "0.25s ease",
-                }}
-              >
-                <span style={{ fontSize: "1.3rem" }}>{l.icon}</span>
-                {!collapsed && (
-                  <span style={{ display: "flex", alignItems: "center", gap: "8px" }}>
-                    <span>{l.label}</span>
-                    {l.path === "/chat" && unread > 0 && (
-                      <span
-                        style={{
-                          background: "#ef4444",
-                          color: "white",
-                          padding: "2px 8px",
-                          borderRadius: 999,
-                          fontSize: "12px",
-                          fontWeight: 700,
-                        }}
-                      >
-                        {unread > 99 ? "99+" : unread}
-                      </span>
-                    )}
-                  </span>
-                )}
-              </Link>
-            </div>
-          );
-        })}
-      </div>
+      {links.map(l=>(
+        <Link key={l.path} to={l.path}
+          style={{
+            display:"flex",alignItems:"center",gap:"10px",
+            padding:"10px",borderRadius:"8px",
+            color:pathname===l.path?"#f97316":"var(--text-color)",
+            fontWeight:pathname===l.path?600:400
+          }}>
+          <span>{l.icon}</span>
+          {!collapsed && (
+            <span style={{display:"flex",alignItems:"center",gap:"6px"}}>
+              {l.label}
+              {l.path==="/chat" && unread>0 && (
+                <span style={{background:"#ef4444",color:"#fff",padding:"1px 7px",borderRadius:"999px",fontSize:"11px"}}>
+                  {unread>99?"99+":unread}
+                </span>
+              )}
+            </span>
+          )}
+        </Link>
+      ))}
     </aside>
   );
 }
