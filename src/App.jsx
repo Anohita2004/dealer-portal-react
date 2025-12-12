@@ -11,6 +11,10 @@ import Login from "./pages/Login";
 
 // 🧭 Dashboards
 import Dashboard from "./pages/Dashboard";
+import SuperAdminDashboard from "./pages/dashboards/SuperAdminDashboard";
+import RegionalAdminDashboard from "./pages/dashboards/RegionalAdminDashboard";
+import ManagerDashboard from "./pages/dashboards/ManagerDashboard";
+import DealerDashboard from "./pages/dashboards/DealerDashboard";
 import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
 import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
 
@@ -57,9 +61,29 @@ import MaterialAnalytics from "./pages/Materials/MaterialAnalytics";
 import MaterialAlerts from "./pages/Alerts/MaterialAlerts";
 
 import RegionMap from "./pages/maps/RegionMaps";
-
+import FeatureToggles from "./pages/superadmin/FeatureToggles";
+import SystemAdmin from "./pages/superadmin/SystemAdmin";
+import SuperAdminReports from "./pages/superadmin/SuperAdminReports";
+import Unauthorized from "./pages/Unauthorized";
+import StaffManagement from "./pages/StaffManagement";
+import DealerManagement from "./pages/DealerManagement";
+import Approvals from "./pages/Approvals";
+import AllOrders from "./pages/superadmin/AllOrders";
+import AllInvoices from "./pages/superadmin/AllInvoices";
+import AllPayments from "./pages/superadmin/AllPayments";
+import AllDealers from "./pages/superadmin/AllDealers";
+import UserActivity from "./pages/superadmin/UserActivity";
+import TeamPerformance from "./pages/superadmin/TeamPerformance";
+import RegionWiseReports from "./pages/superadmin/RegionWiseReports";
 
 import MyPaymentRequests from "./pages/payments/MyPaymentRequest";
+import Tasks from "./pages/Tasks";
+import Notifications from "./pages/Notifications";
+
+// Regional Admin Pages
+import RegionalUserManagement from "./pages/regional/RegionalUserManagement";
+import RegionalReports from "./pages/regional/RegionalReports";
+import RegionalApprovals from "./pages/regional/RegionalApprovals";
 
 
 export default function App() {
@@ -106,6 +130,94 @@ export default function App() {
             {/* ================= DEFAULT ================= */}
             <Route index element={<Dashboard />} />
             <Route path="dashboard" element={<Dashboard />} />
+            
+            {/* ================= ROLE-BASED DASHBOARDS ================= */}
+            <Route
+              path="dashboard/super"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <SuperAdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="dashboard/regional"
+              element={
+                <ProtectedRoute allowed={["regional_admin"]}>
+                  <RegionalAdminDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="dashboard/manager"
+              element={
+                <ProtectedRoute allowed={["territory_manager", "area_manager", "regional_manager"]}>
+                  <ManagerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="dashboard/dealer"
+              element={
+                <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
+                  <DealerDashboard />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ================= TASKS ================= */}
+            <Route
+              path="tasks"
+              element={
+                <ProtectedRoute>
+                  <Tasks />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ================= NOTIFICATIONS ================= */}
+            <Route
+              path="notifications"
+              element={
+                <ProtectedRoute>
+                  <Notifications />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ================= UNAUTHORIZED ================= */}
+            <Route
+              path="unauthorized"
+              element={<Unauthorized />}
+            />
+
+            {/* ================= DEALER ADMIN PAGES ================= */}
+            <Route
+              path="staff"
+              element={
+                <ProtectedRoute allowed={["dealer_admin"]}>
+                  <StaffManagement />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ================= MANAGER PAGES ================= */}
+            <Route
+              path="dealers"
+              element={
+                <ProtectedRoute allowed={["territory_manager", "area_manager", "regional_manager"]}>
+                  <DealerManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="approvals"
+              element={
+                <ProtectedRoute allowed={["territory_manager", "area_manager", "regional_manager", "regional_admin", "super_admin"]}>
+                  <Approvals />
+                </ProtectedRoute>
+              }
+            />
 
              {/* ============================================================
    REGION & TERRITORY MAP VIEW
@@ -197,6 +309,105 @@ export default function App() {
     }
   />
 
+  <Route
+    path="feature-toggles"
+    element={
+      <ProtectedRoute allowed={["super_admin", "technical_admin"]}>
+        <FeatureToggles />
+      </ProtectedRoute>
+    }
+  />
+
+  <Route
+    path="system-admin"
+    element={
+      <ProtectedRoute allowed={["super_admin", "technical_admin"]}>
+        <SystemAdmin />
+      </ProtectedRoute>
+    }
+  />
+
+  <Route
+    path="reports"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <SuperAdminReports />
+      </ProtectedRoute>
+    }
+  />
+
+  <Route
+    path="teams"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <SuperAdminTeamManagement />
+      </ProtectedRoute>
+    }
+  />
+
+  <Route
+    path="teams/performance"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <TeamPerformance />
+      </ProtectedRoute>
+    }
+  />
+
+  <Route
+    path="orders"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <AllOrders />
+      </ProtectedRoute>
+    }
+  />
+
+  <Route
+    path="invoices"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <AllInvoices />
+      </ProtectedRoute>
+    }
+  />
+
+  <Route
+    path="payments"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <AllPayments />
+      </ProtectedRoute>
+    }
+  />
+
+  <Route
+    path="dealers"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <AllDealers />
+      </ProtectedRoute>
+    }
+  />
+
+  <Route
+    path="activity"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <UserActivity />
+      </ProtectedRoute>
+    }
+  />
+
+  <Route
+    path="region-reports"
+    element={
+      <ProtectedRoute allowed={["super_admin"]}>
+        <RegionWiseReports />
+      </ProtectedRoute>
+    }
+  />
+
 </Route>
 <Route path="superadmin/users/new" element={<ProtectedRoute allowed={["super_admin"]}><UserFormPage /></ProtectedRoute>} />
 
@@ -268,6 +479,34 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+
+            {/* Regional Admin Pages */}
+            <Route path="regional">
+              <Route
+                path="users"
+                element={
+                  <ProtectedRoute allowed={["regional_admin"]}>
+                    <RegionalUserManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="reports"
+                element={
+                  <ProtectedRoute allowed={["regional_admin"]}>
+                    <RegionalReports />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="approvals"
+                element={
+                  <ProtectedRoute allowed={["regional_admin"]}>
+                    <RegionalApprovals />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
 
 
             {/* ============================================================
@@ -363,7 +602,7 @@ export default function App() {
             <Route
               path="campaigns"
               element={
-                <ProtectedRoute allowed={["dealer_admin"]}>
+                <ProtectedRoute allowed={["super_admin", "key_user", "dealer_admin", "regional_admin", "area_manager", "territory_manager"]}>
                   <Campaigns />
                 </ProtectedRoute>
               }

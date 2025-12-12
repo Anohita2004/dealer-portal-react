@@ -40,12 +40,12 @@ export const NotificationProvider = ({ children }) => {
     // Fetch initial notifications
     fetchNotifications();
 
-    // Set up real-time notification listener
+    // Set up real-time notification listeners
     const handleNewNotification = (data) => {
       console.log("📩 New notification received:", data);
       
       // Show toast notification
-      toast.info(data.message || `${data.title}: ${data.body}`, {
+      toast.info(data.message || data.title || "New notification", {
         position: "top-right",
         autoClose: 5000,
       });
@@ -55,11 +55,35 @@ export const NotificationProvider = ({ children }) => {
       setUnread((prev) => prev + 1);
     };
 
+    const handleNotificationUpdate = () => {
+      // Refresh notifications when updates occur
+      fetchNotifications();
+    };
+
+    const socket = getSocket();
+    
+    // Listen to various notification events
     onNewNotification(handleNewNotification);
+    
+    // Listen to order/invoice/payment updates
+    socket?.on("order:pending:update", handleNotificationUpdate);
+    socket?.on("invoice:pending:update", handleNotificationUpdate);
+    socket?.on("payment:pending:update", handleNotificationUpdate);
+    socket?.on("document:pending:update", handleNotificationUpdate);
+    socket?.on("notification", handleNewNotification);
+    socket?.on("notification:new", handleNewNotification);
+    socket?.on("notification:update", handleNotificationUpdate);
 
     // Cleanup
     return () => {
       offNewNotification();
+      socket?.off("order:pending:update", handleNotificationUpdate);
+      socket?.off("invoice:pending:update", handleNotificationUpdate);
+      socket?.off("payment:pending:update", handleNotificationUpdate);
+      socket?.off("document:pending:update", handleNotificationUpdate);
+      socket?.off("notification", handleNewNotification);
+      socket?.off("notification:new", handleNewNotification);
+      socket?.off("notification:update", handleNotificationUpdate);
     };
   }, [user]);
 

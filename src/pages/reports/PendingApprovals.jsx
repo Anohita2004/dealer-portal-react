@@ -37,8 +37,16 @@ export default function PendingApprovals({ data, loading, error }) {
       </Box>
     );
 
-  // 👇 FIX HERE
-  const list = Array.isArray(data?.report) ? data.report : [];
+  // Handle different response formats
+  const list = Array.isArray(data) 
+    ? data 
+    : Array.isArray(data?.report) 
+    ? data.report 
+    : Array.isArray(data?.approvals)
+    ? data.approvals
+    : Array.isArray(data?.data)
+    ? data.data
+    : [];
 
   if (list.length === 0)
     return (
@@ -52,8 +60,9 @@ export default function PendingApprovals({ data, loading, error }) {
   const typesBreakdown = {};
 
   list.forEach((d) => {
-    if (!typesBreakdown[d.documentType]) typesBreakdown[d.documentType] = 0;
-    typesBreakdown[d.documentType]++;
+    const type = d.documentType || d.type || d.entityType || "Unknown";
+    if (!typesBreakdown[type]) typesBreakdown[type] = 0;
+    typesBreakdown[type]++;
   });
 
   return (
@@ -109,16 +118,16 @@ export default function PendingApprovals({ data, loading, error }) {
               <AccordionSummary expandIcon={<ExpandMoreIcon />}>
                 <Grid container alignItems="center">
                   <Grid item xs={12} md={4}>
-                    <Typography fontWeight={600}>{item.dealerName}</Typography>
+                    <Typography fontWeight={600}>{item.dealerName || item.dealer?.businessName || item.dealer?.name || "N/A"}</Typography>
                   </Grid>
 
                   <Grid item xs={12} md={3}>
-                    <Typography>{item.documentType}</Typography>
+                    <Typography>{item.documentType || item.type || item.entityType || "N/A"}</Typography>
                   </Grid>
 
                   <Grid item xs={12} md={3}>
                     <Typography color="gray">
-                      Submitted: {new Date(item.createdAt).toLocaleDateString()}
+                      Submitted: {item.createdAt ? new Date(item.createdAt).toLocaleDateString() : "N/A"}
                     </Typography>
                   </Grid>
 
@@ -162,16 +171,26 @@ export default function PendingApprovals({ data, loading, error }) {
 
                   {/* Dealer Info */}
                   <Box mt={2}>
-                    <Typography variant="subtitle2">Dealer Info</Typography>
+                    <Typography variant="subtitle2">Details</Typography>
                     <Typography fontSize={14}>
-                      Dealer ID: {item.dealerId}
+                      Dealer ID: {item.dealerId || item.dealer?.id || "N/A"}
                     </Typography>
                     <Typography fontSize={14}>
-                      Dealer Name: {item.dealerName}
+                      Dealer Name: {item.dealerName || item.dealer?.businessName || item.dealer?.name || "N/A"}
                     </Typography>
                     <Typography fontSize={14}>
-                      Document Type: {item.documentType}
+                      Type: {item.documentType || item.type || item.entityType || "N/A"}
                     </Typography>
+                    {item.stage && (
+                      <Typography fontSize={14}>
+                        Current Stage: {item.stage.replace("_", " ")}
+                      </Typography>
+                    )}
+                    {item.title && (
+                      <Typography fontSize={14}>
+                        Title: {item.title}
+                      </Typography>
+                    )}
                   </Box>
                 </Box>
               </AccordionDetails>

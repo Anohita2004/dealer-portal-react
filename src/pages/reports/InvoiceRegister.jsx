@@ -7,6 +7,7 @@ import {
   Button,
   Divider,
 } from "@mui/material";
+import { invoiceAPI } from "../../services/api";
 
 const ACCENT = "#F97316";
 
@@ -17,17 +18,29 @@ export default function InvoiceRegister({ data, loading, error, fetchReport, fil
   if (error) return <Box sx={{ mt: 3 }}><Typography color="error">{error}</Typography></Box>;
   if (!data) return null;
 
-  const invoices = data.invoices || [];
+  // Handle different response formats
+  const invoices = Array.isArray(data.invoices)
+    ? data.invoices
+    : Array.isArray(data.data)
+    ? data.data
+    : Array.isArray(data)
+    ? data
+    : [];
 
   const downloadInvoice = async (id) => {
     try {
-      const res = await fetch(`/api/invoices/${id}/pdf`, { credentials: "include" });
-      const blob = await res.blob();
+      const blob = await invoiceAPI.downloadInvoicePDF(id);
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
-      a.href = url; a.download = `invoice_${id}.pdf`; a.click();
+      a.href = url;
+      a.download = `invoice_${id}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
     } catch (err) {
       console.error("downloadInvoice:", err);
+      alert("Failed to download invoice PDF");
     }
   };
 

@@ -32,20 +32,26 @@ export default function DealerChat() {
 
   // 🔹 Realtime updates
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) socket.auth = { token };
-    socket.connect();
+    if (!manager) return;
+    
+    const socket = getSocket();
+    if (!socket) return;
 
-    socket.on("message:new", (msg) => {
+    const handleMessage = (msg) => {
       if (
         msg.senderId === manager?.id ||
         msg.recipientId === manager?.id
       ) {
         setMessages((prev) => [...prev, msg]);
       }
-    });
+    };
 
-    return () => socket.disconnect();
+    onEvent("message:new", handleMessage);
+
+    return () => {
+      offEvent("message:new");
+      // Don't disconnect socket here as it's shared across the app
+    };
   }, [manager]);
 
   const sendMessage = async () => {

@@ -1,31 +1,142 @@
-import React, { createContext, useState, useContext, useEffect } from "react";
+import React, { createContext, useState, useContext, useEffect, useCallback } from "react";
 import api from "../services/api";
 import { connectSocket, disconnectSocket } from "../services/socket";
+import { useNavigate } from "react-router-dom";
 
 export const AuthContext = createContext();
 
-export const AuthProvider = ({ children }) => {
-  const [user, setUser] = useState(JSON.parse(localStorage.getItem("user")) || null);
-  const [token, setToken] = useState(localStorage.getItem("token") || null);
-  const [loading, setLoading] = useState(false);
+/**
+ * Decode JWT token to extract expiry
+ */
+const decodeToken = (token) => {
+  try {
+    const base64Url = token.split(".")[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const jsonPayload = decodeURIComponent(
+      atob(base64)
+        .split("")
+        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
+        .join("")
+    );
+    return JSON.parse(jsonPayload);
+  } catch {
+    return null;
+  }
+};
 
-  // Connect socket on mount if user is already logged in
+/**
+ * Check if token is expired
+ */
+const isTokenExpired = (token) => {
+  if (!token) return true;
+  const decoded = decodeToken(token);
+  if (!decoded || !decoded.exp) return true;
+  const expiryTime = decoded.exp * 1000; // Convert to milliseconds
+  return Date.now() >= expiryTime;
+};
+
+export const AuthProvider = ({ children }) => {
+  const [user, setUser] = useState(() => {
+    try {
+      const stored = localStorage.getItem("user");
+      return stored ? JSON.parse(stored) : null;
+    } catch {
+      return null;
+    }
+  });
+  const [token, setToken] = useState(() => {
+    const storedToken = localStorage.getItem("token");
+    // Check if token is expired on load
+    if (storedToken && isTokenExpired(storedToken)) {
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      return null;
+    }
+    return storedToken;
+  });
+  const [loading, setLoading] = useState(true); // Start with loading true to check auth
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+
+  // Auto-logout on token expiry
+  const checkTokenExpiry = useCallback(() => {
+    if (token && isTokenExpired(token)) {
+      console.warn("Token expired, logging out...");
+      logout();
+      return true;
+    }
+    return false;
+  }, [token]);
+
+  // Check token expiry periodically (every 5 minutes)
   useEffect(() => {
-    if (user && token) {
+    if (!token) return;
+
+    // Check immediately
+    if (checkTokenExpiry()) return;
+
+    // Set up interval to check every 5 minutes
+    const interval = setInterval(() => {
+      checkTokenExpiry();
+    }, 5 * 60 * 1000); // 5 minutes
+
+    return () => clearInterval(interval);
+  }, [token, checkTokenExpiry]);
+
+  // Initialize auth state on mount
+  useEffect(() => {
+    const initializeAuth = async () => {
+      setLoading(true);
+      
+      // Check if we have a valid token
+      if (token && !isTokenExpired(token)) {
+        // Validate token with backend (optional - can be skipped if you trust JWT expiry)
+        try {
+          // Optionally verify token with backend
+          // const res = await api.get("/auth/verify");
+          // if (res.data.valid) {
+          setIsAuthenticated(true);
+          connectSocket();
+          // }
+        } catch (error) {
+          // Token invalid, clear it
+          console.error("Token validation failed:", error);
+          logout();
+        }
+      } else {
+        // Token expired or missing
+        if (token) {
+          logout();
+        }
+        setIsAuthenticated(false);
+      }
+      
+      setLoading(false);
+    };
+
+    initializeAuth();
+  }, []); // Run only on mount
+
+  // Connect socket when authenticated
+  useEffect(() => {
+    if (isAuthenticated && user && token) {
       connectSocket();
     }
 
     // Cleanup on unmount
     return () => {
-      disconnectSocket();
+      if (!isAuthenticated) {
+        disconnectSocket();
+      }
     };
-  }, []);
+  }, [isAuthenticated, user, token]);
 
   const login = async (username, password) => {
     setLoading(true);
     try {
       const res = await api.post("/auth/login", { username, password });
       return res.data;
+    } catch (error) {
+      throw error;
     } finally {
       setLoading(false);
     }
@@ -35,24 +146,33 @@ export const AuthProvider = ({ children }) => {
     setLoading(true);
     try {
       const res = await api.post("/auth/verify-otp", { userId, otp });
-      const { token, user } = res.data;
+      const { token: newToken, user: newUser } = res.data;
 
-      localStorage.setItem("token", token);
-      localStorage.setItem("user", JSON.stringify(user));
+      // Validate token before storing
+      if (!newToken || isTokenExpired(newToken)) {
+        throw new Error("Invalid token received");
+      }
 
-      setToken(token);
-      setUser(user);
+      localStorage.setItem("token", newToken);
+      localStorage.setItem("user", JSON.stringify(newUser));
+
+      setToken(newToken);
+      setUser(newUser);
+      setIsAuthenticated(true);
 
       // Connect socket after successful authentication
       connectSocket();
 
-      return user;
+      return newUser;
+    } catch (error) {
+      setIsAuthenticated(false);
+      throw error;
     } finally {
       setLoading(false);
     }
   };
 
-  const logout = () => {
+  const logout = useCallback(() => {
     // Disconnect socket before clearing data
     disconnectSocket();
 
@@ -60,13 +180,71 @@ export const AuthProvider = ({ children }) => {
     localStorage.removeItem("user");
     setUser(null);
     setToken(null);
-  };
+    setIsAuthenticated(false);
+  }, []);
+
+  // Refresh token (optional - if backend supports it)
+  const refreshToken = useCallback(async () => {
+    try {
+      const res = await api.post("/auth/refresh", { token });
+      const { token: newToken, user: newUser } = res.data;
+      
+      if (!newToken || isTokenExpired(newToken)) {
+        throw new Error("Invalid refresh token");
+      }
+
+      localStorage.setItem("token", newToken);
+      if (newUser) {
+        localStorage.setItem("user", JSON.stringify(newUser));
+        setUser(newUser);
+      }
+      setToken(newToken);
+      return newToken;
+    } catch (error) {
+      console.error("Token refresh failed:", error);
+      logout();
+      throw error;
+    }
+  }, [token, logout]);
+
+  // Get user's scope IDs
+  const getUserScope = useCallback(() => {
+    if (!user) return null;
+    return {
+      roleId: user.roleId,
+      regionId: user.regionId,
+      areaId: user.areaId,
+      territoryId: user.territoryId,
+      dealerId: user.dealerId,
+      managerId: user.managerId,
+      salesGroupId: user.salesGroupId,
+    };
+  }, [user]);
 
   return (
-    <AuthContext.Provider value={{ user, token, login, verifyOTP, loading, logout }}>
+    <AuthContext.Provider
+      value={{
+        user,
+        token,
+        login,
+        verifyOTP,
+        loading,
+        logout,
+        isAuthenticated,
+        refreshToken,
+        getUserScope,
+        checkTokenExpiry,
+      }}
+    >
       {children}
     </AuthContext.Provider>
   );
 };
 
-export const useAuth = () => useContext(AuthContext);
+export const useAuth = () => {
+  const context = useContext(AuthContext);
+  if (!context) {
+    throw new Error("useAuth must be used within AuthProvider");
+  }
+  return context;
+};

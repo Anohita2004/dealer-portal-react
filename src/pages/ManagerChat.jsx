@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import api from "../services/api";
-import socket from "../services/socket";
+import { getSocket, onEvent, offEvent } from "../services/socket";
 import { toast } from "react-toastify";
 import "./Chat.css";
 
@@ -54,11 +54,10 @@ export default function ManagerChat() {
 
   // 🟠 3️⃣ Setup socket for real-time message updates
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) socket.auth = { token };
-    socket.connect();
+    const socket = getSocket();
+    if (!socket) return;
 
-    socket.on("message:new", (msg) => {
+    const handleMessage = (msg) => {
       // only add messages related to current chat
       if (
         msg.senderId === selectedDealer?.userId ||
@@ -73,9 +72,14 @@ export default function ManagerChat() {
           )
         );
       }
-    });
+    };
 
-    return () => socket.disconnect();
+    onEvent("message:new", handleMessage);
+
+    return () => {
+      offEvent("message:new");
+      // Don't disconnect socket here as it's shared across the app
+    };
   }, [selectedDealer]);
 
   // 🟤 4️⃣ Send message

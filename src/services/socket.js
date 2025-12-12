@@ -25,11 +25,21 @@ export const connectSocket = () => {
 
     socket.on("connect", () => {
       console.log("🔌 Socket Connected:", socket.id);
-      socket.emit("authenticate", {
-        userId: user.id,
-        role: user.role,
-        username: user.username
-      });
+      if (socket && socket.id && user) {
+        socket.emit("authenticate", {
+          userId: user.id,
+          role: user.role,
+          username: user.username
+        });
+      }
+    });
+
+    socket.on("connect_error", (error) => {
+      console.error("Socket connection error:", error);
+    });
+
+    socket.on("disconnect", (reason) => {
+      console.log("Socket disconnected:", reason);
     });
   }
 
@@ -40,7 +50,9 @@ export const connectSocket = () => {
 // SAFE ACCESSOR
 // =========================================================
 export const getSocket = () => {
-  if (!socket) socket = connectSocket();  // <-- AUTO INITIALIZE SAFELY
+  if (!socket || !socket.connected) {
+    socket = connectSocket();
+  }
   return socket;
 };
 

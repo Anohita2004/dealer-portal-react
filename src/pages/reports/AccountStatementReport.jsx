@@ -18,7 +18,18 @@ export default function AccountStatementReport({ data, loading, error, fetchRepo
   if (error) return <Box sx={{ mt: 3 }}><Typography color="error">{error}</Typography></Box>;
   if (!data) return null;
 
-  const { openingBalance = 0, closingBalance = 0, totalDebit = 0, totalCredit = 0, statements = [] } = data;
+  // Handle different response formats
+  const openingBalance = data.openingBalance || data.opening || 0;
+  const closingBalance = data.closingBalance || data.closing || 0;
+  const totalDebit = data.totalDebit || data.debit || 0;
+  const totalCredit = data.totalCredit || data.credit || 0;
+  const statements = Array.isArray(data.statements) 
+    ? data.statements 
+    : Array.isArray(data.transactions)
+    ? data.transactions
+    : Array.isArray(data.data)
+    ? data.data
+    : [];
 
   return (
     <Box mt={3}>

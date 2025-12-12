@@ -1,7 +1,7 @@
 // src/pages/dashboards/ManagerDashboard.jsx
 import React, { useEffect, useState, useCallback } from "react";
 import api from "../../services/api";
-import socket from "../../services/socket";
+import { getSocket, onEvent, offEvent } from "../../services/socket";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
 
@@ -80,11 +80,11 @@ export default function ManagerDashboard() {
         campRes,
         invRes,
       ] = await Promise.all([
-        api.get("/managers/summary").catch(() => ({ data: {} })),
+        api.get("/reports/dashboard/manager").catch(() => ({ data: {} })),
         api.get("/managers/dealers").catch(() => ({ data: { dealers: [] } })),
-        api.get("/managers/pricing?status=pending").catch(() => ({ data: { updates: [] } })),
+        api.get("/pricing/pending").catch(() => ({ data: [] })),
         api.get("/messages").catch(() => ({ data: { messages: [] } })),
-        api.get("/campaigns").catch(() => ({ data: { campaigns: [] } })),
+        api.get("/campaigns/active").catch(() => ({ data: [] })),
         api.get("/inventory/summary").catch(() => ({ data: { inventory: [] } })),
       ]);
 
@@ -108,9 +108,8 @@ export default function ManagerDashboard() {
 
   // Socket realtime updates
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) socket.auth = { token };
-    socket.connect();
+    const socket = getSocket();
+    if (!socket) return;
 
     const onDocumentNew = (data) => {
       toast.info(`New document uploaded by dealer ${data.dealerId || ""}`);
@@ -136,19 +135,15 @@ export default function ManagerDashboard() {
       setCampaigns((prev) => [campaign, ...prev]);
     };
 
-    socket.on("document:new", onDocumentNew);
-    socket.on("message:new", onMessageNew);
-    socket.on("campaign:new", onCampaignNew);
+    onEvent("document:new", onDocumentNew);
+    onEvent("message:new", onMessageNew);
+    onEvent("campaign:new", onCampaignNew);
 
     return () => {
-      socket.off("document:new", onDocumentNew);
-      socket.off("message:new", onMessageNew);
-      socket.off("campaign:new", onCampaignNew);
-      try {
-        socket.disconnect();
-      } catch (e) {
-        /* ignore */
-      }
+      offEvent("document:new");
+      offEvent("message:new");
+      offEvent("campaign:new");
+      // Don't disconnect socket here as it's shared across the app
     };
   }, []);
 

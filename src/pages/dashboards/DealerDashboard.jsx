@@ -1,7 +1,7 @@
-// src/pages/dashboard/DealerDashboard.jsx
+// src/pages/dashboards/DealerDashboard.jsx
 import React, { useEffect, useState } from "react";
-import api from "../../services/api";
-import socket from "../../services/socket";
+import api, { dashboardAPI } from "../../services/api";
+import { getSocket, onEvent, offEvent } from "../../services/socket";
 import { toast } from "react-toastify";
 import Card from "../../components/Card";
 import StatCard from "../../components/StatCard";
@@ -9,6 +9,7 @@ import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
 import PricingRequestModal from "../../components/PricingRequestModal";
+import TaskList from "../../components/TaskList";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -69,12 +70,12 @@ export default function DealerDashboard() {
           trendRes,
           inventoryRes,
         ] = await Promise.all([
-          api.get("/reports/dealer-performance"),
-          api.get("/invoices"),
-          api.get("/campaigns/active"),
-          api.get("/documents"),
-          api.get("/reports/dealer-performance?trend=true"),
-          api.get("/inventory/summary"),
+          dashboardAPI.getDealerDashboard().catch(() => ({ data: {} })),
+          api.get("/invoices").catch(() => ({ data: { invoices: [] } })),
+          api.get("/campaigns/active").catch(() => ({ data: [] })),
+          api.get("/documents").catch(() => ({ data: { documents: [] } })),
+          api.get("/reports/dealer-performance?trend=true").catch(() => ({ data: { trend: [] } })),
+          api.get("/inventory/summary").catch(() => ({ data: { inventory: [] } })),
         ]);
 
         if (!mounted) return;
@@ -113,16 +114,15 @@ export default function DealerDashboard() {
 
   // ================= SOCKET REAL-TIME UPDATES =================
   useEffect(() => {
-    const token = localStorage.getItem("token");
-    if (token) socket.auth = { token };
-    socket.connect();
+    const socket = getSocket();
+    if (!socket) return;
 
-    socket.on("promotion:new", (promo) => {
+    const handlePromotion = (promo) => {
       toast.success(`New promotion: ${promo.title}`);
       setPromotions((prev) => [promo, ...prev]);
-    });
+    };
 
-    socket.on("document:update", (doc) => {
+    const handleDocumentUpdate = (doc) => {
       toast.info(`Document "${doc.fileName}" ${doc.status}`);
       setDocuments((prev) => {
         const exists = prev.find((d) => d.id === doc.id);
@@ -132,12 +132,15 @@ export default function DealerDashboard() {
           return [doc, ...prev];
         }
       });
-    });
+    };
+
+    onEvent("promotion:new", handlePromotion);
+    onEvent("document:update", handleDocumentUpdate);
 
     return () => {
-      socket.off("promotion:new");
-      socket.off("document:update");
-      socket.disconnect();
+      offEvent("promotion:new");
+      offEvent("document:update");
+      // Don't disconnect socket here as it's shared across the app
     };
   }, []);
 

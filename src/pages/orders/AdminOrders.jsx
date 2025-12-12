@@ -6,14 +6,17 @@ import {
   Typography,
   Button,
   Chip,
-  Table,
-  TableBody,
-  TableRow,
-  TableCell,
-  TableHead,
+  Tabs,
+  Tab,
+  TextField,
+  InputAdornment,
 } from "@mui/material";
+import { Search, Filter } from "lucide-react";
 import { orderAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
+import OrderApprovalCard from "../../components/OrderApprovalCard";
+import PageHeader from "../../components/PageHeader";
+import { toast } from "react-toastify";
 
 export default function AdminOrders() {
   const { user } = useAuth();
@@ -21,26 +24,33 @@ export default function AdminOrders() {
 
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("pending"); // pending, all, approved, rejected
+  const [selectedOrder, setSelectedOrder] = useState(null);
 
   // ===== Fetch orders for this user =====
   const fetchOrders = async () => {
     if (!role) return;
     setLoading(true);
     try {
-      const res = await orderAPI.getAllOrders(role);
-      console.log("Fetched orders:", res.orders);
+      // Use the pending approvals endpoint which automatically scopes by role
+      const res = await orderAPI.getPendingApprovals();
+      console.log("Fetched pending orders:", res);
 
-      // Show orders that are pending for this role
-      const filtered = (res.orders || []).filter((o) => {
-        // If approvalStage is null, show to all allowed roles
-        if (!o.approvalStage) return true;
-        return o.approvalStage.toLowerCase() === role?.toLowerCase();
-      });
-
-      setOrders(filtered);
+      // Handle different response formats
+      const ordersList = res.orders || res.data || res || [];
+      setOrders(Array.isArray(ordersList) ? ordersList : []);
     } catch (err) {
       console.error(err);
-      alert("Failed to fetch orders");
+      // Fallback to getting all orders (backend will scope automatically)
+      try {
+        const fallbackRes = await orderAPI.getAllOrders();
+        const ordersList = fallbackRes.orders || fallbackRes.data || fallbackRes || [];
+        setOrders(Array.isArray(ordersList) ? ordersList : []);
+      } catch (fallbackErr) {
+        console.error("Fallback also failed:", fallbackErr);
+        alert("Failed to fetch orders");
+      }
     } finally {
       setLoading(false);
     }
@@ -53,27 +63,55 @@ export default function AdminOrders() {
   // ===== Approve order =====
   const approve = async (orderId) => {
     try {
-      await orderAPI.approveOrder(orderId, role);
+      await orderAPI.approveOrder(orderId, { action: "approve" });
+      toast.success("Order approved successfully");
       fetchOrders();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.error || "Failed to approve order");
+      toast.error(err.response?.data?.error || "Failed to approve order");
     }
   };
 
   // ===== Reject order =====
-  const reject = async (orderId) => {
-    const reason = prompt("Reason for rejection:");
-    if (!reason) return;
+  const reject = async (orderId, rejectionReason) => {
+    if (!rejectionReason) return;
 
     try {
-      await orderAPI.rejectOrder(orderId, reason, role);
+      await orderAPI.rejectOrder(orderId, { action: "reject", reason: rejectionReason, remarks: rejectionReason });
+      toast.success("Order rejected");
       fetchOrders();
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.error || "Failed to reject order");
+      toast.error(err.response?.data?.error || "Failed to reject order");
     }
   };
+
+  // Filter orders
+  const filteredOrders = orders.filter((order) => {
+    // Status filter
+    if (statusFilter === "pending" && order.status !== "pending" && order.approvalStatus !== "pending") {
+      return false;
+    }
+    if (statusFilter === "approved" && order.status !== "approved" && order.approvalStatus !== "approved") {
+      return false;
+    }
+    if (statusFilter === "rejected" && order.status !== "rejected" && order.approvalStatus !== "rejected") {
+      return false;
+    }
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        order.orderNumber?.toLowerCase().includes(query) ||
+        order.dealer?.businessName?.toLowerCase().includes(query) ||
+        order.dealerName?.toLowerCase().includes(query) ||
+        order.id?.toString().includes(query)
+      );
+    }
+
+    return true;
+  });
 
   // ===== Status colors =====
   const statusColor = {
@@ -83,94 +121,89 @@ export default function AdminOrders() {
     rejected: "error",
   };
 
-  if (loading) return <Typography>Loading orders...</Typography>;
+  if (loading) {
+    return (
+      <Box p={4}>
+        <Typography>Loading orders...</Typography>
+      </Box>
+    );
+  }
 
   return (
-    <Box p={4}>
-      <Typography variant="h5" mb={3}>
-        {role === "regional_manager"
-          ? "Regional Manager Approval Panel"
-          : role === "regional_admin"
-          ? "Regional Admin Approval Panel"
-          : role === "super_admin"
-          ? "Super Admin Approval Panel"
-          : "Dealer Orders (Approval Panel)"}
-      </Typography>
+    <Box p={3}>
+      <PageHeader
+        title={
+          role === "regional_manager"
+            ? "Regional Manager Approval Panel"
+            : role === "regional_admin"
+            ? "Regional Admin Approval Panel"
+            : role === "super_admin"
+            ? "Super Admin Approval Panel"
+            : "Dealer Orders (Approval Panel)"
+        }
+        subtitle={`${filteredOrders.length} order(s) ${statusFilter === "pending" ? "pending" : ""} for approval`}
+      />
 
-      <Card>
-        <CardContent>
-          {orders.length === 0 ? (
-            <Typography>No orders pending for your approval.</Typography>
-          ) : (
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Order No</TableCell>
-                  <TableCell>Material</TableCell>
-                  <TableCell>Quantity</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
+      {/* Filters */}
+      <Box sx={{ mb: 3, display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
+        <TextField
+          size="small"
+          placeholder="Search orders..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search size={18} />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ minWidth: 300 }}
+        />
 
-              <TableBody>
-                {orders.map((order) => {
-                  const items =
-                    order.items && order.items.length
-                      ? order.items
-                      : [{ id: "dummy", material: { name: "N/A" }, qty: 0 }];
+        <Tabs
+          value={statusFilter}
+          onChange={(e, newValue) => setStatusFilter(newValue)}
+          sx={{ flex: 1 }}
+        >
+          <Tab label="Pending" value="pending" />
+          <Tab label="All" value="all" />
+          <Tab label="Approved" value="approved" />
+          <Tab label="Rejected" value="rejected" />
+        </Tabs>
 
-                  const status =
-                    (order.approvalStatus || order.status || "").toLowerCase();
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={fetchOrders}
+          startIcon={<Filter size={16} />}
+        >
+          Refresh
+        </Button>
+      </Box>
 
-                  const canAct = status === "pending" || status === "draft";
-
-                  return items.map((item) => (
-                    <TableRow key={order.id + "_" + item.id}>
-                      <TableCell>{order.orderNumber}</TableCell>
-                      <TableCell>{item.material?.name || "Unknown Material"}</TableCell>
-                      <TableCell>{item.qty || 0}</TableCell>
-                      <TableCell>
-                        <Chip
-                          label={order.approvalStatus || order.status}
-                          color={statusColor[status] || "default"}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {canAct ? (
-                          <>
-                            <Button
-                              variant="contained"
-                              color="success"
-                              size="small"
-                              onClick={() => approve(order.id)}
-                              sx={{ mr: 1 }}
-                            >
-                              Approve
-                            </Button>
-                            <Button
-                              variant="contained"
-                              color="error"
-                              size="small"
-                              onClick={() => reject(order.id)}
-                            >
-                              Reject
-                            </Button>
-                          </>
-                        ) : (
-                          <Typography variant="body2" color="textSecondary">
-                            No actions available
-                          </Typography>
-                        )}
-                      </TableCell>
-                    </TableRow>
-                  ));
-                })}
-              </TableBody>
-            </Table>
-          )}
-        </CardContent>
-      </Card>
+      {/* Orders List */}
+      {filteredOrders.length === 0 ? (
+        <Card>
+          <CardContent>
+            <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
+              {searchQuery || statusFilter !== "all"
+                ? "No orders match your filters"
+                : "No orders pending for your approval"}
+            </Typography>
+          </CardContent>
+        </Card>
+      ) : (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {filteredOrders.map((order) => (
+            <OrderApprovalCard
+              key={order.id}
+              order={order}
+              onUpdate={fetchOrders}
+            />
+          ))}
+        </Box>
+      )}
     </Box>
   );
 }

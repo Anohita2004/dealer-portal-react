@@ -1,212 +1,247 @@
 import React, { useEffect, useState } from "react";
-import api from "../services/api";
-import { Download, Search, FileText } from "lucide-react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  TextField,
+  InputAdornment,
+  Tabs,
+  Tab,
+  Button,
+} from "@mui/material";
+import { Search, Filter, FileText, Download } from "lucide-react";
+import { invoiceAPI } from "../services/api";
+import { useAuth } from "../context/AuthContext";
+import { useApiCall } from "../hooks/useApiCall";
+import InvoiceApprovalCard from "../components/InvoiceApprovalCard";
+import PageHeader from "../components/PageHeader";
+import { toast } from "react-toastify";
 
 export default function Invoices() {
+  const { user } = useAuth();
+  const { get, loading } = useApiCall();
   const [invoices, setInvoices] = useState([]);
-  const [search, setSearch] = useState("");
+  const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState("all"); // all, pending, approved, rejected
+  const [viewMode, setViewMode] = useState("list"); // list, approvals
 
-  useEffect(() => {
-    (async () => {
-      const res = await api.get("/invoices");
-      setInvoices(res.data.invoices || res.data);
-    })();
-  }, []);
-
-  const downloadPdf = async (id, invoiceNumber) => {
+  const fetchInvoices = async () => {
     try {
-      const res = await api.get(`/invoices/${id}/pdf`, { responseType: "blob" });
-      const url = window.URL.createObjectURL(new Blob([res.data]));
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `invoice-${invoiceNumber}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
+      const data = await invoiceAPI.getInvoices();
+      const invoicesList = Array.isArray(data) ? data : data.invoices || data.data || [];
+      setInvoices(invoicesList);
     } catch (err) {
-      console.error(err);
-      alert("Failed to download PDF");
+      console.error("Failed to fetch invoices:", err);
+      toast.error("Failed to load invoices");
     }
   };
 
-  const filtered = invoices.filter((i) => {
-    const q = search.toLowerCase();
-    return (
-      i.invoiceNumber?.toString()?.includes(q) ||
-      i.status?.toLowerCase()?.includes(q) ||
-      i.totalAmount?.toString()?.includes(q)
-    );
+  const fetchPendingApprovals = async () => {
+    try {
+      const data = await invoiceAPI.getPendingApprovals();
+      const approvalsList = Array.isArray(data) ? data : data.invoices || data.data || [];
+      setInvoices(approvalsList);
+    } catch (err) {
+      console.error("Failed to fetch pending approvals:", err);
+      toast.error("Failed to load pending approvals");
+    }
+  };
+
+  useEffect(() => {
+    if (viewMode === "approvals") {
+      fetchPendingApprovals();
+    } else {
+      fetchInvoices();
+    }
+  }, [viewMode]);
+
+  // Filter invoices
+  const filteredInvoices = invoices.filter((invoice) => {
+    // Status filter
+    if (statusFilter === "pending" && invoice.status !== "pending" && invoice.approvalStatus !== "pending") {
+      return false;
+    }
+    if (statusFilter === "approved" && invoice.status !== "approved" && invoice.approvalStatus !== "approved") {
+      return false;
+    }
+    if (statusFilter === "rejected" && invoice.status !== "rejected" && invoice.approvalStatus !== "rejected") {
+      return false;
+    }
+
+    // Search filter
+    if (searchQuery) {
+      const query = searchQuery.toLowerCase();
+      return (
+        invoice.invoiceNumber?.toLowerCase().includes(query) ||
+        invoice.dealer?.businessName?.toLowerCase().includes(query) ||
+        invoice.dealerName?.toLowerCase().includes(query) ||
+        invoice.id?.toString().includes(query)
+      );
+    }
+
+    return true;
   });
 
+  const canApprove = ["dealer_admin", "territory_manager", "area_manager", "regional_manager", "regional_admin"].includes(user?.role);
+
   return (
-    <div style={{ padding: "2rem" }}>
-      {/* HEADER */}
-      <div style={{ marginBottom: "1.5rem" }}>
-        <h2 style={{ fontSize: "1.7rem", marginBottom: "0.5rem" }}>Invoices</h2>
-        <p style={{ opacity: 0.7 }}>
-          View, filter, and download your invoices.
-        </p>
-      </div>
+    <Box p={3}>
+      <PageHeader
+        title="Invoices"
+        subtitle={viewMode === "approvals" ? "Pending approvals for your review" : "View and manage all invoices"}
+      />
 
-      {/* SEARCH BAR */}
-      <div
-        style={{
-          marginBottom: "1.5rem",
-          display: "flex",
-          alignItems: "center",
-          gap: "0.5rem",
-          background: "var(--card-bg)",
-          border: "1px solid var(--card-border)",
-          padding: "0.7rem 1rem",
-          borderRadius: "12px",
-        }}
-      >
-        <Search size={18} />
-        <input
-          type="text"
-          placeholder="Search invoices..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-          style={{
-            flex: 1,
-            background: "transparent",
-            border: "none",
-            outline: "none",
-            color: "var(--text-color)",
-            fontSize: "1rem",
-          }}
-        />
-      </div>
-
-      {/* INVOICE TABLE */}
-      <div
-        style={{
-          borderRadius: "14px",
-          border: "1px solid var(--card-border)",
-          background: "var(--card-bg)",
-          overflow: "hidden",
-          boxShadow: "0 4px 16px rgba(0,0,0,0.1)",
-        }}
-      >
-        <table
-          style={{
-            width: "100%",
-            borderCollapse: "collapse",
-          }}
-        >
-          <thead
-            style={{
-              background: "rgba(255,255,255,0.05)",
-              textAlign: "left",
-            }}
+      {/* Tabs for List vs Approvals */}
+      {canApprove && (
+        <Box sx={{ mb: 3 }}>
+          <Tabs
+            value={viewMode}
+            onChange={(e, newValue) => setViewMode(newValue)}
           >
-            <tr>
-              {["Invoice #", "Date", "Amount", "Status", "Action"].map((head) => (
-                <th
-                  key={head}
-                  style={{
-                    padding: "1rem",
-                    fontSize: "0.9rem",
-                    fontWeight: 600,
-                    borderBottom: "1px solid var(--card-border)",
-                  }}
-                >
-                  {head}
-                </th>
-              ))}
-            </tr>
-          </thead>
+            <Tab label="All Invoices" value="list" />
+            <Tab label="Pending Approvals" value="approvals" />
+          </Tabs>
+        </Box>
+      )}
 
-          <tbody>
-            {filtered.length === 0 && (
-              <tr>
-                <td
-                  colSpan={5}
-                  style={{
-                    textAlign: "center",
-                    padding: "2rem",
-                    opacity: 0.6,
-                  }}
-                >
-                  <FileText size={18} style={{ marginRight: 6 }} />
-                  No invoices found
-                </td>
-              </tr>
-            )}
+      {/* Filters */}
+      <Box sx={{ mb: 3, display: "flex", gap: 2, alignItems: "center", flexWrap: "wrap" }}>
+        <TextField
+          size="small"
+          placeholder="Search invoices..."
+          value={searchQuery}
+          onChange={(e) => setSearchQuery(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search size={18} />
+              </InputAdornment>
+            ),
+          }}
+          sx={{ minWidth: 300 }}
+        />
 
-            {filtered.map((i) => (
-              <tr
-                key={i.id}
-                style={{
-                  borderBottom: "1px solid var(--card-border)",
-                  transition: "background 0.2s",
-                }}
-                onMouseEnter={(e) => (e.currentTarget.style.background = "rgba(255,255,255,0.04)")}
-                onMouseLeave={(e) => (e.currentTarget.style.background = "transparent")}
-              >
-                <td style={{ padding: "1rem" }}>{i.invoiceNumber}</td>
+        <Tabs
+          value={statusFilter}
+          onChange={(e, newValue) => setStatusFilter(newValue)}
+          sx={{ flex: 1 }}
+        >
+          <Tab label="All" value="all" />
+          <Tab label="Pending" value="pending" />
+          <Tab label="Approved" value="approved" />
+          <Tab label="Rejected" value="rejected" />
+        </Tabs>
 
-                <td style={{ padding: "1rem" }}>
-                  {new Date(i.invoiceDate).toLocaleDateString()}
-                </td>
+        <Button
+          variant="outlined"
+          size="small"
+          onClick={viewMode === "approvals" ? fetchPendingApprovals : fetchInvoices}
+          startIcon={<Filter size={16} />}
+        >
+          Refresh
+        </Button>
+      </Box>
 
-                <td style={{ padding: "1rem", fontWeight: 600 }}>
-                  ₹{i.totalAmount}
-                </td>
-
-                <td style={{ padding: "1rem" }}>
-                  <span
-                    style={{
-                      padding: "4px 10px",
-                      borderRadius: "20px",
-                      fontSize: "0.8rem",
-                      fontWeight: 600,
-                      color:
-                        i.status === "Paid"
-                          ? "#16a34a"
-                          : i.status === "Pending"
-                          ? "#f59e0b"
-                          : "#ef4444",
-                      background:
-                        i.status === "Paid"
-                          ? "rgba(22,163,74,0.15)"
-                          : i.status === "Pending"
-                          ? "rgba(245,158,11,0.15)"
-                          : "rgba(239,68,68,0.15)",
-                    }}
-                  >
-                    {i.status}
-                  </span>
-                </td>
-
-                <td style={{ padding: "1rem" }}>
-                  <button
-                    onClick={() => downloadPdf(i.id, i.invoiceNumber)}
-                    style={{
-                      display: "flex",
-                      alignItems: "center",
-                      gap: "6px",
-                      background:
-                        "linear-gradient(90deg, var(--accent), var(--accent-dark))",
-                      padding: "0.45rem 0.9rem",
-                      color: "#fff",
-                      borderRadius: "8px",
-                      border: "none",
-                      cursor: "pointer",
-                      fontSize: "0.85rem",
-                      fontWeight: 600,
-                      boxShadow: "0 2px 6px rgba(0,0,0,0.2)",
-                    }}
-                  >
-                    <Download size={16} />
-                    PDF
-                  </button>
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
-    </div>
+      {/* Invoices List */}
+      {loading ? (
+        <Card>
+          <CardContent>
+            <Typography align="center" sx={{ py: 4 }}>Loading invoices...</Typography>
+          </CardContent>
+        </Card>
+      ) : filteredInvoices.length === 0 ? (
+        <Card>
+          <CardContent>
+            <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
+              {searchQuery || statusFilter !== "all"
+                ? "No invoices match your filters"
+                : viewMode === "approvals"
+                ? "No pending approvals"
+                : "No invoices found"}
+            </Typography>
+          </CardContent>
+        </Card>
+      ) : viewMode === "approvals" ? (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {filteredInvoices.map((invoice) => (
+            <InvoiceApprovalCard
+              key={invoice.id}
+              invoice={invoice}
+              onUpdate={fetchPendingApprovals}
+            />
+          ))}
+        </Box>
+      ) : (
+        <Card>
+          <CardContent>
+            <Box sx={{ overflowX: "auto" }}>
+              <table style={{ width: "100%", borderCollapse: "collapse" }}>
+                <thead>
+                  <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
+                    <th style={{ padding: "12px", textAlign: "left" }}>Invoice #</th>
+                    <th style={{ padding: "12px", textAlign: "left" }}>Date</th>
+                    <th style={{ padding: "12px", textAlign: "left" }}>Dealer</th>
+                    <th style={{ padding: "12px", textAlign: "right" }}>Amount</th>
+                    <th style={{ padding: "12px", textAlign: "center" }}>Status</th>
+                    <th style={{ padding: "12px", textAlign: "center" }}>Action</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {filteredInvoices.map((invoice) => (
+                    <tr key={invoice.id} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                      <td style={{ padding: "12px" }}>{invoice.invoiceNumber || `#${invoice.id?.slice(0, 8)}`}</td>
+                      <td style={{ padding: "12px" }}>
+                        {invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString() : "N/A"}
+                      </td>
+                      <td style={{ padding: "12px" }}>
+                        {invoice.dealer?.businessName || invoice.dealerName || "N/A"}
+                      </td>
+                      <td style={{ padding: "12px", textAlign: "right", fontWeight: 600 }}>
+                        ₹{Number(invoice.totalAmount || invoice.baseAmount || 0).toLocaleString()}
+                      </td>
+                      <td style={{ padding: "12px", textAlign: "center" }}>
+                        <Chip
+                          label={invoice.approvalStatus || invoice.status || "PENDING"}
+                          color={
+                            invoice.approvalStatus === "approved" || invoice.status === "approved"
+                              ? "success"
+                              : invoice.approvalStatus === "rejected" || invoice.status === "rejected"
+                              ? "error"
+                              : "warning"
+                          }
+                          size="small"
+                        />
+                      </td>
+                      <td style={{ padding: "12px", textAlign: "center" }}>
+                        <Button
+                          size="small"
+                          startIcon={<Download size={16} />}
+                          onClick={async () => {
+                            try {
+                              const response = await invoiceAPI.downloadInvoicePDF(invoice.id);
+                              const url = window.URL.createObjectURL(new Blob([response]));
+                              const a = document.createElement("a");
+                              a.href = url;
+                              a.download = `invoice-${invoice.invoiceNumber || invoice.id}.pdf`;
+                              a.click();
+                              toast.success("PDF downloaded");
+                            } catch (err) {
+                              toast.error("Failed to download PDF");
+                            }
+                          }}
+                        >
+                          PDF
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </Box>
+          </CardContent>
+        </Card>
+      )}
+    </Box>
   );
 }

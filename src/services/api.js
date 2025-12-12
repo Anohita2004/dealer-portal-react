@@ -67,6 +67,22 @@ export const authAPI = {
 
 export const dashboardAPI = {
   // Super Admin Dashboard
+  getSuperAdminDashboard: () =>
+    api.get("/reports/dashboard/super").then((r) => r.data),
+
+  // Regional Admin Dashboard
+  getRegionalDashboard: () =>
+    api.get("/reports/dashboard/regional").then((r) => r.data),
+
+  // Manager Dashboard (Territory/Area/Regional Manager)
+  getManagerDashboard: () =>
+    api.get("/reports/dashboard/manager").then((r) => r.data),
+
+  // Dealer Dashboard
+  getDealerDashboard: () =>
+    api.get("/reports/dashboard/dealer").then((r) => r.data),
+
+  // Legacy endpoints (for backward compatibility)
   getSuperAdminKPI: () =>
     api.get("/admin/reports/kpi-summary").then((r) => r.data),
 
@@ -92,10 +108,6 @@ export const dashboardAPI = {
 
   getManagerApprovalQueue: () =>
     api.get("/managers/approval-queue").then((r) => r.data),
-
-  // Dealer Dashboard
-  getDealerDashboard: () =>
-    api.get("/dealer/dashboard").then((r) => r.data),
 
   getDealerApprovals: () =>
     api.get("/dealer/approvals").then((r) => r.data),
@@ -195,16 +207,17 @@ export const orderAPI = {
     api.get(`/orders/${id}`).then((r) => r.data),
 
   // Get pending approvals for current user's role
-  getPendingApprovals: () =>
-    api.get("/orders/approvals/pending").then((r) => r.data),
+  // Note: Backend scopes orders automatically, so we get all orders and filter by status
+  getPendingApprovals: (params) =>
+    api.get("/orders", { params: { ...params, status: "pending" } }).then((r) => r.data),
 
-  // Approve order (multi-stage: Territory → Area → Regional → Super Admin)
+  // Approve order (multi-stage: Territory → Area → Regional Manager)
   approveOrder: (id, payload) =>
-    api.post(`/orders/${id}/approve`, payload).then((r) => r.data),
+    api.patch(`/orders/${id}/approve`, payload).then((r) => r.data),
 
   // Reject order
   rejectOrder: (id, payload) =>
-    api.post(`/orders/${id}/reject`, payload).then((r) => r.data),
+    api.patch(`/orders/${id}/reject`, payload).then((r) => r.data),
 
   // Update order status
   updateOrderStatus: (id, status) =>
@@ -222,44 +235,48 @@ export const orderAPI = {
 export const paymentAPI = {
   // Dealer Staff: Create payment request
   createRequest: (formData) =>
-    api.post("/payment/request", formData, {
+    api.post("/payments/request", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }).then((r) => r.data),
 
   // Dealer: View own payment requests
   getMyRequests: (params) =>
-    api.get("/payment/mine", { params }).then((r) => r.data),
+    api.get("/payments/mine", { params }).then((r) => r.data),
+
+  // Get all payments (super admin - scoped)
+  getAllPayments: (params) =>
+    api.get("/payments", { params }).then((r) => r.data),
 
   // Get payment by ID
   getPaymentById: (id) =>
-    api.get(`/payment/${id}`).then((r) => r.data),
+    api.get(`/payments/${id}`).then((r) => r.data),
 
   // ================= DEALER ADMIN APPROVAL =================
   getDealerPending: () =>
-    api.get("/payment/dealer/pending").then((r) => r.data),
+    api.get("/payments/dealer/pending").then((r) => r.data),
 
   approveByDealer: (id, payload) =>
-    api.post(`/payment/dealer/${id}/approve`, payload).then((r) => r.data),
+    api.post(`/payments/${id}/approve`, payload).then((r) => r.data),
 
   rejectByDealer: (id, payload) =>
-    api.post(`/payment/dealer/${id}/reject`, payload).then((r) => r.data),
+    api.post(`/payments/${id}/reject`, payload).then((r) => r.data),
 
   // ================= FINANCE ADMIN APPROVAL =================
   getFinancePending: () =>
-    api.get("/payment/pending").then((r) => r.data),
+    api.get("/payments/pending").then((r) => r.data),
 
   approveByFinance: (id, payload) =>
-    api.post(`/payment/${id}/approve`, payload).then((r) => r.data),
+    api.post(`/payments/${id}/approve`, payload).then((r) => r.data),
 
   rejectByFinance: (id, payload) =>
-    api.post(`/payment/${id}/reject`, payload).then((r) => r.data),
+    api.post(`/payments/${id}/reject`, payload).then((r) => r.data),
 
   // ================== RECONCILIATION ==================
   getReconcileSummary: () =>
-    api.get("/payment/reconcile").then((r) => r.data),
+    api.get("/payments/reconcile").then((r) => r.data),
 
   triggerReconcile: () =>
-    api.post("/payment/reconcile/trigger").then((r) => r.data),
+    api.post("/payments/reconcile/trigger").then((r) => r.data),
 };
 
 // =======================================================================
@@ -269,7 +286,7 @@ export const paymentAPI = {
 export const documentAPI = {
   // Upload document
   uploadDocument: (formData) =>
-    api.post("/documents/upload", formData, {
+    api.post("/documents", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     }).then((r) => r.data),
 
@@ -285,17 +302,13 @@ export const documentAPI = {
   downloadDocument: (id) =>
     api.get(`/documents/${id}/download`, { responseType: "blob" }).then((r) => r.data),
 
-  // Get pending approvals
-  getPendingApprovals: () =>
-    api.get("/documents/pending-approvals").then((r) => r.data),
+  // Get manager documents
+  getManagerDocuments: () =>
+    api.get("/documents/manager").then((r) => r.data),
 
   // Approve/Reject document
   approveRejectDocument: (id, payload) =>
-    api.post(`/documents/${id}/approve-reject`, payload).then((r) => r.data),
-
-  // Update document status
-  updateDocumentStatus: (id, status) =>
-    api.post(`/documents/${id}/status`, { status }).then((r) => r.data),
+    api.patch(`/documents/${id}/status`, payload).then((r) => r.data),
 
   // Delete document
   deleteDocument: (id) =>
@@ -313,23 +326,31 @@ export const pricingAPI = {
 
   // Get pricing requests
   getRequests: (params) =>
-    api.get("/pricing/requests", { params }).then((r) => r.data),
+    api.get("/pricing", { params }).then((r) => r.data),
 
   // Get pending approvals for current stage
-  getPendingByStage: (stage) =>
-    api.get(`/pricing/pending/${stage}`).then((r) => r.data),
+  getPending: () =>
+    api.get("/pricing/pending").then((r) => r.data),
 
-  // Approve pricing request (multi-stage: Area → Regional → Super Admin)
+  // Get manager pricing requests
+  getManagerRequests: () =>
+    api.get("/pricing/manager").then((r) => r.data),
+
+  // Approve pricing request (multi-stage: Area → Regional Admin → Super Admin)
   approve: (id, payload) =>
-    api.post(`/pricing/${id}/approve`, payload).then((r) => r.data),
+    api.patch(`/pricing/${id}`, payload).then((r) => r.data),
 
   // Reject pricing request
   reject: (id, payload) =>
-    api.post(`/pricing/${id}/reject`, payload).then((r) => r.data),
+    api.patch(`/pricing/${id}`, { ...payload, action: "reject" }).then((r) => r.data),
 
   // Get pricing history
   getHistory: (params) =>
-    api.get("/pricing/history", { params }).then((r) => r.data),
+    api.get("/pricing", { params }).then((r) => r.data),
+
+  // Get pricing summary (super_admin)
+  getSummary: () =>
+    api.get("/pricing/summary").then((r) => r.data),
 };
 
 // =======================================================================
@@ -360,6 +381,14 @@ export const invoiceAPI = {
   // Get invoice summary
   getInvoiceSummary: (params) =>
     api.get("/invoices/summary", { params }).then((r) => r.data),
+
+  // Get pending approvals
+  getPendingApprovals: () =>
+    api.get("/invoices/pending/approvals").then((r) => r.data),
+
+  // Approve/reject invoice
+  approveInvoice: (id, payload) =>
+    api.post(`/invoices/${id}/approve`, payload).then((r) => r.data),
 };
 
 // =======================================================================
@@ -420,16 +449,16 @@ export const geoAPI = {
     api.get("/regions", { params }).then((r) => r.data),
 
   getRegionById: (id) =>
-    api.get(`/regions/${id}`).then((r) => r.data),
+    api.get(`/regions/regions/${id}`).then((r) => r.data),
 
   createRegion: (payload) =>
-    api.post("/regions", payload).then((r) => r.data),
+    api.post("/regions/regions", payload).then((r) => r.data),
 
   updateRegion: (id, payload) =>
-    api.put(`/regions/${id}`, payload).then((r) => r.data),
+    api.put(`/regions/regions/${id}`, payload).then((r) => r.data),
 
   deleteRegion: (id) =>
-    api.delete(`/regions/${id}`).then((r) => r.data),
+    api.delete(`/regions/regions/${id}`).then((r) => r.data),
 
   // Areas
   getAreas: (params) =>
@@ -439,7 +468,7 @@ export const geoAPI = {
     api.get(`/areas/${id}`).then((r) => r.data),
 
   getAreasByRegion: (regionId) =>
-    api.get(`/areas/region/${regionId}`).then((r) => r.data),
+    api.get(`/areas`, { params: { regionId } }).then((r) => r.data),
 
   createArea: (payload) =>
     api.post("/areas", payload).then((r) => r.data),
@@ -458,7 +487,7 @@ export const geoAPI = {
     api.get(`/territories/${id}`).then((r) => r.data),
 
   getTerritoriesByArea: (areaId) =>
-    api.get(`/areas/${areaId}/territories`).then((r) => r.data),
+    api.get(`/territories`, { params: { areaId } }).then((r) => r.data),
 
   createTerritory: (payload) =>
     api.post("/territories", payload).then((r) => r.data),
@@ -470,8 +499,11 @@ export const geoAPI = {
     api.delete(`/territories/${id}`).then((r) => r.data),
 
   // Map Data (GeoJSON)
-  getMapData: (level, params) =>
-    api.get(`/maps/${level}`, { params }).then((r) => r.data),
+  getRegionsGeoJSON: () =>
+    api.get("/maps/regions").then((r) => r.data),
+
+  getTerritoriesGeoJSON: (params) =>
+    api.get("/maps/territories", { params }).then((r) => r.data),
 
   // Sales heatmap data
   getHeatmapData: (params) =>
@@ -561,9 +593,13 @@ export const notificationAPI = {
 // =======================================================================
 
 export const campaignAPI = {
-  // Get campaigns (scoped by region)
+  // Get campaigns (scoped by targetAudience)
   getCampaigns: (params) =>
     api.get("/campaigns", { params }).then((r) => r.data),
+
+  // Get active campaigns
+  getActiveCampaigns: () =>
+    api.get("/campaigns/active").then((r) => r.data),
 
   // Get campaign by ID
   getCampaignById: (id) =>
@@ -571,7 +607,7 @@ export const campaignAPI = {
 
   // Create campaign
   createCampaign: (payload) =>
-    api.post("/campaigns/create", payload).then((r) => r.data),
+    api.post("/campaigns", payload).then((r) => r.data),
 
   // Update campaign
   updateCampaign: (id, payload) =>
@@ -605,7 +641,11 @@ export const reportAPI = {
 
   // Regional Sales Summary
   getRegionalSales: (params) =>
-    api.get("/reports/regional-sales", { params }).then((r) => r.data),
+    api.get("/reports/regional-sales-summary", { params }).then((r) => r.data),
+  
+  // Territory Report
+  getTerritoryReport: (params) =>
+    api.get("/reports/territory", { params }).then((r) => r.data),
 
   // Account Statement Report
   getAccountStatement: (params) =>
@@ -657,6 +697,21 @@ export const reportAPI = {
 // =======================================================================
 
 export const dealerAPI = {
+  // Get dealer staff
+  getDealerStaff: () =>
+    api.get("/dealers/staff").then((r) => r.data),
+
+  // Create staff member
+  createStaff: (payload) =>
+    api.post("/dealers/staff", payload).then((r) => r.data),
+
+  // Update staff member
+  updateStaff: (id, payload) =>
+    api.put(`/dealers/staff/${id}`, payload).then((r) => r.data),
+
+  // Delete staff member
+  deleteStaff: (id) =>
+    api.delete(`/dealers/staff/${id}`).then((r) => r.data),
   // Get dealers (scoped by role)
   getDealers: (params) =>
     api.get("/dealers", { params }).then((r) => r.data),
@@ -688,6 +743,182 @@ export const dealerAPI = {
   // Get dealer hierarchy
   getDealerHierarchy: (id) =>
     api.get(`/dealers/${id}/hierarchy`).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== TASKS APIs ===================================
+// =======================================================================
+
+export const taskAPI = {
+  // Get pending tasks for current user
+  getTasks: () =>
+    api.get("/tasks").then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== FEATURE TOGGLES APIs =========================
+// =======================================================================
+
+export const featureToggleAPI = {
+  // Get all feature toggles
+  getFeatureToggles: () =>
+    api.get("/feature-toggles").then((r) => r.data),
+
+  // Get single feature toggle
+  getFeatureToggle: (key) =>
+    api.get(`/feature-toggles/${key}`).then((r) => r.data),
+
+  // Create/update feature toggle
+  updateFeatureToggle: (payload) =>
+    api.post("/feature-toggles", payload).then((r) => r.data),
+
+  // Update feature toggle
+  putFeatureToggle: (key, payload) =>
+    api.put(`/feature-toggles/${key}`, payload).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== TEAMS APIs ==================================
+// =======================================================================
+
+export const teamAPI = {
+  // Get teams
+  getTeams: () =>
+    api.get("/teams").then((r) => r.data),
+
+  // Get team by ID
+  getTeamById: (id) =>
+    api.get(`/teams/${id}`).then((r) => r.data),
+
+  // Get team performance (sales, orders, payments, invoices)
+  getTeamPerformance: (id) =>
+    api.get(`/teams/${id}/performance`).then((r) => r.data),
+
+  // Create team
+  createTeam: (payload) =>
+    api.post("/teams", payload).then((r) => r.data),
+
+  // Update team
+  updateTeam: (id, payload) =>
+    api.put(`/teams/${id}`, payload).then((r) => r.data),
+
+  // Delete team
+  deleteTeam: (id) =>
+    api.delete(`/teams/${id}`).then((r) => r.data),
+
+  // Add dealer to team
+  addDealerToTeam: (teamId, dealerId) =>
+    api.post(`/teams/${teamId}/dealers`, { dealerId }).then((r) => r.data),
+
+  // Remove dealer from team
+  removeDealerFromTeam: (teamId, dealerId) =>
+    api.delete(`/teams/${teamId}/dealers/${dealerId}`).then((r) => r.data),
+
+  // Add manager to team
+  addManagerToTeam: (teamId, managerId) =>
+    api.post(`/teams/${teamId}/managers`, { managerId }).then((r) => r.data),
+
+  // Remove manager from team
+  removeManagerFromTeam: (teamId, managerId) =>
+    api.delete(`/teams/${teamId}/managers/${managerId}`).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== INVENTORY APIs ==============================
+// =======================================================================
+
+export const inventoryAPI = {
+  // Get inventory summary (scoped)
+  getSummary: () =>
+    api.get("/inventory/summary").then((r) => r.data),
+
+  // Get inventory details
+  getDetails: () =>
+    api.get("/inventory/details").then((r) => r.data),
+
+  // Create inventory item
+  createItem: (payload) =>
+    api.post("/inventory", payload).then((r) => r.data),
+
+  // Update inventory item
+  updateItem: (id, payload) =>
+    api.put(`/inventory/${id}`, payload).then((r) => r.data),
+
+  // Delete inventory item
+  deleteItem: (id) =>
+    api.delete(`/inventory/${id}`).then((r) => r.data),
+
+  // Export inventory
+  exportInventory: (format) =>
+    api.get(`/inventory/export?format=${format}`, { responseType: "blob" }).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== ADMIN APIs ==================================
+// =======================================================================
+
+export const adminAPI = {
+  // Run SLA check
+  runSLACheck: () =>
+    api.post("/admin/sla/run").then((r) => r.data),
+
+  // Block dealer
+  blockDealer: (id) =>
+    api.put(`/admin/dealers/${id}/block`).then((r) => r.data),
+
+  // Verify dealer
+  verifyDealer: (id) =>
+    api.put(`/admin/dealers/${id}/verify`).then((r) => r.data),
+
+  // Assign region to dealer
+  assignRegion: (id, regionId) =>
+    api.put(`/admin/dealers/${id}/assign-region`, { regionId }).then((r) => r.data),
+
+  // Merge sales groups
+  mergeSalesGroups: (payload) =>
+    api.post("/admin/sales-groups/merge", payload).then((r) => r.data),
+
+  // Review document
+  reviewDocument: (id, payload) =>
+    api.put(`/admin/documents/${id}/review`, payload).then((r) => r.data),
+
+  // Review pricing
+  reviewPricing: (id, payload) =>
+    api.patch(`/admin/pricing-updates/${id}/review`, payload).then((r) => r.data),
+
+  // Get admin reports
+  getAdminReports: (params) =>
+    api.get("/admin/reports", { params }).then((r) => r.data),
+};
+
+// =======================================================================
+// ======================== MANAGER APIs =================================
+// =======================================================================
+
+export const managerAPI = {
+  // Get manager summary
+  getSummary: () =>
+    api.get("/managers/summary").then((r) => r.data),
+
+  // Get assigned dealers (scoped by manager's territory/area/region)
+  getDealers: (params) =>
+    api.get("/managers/dealers", { params }).then((r) => r.data),
+
+  // Get dealer by ID
+  getDealer: (id) =>
+    api.get(`/managers/dealers/${id}`).then((r) => r.data),
+
+  // Get pricing requests from dealers under manager
+  getPricing: (params) =>
+    api.get("/managers/pricing", { params }).then((r) => r.data),
+
+  // Forward pricing request
+  forwardPricing: (id, payload) =>
+    api.patch(`/managers/pricing/${id}/forward`, payload).then((r) => r.data),
+
+  // Assign dealer to manager (super_admin, key_user only)
+  assignDealer: (payload) =>
+    api.post("/managers/assign-dealer", payload).then((r) => r.data),
 };
 
 // Default export

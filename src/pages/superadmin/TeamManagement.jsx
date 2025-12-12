@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
-import api from "../../services/api";
+import api, { teamAPI } from "../../services/api";
+import { toast } from "react-toastify";
 
 export default function TeamManagement() {
   const [teams, setTeams] = useState([]);
@@ -17,10 +18,11 @@ export default function TeamManagement() {
 
   const fetchTeams = async () => {
     try {
-      const res = await api.get("/team");
-      setTeams(res.data);
+      const data = await teamAPI.getTeams();
+      setTeams(Array.isArray(data) ? data : data.teams || []);
     } catch (err) {
       console.error("Failed to fetch teams:", err);
+      toast.error("Failed to load teams");
     } finally {
       setLoading(false);
     }
@@ -33,87 +35,94 @@ export default function TeamManagement() {
   const handleCreateTeam = async (e) => {
     e.preventDefault();
     try {
-      await api.post("/team", form);
+      await teamAPI.createTeam(form);
       setCreateModalOpen(false);
       setForm({ name: "", description: "" });
+      toast.success("Team created successfully");
       fetchTeams();
     } catch (err) {
       console.error("Failed to create team:", err);
-      alert("Failed to create team");
+      toast.error(err.response?.data?.error || "Failed to create team");
     }
   };
 
   const handleEditTeam = async (e) => {
     e.preventDefault();
     try {
-      await api.put(`/team/${editModalOpen.team.id}`, editForm);
+      await teamAPI.updateTeam(editModalOpen.team.id, editForm);
       setEditModalOpen({ open: false, team: null });
       setEditForm({ name: "", description: "" });
+      toast.success("Team updated successfully");
       fetchTeams();
     } catch (err) {
       console.error("Failed to edit team:", err);
-      alert("Failed to edit team");
+      toast.error(err.response?.data?.error || "Failed to edit team");
     }
   };
 
   const handleDeleteTeam = async (teamId) => {
     if (!window.confirm("Are you sure you want to delete this team?")) return;
     try {
-      await api.delete(`/team/${teamId}`);
+      await teamAPI.deleteTeam(teamId);
+      toast.success("Team deleted successfully");
       fetchTeams();
     } catch (err) {
       console.error("Failed to delete team:", err);
-      alert("Failed to delete team");
+      toast.error(err.response?.data?.error || "Failed to delete team");
     }
   };
 
   const handleAssignManager = async (e) => {
     e.preventDefault();
     try {
-      await api.post("/team/assign-manager", { teamId: assignManagerModal.teamId, ...assignForm });
+      await teamAPI.addManagerToTeam(assignManagerModal.teamId, assignForm.managerId);
       setAssignManagerModal({ open: false, teamId: null });
       setAssignForm({ managerId: "" });
+      toast.success("Manager assigned successfully");
       fetchTeams();
     } catch (err) {
       console.error("Failed to assign manager:", err);
-      alert("Failed to assign manager");
+      toast.error(err.response?.data?.error || "Failed to assign manager");
     }
   };
 
-  const handleRemoveManager = async (teamId) => {
+  const handleRemoveManager = async (teamId, managerId) => {
     if (!window.confirm("Are you sure you want to remove the manager from this team?")) return;
     try {
-      await api.delete(`/team/remove-manager/${teamId}`);
+      await teamAPI.removeManagerFromTeam(teamId, managerId);
+      toast.success("Manager removed successfully");
       fetchTeams();
     } catch (err) {
       console.error("Failed to remove manager:", err);
-      alert("Failed to remove manager");
+      toast.error(err.response?.data?.error || "Failed to remove manager");
     }
   };
 
   const handleAddDealer = async (e) => {
     e.preventDefault();
     try {
-      await api.post(`/team/add-dealer/${addDealerModal.teamId}`, dealerForm);
+      await teamAPI.addDealerToTeam(addDealerModal.teamId, dealerForm.dealerId);
       setAddDealerModal({ open: false, teamId: null });
       setDealerForm({ dealerId: "" });
+      toast.success("Dealer added to team successfully");
       fetchTeams();
     } catch (err) {
       console.error("Failed to add dealer:", err);
-      alert("Failed to add dealer");
+      toast.error(err.response?.data?.error || "Failed to add dealer");
     }
   };
 
   const handleRemoveDealer = async (e) => {
     e.preventDefault();
     try {
-      await api.delete(`/team/remove-dealer/${removeDealerModal.teamId}/${removeDealerForm.dealerId}`);
+      await teamAPI.removeDealerFromTeam(removeDealerModal.teamId, removeDealerForm.dealerId);
       setRemoveDealerModal({ open: false, teamId: null });
       setRemoveDealerForm({ dealerId: "" });
+      toast.success("Dealer removed from team successfully");
       fetchTeams();
     } catch (err) {
       console.error("Failed to remove dealer:", err);
-      alert("Failed to remove dealer");
+      toast.error(err.response?.data?.error || "Failed to remove dealer");
     }
   };
 

@@ -14,7 +14,16 @@ export default function CreditDebitNotes({ data, loading, error, fetchReport }) 
   if (error) return <Box sx={{ mt: 3 }}><Typography color="error">{error}</Typography></Box>;
   if (!data) return null;
 
-  const { notes = [], totalCredit = 0, totalDebit = 0 } = data;
+  // Handle different response formats
+  const notes = Array.isArray(data.notes)
+    ? data.notes
+    : Array.isArray(data.data)
+    ? data.data
+    : Array.isArray(data)
+    ? data
+    : [];
+  const totalCredit = data.totalCredit || data.credit || 0;
+  const totalDebit = data.totalDebit || data.debit || 0;
 
   return (
     <Box mt={3}>

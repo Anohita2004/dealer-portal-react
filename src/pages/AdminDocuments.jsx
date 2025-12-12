@@ -12,9 +12,11 @@ export default function AdminDocuments() {
   const fetchDocuments = async () => {
     try {
       const res = await api.get("/documents");
-      setDocuments(res.data.documents || []);
+      setDocuments(res.data.documents || res.data || []);
     } catch (err) {
-      console.error("Error loading documents:", err);
+      // Silently handle errors - backend might not be ready
+      console.warn("Error loading documents:", err);
+      setDocuments([]);
     } finally {
       setLoading(false);
     }

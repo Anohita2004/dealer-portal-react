@@ -3,12 +3,14 @@ import { useNavigate } from "react-router-dom";
 import { FaArrowLeft } from "react-icons/fa";
 import api, { chatAPI } from "../services/api";
 import "./Chat.css";
-import socket, {
+import {
+  getSocket,
   joinChatRoom,
   leaveChatRoom,
   sendChatMessage,
   onReceiveMessage,
   onNewMessageNotification,
+  emitEvent,
 } from "../services/socket";
 
 export default function ChatUI({ compact = false }) {
@@ -31,8 +33,12 @@ export default function ChatUI({ compact = false }) {
     }, 100);
   };
 
-  // Fetch allowed contacts
+  // Initialize socket and fetch allowed contacts
   useEffect(() => {
+    // Initialize socket connection
+    const socketInstance = getSocket();
+    
+    // Fetch allowed contacts
     api
       .get("/chat/allowed-users")
       .then((res) => {
@@ -46,10 +52,29 @@ export default function ChatUI({ compact = false }) {
 
         setContacts(mapped);
       })
-      .catch((err) => console.error("Failed to fetch contacts:", err));
+      .catch((err) => {
+        // Silently handle permission errors - user might not have chat access
+        if (err.response?.status !== 403) {
+          console.warn("Failed to fetch contacts:", err);
+        }
+        setContacts([]);
+      });
 
-    // Chat opened → reset unread
-    socket.emit("chat:read");
+    // Chat opened → reset unread (wait for socket to connect)
+    if (socketInstance) {
+      if (socketInstance.connected) {
+        emitEvent("chat:read", {});
+      } else {
+        socketInstance.on("connect", () => {
+          emitEvent("chat:read", {});
+        });
+      }
+    }
+
+    // Cleanup
+    return () => {
+      // Don't disconnect socket here as it's shared across the app
+    };
   }, []);
 
   // Small helper to render avatar (initials) with deterministic color
@@ -86,7 +111,7 @@ export default function ChatUI({ compact = false }) {
 
       // Reset unread for this conversation
       chatAPI.markRead(partner.id).catch(() => {});
-      socket.emit("chat:read", { partnerId: partner.id });
+      emitEvent("chat:read", { partnerId: partner.id });
     } catch (err) {
       console.error("Failed to load conversation", err);
     }
@@ -104,7 +129,7 @@ export default function ChatUI({ compact = false }) {
         setMessages((prev) => [...prev, msg]);
         scrollToBottom();
 
-        socket.emit("chat:read", { partnerId: selected.id });
+        emitEvent("chat:read", { partnerId: selected.id });
         chatAPI.markRead(selected.id).catch(() => {});
       }
     });

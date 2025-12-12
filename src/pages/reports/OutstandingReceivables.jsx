@@ -19,8 +19,21 @@ export default function OutstandingReceivables({ data, loading, error, fetchRepo
   if (error) return <Box sx={{ mt: 3 }}><Typography color="error">{error}</Typography></Box>;
   if (!data) return null;
 
-  const { totalOutstanding = 0, aging = {}, invoices = [] } = data;
-  const pieData = Object.entries(aging).map(([k, v]) => ({ name: k, value: Number(v || 0) }));
+  // Handle different response formats
+  const totalOutstanding = data.totalOutstanding || data.total || 0;
+  const aging = data.aging || data.agingBreakdown || {};
+  const invoices = Array.isArray(data.invoices)
+    ? data.invoices
+    : Array.isArray(data.data)
+    ? data.data
+    : Array.isArray(data)
+    ? data
+    : [];
+    
+  const pieData = Object.entries(aging).map(([k, v]) => ({ 
+    name: k.replace("_", " ").toUpperCase(), 
+    value: Number(v || 0) 
+  }));
 
   return (
     <Box mt={3}>

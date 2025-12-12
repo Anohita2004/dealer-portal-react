@@ -57,17 +57,47 @@ export default function TerritorySummary({ data, loading }) {
     );
 
  // Safe parsing: prevents undefined.map crashes
-const {
-  kpis = {},
-  dealerSalesChart = [],
-  territoryContributionChart = [],
-  productMixChart = [],
-  highlights = {},
-} = data || {};
+  // Handle different response formats
+  const kpis = data.kpis || data.summary || {};
+  const dealerSalesChart = Array.isArray(data.dealerSalesChart) 
+    ? data.dealerSalesChart 
+    : Array.isArray(data.dealers)
+    ? data.dealers
+    : Array.isArray(data.data)
+    ? data.data
+    : [];
+  const territoryContributionChart = Array.isArray(data.territoryContributionChart)
+    ? data.territoryContributionChart
+    : Array.isArray(data.territories)
+    ? data.territories
+    : Array.isArray(data.territoryBreakdown)
+    ? data.territoryBreakdown
+    : [];
+  const productMixChart = Array.isArray(data.productMixChart)
+    ? data.productMixChart
+    : Array.isArray(data.products)
+    ? data.products
+    : Array.isArray(data.productBreakdown)
+    ? data.productBreakdown
+    : [];
+  const highlights = data.highlights || {};
+  
+  // Transform data if needed
+  const transformedTerritoryChart = territoryContributionChart.map(item => ({
+    name: item.name || item.territory || item.territoryName || "Unknown",
+    value: Number(item.value || item.sales || item.totalSales || 0)
+  }));
+  
+  const transformedProductChart = productMixChart.map(item => ({
+    name: item.name || item.product || item.productGroup || "Unknown",
+    value: Number(item.value || item.sales || item.totalSales || 0)
+  }));
 
 
   // For heatmap: determine max & % values
-  const maxSales = Math.max(...territoryContributionChart.map((t) => t.value));
+  const maxSales = transformedTerritoryChart.length > 0 
+    ? Math.max(...transformedTerritoryChart.map((t) => t.value), 1)
+    : 1;
 
   const getHeatColor = (value) => {
     const ratio = value / maxSales;
@@ -85,7 +115,7 @@ const {
           <Paper sx={{ ...KPI_CARD, background: "linear-gradient(135deg,#2563eb,#1e3a8a)" }}>
             <Typography variant="subtitle2">Total Sales</Typography>
             <Typography variant="h4" fontWeight={700}>
-              ₹{kpis?.totalSales?.toLocaleString()}
+              ₹{Number(kpis?.totalSales || 0).toLocaleString()}
             </Typography>
           </Paper>
         </Grid>
@@ -94,7 +124,7 @@ const {
           <Paper sx={{ ...KPI_CARD, background: "linear-gradient(135deg,#F97316,#C2410C)" }}>
             <Typography variant="subtitle2">Total Dealers</Typography>
             <Typography variant="h4" fontWeight={700}>
-              {kpis?.totalDealers}
+              {kpis?.totalDealers || 0}
             </Typography>
           </Paper>
         </Grid>
@@ -103,7 +133,7 @@ const {
           <Paper sx={{ ...KPI_CARD, background: "linear-gradient(135deg,#059669,#065F46)" }}>
             <Typography variant="subtitle2">Top Territory</Typography>
             <Typography variant="h4" fontWeight={700}>
-              {kpis?.topTerritory}
+              {kpis?.topTerritory || "-"}
             </Typography>
           </Paper>
         </Grid>
@@ -112,7 +142,7 @@ const {
           <Paper sx={{ ...KPI_CARD, background: "linear-gradient(135deg,#6366f1,#312e81)" }}>
             <Typography variant="subtitle2">Top Product Group</Typography>
             <Typography variant="h4" fontWeight={700}>
-              {kpis?.topProductGroup}
+              {kpis?.topProductGroup || "-"}
             </Typography>
           </Paper>
         </Grid>
@@ -124,7 +154,7 @@ const {
           Territory Performance Heatmap
         </Typography>
         <Grid container spacing={2}>
-          {territoryContributionChart.map((t, i) => (
+          {transformedTerritoryChart.map((t, i) => (
             <Grid item xs={6} sm={4} md={3} lg={2} key={i}>
               <Paper
                 sx={{
@@ -156,8 +186,8 @@ const {
             <Box sx={{ height: 300 }}>
               <ResponsiveContainer width="100%" height="100%">
                 <PieChart>
-                  <Pie data={territoryContributionChart} dataKey="value" nameKey="name" label>
-                    {territoryContributionChart.map((_, i) => (
+                  <Pie data={transformedTerritoryChart} dataKey="value" nameKey="name" label>
+                    {transformedTerritoryChart.map((_, i) => (
                       <Cell key={i} fill={colors[i % colors.length]} />
                     ))}
                   </Pie>
@@ -176,12 +206,12 @@ const {
             </Typography>
             <Box sx={{ height: 300 }}>
               <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={productMixChart}>
+                <BarChart data={transformedProductChart}>
                   <XAxis dataKey="name" />
                   <YAxis />
                   <Tooltip />
                   <Bar dataKey="value" radius={[6, 6, 0, 0]}>
-                    {productMixChart.map((_, i) => (
+                    {transformedProductChart.map((_, i) => (
                       <Cell key={i} fill={colors[i % colors.length]} />
                     ))}
                   </Bar>
@@ -206,8 +236,8 @@ const {
                   ⭐ Top Performing Dealer
                 </Typography>
                 <Typography fontWeight={700}>
-                  {highlights?.topDealer?.dealerName} — ₹
-                  {highlights?.topDealer?.totalSales?.toLocaleString()}
+                  {highlights?.topDealer?.dealerName || highlights?.topDealer?.name || "-"} — ₹
+                  {Number(highlights?.topDealer?.totalSales || 0).toLocaleString()}
                 </Typography>
               </Paper>
             </Grid>
@@ -218,8 +248,8 @@ const {
                   ⚠ Lowest Performing Dealer
                 </Typography>
                 <Typography fontWeight={700}>
-                  {highlights?.bottomDealer?.dealerName} — ₹
-                  {highlights?.bottomDealer?.totalSales?.toLocaleString()}
+                  {highlights?.bottomDealer?.dealerName || highlights?.bottomDealer?.name || "-"} — ₹
+                  {Number(highlights?.bottomDealer?.totalSales || 0).toLocaleString()}
                 </Typography>
               </Paper>
             </Grid>
@@ -245,14 +275,22 @@ const {
                 </tr>
               </thead>
               <tbody>
-                {dealerSalesChart?.map((row, idx) => (
-                  <tr key={idx} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                    <td style={{ padding: "12px" }}>{row.dealerName}</td>
-                    <td style={{ padding: "12px" }}>{row.dealerCode}</td>
-                    <td style={{ padding: "12px" }}>{row.territory}</td>
-                    <td style={{ padding: "12px" }}>₹{row.totalSales?.toLocaleString()}</td>
+                {dealerSalesChart.length > 0 ? (
+                  dealerSalesChart.map((row, idx) => (
+                    <tr key={idx} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                      <td style={{ padding: "12px" }}>{row.dealerName || row.name || row.businessName || "-"}</td>
+                      <td style={{ padding: "12px" }}>{row.dealerCode || row.code || "-"}</td>
+                      <td style={{ padding: "12px" }}>{row.territory || row.territoryName || "-"}</td>
+                      <td style={{ padding: "12px" }}>₹{Number(row.totalSales || row.sales || 0).toLocaleString()}</td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={4} style={{ padding: "12px", textAlign: "center" }}>
+                      No dealer data available
+                    </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </Box>
