@@ -17,6 +17,13 @@ import {
   FaUpload,
   FaMoneyCheckAlt,
   FaMapMarkedAlt,
+  FaFire,
+  FaSitemap,
+  FaClipboardList,
+  FaBullhorn,
+  FaFileContract,
+  FaExclamationTriangle,
+  FaBoxes,
 } from "react-icons/fa";
 
 export default function Sidebar() {
@@ -70,9 +77,64 @@ export default function Sidebar() {
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
     regional_admin: [
-      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-      { label: "Regions", path: "/regions", icon: <FaChartBar /> },
-      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
+      // Dashboard Section
+      { label: "Regional Dashboard", path: "/dashboard/regional", icon: <FaHome />, section: "Dashboard" },
+      { label: "Regional Heatmap", path: "/regional/heatmap", icon: <FaFire />, section: "Dashboard" },
+      
+      // Hierarchy Section
+      { label: "Users", path: "/regional/users", icon: <FaUsers />, section: "Hierarchy" },
+      { label: "Managers", path: "/regional/managers", icon: <FaSitemap />, section: "Hierarchy" },
+      { label: "Dealers", path: "/dealers", icon: <FaUsers />, section: "Hierarchy" },
+      
+      // Workflows Section
+      { label: "Orders", path: "/regional/orders", icon: <FaFileAlt />, section: "Workflows" },
+      { label: "Invoices", path: "/regional/invoices", icon: <FaFileInvoice />, section: "Workflows" },
+      { label: "Payments", path: "/regional/payments", icon: <FaMoneyCheckAlt />, section: "Workflows" },
+      { label: "Documents", path: "/regional/documents", icon: <FaFileAlt />, section: "Workflows" },
+      { label: "Pricing Requests", path: "/regional/pricing", icon: <FaFileContract />, section: "Workflows" },
+      { label: "Campaign Approvals", path: "/regional/campaign-approvals", icon: <FaClipboardList />, section: "Workflows" },
+      
+      // Campaigns Section
+      { label: "Regional Campaigns", path: "/regional/campaigns", icon: <FaBullhorn />, section: "Campaigns" },
+      { label: "Campaign Analytics", path: "/regional/campaigns/analytics", icon: <FaChartBar />, section: "Campaigns" },
+      
+      // Reports Section
+      { label: "Regional Reports", path: "/regional/reports", icon: <FaChartBar />, section: "Reports" },
+      { label: "Territory Performance", path: "/regional/reports/territory", icon: <FaChartBar />, section: "Reports" },
+      { label: "Dealer Performance", path: "/regional/reports/dealer", icon: <FaChartBar />, section: "Reports" },
+      { label: "Outstanding Region Payments", path: "/regional/reports/payments", icon: <FaMoneyCheckAlt />, section: "Reports" },
+      
+      // Inventory Section
+      { label: "Regional Inventory", path: "/regional/inventory", icon: <FaWarehouse />, section: "Inventory" },
+      { label: "Stock Alerts", path: "/regional/inventory/alerts", icon: <FaExclamationTriangle />, section: "Inventory" },
+      { label: "Material Summary", path: "/regional/inventory/materials", icon: <FaBoxes />, section: "Inventory" },
+    ],
+    area_manager: [
+      // Dashboard Section
+      { label: "Area Dashboard", path: "/dashboard/manager", icon: <FaHome />, section: "Dashboard" },
+      { label: "Area Heatmap", path: "/area/heatmap", icon: <FaFire />, section: "Dashboard" },
+      
+      // Hierarchy Section
+      { label: "Dealers", path: "/area/dealers", icon: <FaUsers />, section: "Hierarchy" },
+      { label: "Staff", path: "/area/staff", icon: <FaUsers />, section: "Hierarchy" },
+      
+      // Workflows Section
+      { label: "Pending Approvals", path: "/area/approvals", icon: <FaClipboardList />, section: "Workflows" },
+      { label: "Orders", path: "/area/orders", icon: <FaFileAlt />, section: "Workflows" },
+      { label: "Documents", path: "/area/documents", icon: <FaFileAlt />, section: "Workflows" },
+      { label: "Payments", path: "/area/payments", icon: <FaMoneyCheckAlt />, section: "Workflows" },
+      { label: "Pricing Requests", path: "/area/pricing", icon: <FaFileContract />, section: "Workflows" },
+      
+      // Reports Section
+      { label: "Area Sales", path: "/area/reports/sales", icon: <FaChartBar />, section: "Reports" },
+      { label: "Area Outstanding", path: "/area/reports/outstanding", icon: <FaMoneyCheckAlt />, section: "Reports" },
+      { label: "Dealer Performance", path: "/area/reports/dealer-performance", icon: <FaChartBar />, section: "Reports" },
+      
+      // Campaigns Section
+      { label: "Campaigns Assigned to Area", path: "/area/campaigns", icon: <FaBullhorn />, section: "Campaigns" },
+      
+      // Inventory Section
+      { label: "Area Inventory Overview", path: "/area/inventory", icon: <FaWarehouse />, section: "Inventory" },
     ],
     regional_manager: [
       { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
@@ -151,27 +213,48 @@ export default function Sidebar() {
         </button>
       </div>
 
-      {links.map(l=>(
-        <Link key={l.path} to={l.path}
-          style={{
-            display:"flex",alignItems:"center",gap:"10px",
-            padding:"10px",borderRadius:"8px",
-            color:pathname===l.path?"#f97316":"var(--text-color)",
-            fontWeight:pathname===l.path?600:400
-          }}>
-          <span>{l.icon}</span>
-          {!collapsed && (
-            <span style={{display:"flex",alignItems:"center",gap:"6px"}}>
-              {l.label}
-              {l.path==="/chat" && unread>0 && (
-                <span style={{background:"#ef4444",color:"#fff",padding:"1px 7px",borderRadius:"999px",fontSize:"11px"}}>
-                  {unread>99?"99+":unread}
+      {links.map((l, idx) => {
+        const showSection = !collapsed && l.section && (idx === 0 || links[idx - 1]?.section !== l.section);
+        return (
+          <React.Fragment key={l.path}>
+            {showSection && (
+              <div style={{
+                marginTop: idx > 0 ? "1rem" : "0",
+                marginBottom: "0.5rem",
+                padding: "0.5rem 0.5rem",
+                fontSize: "0.75rem",
+                fontWeight: 600,
+                color: "var(--text-color)",
+                opacity: 0.7,
+                textTransform: "uppercase",
+                letterSpacing: "0.05em"
+              }}>
+                {l.section}
+              </div>
+            )}
+            <Link to={l.path}
+              style={{
+                display:"flex",alignItems:"center",gap:"10px",
+                padding:"10px",borderRadius:"8px",
+                color:pathname===l.path?"#f97316":"var(--text-color)",
+                fontWeight:pathname===l.path?600:400,
+                marginLeft: l.section && !collapsed ? "0.5rem" : "0"
+              }}>
+              <span>{l.icon}</span>
+              {!collapsed && (
+                <span style={{display:"flex",alignItems:"center",gap:"6px"}}>
+                  {l.label}
+                  {l.path==="/chat" && unread>0 && (
+                    <span style={{background:"#ef4444",color:"#fff",padding:"1px 7px",borderRadius:"999px",fontSize:"11px"}}>
+                      {unread>99?"99+":unread}
+                    </span>
+                  )}
                 </span>
               )}
-            </span>
-          )}
-        </Link>
-      ))}
+            </Link>
+          </React.Fragment>
+        );
+      })}
     </aside>
   );
 }

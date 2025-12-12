@@ -92,6 +92,22 @@ import Notifications from "./pages/Notifications";
 import RegionalUserManagement from "./pages/regional/RegionalUserManagement";
 import RegionalReports from "./pages/regional/RegionalReports";
 import RegionalApprovals from "./pages/regional/RegionalApprovals";
+import RegionalHeatmap from "./pages/regional/RegionalHeatmap";
+import RegionalManagers from "./pages/regional/RegionalManagers";
+import RegionalOrders from "./pages/regional/RegionalOrders";
+import RegionalInvoices from "./pages/regional/RegionalInvoices";
+import RegionalPayments from "./pages/regional/RegionalPayments";
+import RegionalDocuments from "./pages/regional/RegionalDocuments";
+import RegionalPricing from "./pages/regional/RegionalPricing";
+import CampaignApprovals from "./pages/regional/CampaignApprovals";
+import RegionalCampaigns from "./pages/regional/RegionalCampaigns";
+import CampaignAnalytics from "./pages/regional/CampaignAnalytics";
+import TerritoryPerformance from "./pages/regional/TerritoryPerformance";
+import DealerPerformance from "./pages/regional/DealerPerformance";
+import OutstandingPayments from "./pages/regional/OutstandingPayments";
+import RegionalInventory from "./pages/regional/RegionalInventory";
+import StockAlerts from "./pages/regional/StockAlerts";
+import MaterialSummary from "./pages/regional/MaterialSummary";
 
 
 export default function App() {
@@ -523,6 +539,14 @@ export default function App() {
             {/* Regional Admin Pages */}
             <Route path="regional">
               <Route
+                path="heatmap"
+                element={
+                  <ProtectedRoute allowed={["regional_admin"]}>
+                    <RegionalHeatmap />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="users"
                 element={
                   <ProtectedRoute allowed={["regional_admin"]}>
@@ -531,13 +555,139 @@ export default function App() {
                 }
               />
               <Route
-                path="reports"
+                path="managers"
                 element={
                   <ProtectedRoute allowed={["regional_admin"]}>
-                    <RegionalReports />
+                    <RegionalManagers />
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="orders"
+                element={
+                  <ProtectedRoute allowed={["regional_admin"]}>
+                    <RegionalOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="invoices"
+                element={
+                  <ProtectedRoute allowed={["regional_admin"]}>
+                    <RegionalInvoices />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="payments"
+                element={
+                  <ProtectedRoute allowed={["regional_admin"]}>
+                    <RegionalPayments />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="documents"
+                element={
+                  <ProtectedRoute allowed={["regional_admin"]}>
+                    <RegionalDocuments />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="pricing"
+                element={
+                  <ProtectedRoute allowed={["regional_admin"]}>
+                    <RegionalPricing />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="campaign-approvals"
+                element={
+                  <ProtectedRoute allowed={["regional_admin"]}>
+                    <CampaignApprovals />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="campaigns">
+                <Route
+                  path=""
+                  element={
+                    <ProtectedRoute allowed={["regional_admin"]}>
+                      <RegionalCampaigns />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="analytics/:id"
+                  element={
+                    <ProtectedRoute allowed={["regional_admin"]}>
+                      <CampaignAnalytics />
+                    </ProtectedRoute>
+                  }
+                />
+              </Route>
+              <Route path="reports">
+                <Route
+                  path=""
+                  element={
+                    <ProtectedRoute allowed={["regional_admin"]}>
+                      <RegionalReports />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="territory"
+                  element={
+                    <ProtectedRoute allowed={["regional_admin"]}>
+                      <TerritoryPerformance />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="dealer"
+                  element={
+                    <ProtectedRoute allowed={["regional_admin"]}>
+                      <DealerPerformance />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="payments"
+                  element={
+                    <ProtectedRoute allowed={["regional_admin"]}>
+                      <OutstandingPayments />
+                    </ProtectedRoute>
+                  }
+                />
+              </Route>
+              <Route path="inventory">
+                <Route
+                  path=""
+                  element={
+                    <ProtectedRoute allowed={["regional_admin"]}>
+                      <RegionalInventory />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="alerts"
+                  element={
+                    <ProtectedRoute allowed={["regional_admin"]}>
+                      <StockAlerts />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="materials"
+                  element={
+                    <ProtectedRoute allowed={["regional_admin"]}>
+                      <MaterialSummary />
+                    </ProtectedRoute>
+                  }
+                />
+              </Route>
               <Route
                 path="approvals"
                 element={
