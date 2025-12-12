@@ -16,10 +16,20 @@ import { useAuth } from "../context/AuthContext";
 import { useApiCall } from "../hooks/useApiCall";
 import InvoiceApprovalCard from "../components/InvoiceApprovalCard";
 import PageHeader from "../components/PageHeader";
+import { WorkflowStatusBadge } from "../components/workflow";
+import { useWorkflow } from "../hooks/useWorkflow";
+import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
+
+// Helper component for workflow badge in table
+function InvoiceWorkflowBadge({ invoiceId }) {
+  const { workflow } = useWorkflow("invoice", invoiceId);
+  return <WorkflowStatusBadge workflow={workflow} entityType="invoice" />;
+}
 
 export default function Invoices() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const { get, loading } = useApiCall();
   const [invoices, setInvoices] = useState([]);
   const [searchQuery, setSearchQuery] = useState("");
@@ -184,6 +194,7 @@ export default function Invoices() {
                     <th style={{ padding: "12px", textAlign: "left" }}>Dealer</th>
                     <th style={{ padding: "12px", textAlign: "right" }}>Amount</th>
                     <th style={{ padding: "12px", textAlign: "center" }}>Status</th>
+                    <th style={{ padding: "12px", textAlign: "center" }}>Workflow</th>
                     <th style={{ padding: "12px", textAlign: "center" }}>Action</th>
                   </tr>
                 </thead>
@@ -196,6 +207,34 @@ export default function Invoices() {
                       </td>
                       <td style={{ padding: "12px" }}>
                         {invoice.dealer?.businessName || invoice.dealerName || "N/A"}
+                      </td>
+                      <td style={{ padding: "12px", textAlign: "right" }}>
+                        ₹{Number(invoice.totalAmount || invoice.amount || 0).toLocaleString()}
+                      </td>
+                      <td style={{ padding: "12px", textAlign: "center" }}>
+                        <Chip
+                          label={invoice.status?.toUpperCase() || "PENDING"}
+                          color={
+                            invoice.status === "approved"
+                              ? "success"
+                              : invoice.status === "rejected"
+                              ? "error"
+                              : "warning"
+                          }
+                          size="small"
+                        />
+                      </td>
+                      <td style={{ padding: "12px", textAlign: "center" }}>
+                        <InvoiceWorkflowBadge invoiceId={invoice.id} />
+                      </td>
+                      <td style={{ padding: "12px", textAlign: "center" }}>
+                        <Button 
+                          size="small" 
+                          variant="outlined"
+                          onClick={() => navigate(`/invoices/${invoice.id}`)}
+                        >
+                          View
+                        </Button>
                       </td>
                       <td style={{ padding: "12px", textAlign: "right", fontWeight: 600 }}>
                         ₹{Number(invoice.totalAmount || invoice.baseAmount || 0).toLocaleString()}

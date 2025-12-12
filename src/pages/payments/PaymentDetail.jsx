@@ -12,20 +12,20 @@ import {
   Alert,
 } from "@mui/material";
 import { ArrowLeft, Download } from "lucide-react";
-import { invoiceAPI } from "../services/api";
-import { useWorkflow } from "../hooks/useWorkflow";
+import { paymentAPI } from "../../services/api";
+import { useWorkflow } from "../../hooks/useWorkflow";
 import {
   WorkflowStatus,
   WorkflowTimeline,
   ApprovalActions,
   WorkflowProgressBar,
-} from "../components/workflow";
-import PageHeader from "../components/PageHeader";
+} from "../../components/workflow";
+import PageHeader from "../../components/PageHeader";
 
-export default function InvoiceDetail() {
+export default function PaymentDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
-  const [invoice, setInvoice] = useState(null);
+  const [payment, setPayment] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
@@ -35,28 +35,28 @@ export default function InvoiceDetail() {
     error: workflowError,
     approve,
     reject,
-  } = useWorkflow("invoice", id);
+  } = useWorkflow("payment", id);
 
-  // Fetch invoice details
+  // Fetch payment details
   useEffect(() => {
-    const fetchInvoice = async () => {
+    const fetchPayment = async () => {
       if (!id) return;
 
       setLoading(true);
       setError(null);
 
       try {
-        const response = await invoiceAPI.getInvoiceById(id);
-        setInvoice(response.invoice || response.data || response);
+        const response = await paymentAPI.getPaymentById(id);
+        setPayment(response.payment || response.data || response);
       } catch (err) {
-        console.error("Error fetching invoice:", err);
-        setError(err.response?.data?.error || err.message || "Failed to fetch invoice");
+        console.error("Error fetching payment:", err);
+        setError(err.response?.data?.error || err.message || "Failed to fetch payment");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchInvoice();
+    fetchPayment();
   }, [id]);
 
   // Handle approve
@@ -77,21 +77,20 @@ export default function InvoiceDetail() {
     }
   };
 
-  // Handle PDF download
-  const handleDownloadPDF = async () => {
+  // Handle proof file download
+  const handleDownloadProof = async () => {
     try {
-      const blob = await invoiceAPI.downloadInvoicePDF(id);
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `invoice-${invoice.invoiceNumber || id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
+      // Assuming there's a download endpoint for payment proof
+      const response = await paymentAPI.getPaymentById(id);
+      if (response.payment?.proofFile || response.proofFile) {
+        const fileUrl = response.payment?.proofFile || response.proofFile;
+        window.open(fileUrl, "_blank");
+      } else {
+        alert("Proof file not available");
+      }
     } catch (err) {
-      console.error("Error downloading PDF:", err);
-      alert("Failed to download PDF");
+      console.error("Error downloading proof:", err);
+      alert("Failed to download proof file");
     }
   };
 
@@ -103,16 +102,16 @@ export default function InvoiceDetail() {
     );
   }
 
-  if (error || !invoice) {
+  if (error || !payment) {
     return (
       <Box sx={{ p: 3 }}>
-        <Alert severity="error">{error || "Invoice not found"}</Alert>
+        <Alert severity="error">{error || "Payment not found"}</Alert>
         <Button
           startIcon={<ArrowLeft />}
-          onClick={() => navigate("/invoices")}
+          onClick={() => navigate("/payments/finance/pending")}
           sx={{ mt: 2 }}
         >
-          Back to Invoices
+          Back to Payments
         </Button>
       </Box>
     );
@@ -135,24 +134,26 @@ export default function InvoiceDetail() {
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
-        title={`Invoice ${invoice.invoiceNumber || invoice.id}`}
-        subtitle="View invoice details and approval workflow"
+        title={`Payment Request ${payment.paymentNumber || payment.id}`}
+        subtitle="View payment request details and approval workflow"
       />
 
       <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
         <Button
           startIcon={<ArrowLeft />}
-          onClick={() => navigate("/invoices")}
+          onClick={() => navigate("/payments/finance/pending")}
         >
-          Back to Invoices
+          Back to Payments
         </Button>
-        <Button
-          variant="outlined"
-          startIcon={<Download />}
-          onClick={handleDownloadPDF}
-        >
-          Download PDF
-        </Button>
+        {payment.proofFile && (
+          <Button
+            variant="outlined"
+            startIcon={<Download />}
+            onClick={handleDownloadProof}
+          >
+            Download Proof
+          </Button>
+        )}
       </Box>
 
       {workflowError && (
@@ -162,21 +163,21 @@ export default function InvoiceDetail() {
       )}
 
       <Grid container spacing={3}>
-        {/* Invoice Information */}
+        {/* Payment Information */}
         <Grid item xs={12} md={8}>
           <Card sx={{ mb: 3 }}>
             <CardContent>
               <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                Invoice Information
+                Payment Request Information
               </Typography>
 
               <Grid container spacing={2}>
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    Invoice Number
+                    Payment Number
                   </Typography>
                   <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {invoice.invoiceNumber || invoice.id}
+                    {payment.paymentNumber || payment.id}
                   </Typography>
                 </Grid>
 
@@ -185,11 +186,11 @@ export default function InvoiceDetail() {
                     Status
                   </Typography>
                   <Chip
-                    label={invoice.status?.toUpperCase() || "PENDING"}
+                    label={payment.status?.toUpperCase() || "PENDING"}
                     color={
-                      invoice.status === "approved"
+                      payment.status === "approved"
                         ? "success"
-                        : invoice.status === "rejected"
+                        : payment.status === "rejected"
                         ? "error"
                         : "warning"
                     }
@@ -202,81 +203,66 @@ export default function InvoiceDetail() {
                     Dealer
                   </Typography>
                   <Typography variant="body1">
-                    {invoice.dealer?.name || invoice.dealerName || "N/A"}
+                    {payment.dealer?.name || payment.dealerName || "N/A"}
                   </Typography>
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    Order Number
+                    Invoice Number
                   </Typography>
                   <Typography variant="body1">
-                    {invoice.orderNumber || invoice.order?.orderNumber || "N/A"}
+                    {payment.invoiceNumber || payment.invoice?.invoiceNumber || "N/A"}
                   </Typography>
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    Invoice Date
+                    Request Date
                   </Typography>
-                  <Typography variant="body1">{formatDate(invoice.invoiceDate || invoice.createdAt)}</Typography>
+                  <Typography variant="body1">{formatDate(payment.requestDate || payment.createdAt)}</Typography>
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
                   <Typography variant="body2" color="text.secondary">
-                    Due Date
-                  </Typography>
-                  <Typography variant="body1">{formatDate(invoice.dueDate)}</Typography>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Amount
+                    Payment Amount
                   </Typography>
                   <Typography variant="h6" sx={{ fontWeight: 600, color: "primary.main" }}>
-                    {formatCurrency(invoice.totalAmount || invoice.amount)}
+                    {formatCurrency(payment.amount || payment.paymentAmount)}
                   </Typography>
                 </Grid>
 
-                {invoice.paidAmount && (
+                {payment.paymentMethod && (
                   <Grid item xs={12} sm={6}>
                     <Typography variant="body2" color="text.secondary">
-                      Paid Amount
+                      Payment Method
                     </Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 600, color: "success.main" }}>
-                      {formatCurrency(invoice.paidAmount)}
+                    <Typography variant="body1">{payment.paymentMethod}</Typography>
+                  </Grid>
+                )}
+
+                {payment.transactionId && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Transaction ID
+                    </Typography>
+                    <Typography variant="body1" sx={{ fontFamily: "monospace" }}>
+                      {payment.transactionId}
                     </Typography>
                   </Grid>
                 )}
 
-                {invoice.outstandingAmount && (
-                  <Grid item xs={12} sm={6}>
+                {payment.remarks && (
+                  <Grid item xs={12}>
                     <Typography variant="body2" color="text.secondary">
-                      Outstanding Amount
+                      Remarks
                     </Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 600, color: "error.main" }}>
-                      {formatCurrency(invoice.outstandingAmount)}
-                    </Typography>
+                    <Typography variant="body1">{payment.remarks}</Typography>
                   </Grid>
                 )}
               </Grid>
             </CardContent>
           </Card>
-
-          {/* Payment History */}
-          {invoice.payments && invoice.payments.length > 0 && (
-            <Card>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                  Payment History
-                </Typography>
-                {/* Payment history table can be added here */}
-                <Typography variant="body2" color="text.secondary">
-                  {invoice.payments.length} payment(s) recorded
-                </Typography>
-              </CardContent>
-            </Card>
-          )}
         </Grid>
 
         {/* Workflow Section */}
@@ -287,7 +273,7 @@ export default function InvoiceDetail() {
           {/* Workflow Status */}
           {workflow && (
             <Box sx={{ mt: 3 }}>
-              <WorkflowStatus workflow={workflow} entityType="invoice" />
+              <WorkflowStatus workflow={workflow} entityType="payment" />
             </Box>
           )}
 
@@ -296,7 +282,7 @@ export default function InvoiceDetail() {
             <Box sx={{ mt: 3 }}>
               <ApprovalActions
                 workflow={workflow}
-                entityType="invoice"
+                entityType="payment"
                 entityId={id}
                 onApprove={handleApprove}
                 onReject={handleReject}

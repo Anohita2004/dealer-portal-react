@@ -44,9 +44,9 @@ export default function Dashboard() {
     technical_admin: <TechnicalAdminDashboard />,
     regional_admin: <RegionalAdminDashboard />,
     finance_admin: <FinanceAdminDashboard />,
-    regional_manager: <ManagerDashboard />, // All managers use ManagerDashboard
-    area_manager: <ManagerDashboard />,
-    territory_manager: <ManagerDashboard />,
+    regional_manager: <RegionalManagerDashboard />,
+    area_manager: <AreaManagerDashboard />,
+    territory_manager: <TerritoryManagerDashboard />,
     dealer_admin: <DealerDashboard />,
     dealer_staff: <DealerStaffDashboard />,
     inventory_user: <InventoryDashboard />,

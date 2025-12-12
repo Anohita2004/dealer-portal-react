@@ -1,188 +1,621 @@
-import React, { useEffect, useState } from "react";
-import api, { dashboardAPI } from "../../services/api";
+import React, { useEffect, useState, useCallback } from "react";
+import api, { dashboardAPI, reportAPI, geoAPI } from "../../services/api";
 import Chart from "react-apexcharts";
+import TimeFilter from "../../components/dashboard/TimeFilter";
+import TrendLineChart from "../../components/dashboard/TrendLineChart";
+import ComparisonWidget from "../../components/dashboard/ComparisonWidget";
+import PerformanceRanking from "../../components/dashboard/PerformanceRanking";
+import Card from "../../components/Card";
+import { MapPin, TrendingUp, BarChart3 } from "lucide-react";
 
 export default function SuperAdminDashboard() {
   const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState("30d");
   const [stats, setStats] = useState({
     kpis: {},
+    previousKpis: {},
     charts: {
       userGrowth: [],
       docsPerMonth: [],
-      
       pricingTrend: [],
       dealerDistribution: [],
+      regionComparison: [],
+      salesTrend: [],
     },
-    recentActivity: []
+    recentActivity: [],
+    regionRanking: [],
+    dealerRanking: [],
+    heatmapData: [],
   });
 
-  useEffect(() => {
-    async function load() {
-      try {
-        // Use dashboardAPI method
-        const data = await dashboardAPI.getSuperAdminDashboard();
-        
-        console.log("Super Admin Dashboard API Response:", data);
-        
-        // Handle different response formats
-        if (data.kpis && data.charts) {
-          // Old format with kpis and charts
-          setStats(data);
-        } else {
-          // New format from /reports/dashboard/super
-          // Map actual API response to expected structure
-          setStats({
-            kpis: {
-              totalUsers: data.totalUsers || data.users || 0,
-              totalRoles: data.totalRoles || data.roles || 0,
-              totalDealers: data.totalDealers || 0,
-              totalDocuments: data.totalDocuments || data.documents || 0,
-              totalPricingUpdates: data.totalPricingUpdates || data.pricingUpdates || 0,
-              pendingDocuments: data.pendingDocuments || 0,
-              approvedDocuments: data.approvedDocuments || 0,
-              rejectedDocuments: data.rejectedDocuments || 0,
-              pendingPricing: data.pendingPricing || 0,
-              approvedPricing: data.approvedPricing || 0,
-              rejectedPricing: data.rejectedPricing || 0,
-              // Also include fields from actual API response
-              totalInvoices: data.totalInvoices || 0,
-              totalOutstanding: data.totalOutstanding || 0,
-              totalApprovalsPending: data.totalApprovalsPending || 0,
-              activeCampaigns: data.activeCampaigns || 0,
-            },
-            charts: {
-              userGrowth: data.userGrowth || data.monthlyGrowth || [],
-              docsPerMonth: data.docsPerMonth || [],
-              pricingTrend: data.pricingTrend || [],
-              dealerDistribution: data.dealerDistribution || 
-                (data.regions && Array.isArray(data.regions) 
-                  ? data.regions.map(r => ({ 
-                      region: r.name || r.regionName || r.id, 
-                      count: r.dealerCount || r.totalDealers || 0 
-                    }))
-                  : []),
-            },
-            recentActivity: data.recentActivity || [],
-          });
-        }
-      } catch (e) {
-        console.error("Failed to load dashboard:", e);
-        console.error("Error details:", e.response?.data || e.message);
-        
-        // Fallback to old endpoint if new one fails
-        try {
-          const fallbackData = await dashboardAPI.getSuperAdminKPI();
-          console.log("Fallback API Response:", fallbackData);
-          
-          if (fallbackData && (fallbackData.kpis || fallbackData.totalDealers)) {
-            setStats(fallbackData.kpis ? fallbackData : {
-              kpis: {
-                totalUsers: fallbackData.totalUsers || 0,
-                totalRoles: fallbackData.totalRoles || 0,
-                totalDealers: fallbackData.totalDealers || 0,
-                totalDocuments: fallbackData.totalDocuments || 0,
-                totalPricingUpdates: fallbackData.totalPricingUpdates || 0,
-                pendingDocuments: fallbackData.pendingDocuments || 0,
-                approvedDocuments: fallbackData.approvedDocuments || 0,
-                rejectedDocuments: fallbackData.rejectedDocuments || 0,
-                pendingPricing: fallbackData.pendingPricing || 0,
-                approvedPricing: fallbackData.approvedPricing || 0,
-                rejectedPricing: fallbackData.rejectedPricing || 0,
-              },
-              charts: {
-                userGrowth: fallbackData.userGrowth || [],
-                docsPerMonth: fallbackData.docsPerMonth || [],
-                pricingTrend: fallbackData.pricingTrend || [],
-                dealerDistribution: fallbackData.dealerDistribution || [],
-              },
-              recentActivity: fallbackData.recentActivity || [],
-            });
-          } else {
-            throw new Error("Fallback also returned invalid data");
-          }
-        } catch (fallbackError) {
-          console.error("Fallback endpoint also failed:", fallbackError);
-          // Set empty stats to prevent errors
-          setStats({ 
-            kpis: {}, 
-            charts: { 
-              userGrowth: [], 
-              docsPerMonth: [], 
-              pricingTrend: [], 
-              dealerDistribution: [] 
-            }, 
-            recentActivity: [] 
-          });
-        }
-      } finally {
-        setLoading(false);
-      }
+  // Helper functions to extract chart data
+  function extractSalesTrend(regions, dashboardData) {
+    // Try to get from dashboard data first
+    if (dashboardData && (dashboardData.salesTrend || dashboardData.monthlySales)) {
+      return dashboardData.salesTrend || dashboardData.monthlySales;
     }
-    load();
-  }, []);
+    
+    // Extract from regional sales data
+    if (!regions) return [];
+    
+    let regionList = [];
+    if (Array.isArray(regions)) {
+      regionList = regions;
+    } else if (regions && typeof regions === 'object') {
+      regionList = Array.isArray(regions.regions) ? regions.regions : 
+                   Array.isArray(regions.data) ? regions.data : [];
+    }
+    
+    if (!Array.isArray(regionList) || regionList.length === 0) return [];
+    
+    const monthlySales = {};
+    
+    regionList.forEach(region => {
+      if (region.monthlySales && Array.isArray(region.monthlySales)) {
+        region.monthlySales.forEach(item => {
+          const month = item.month || item.label || item.date;
+          if (!monthlySales[month]) {
+            monthlySales[month] = { month, sales: 0, orders: 0 };
+          }
+          monthlySales[month].sales += item.sales || item.totalSales || 0;
+          monthlySales[month].orders += item.orders || 0;
+        });
+      }
+      
+      // Also check territories and dealers for monthly data
+      if (region.territories && Array.isArray(region.territories)) {
+        region.territories.forEach(territory => {
+          if (territory.monthlySales && Array.isArray(territory.monthlySales)) {
+            territory.monthlySales.forEach(item => {
+              const month = item.month || item.label || item.date;
+              if (!monthlySales[month]) {
+                monthlySales[month] = { month, sales: 0, orders: 0 };
+              }
+              monthlySales[month].sales += item.sales || item.totalSales || 0;
+              monthlySales[month].orders += item.orders || 0;
+            });
+          }
+        });
+      }
+    });
+    
+    return Object.values(monthlySales).sort((a, b) => {
+      const dateA = new Date(a.month);
+      const dateB = new Date(b.month);
+      return dateA - dateB;
+    });
+  }
 
-  if (loading) return <p>Loading dashboard...</p>;
+  function extractUserGrowth(dashboardData, adminSummary) {
+    if (dashboardData.userGrowth || dashboardData.monthlyGrowth) {
+      return dashboardData.userGrowth || dashboardData.monthlyGrowth;
+    }
+    
+    if (adminSummary && adminSummary.userGrowth) {
+      return adminSummary.userGrowth;
+    }
+    
+    // Generate placeholder if no data available
+    return [];
+  }
+
+  function extractDocsPerMonth(dashboardData, adminSummary) {
+    if (dashboardData.docsPerMonth) {
+      return dashboardData.docsPerMonth;
+    }
+    
+    if (adminSummary && adminSummary.docsPerMonth) {
+      return adminSummary.docsPerMonth;
+    }
+    
+    if (adminSummary && adminSummary.documentsByMonth) {
+      return adminSummary.documentsByMonth;
+    }
+    
+    return [];
+  }
+
+  function extractPricingTrend(dashboardData, adminSummary) {
+    if (dashboardData.pricingTrend) {
+      return dashboardData.pricingTrend;
+    }
+    
+    if (adminSummary && adminSummary.pricingTrend) {
+      return adminSummary.pricingTrend;
+    }
+    
+    if (adminSummary && adminSummary.pricingUpdatesByMonth) {
+      return adminSummary.pricingUpdatesByMonth;
+    }
+    
+    return [];
+  }
+
+  function extractDealerDistribution(regions) {
+    if (!regions) return [];
+    
+    let regionList = [];
+    if (Array.isArray(regions)) {
+      regionList = regions;
+    } else if (regions && typeof regions === 'object') {
+      regionList = Array.isArray(regions.regions) ? regions.regions : 
+                   Array.isArray(regions.data) ? regions.data : [];
+    }
+    
+    if (!Array.isArray(regionList)) return [];
+    
+    return regionList.map(r => ({
+      region: r.name || r.regionName || r.id,
+      count: r.dealerCount || r.totalDealers || 0
+    }));
+  }
+
+  function extractTopDealers(regions) {
+    if (!regions) return [];
+    
+    let regionList = [];
+    if (Array.isArray(regions)) {
+      regionList = regions;
+    } else if (regions && typeof regions === 'object') {
+      regionList = Array.isArray(regions.regions) ? regions.regions : 
+                   Array.isArray(regions.data) ? regions.data : [];
+    }
+    
+    if (!Array.isArray(regionList)) return [];
+    
+    const allDealers = [];
+    
+    regionList.forEach(region => {
+      if (region.territories && Array.isArray(region.territories)) {
+        region.territories.forEach(territory => {
+          if (territory.dealers && Array.isArray(territory.dealers)) {
+            allDealers.push(...territory.dealers);
+          }
+        });
+      }
+      
+      if (region.dealers && Array.isArray(region.dealers)) {
+        allDealers.push(...region.dealers);
+      }
+    });
+    
+    return allDealers
+      .sort((a, b) => (b.totalSales || b.sales || 0) - (a.totalSales || a.sales || 0))
+      .slice(0, 10);
+  }
+
+  function calculateTotalSales(regions) {
+    if (!regions) return 0;
+    
+    let regionList = [];
+    if (Array.isArray(regions)) {
+      regionList = regions;
+    } else if (regions && typeof regions === 'object') {
+      regionList = Array.isArray(regions.regions) ? regions.regions : 
+                   Array.isArray(regions.data) ? regions.data : [];
+    }
+    
+    if (!Array.isArray(regionList)) return 0;
+    
+    return regionList.reduce((sum, r) => sum + (r.totalSales || r.sales || 0), 0);
+  }
+
+  const loadData = useCallback(async () => {
+    setLoading(true);
+    try {
+      const params = getTimeRangeParams(timeRange);
+      
+      // Fetch data from available endpoints
+      const [dashboardData, regionData, adminSummaryData, heatmapData] = await Promise.allSettled([
+        dashboardAPI.getSuperAdminDashboard(params),
+        reportAPI.getRegionalSales(params).catch(() => null),
+        reportAPI.getAdminSummary(params).catch(() => null),
+        geoAPI.getHeatmapData({ granularity: "region", ...params }).catch(() => null),
+      ]);
+
+      const data = dashboardData.status === 'fulfilled' ? dashboardData.value : {};
+      const regions = regionData.status === 'fulfilled' ? regionData.value : null;
+      const adminSummary = adminSummaryData.status === 'fulfilled' ? adminSummaryData.value : null;
+      const heatmap = heatmapData.status === 'fulfilled' ? heatmapData.value : [];
+
+      // Calculate previous period for comparison
+      const prevParams = getTimeRangeParams(timeRange, true);
+      const [prevDashboardData] = await Promise.allSettled([
+        dashboardAPI.getSuperAdminDashboard(prevParams).catch(() => ({})),
+      ]);
+      const prevData = prevDashboardData.status === 'fulfilled' ? prevDashboardData.value : {};
+
+      // Extract sales trend from regional sales data
+      let salesTrendData = [];
+      try {
+        salesTrendData = typeof extractSalesTrend === 'function' 
+          ? extractSalesTrend(regions, data) 
+          : [];
+      } catch (e) {
+        console.warn('Error extracting sales trend:', e);
+        salesTrendData = [];
+      }
+      
+      // Extract user growth data
+      let userGrowthData = [];
+      try {
+        userGrowthData = typeof extractUserGrowth === 'function'
+          ? extractUserGrowth(data, adminSummary)
+          : [];
+      } catch (e) {
+        console.warn('Error extracting user growth:', e);
+        userGrowthData = [];
+      }
+      
+      // Extract documents per month
+      let docsPerMonthData = [];
+      try {
+        docsPerMonthData = typeof extractDocsPerMonth === 'function'
+          ? extractDocsPerMonth(data, adminSummary)
+          : [];
+      } catch (e) {
+        console.warn('Error extracting docs per month:', e);
+        docsPerMonthData = [];
+      }
+      
+      // Extract pricing trend
+      let pricingTrendData = [];
+      try {
+        pricingTrendData = typeof extractPricingTrend === 'function'
+          ? extractPricingTrend(data, adminSummary)
+          : [];
+      } catch (e) {
+        console.warn('Error extracting pricing trend:', e);
+        pricingTrendData = [];
+      }
+
+      // Map current stats - all data should come from the main dashboard endpoint
+      const mappedStats = {
+        kpis: {
+          totalDealers: data.totalDealers || data.dealers || 0,
+          totalInvoices: data.totalInvoices || 0,
+          totalOutstanding: data.totalOutstanding || 0,
+          totalApprovalsPending: data.totalApprovalsPending || data.approvalsPending || 0,
+          activeCampaigns: data.activeCampaigns || 0,
+          totalUsers: data.totalUsers || data.users || 0,
+          totalRoles: data.totalRoles || data.roles || 0,
+          totalDocuments: data.totalDocuments || data.documents || 0,
+          totalPricingUpdates: data.totalPricingUpdates || data.pricingUpdates || 0,
+          totalSales: data.totalSales || (regions && typeof calculateTotalSales === 'function' ? calculateTotalSales(regions) : 0) || 0,
+          totalOrders: data.totalOrders || 0,
+          totalPayments: data.totalPayments || 0,
+        },
+        previousKpis: {
+          totalDealers: prevData.totalDealers || prevData.dealers || 0,
+          totalInvoices: prevData.totalInvoices || 0,
+          totalOutstanding: prevData.totalOutstanding || 0,
+          totalApprovalsPending: prevData.totalApprovalsPending || prevData.approvalsPending || 0,
+          totalSales: prevData.totalSales || 0,
+          totalOrders: prevData.totalOrders || 0,
+        },
+        charts: {
+          userGrowth: formatChartData(userGrowthData),
+          docsPerMonth: formatChartData(docsPerMonthData),
+          pricingTrend: formatChartData(pricingTrendData),
+          dealerDistribution: data.dealerDistribution || 
+            (data.regions && Array.isArray(data.regions) 
+              ? data.regions.map(r => ({ 
+                  region: r.name || r.regionName || r.id, 
+                  count: r.dealerCount || r.totalDealers || 0 
+                }))
+              : []) || 
+            (regions && typeof extractDealerDistribution === 'function' ? extractDealerDistribution(regions) : []) || [],
+          regionComparison: typeof formatRegionComparison === 'function' ? formatRegionComparison(regions) : [],
+          salesTrend: formatChartData(salesTrendData),
+        },
+        recentActivity: data.recentActivity || [],
+        regionRanking: typeof formatRegionRanking === 'function' ? formatRegionRanking(regions) : [],
+        dealerRanking: formatDealerRanking(
+          data.topDealers || 
+          (regions && typeof extractTopDealers === 'function' ? extractTopDealers(regions) : [])
+        ),
+        heatmapData: heatmap || [],
+      };
+      
+      setStats(mappedStats);
+    } catch (e) {
+      console.error("Failed to load dashboard:", e);
+      setStats({ 
+        kpis: {}, 
+        previousKpis: {},
+        charts: { 
+          userGrowth: [], 
+          docsPerMonth: [], 
+          pricingTrend: [], 
+          dealerDistribution: [],
+          regionComparison: [],
+          salesTrend: [],
+        }, 
+        recentActivity: [],
+        regionRanking: [],
+        dealerRanking: [],
+        heatmapData: [],
+      });
+    } finally {
+      setLoading(false);
+    }
+  }, [timeRange]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  // Helper functions
+  function getTimeRangeParams(range, previous = false) {
+    const now = new Date();
+    let startDate, endDate;
+
+    if (typeof range === 'object' && range.type === 'custom') {
+      startDate = range.startDate;
+      endDate = range.endDate;
+    } else {
+      const days = range === '7d' ? 7 : range === '30d' ? 30 : range === '90d' ? 90 : range === '6m' ? 180 : 365;
+      endDate = new Date(now);
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - days);
+    }
+
+    if (previous) {
+      const diff = endDate - startDate;
+      endDate = new Date(startDate);
+      startDate = new Date(startDate.getTime() - diff);
+    }
+
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    };
+  }
+
+  function formatChartData(data) {
+    if (!Array.isArray(data)) return [];
+    return data.map(item => ({
+      label: item.month || item.label || item.date || '',
+      value: item.count || item.value || 0,
+      sales: item.sales || 0,
+      orders: item.orders || 0,
+    }));
+  }
+
+  function formatRegionComparison(regions) {
+    if (!regions) return [];
+    
+    let regionList = [];
+    if (Array.isArray(regions)) {
+      regionList = regions;
+    } else if (regions && typeof regions === 'object') {
+      regionList = Array.isArray(regions.regions) ? regions.regions : 
+                   Array.isArray(regions.data) ? regions.data : [];
+    }
+    
+    if (!Array.isArray(regionList)) return [];
+    
+    return regionList.map(r => ({
+      name: r.name || r.regionName || r.id,
+      sales: r.totalSales || r.sales || 0,
+      dealers: r.dealerCount || r.totalDealers || 0,
+      outstanding: r.totalOutstanding || 0,
+    }));
+  }
+
+  function formatRegionRanking(regions) {
+    if (!regions) return [];
+    
+    let regionList = [];
+    if (Array.isArray(regions)) {
+      regionList = regions;
+    } else if (regions && typeof regions === 'object') {
+      regionList = Array.isArray(regions.regions) ? regions.regions : 
+                   Array.isArray(regions.data) ? regions.data : [];
+    }
+    
+    if (!Array.isArray(regionList)) return [];
+    
+    return regionList
+      .map(r => ({
+        id: r.id,
+        name: r.name || r.regionName || r.id,
+        value: r.totalSales || r.sales || 0,
+        change: r.growth || 0,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }
+
+  function formatDealerRanking(dealers) {
+    if (!Array.isArray(dealers)) return [];
+    return dealers
+      .map(d => ({
+        id: d.id,
+        name: d.businessName || d.dealerName || d.name,
+        value: d.totalSales || d.sales || 0,
+        change: d.growth || 0,
+      }))
+      .sort((a, b) => b.value - a.value);
+  }
+
+  if (loading) {
+    return (
+      <div style={{ padding: "2rem", textAlign: "center" }}>
+        <p>Loading dashboard...</p>
+      </div>
+    );
+  }
 
   const k = stats.kpis || {};
-  const c = stats.charts || { userGrowth: [], docsPerMonth: [], pricingTrend: [], dealerDistribution: [] };
+  const pk = stats.previousKpis || {};
+  const c = stats.charts || {};
 
   // Calculate additional metrics
   const totalSales = k.totalSales || 0;
   const totalOrders = k.totalOrders || 0;
-  const totalPayments = k.totalPayments || 0;
   const avgOrderValue = totalOrders > 0 ? totalSales / totalOrders : 0;
   const collectionRate = totalSales > 0 ? ((totalSales - (k.totalOutstanding || 0)) / totalSales * 100) : 0;
 
   return (
     <div style={{ padding: "2rem" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem" }}>
-        <h1 style={{ fontSize: "2rem", fontWeight: 700, margin: 0 }}>
-          Super Admin Dashboard
-        </h1>
-        <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.875rem", opacity: 0.7 }}>
-          <span>Viewing: All Data</span>
+      {/* HEADER WITH TIME FILTER */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+        <div>
+          <h1 style={{ fontSize: "2rem", fontWeight: 700, margin: 0, marginBottom: "0.5rem" }}>
+            Super Admin Dashboard
+          </h1>
+          <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.875rem", opacity: 0.7 }}>
+            <span>Viewing: All Data</span>
+          </div>
         </div>
+        <TimeFilter value={timeRange} onChange={setTimeRange} />
+      </div>
+
+      {/* COMPARISON WIDGETS */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: "1.5rem",
+          marginBottom: "2rem",
+        }}
+      >
+        <ComparisonWidget
+          title="Total Sales"
+          current={totalSales}
+          previous={pk.totalSales || 0}
+          formatValue={(v) => v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
+          color="#10b981"
+        />
+        <ComparisonWidget
+          title="Total Dealers"
+          current={k.totalDealers || 0}
+          previous={pk.totalDealers || 0}
+          formatValue={(v) => v.toLocaleString()}
+          color="#3b82f6"
+        />
+        <ComparisonWidget
+          title="Total Orders"
+          current={totalOrders}
+          previous={pk.totalOrders || 0}
+          formatValue={(v) => v.toLocaleString()}
+          color="#6366f1"
+        />
+        <ComparisonWidget
+          title="Outstanding Amount"
+          current={k.totalOutstanding || 0}
+          previous={pk.totalOutstanding || 0}
+          formatValue={(v) => v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
+          color="#ef4444"
+        />
       </div>
 
       {/* KPI GRID */}
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))",
-          gap: "1.5rem",
+          gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+          gap: "1rem",
           marginBottom: "2rem",
         }}
       >
-        {/* Primary KPIs from API */}
-        {/* Primary Business KPIs */}
-        <KPI title="Total Dealers" value={k.totalDealers || 0} color="#10b981" />
         <KPI title="Total Invoices" value={k.totalInvoices || 0} color="#3b82f6" />
-        <KPI title="Total Outstanding" value={k.totalOutstanding ? `₹${(k.totalOutstanding / 10000000).toFixed(1)}Cr` : "₹0"} color="#ef4444" />
         <KPI title="Pending Approvals" value={k.totalApprovalsPending || 0} color="#eab308" />
         <KPI title="Active Campaigns" value={k.activeCampaigns || 0} color="#8b5cf6" />
-        <KPI title="Total Sales" value={totalSales ? `₹${(totalSales / 10000000).toFixed(1)}Cr` : "₹0"} color="#10b981" />
-        <KPI title="Total Orders" value={totalOrders || 0} color="#3b82f6" />
         <KPI title="Collection Rate" value={`${collectionRate.toFixed(1)}%`} color={collectionRate > 80 ? "#22c55e" : collectionRate > 60 ? "#eab308" : "#ef4444"} />
         <KPI title="Avg Order Value" value={avgOrderValue ? `₹${(avgOrderValue / 1000).toFixed(1)}K` : "₹0"} color="#6366f1" />
-        
-        {/* User & System KPIs */}
         <KPI title="Total Users" value={k.totalUsers || 0} color="#3b82f6" />
-        <KPI title="Total Roles" value={k.totalRoles || 0} color="#8b5cf6" />
-        <KPI title="Documents" value={k.totalDocuments || 0} color="#f59e0b" />
-        <KPI title="Pricing Updates" value={k.totalPricingUpdates || 0} color="#ef4444" />
-
-        {/* Document Status */}
-        <KPI title="Pending Docs" value={k.pendingDocuments || 0} color="#eab308" />
-        <KPI title="Approved Docs" value={k.approvedDocuments || 0} color="#22c55e" />
-        <KPI title="Rejected Docs" value={k.rejectedDocuments || 0} color="#dc2626" />
-
-        {/* Pricing Status */}
-        <KPI title="Pending Pricing" value={k.pendingPricing || 0} color="#eab308" />
-        <KPI title="Approved Pricing" value={k.approvedPricing || 0} color="#22c55e" />
-        <KPI title="Rejected Pricing" value={k.rejectedPricing || 0} color="#dc2626" />
       </div>
 
-      {/* CHARTS GRID */}
+      {/* TREND CHARTS AND RANKINGS */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr",
+          gap: "2rem",
+          marginBottom: "2rem",
+        }}
+      >
+        {/* LEFT: TREND CHARTS */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          <Card title="Sales Trend">
+            <TrendLineChart
+              data={c.salesTrend || []}
+              dataKeys={["value", "orders"]}
+              colors={["#10b981", "#3b82f6"]}
+              height={300}
+              formatValue={(v) => `₹${(v / 1000).toFixed(0)}K`}
+            />
+          </Card>
+
+          <Card title="User Growth Trend">
+            <TrendLineChart
+              data={c.userGrowth || []}
+              dataKeys={["value"]}
+              colors={["#3b82f6"]}
+              height={250}
+            />
+          </Card>
+
+          <Card title="Region Comparison">
+            {c.regionComparison && c.regionComparison.length > 0 ? (
+              <div style={{ width: "100%", height: 300 }}>
+                <Chart
+                  type="bar"
+                  height={300}
+                  series={[
+                    {
+                      name: "Sales",
+                      data: c.regionComparison.map((r) => r.sales || 0),
+                    },
+                  ]}
+                  options={{
+                    chart: { toolbar: { show: false } },
+                    colors: ["#3b82f6"],
+                    xaxis: { categories: c.regionComparison.map((r) => r.name) },
+                    dataLabels: { enabled: false },
+                  }}
+                />
+              </div>
+            ) : (
+              <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>
+                No region comparison data available
+              </div>
+            )}
+          </Card>
+        </div>
+
+        {/* RIGHT: RANKINGS */}
+        <div style={{ display: "flex", flexDirection: "column", gap: "1.5rem" }}>
+          <Card title="Top Regions by Sales">
+            <PerformanceRanking
+              data={stats.regionRanking || []}
+              nameKey="name"
+              valueKey="value"
+              changeKey="change"
+              formatValue={(v) => `₹${(v / 1000000).toFixed(1)}M`}
+              showChange={true}
+              maxItems={10}
+              color="#3b82f6"
+            />
+          </Card>
+
+          <Card title="Top Dealers by Sales">
+            <PerformanceRanking
+              data={stats.dealerRanking || []}
+              nameKey="name"
+              valueKey="value"
+              changeKey="change"
+              formatValue={(v) => `₹${(v / 100000).toFixed(1)}L`}
+              showChange={true}
+              maxItems={10}
+              color="#10b981"
+            />
+          </Card>
+        </div>
+      </div>
+
+      {/* HEATMAP AND ADDITIONAL CHARTS */}
       <div
         style={{
           display: "grid",
@@ -191,110 +624,57 @@ export default function SuperAdminDashboard() {
           marginBottom: "2rem",
         }}
       >
-        {/* User Growth */}
-        <ChartCard title="User Growth (Last 12 Months)">
-          <Chart
-            type="line"
+        <Card title="Dealer Distribution by Region">
+          {c.dealerDistribution && c.dealerDistribution.length > 0 ? (
+            <Chart
+              type="pie"
+              height={300}
+              series={c.dealerDistribution.map((d) => Number(d.count || d.value || 0))}
+              options={{
+                labels: c.dealerDistribution.map((d) => d.region || d.label || "Unknown"),
+                colors: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#6366f1"],
+                legend: { position: "bottom" },
+              }}
+            />
+          ) : (
+            <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>
+              No dealer distribution data available
+            </div>
+          )}
+        </Card>
+
+        <Card title="Documents Per Month">
+          <TrendLineChart
+            data={c.docsPerMonth || []}
+            dataKeys={["value"]}
+            colors={["#f59e0b"]}
             height={300}
-            series={[
-              {
-                name: "Users",
-                data: (c.userGrowth || []).map((x) => x.count || 0),
-              },
-            ]}
-            options={{
-              chart: { toolbar: { show: false } },
-              colors: ["#3b82f6"],
-              xaxis: { categories: (c.userGrowth || []).map((x) => x.month || "") },
-            }}
+            showArea={true}
           />
-        </ChartCard>
-
-        {/* Dealer Region Distribution */}
-   <ChartCard title="Dealer Distribution by Region">
-  <Chart
-    type="pie"
-    height={300}
-    series={(c.dealerDistribution || []).map((d) => Number(d.count))}
-    options={{
-      labels: (c.dealerDistribution || []).map(
-        (d) => d.region || "Unknown"
-      ),
-      colors: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#6366f1"],
-      legend: { position: "bottom" },
-    }}
-  />
-</ChartCard>
-
-
-
-
-
-        {/* Documents Per Month */}
-        <ChartCard title="Documents Per Month">
-          <Chart
-            type="bar"
-            height={300}
-            series={[
-              {
-                name: "Documents",
-                data: (c.docsPerMonth || []).map((x) => x.count || 0),
-              },
-            ]}
-            options={{
-              xaxis: { categories: (c.docsPerMonth || []).map((x) => x.month || "") },
-              colors: ["#f59e0b"],
-            }}
-          />
-        </ChartCard>
-
-        {/* Pricing Trend */}
-        <ChartCard title="Pricing Update Trend">
-          <Chart
-            type="area"
-            height={300}
-            series={[
-              {
-                name: "Pricing Updates",
-                data: (c.pricingTrend || []).map((x) => x.count || 0),
-              },
-            ]}
-            options={{
-              xaxis: { categories: (c.pricingTrend || []).map((x) => x.month || "") },
-              colors: ["#ef4444"],
-            }}
-          />
-        </ChartCard>
+        </Card>
       </div>
 
-      {/* Recent Activity */}
-      <div
-        style={{
-          background: "var(--card-bg)",
-          padding: "1.5rem",
-          borderRadius: "12px",
-          border: "1px solid var(--card-border)",
-        }}
-      >
-        <h2 style={{ marginBottom: "1rem", fontWeight: 600 }}>Recent Activity</h2>
-
+      {/* RECENT ACTIVITY */}
+      <Card title="Recent Activity">
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid var(--card-border)" }}>
-              <th>User</th>
-              <th>Action</th>
-              <th>Entity</th>
-              <th>Date</th>
+            <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
+              <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: 600 }}>User</th>
+              <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: 600 }}>Action</th>
+              <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: 600 }}>Entity</th>
+              <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: 600 }}>Date</th>
             </tr>
           </thead>
           <tbody>
             {(stats.recentActivity || []).length > 0 ? (
-              stats.recentActivity.map((a) => (
-                <tr key={a.id || Math.random()} style={{ borderBottom: "1px solid var(--card-border)" }}>
-                  <td>{a.userId || a.user || "N/A"}</td>
-                  <td>{a.action || "N/A"}</td>
-                  <td>{a.entity || "N/A"}</td>
-                  <td>{a.createdAt ? new Date(a.createdAt).toLocaleString() : "N/A"}</td>
+              stats.recentActivity.slice(0, 10).map((a, idx) => (
+                <tr key={a.id || idx} style={{ borderBottom: "1px solid #e5e7eb" }}>
+                  <td style={{ padding: "0.75rem" }}>{a.userId || a.user || "N/A"}</td>
+                  <td style={{ padding: "0.75rem" }}>{a.action || "N/A"}</td>
+                  <td style={{ padding: "0.75rem" }}>{a.entity || "N/A"}</td>
+                  <td style={{ padding: "0.75rem" }}>
+                    {a.createdAt ? new Date(a.createdAt).toLocaleString() : "N/A"}
+                  </td>
                 </tr>
               ))
             ) : (
@@ -306,7 +686,7 @@ export default function SuperAdminDashboard() {
             )}
           </tbody>
         </table>
-      </div>
+      </Card>
     </div>
   );
 }
@@ -316,30 +696,14 @@ function KPI({ title, value, color }) {
     <div
       style={{
         padding: "1.5rem",
-        borderRadius: "14px",
-        background: "var(--card-bg)",
-        border: "1px solid var(--card-border)",
-        boxShadow: "0px 4px 10px rgba(0,0,0,0.08)",
+        borderRadius: "12px",
+        background: "#fff",
+        border: "1px solid #e5e7eb",
+        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
       }}
     >
-      <h3 style={{ opacity: 0.7 }}>{title}</h3>
-      <p style={{ fontSize: "2rem", fontWeight: 700, color }}>{value}</p>
-    </div>
-  );
-}
-
-function ChartCard({ title, children }) {
-  return (
-    <div
-      style={{
-        background: "var(--card-bg)",
-        padding: "1.5rem",
-        borderRadius: "14px",
-        border: "1px solid var(--card-border)",
-      }}
-    >
-      <h3 style={{ marginBottom: "1rem" }}>{title}</h3>
-      {children}
+      <h3 style={{ fontSize: "0.875rem", opacity: 0.7, marginBottom: "0.5rem", fontWeight: 500 }}>{title}</h3>
+      <p style={{ fontSize: "1.875rem", fontWeight: 700, color, margin: 0 }}>{value}</p>
     </div>
   );
 }

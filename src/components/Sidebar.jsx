@@ -112,7 +112,13 @@ export default function Sidebar() {
 
     api.get("/chat/unread-count")
       .then(res => mounted && setUnread(res.data.count || 0))
-      .catch(() => null);
+      .catch((err) => {
+        // Silently handle 403 Forbidden (user doesn't have permission for chat)
+        if (err.response?.status !== 403) {
+          console.warn("Failed to fetch chat unread count:", err);
+        }
+        if (mounted) setUnread(0);
+      });
 
     const msg = () => pathname !== "/chat" && setUnread(prev => prev + 1);
     const read = () => mounted && setUnread(0);

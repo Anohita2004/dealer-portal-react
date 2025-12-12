@@ -27,8 +27,18 @@ export const NotificationProvider = ({ children }) => {
         : 0;
       setUnread(unreadCount);
     } catch (err) {
-      console.error("Failed to fetch notifications:", err);
-      toast.error("Failed to load notifications");
+      // Handle 403 Forbidden gracefully (user doesn't have permission)
+      if (err.response?.status === 403) {
+        console.warn("User doesn't have permission to access notifications");
+        setNotifications([]);
+        setUnread(0);
+      } else {
+        console.error("Failed to fetch notifications:", err);
+        // Only show error toast for non-permission errors
+        if (err.response?.status !== 403) {
+          toast.error("Failed to load notifications");
+        }
+      }
     } finally {
       setLoading(false);
     }

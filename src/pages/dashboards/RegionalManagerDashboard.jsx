@@ -1,9 +1,13 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { dashboardAPI, orderAPI, pricingAPI } from "../../services/api";
+import { dashboardAPI, orderAPI, pricingAPI, reportAPI, managerAPI } from "../../services/api";
 import PageHeader from "../../components/PageHeader";
 import StatCard from "../../components/StatCard";
 import Card from "../../components/Card";
+import TimeFilter from "../../components/dashboard/TimeFilter";
+import TrendLineChart from "../../components/dashboard/TrendLineChart";
+import ComparisonWidget from "../../components/dashboard/ComparisonWidget";
+import PerformanceRanking from "../../components/dashboard/PerformanceRanking";
 import Chart from "react-apexcharts";
 import "./DashboardLayout.css";
 import { 
@@ -20,6 +24,7 @@ import {
 export default function RegionalManagerDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [timeRange, setTimeRange] = useState("30d");
   const [stats, setStats] = useState({
     totalDealers: 0,
     pendingApprovals: 0,
@@ -27,65 +32,136 @@ export default function RegionalManagerDashboard() {
     activeOrders: 0,
     monthlyRevenue: 0,
     approvalRate: 0,
+    totalOutstanding: 0,
+    pendingDocuments: 0,
   });
+  const [previousStats, setPreviousStats] = useState({});
   const [pendingItems, setPendingItems] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
   const [performanceData, setPerformanceData] = useState([]);
+  const [areaRanking, setAreaRanking] = useState([]);
+  const [dealerRanking, setDealerRanking] = useState([]);
 
-  useEffect(() => {
-    fetchDashboardData();
-  }, []);
-
-  const fetchDashboardData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
+      const params = getTimeRangeParams(timeRange);
+      const prevParams = getTimeRangeParams(timeRange, true);
       
-      // Fetch manager summary
-      const summaryRes = await dashboardAPI.getManagerSummary();
+      const [
+        summaryRes,
+        prevSummaryRes,
+        approvalsRes,
+        dealersRes,
+        areaRes,
+      ] = await Promise.allSettled([
+        dashboardAPI.getManagerDashboard(params).catch(() => ({})),
+        dashboardAPI.getManagerDashboard(prevParams).catch(() => ({})),
+        dashboardAPI.getManagerApprovalQueue(params).catch(() => ({ items: [] })),
+        managerAPI.getDealers(params).catch(() => ({ data: { dealers: [] } })),
+        reportAPI.getTerritoryReport(params).catch(() => ({ data: [] })),
+      ]);
+
+      const summary = summaryRes.status === 'fulfilled' ? summaryRes.value : {};
+      const prevSummary = prevSummaryRes.status === 'fulfilled' ? prevSummaryRes.value : {};
+
       setStats({
-        totalDealers: summaryRes.totalDealers || 0,
-        pendingApprovals: summaryRes.pendingApprovals || 0,
-        upcomingVisits: summaryRes.upcomingVisits || 0,
-        activeOrders: summaryRes.activeOrders || 0,
-        monthlyRevenue: summaryRes.monthlyRevenue || 0,
-        approvalRate: summaryRes.approvalRate || 0,
+        totalDealers: summary.totalDealers || 0,
+        pendingApprovals: summary.pendingApprovals || 0,
+        upcomingVisits: summary.upcomingVisits || 0,
+        activeOrders: summary.activeOrders || 0,
+        monthlyRevenue: summary.monthlyRevenue || summary.recentSales || 0,
+        approvalRate: summary.approvalRate || 0,
+        totalOutstanding: summary.totalOutstanding || 0,
+        pendingDocuments: summary.pendingDocuments || 0,
       });
 
-      // Fetch pending approvals
-      const approvalsRes = await dashboardAPI.getManagerApprovalQueue();
-      setPendingItems(approvalsRes.items || []);
+      setPreviousStats({
+        totalDealers: prevSummary.totalDealers || 0,
+        monthlyRevenue: prevSummary.monthlyRevenue || prevSummary.recentSales || 0,
+        totalOutstanding: prevSummary.totalOutstanding || 0,
+      });
 
-      // Fetch performance data for chart
-      setPerformanceData(summaryRes.performanceData || [
+      setPendingItems(approvalsRes.status === 'fulfilled' ? (approvalsRes.value.items || []) : []);
+      setRecentActivity(summary.recentActivity || []);
+
+      // Format performance data for chart
+      const perfData = summary.performanceData || [
         { month: "Jan", revenue: 45000 },
         { month: "Feb", revenue: 52000 },
         { month: "Mar", revenue: 48000 },
         { month: "Apr", revenue: 61000 },
         { month: "May", revenue: 55000 },
         { month: "Jun", revenue: 67000 },
-      ]);
+      ];
+      setPerformanceData(perfData);
 
-      setRecentActivity(summaryRes.recentActivity || []);
+      // Format dealer ranking
+      const dealers = dealersRes.status === 'fulfilled' ? (dealersRes.value.data?.dealers || dealersRes.value.dealers || []) : [];
+      setDealerRanking(
+        dealers
+          .map((d) => ({
+            id: d.id,
+            name: d.businessName || d.dealerName || "Unknown",
+            value: Number(d.totalSales || d.sales || 0),
+            change: d.growth || 0,
+          }))
+          .sort((a, b) => b.value - a.value)
+      );
+
+      // Format area/territory ranking
+      const areas = areaRes.status === 'fulfilled' ? (areaRes.value.data || areaRes.value || []) : [];
+      setAreaRanking(
+        areas
+          .map((a) => ({
+            id: a.id || a.areaId || a.territoryId,
+            name: a.areaName || a.territoryName || a.name,
+            value: Number(a.totalSales || a.sales || 0),
+            change: a.growth || 0,
+          }))
+          .sort((a, b) => b.value - a.value)
+      );
     } catch (error) {
       console.error("Failed to fetch dashboard data:", error);
-      // Set fallback data
-      setStats({
-        totalDealers: 28,
-        pendingApprovals: 5,
-        upcomingVisits: 2,
-        activeOrders: 18,
-        monthlyRevenue: 245000,
-        approvalRate: 92,
-      });
     } finally {
       setLoading(false);
     }
-  };
+  }, [timeRange]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
+
+  function getTimeRangeParams(range, previous = false) {
+    const now = new Date();
+    let startDate, endDate;
+
+    if (typeof range === 'object' && range.type === 'custom') {
+      startDate = range.startDate;
+      endDate = range.endDate;
+    } else {
+      const days = range === '7d' ? 7 : range === '30d' ? 30 : range === '90d' ? 90 : range === '6m' ? 180 : 365;
+      endDate = new Date(now);
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - days);
+    }
+
+    if (previous) {
+      const diff = endDate - startDate;
+      endDate = new Date(startDate);
+      startDate = new Date(startDate.getTime() - diff);
+    }
+
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    };
+  }
 
   const handleApprovalAction = async (itemId, action) => {
     try {
       await orderAPI.approveOrder(itemId, { action });
-      fetchDashboardData(); // Refresh data
+      loadData(); // Refresh data
     } catch (error) {
       console.error(`Failed to ${action} item:`, error);
     }
@@ -101,10 +177,45 @@ export default function RegionalManagerDashboard() {
 
   return (
     <div style={{ padding: "1.5rem", maxWidth: "1400px", margin: "0 auto" }}>
-      <PageHeader 
-        title="Regional Manager Dashboard" 
-        subtitle="Operations and approvals for your region"
-      />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+        <PageHeader 
+          title="Regional Manager Dashboard" 
+          subtitle="Operations and approvals for your region"
+        />
+        <TimeFilter value={timeRange} onChange={setTimeRange} />
+      </div>
+
+      {/* COMPARISON WIDGETS */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: "1.5rem",
+          marginBottom: "2rem",
+        }}
+      >
+        <ComparisonWidget
+          title="Monthly Revenue"
+          current={stats.monthlyRevenue || 0}
+          previous={previousStats.monthlyRevenue || 0}
+          formatValue={(v) => v >= 1000000 ? `₹${(v / 1000000).toFixed(1)}M` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
+          color="#10b981"
+        />
+        <ComparisonWidget
+          title="Total Dealers"
+          current={stats.totalDealers || 0}
+          previous={previousStats.totalDealers || 0}
+          formatValue={(v) => v.toLocaleString()}
+          color="#3b82f6"
+        />
+        <ComparisonWidget
+          title="Total Outstanding"
+          current={stats.totalOutstanding || 0}
+          previous={previousStats.totalOutstanding || 0}
+          formatValue={(v) => v >= 1000000 ? `₹${(v / 1000000).toFixed(1)}M` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
+          color="#ef4444"
+        />
+      </div>
 
       {/* KPI Cards Grid */}
       <div className="stat-grid" style={{ marginBottom: "2rem" }}>
@@ -112,7 +223,6 @@ export default function RegionalManagerDashboard() {
           title="Total Dealers" 
           value={stats.totalDealers}
           icon={<Users size={24} />}
-          trend="+3 this month"
           color="#3b82f6"
         />
         <StatCard 
@@ -132,15 +242,7 @@ export default function RegionalManagerDashboard() {
           title="Active Orders" 
           value={stats.activeOrders}
           icon={<TrendingUp size={24} />}
-          trend="+12% vs last month"
           color="#10b981"
-        />
-        <StatCard 
-          title="Monthly Revenue" 
-          value={`₹${(stats.monthlyRevenue / 1000).toFixed(0)}K`}
-          icon={<DollarSign size={24} />}
-          trend="+8.5%"
-          color="#06b6d4"
         />
         <StatCard 
           title="Approval Rate" 
@@ -148,6 +250,46 @@ export default function RegionalManagerDashboard() {
           icon={<CheckCircle size={24} />}
           color="#22c55e"
         />
+        <StatCard 
+          title="Pending Documents" 
+          value={stats.pendingDocuments}
+          icon={<FileText size={24} />}
+          color="#f59e0b"
+        />
+      </div>
+
+      {/* TREND AND RANKINGS */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "2fr 1fr",
+          gap: "2rem",
+          marginBottom: "2rem",
+        }}
+      >
+        <Card title="Regional Performance">
+          <TrendLineChart
+            data={performanceData.map(d => ({ label: d.month, value: d.revenue }))}
+            dataKeys={["value"]}
+            colors={["#3b82f6"]}
+            height={300}
+            formatValue={(v) => `₹${(v / 1000).toFixed(0)}K`}
+            showArea={true}
+          />
+        </Card>
+
+        <Card title="Top Areas/Territories">
+          <PerformanceRanking
+            data={areaRanking}
+            nameKey="name"
+            valueKey="value"
+            changeKey="change"
+            formatValue={(v) => `₹${(v / 100000).toFixed(1)}L`}
+            showChange={true}
+            maxItems={8}
+            color="#3b82f6"
+          />
+        </Card>
       </div>
 
       {/* Main Content Grid */}
@@ -157,53 +299,6 @@ export default function RegionalManagerDashboard() {
         gap: "1.5rem",
         marginBottom: "2rem"
       }}>
-        {/* Performance Chart */}
-        <Card title="Regional Performance" icon={<TrendingUp size={20} />}>
-          <Chart
-            type="area"
-            height={280}
-            series={[{
-              name: "Revenue",
-              data: performanceData.map(d => d.revenue)
-            }]}
-            options={{
-              chart: {
-                toolbar: { show: false },
-                sparkline: { enabled: false }
-              },
-              colors: ["#3b82f6"],
-              stroke: { curve: "smooth", width: 3 },
-              fill: {
-                type: "gradient",
-                gradient: {
-                  shadeIntensity: 1,
-                  opacityFrom: 0.5,
-                  opacityTo: 0.1,
-                }
-              },
-              xaxis: {
-                categories: performanceData.map(d => d.month),
-                labels: { style: { colors: "#94a3b8" } }
-              },
-              yaxis: {
-                labels: { 
-                  style: { colors: "#94a3b8" },
-                  formatter: (val) => `₹${(val / 1000).toFixed(0)}K`
-                }
-              },
-              tooltip: {
-                theme: "dark",
-                y: {
-                  formatter: (val) => `₹${val.toLocaleString()}`
-                }
-              },
-              grid: {
-                borderColor: "rgba(148, 163, 184, 0.1)"
-              }
-            }}
-          />
-        </Card>
-
         {/* Pending Approvals */}
         <Card title="Pending Approvals" icon={<FileText size={20} />}>
           {pendingItems.length === 0 ? (
@@ -288,6 +383,20 @@ export default function RegionalManagerDashboard() {
               View All ({pendingItems.length})
             </button>
           )}
+        </Card>
+
+        {/* Top Dealers */}
+        <Card title="Top Dealers by Performance" icon={<TrendingUp size={20} />}>
+          <PerformanceRanking
+            data={dealerRanking}
+            nameKey="name"
+            valueKey="value"
+            changeKey="change"
+            formatValue={(v) => `₹${(v / 100000).toFixed(1)}L`}
+            showChange={true}
+            maxItems={6}
+            color="#10b981"
+          />
         </Card>
       </div>
 

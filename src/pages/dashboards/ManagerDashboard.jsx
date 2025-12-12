@@ -1,6 +1,5 @@
-// src/pages/dashboards/ManagerDashboard.jsx
 import React, { useEffect, useState, useCallback } from "react";
-import api from "../../services/api";
+import api, { dashboardAPI, reportAPI, managerAPI, pricingAPI, campaignAPI } from "../../services/api";
 import { getSocket, onEvent, offEvent } from "../../services/socket";
 import { useNavigate } from "react-router-dom";
 import { toast } from "react-toastify";
@@ -12,6 +11,10 @@ import DataTable from "../../components/DataTable";
 import Toolbar from "../../components/Toolbar";
 import SearchInput from "../../components/SearchInput";
 import IconPillButton from "../../components/IconPillButton";
+import TimeFilter from "../../components/dashboard/TimeFilter";
+import TrendLineChart from "../../components/dashboard/TrendLineChart";
+import ComparisonWidget from "../../components/dashboard/ComparisonWidget";
+import PerformanceRanking from "../../components/dashboard/PerformanceRanking";
 
 import {
   ResponsiveContainer,
@@ -42,69 +45,124 @@ import {
 
 import "./ManagerDashboard.css";
 
-/**
- * ManagerDashboard
- * - Clean, defensive, and visually improved manager dashboard
- * - Uses lucide-react icons instead of emojis
- * - Handles realtime socket updates and cleans them up
- * - Avoids rendering objects directly (formats table cells)
- */
-
 const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
 const ACCENT = "#3b82f6";
 
 export default function ManagerDashboard() {
   const navigate = useNavigate();
-
+  const [timeRange, setTimeRange] = useState("30d");
   const [summary, setSummary] = useState({});
+  const [previousSummary, setPreviousSummary] = useState({});
   const [dealerPerformance, setDealerPerformance] = useState([]);
   const [pendingApprovals, setPendingApprovals] = useState([]);
   const [messages, setMessages] = useState([]);
   const [campaigns, setCampaigns] = useState([]);
   const [inventory, setInventory] = useState([]);
+  const [salesTrend, setSalesTrend] = useState([]);
+  const [dealerRanking, setDealerRanking] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
 
-  // Safely extract numbers
   const safeNum = (v) => (typeof v === "number" ? v : Number(v) || 0);
 
-  // Fetch initial data
   const loadData = useCallback(async () => {
     setLoading(true);
     try {
+      const params = getTimeRangeParams(timeRange);
+      const prevParams = getTimeRangeParams(timeRange, true);
+
       const [
         summaryRes,
+        prevSummaryRes,
         dealersRes,
         pricingRes,
         msgRes,
         campRes,
         invRes,
-      ] = await Promise.all([
-        api.get("/reports/dashboard/manager").catch(() => ({ data: {} })),
-        api.get("/managers/dealers").catch(() => ({ data: { dealers: [] } })),
-        api.get("/pricing/pending").catch(() => ({ data: [] })),
+        trendRes,
+      ] = await Promise.allSettled([
+        dashboardAPI.getManagerDashboard(params).catch(() => ({})),
+        dashboardAPI.getManagerDashboard(prevParams).catch(() => ({})),
+        managerAPI.getDealers(params).catch(() => ({ data: { dealers: [] } })),
+        pricingAPI.getPending().catch(() => ({ data: [] })),
         api.get("/messages").catch(() => ({ data: { messages: [] } })),
-        api.get("/campaigns/active").catch(() => ({ data: [] })),
+        campaignAPI.getActiveCampaigns().catch(() => ({ data: [] })),
         api.get("/inventory/summary").catch(() => ({ data: { inventory: [] } })),
+        reportAPI.getDealerPerformance(params).catch(() => ({ trend: [] })),
       ]);
 
-      setSummary(summaryRes.data || {});
-      setDealerPerformance(dealersRes.data.dealers || []);
-      setPendingApprovals(pricingRes.data.updates || []);
-      setMessages(msgRes.data.messages || msgRes.data || []);
-      setCampaigns(campRes.data.campaigns || campRes.data || []);
-      setInventory(invRes.data.inventory || invRes.data || []);
+      const summary = summaryRes.status === 'fulfilled' ? summaryRes.value : {};
+      const prevSummary = prevSummaryRes.status === 'fulfilled' ? prevSummaryRes.value : {};
+      
+      setSummary(summary || {});
+      setPreviousSummary(prevSummary || {});
+      
+      const dealers = dealersRes.status === 'fulfilled' ? (dealersRes.value.data?.dealers || dealersRes.value.dealers || []) : [];
+      setDealerPerformance(dealers);
+      
+      setPendingApprovals(pricingRes.status === 'fulfilled' ? (pricingRes.value.data?.updates || pricingRes.value.updates || []) : []);
+      setMessages(msgRes.status === 'fulfilled' ? (msgRes.value.data?.messages || msgRes.value.messages || msgRes.value || []) : []);
+      setCampaigns(campRes.status === 'fulfilled' ? (campRes.value.data?.campaigns || campRes.value.campaigns || campRes.value || []) : []);
+      setInventory(invRes.status === 'fulfilled' ? (invRes.value.data?.inventory || invRes.value.inventory || invRes.value || []) : []);
+
+      const trend = trendRes.status === 'fulfilled' ? (trendRes.value.trend || trendRes.value.data || []) : [];
+      setSalesTrend(formatTrendData(trend));
+      setDealerRanking(
+        dealers
+          .map((d) => ({
+            id: d.id,
+            name: d.businessName || d.dealerName || "Unknown",
+            value: safeNum(d.totalSales),
+            change: d.growth || 0,
+          }))
+          .sort((a, b) => b.value - a.value)
+      );
     } catch (err) {
       console.error("Manager dashboard load error:", err);
       toast.error("Failed to load dashboard data");
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [timeRange]);
 
   useEffect(() => {
     loadData();
   }, [loadData]);
+
+  function getTimeRangeParams(range, previous = false) {
+    const now = new Date();
+    let startDate, endDate;
+
+    if (typeof range === 'object' && range.type === 'custom') {
+      startDate = range.startDate;
+      endDate = range.endDate;
+    } else {
+      const days = range === '7d' ? 7 : range === '30d' ? 30 : range === '90d' ? 90 : range === '6m' ? 180 : 365;
+      endDate = new Date(now);
+      startDate = new Date(now);
+      startDate.setDate(startDate.getDate() - days);
+    }
+
+    if (previous) {
+      const diff = endDate - startDate;
+      endDate = new Date(startDate);
+      startDate = new Date(startDate.getTime() - diff);
+    }
+
+    return {
+      startDate: startDate.toISOString().split('T')[0],
+      endDate: endDate.toISOString().split('T')[0],
+    };
+  }
+
+  function formatTrendData(data) {
+    if (!Array.isArray(data)) return [];
+    return data.map((item) => ({
+      label: item.month || item.label || item.date || "",
+      value: item.sales || item.totalSales || 0,
+      orders: item.orders || 0,
+    }));
+  }
 
   // Socket realtime updates
   useEffect(() => {
@@ -143,11 +201,9 @@ export default function ManagerDashboard() {
       offEvent("document:new");
       offEvent("message:new");
       offEvent("campaign:new");
-      // Don't disconnect socket here as it's shared across the app
     };
   }, []);
 
-  // Simple derived metrics
   const lowStock = inventory.filter((i) => safeNum(i.available) < 20);
   const mediumStock = inventory.filter((i) => {
     const a = safeNum(i.available);
@@ -155,7 +211,6 @@ export default function ManagerDashboard() {
   });
   const highStock = inventory.filter((i) => safeNum(i.available) >= 100);
 
-  // Pricing action (approve/reject/forward)
   const handlePricingAction = async (id, action) => {
     try {
       const remarks = window.prompt(`Remarks for ${action.toUpperCase()} (optional):`) || "";
@@ -170,7 +225,6 @@ export default function ManagerDashboard() {
     }
   };
 
-  // Table safe render helpers
   const fmtCurrency = (v) => `₹ ${safeNum(v).toLocaleString()}`;
   const fmtDate = (iso) => {
     if (!iso) return "—";
@@ -181,7 +235,6 @@ export default function ManagerDashboard() {
     }
   };
 
-  // Prepare pending pricing table rows (defensive)
   const pendingPricingRows = (pendingApprovals || [])
     .filter(Boolean)
     .filter((p) => {
@@ -236,32 +289,35 @@ export default function ManagerDashboard() {
 
   return (
     <div className="manager-dashboard" style={{ color: "var(--text-color)" }}>
-      <PageHeader
-        title="Regional Manager Dashboard"
-        subtitle="Monitor dealers, campaigns and inventory in one place"
-        actions={[
-          <IconPillButton
-            key="reports"
-            icon={<BarChart2 size={16} />}
-            label="Reports"
-            onClick={() => navigate("/reports")}
-          />,
-          <IconPillButton
-            key="campaigns"
-            icon={<Megaphone size={16} />}
-            label="Campaigns"
-            tone="warning"
-            onClick={() => navigate("/campaigns")}
-          />,
-          <IconPillButton
-            key="chat"
-            icon={<MessageSquare size={16} />}
-            label="Messages"
-            tone="info"
-            onClick={() => navigate("/manager/chat")}
-          />,
-        ]}
-      />
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
+        <PageHeader
+          title="Manager Dashboard"
+          subtitle="Monitor dealers, campaigns and inventory in one place"
+          actions={[
+            <IconPillButton
+              key="reports"
+              icon={<BarChart2 size={16} />}
+              label="Reports"
+              onClick={() => navigate("/reports")}
+            />,
+            <IconPillButton
+              key="campaigns"
+              icon={<Megaphone size={16} />}
+              label="Campaigns"
+              tone="warning"
+              onClick={() => navigate("/campaigns")}
+            />,
+            <IconPillButton
+              key="chat"
+              icon={<MessageSquare size={16} />}
+              label="Messages"
+              tone="info"
+              onClick={() => navigate("/manager/chat")}
+            />,
+          ]}
+        />
+        <TimeFilter value={timeRange} onChange={setTimeRange} />
+      </div>
 
       <Toolbar
         left={[
@@ -279,6 +335,38 @@ export default function ManagerDashboard() {
         ]}
       />
 
+      {/* COMPARISON WIDGETS */}
+      <div
+        style={{
+          display: "grid",
+          gridTemplateColumns: "repeat(auto-fit, minmax(280px, 1fr))",
+          gap: "1.5rem",
+          marginBottom: "2rem",
+        }}
+      >
+        <ComparisonWidget
+          title="Recent Sales"
+          current={safeNum(summary.recentSales)}
+          previous={safeNum(previousSummary.recentSales)}
+          formatValue={fmtCurrency}
+          color="#10b981"
+        />
+        <ComparisonWidget
+          title="Total Dealers"
+          current={summary.totalDealers || 0}
+          previous={previousSummary.totalDealers || 0}
+          formatValue={(v) => v.toLocaleString()}
+          color="#3b82f6"
+        />
+        <ComparisonWidget
+          title="Total Outstanding"
+          current={safeNum(summary.totalOutstanding)}
+          previous={safeNum(previousSummary.totalOutstanding)}
+          formatValue={fmtCurrency}
+          color="#ef4444"
+        />
+      </div>
+
       <div className="dashboard-grid">
         <div className="left-col">
           <div className="kpi-row">
@@ -294,6 +382,16 @@ export default function ManagerDashboard() {
               {lowStock.length} products are critically low on stock
             </div>
           )}
+
+          <Card title="Sales Trend" style={{ marginBottom: 16 }}>
+            <TrendLineChart
+              data={salesTrend}
+              dataKeys={["value", "orders"]}
+              colors={["#10b981", "#3b82f6"]}
+              height={300}
+              formatValue={fmtCurrency}
+            />
+          </Card>
 
           <Card title="Stock Health Overview" style={{ marginBottom: 16 }}>
             {inventory.length ? (
@@ -371,6 +469,19 @@ export default function ManagerDashboard() {
               <div className="mini-kpi-value">{summary.pendingPricing || 0}</div>
             </div>
           </div>
+
+          <Card title="Top Dealers by Performance" className="side-card" style={{ marginTop: 12 }}>
+            <PerformanceRanking
+              data={dealerRanking}
+              nameKey="name"
+              valueKey="value"
+              changeKey="change"
+              formatValue={fmtCurrency}
+              showChange={true}
+              maxItems={8}
+              color="#3b82f6"
+            />
+          </Card>
 
           <Card title="Active Campaigns" className="side-card" style={{ marginTop: 12 }}>
             <div style={{ maxHeight: 220, overflowY: "auto" }}>

@@ -14,17 +14,23 @@ import Dashboard from "./pages/Dashboard";
 import SuperAdminDashboard from "./pages/dashboards/SuperAdminDashboard";
 import RegionalAdminDashboard from "./pages/dashboards/RegionalAdminDashboard";
 import ManagerDashboard from "./pages/dashboards/ManagerDashboard";
+import RegionalManagerDashboard from "./pages/dashboards/RegionalManagerDashboard";
+import AreaManagerDashboard from "./pages/dashboards/AreaManagerDashboard";
+import TerritoryManagerDashboard from "./pages/dashboards/TerritoryManagerDashboard";
 import DealerDashboard from "./pages/dashboards/DealerDashboard";
 import InventoryDashboard from "./pages/dashboards/InventoryDashboard";
 import AccountsDashboard from "./pages/dashboards/AccountsDashboard";
 
 // 📄 Common Pages
 import Invoices from "./pages/Invoices";
+import InvoiceDetail from "./pages/InvoiceDetail";
 import Documents from "./pages/Documents";
+import DocumentDetail from "./pages/documents/DocumentDetail";
 import Campaigns from "./pages/Campaigns";
+import CampaignDetail from "./pages/campaigns/CampaignDetail";
 import Reports from "./pages/Reports";
 import CreatePaymentRequest from "./pages/payments/CreatePaymentRequest";
-
+import PaymentDetail from "./pages/payments/PaymentDetail";
 import DealerAdminPayments from "./pages/payments/DealerAdminPayments";
 import FinancePendingPayments from "./pages/payments/FinancePendingPayments";
 import SuperAdminUsers from "./pages/superadmin/Users";
@@ -37,6 +43,7 @@ import UserFormPage from "./pages/superadmin/UserFormPage"; // if using it
 import Admin from "./pages/Admin";
 import AdminDocuments from "./pages/AdminDocuments";
 import PricingApprovals from "./pages/PricingApprovals";
+import PricingRequestDetail from "./pages/pricing/PricingRequestDetail";
 
 // 💼 Accounts subpages
 import AccountsInvoices from "./pages/accounts/AccountsInvoices";
@@ -54,6 +61,7 @@ import TechnicalAdmin from "./pages/technicaladmin/TechnicalAdmin";
 import AdminOrders from "./pages/orders/AdminOrders";
 import CreateOrder from "./pages/orders/CreateOrders";
 import MyOrders from "./pages/orders/MyOrders";
+import OrderDetail from "./pages/orders/OrderDetail";
 import Materials from "./pages/Materials";
 import ChatUI from "./pages/ChatUI";
 import MaterialImport from "./pages/Materials/MaterialImport";
@@ -157,6 +165,30 @@ export default function App() {
               }
             />
             <Route
+              path="dashboard/regional-manager"
+              element={
+                <ProtectedRoute allowed={["regional_manager"]}>
+                  <RegionalManagerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="dashboard/area-manager"
+              element={
+                <ProtectedRoute allowed={["area_manager"]}>
+                  <AreaManagerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="dashboard/territory-manager"
+              element={
+                <ProtectedRoute allowed={["territory_manager"]}>
+                  <TerritoryManagerDashboard />
+                </ProtectedRoute>
+              }
+            />
+            <Route
               path="dashboard/dealer"
               element={
                 <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
@@ -245,6 +277,14 @@ export default function App() {
   element={
     <ProtectedRoute allowed={["dealer_admin", "regional_manager", "regional_admin", "super_admin"]}>
       <AdminOrders />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="orders/:id"
+  element={
+    <ProtectedRoute>
+      <OrderDetail />
     </ProtectedRoute>
   }
 />
@@ -520,6 +560,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="invoices/:id"
+              element={
+                <ProtectedRoute>
+                  <InvoiceDetail />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="accounts"
@@ -598,12 +646,28 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
+            <Route
+              path="documents/:id"
+              element={
+                <ProtectedRoute>
+                  <DocumentDetail />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="campaigns"
               element={
                 <ProtectedRoute allowed={["super_admin", "key_user", "dealer_admin", "regional_admin", "area_manager", "territory_manager"]}>
                   <Campaigns />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="campaigns/:id"
+              element={
+                <ProtectedRoute>
+                  <CampaignDetail />
                 </ProtectedRoute>
               }
             />
@@ -694,6 +758,14 @@ export default function App() {
   element={
     <ProtectedRoute allowed={["dealer_staff"]}>
       <MyPaymentRequests />
+    </ProtectedRoute>
+  }
+/>
+<Route
+  path="payments/:id"
+  element={
+    <ProtectedRoute>
+      <PaymentDetail />
     </ProtectedRoute>
   }
 />

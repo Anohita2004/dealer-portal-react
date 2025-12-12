@@ -67,20 +67,20 @@ export const authAPI = {
 
 export const dashboardAPI = {
   // Super Admin Dashboard
-  getSuperAdminDashboard: () =>
-    api.get("/reports/dashboard/super").then((r) => r.data),
+  getSuperAdminDashboard: (params) =>
+    api.get("/reports/dashboard/super", { params }).then((r) => r.data),
 
   // Regional Admin Dashboard
-  getRegionalDashboard: () =>
-    api.get("/reports/dashboard/regional").then((r) => r.data),
+  getRegionalDashboard: (params) =>
+    api.get("/reports/dashboard/regional", { params }).then((r) => r.data),
 
   // Manager Dashboard (Territory/Area/Regional Manager)
-  getManagerDashboard: () =>
-    api.get("/reports/dashboard/manager").then((r) => r.data),
+  getManagerDashboard: (params) =>
+    api.get("/reports/dashboard/manager", { params }).then((r) => r.data),
 
   // Dealer Dashboard
-  getDealerDashboard: () =>
-    api.get("/reports/dashboard/dealer").then((r) => r.data),
+  getDealerDashboard: (params) =>
+    api.get("/reports/dashboard/dealer", { params }).then((r) => r.data),
 
   // Legacy endpoints (for backward compatibility)
   getSuperAdminKPI: () =>
@@ -92,8 +92,8 @@ export const dashboardAPI = {
   getRoleDistribution: () =>
     api.get("/admin/reports/role-distribution").then((r) => r.data),
 
-  getMonthlyGrowth: () =>
-    api.get("/admin/reports/monthly-growth").then((r) => r.data),
+  getMonthlyGrowth: (params) =>
+    api.get("/admin/reports/monthly-growth", { params }).then((r) => r.data),
 
   // Technical Admin Dashboard
   getPermissionMatrix: () =>
@@ -103,11 +103,11 @@ export const dashboardAPI = {
     api.get("/technical-admin/audit-logs", { params }).then((r) => r.data),
 
   // Manager Dashboards (Regional/Area/Territory)
-  getManagerSummary: () =>
-    api.get("/managers/summary").then((r) => r.data),
+  getManagerSummary: (params) =>
+    api.get("/managers/summary", { params }).then((r) => r.data),
 
-  getManagerApprovalQueue: () =>
-    api.get("/managers/approval-queue").then((r) => r.data),
+  getManagerApprovalQueue: (params) =>
+    api.get("/managers/approval-queue", { params }).then((r) => r.data),
 
   getDealerApprovals: () =>
     api.get("/dealer/approvals").then((r) => r.data),
@@ -186,6 +186,22 @@ export const roleAPI = {
 };
 
 // =======================================================================
+// ======================== WORKFLOW APIs ===============================
+// =======================================================================
+
+export const workflowAPI = {
+  // Unified workflow endpoints
+  getWorkflowStatus: (entityType, entityId) =>
+    api.get(`/workflow/${entityType}/${entityId}/workflow`).then((r) => r.data),
+
+  approveEntity: (entityType, entityId, remarks = "") =>
+    api.patch(`/workflow/${entityType}/${entityId}/approve`, { remarks }).then((r) => r.data),
+
+  rejectEntity: (entityType, entityId, reason, remarks = "") =>
+    api.patch(`/workflow/${entityType}/${entityId}/reject`, { reason, remarks }).then((r) => r.data),
+};
+
+// =======================================================================
 // ======================== ORDER WORKFLOW APIs ==========================
 // =======================================================================
 
@@ -226,6 +242,10 @@ export const orderAPI = {
   // Cancel order
   cancelOrder: (id, reason) =>
     api.post(`/orders/${id}/cancel`, { reason }).then((r) => r.data),
+
+  // Get workflow status
+  getWorkflowStatus: (id) =>
+    api.get(`/orders/${id}/workflow`).then((r) => r.data),
 };
 
 // =======================================================================
@@ -268,8 +288,13 @@ export const paymentAPI = {
   approveByFinance: (id, payload) =>
     api.post(`/payments/${id}/approve`, payload).then((r) => r.data),
 
+  // Reject by Finance
   rejectByFinance: (id, payload) =>
     api.post(`/payments/${id}/reject`, payload).then((r) => r.data),
+
+  // Get workflow status
+  getWorkflowStatus: (id) =>
+    api.get(`/payments/${id}/workflow`).then((r) => r.data),
 
   // ================== RECONCILIATION ==================
   getReconcileSummary: () =>
@@ -313,6 +338,10 @@ export const documentAPI = {
   // Delete document
   deleteDocument: (id) =>
     api.delete(`/documents/${id}`).then((r) => r.data),
+
+  // Get workflow status
+  getWorkflowStatus: (id) =>
+    api.get(`/documents/${id}/workflow`).then((r) => r.data),
 };
 
 // =======================================================================
@@ -351,6 +380,10 @@ export const pricingAPI = {
   // Get pricing summary (super_admin)
   getSummary: () =>
     api.get("/pricing/summary").then((r) => r.data),
+
+  // Get workflow status
+  getWorkflowStatus: (id) =>
+    api.get(`/pricing/${id}/workflow`).then((r) => r.data),
 };
 
 // =======================================================================
@@ -389,6 +422,10 @@ export const invoiceAPI = {
   // Approve/reject invoice
   approveInvoice: (id, payload) =>
     api.post(`/invoices/${id}/approve`, payload).then((r) => r.data),
+
+  // Get workflow status
+  getWorkflowStatus: (id) =>
+    api.get(`/invoices/${id}/workflow`).then((r) => r.data),
 };
 
 // =======================================================================
@@ -443,6 +480,10 @@ export const materialAPI = {
 // ======================== GEOGRAPHIC MANAGEMENT APIs ===================
 // =======================================================================
 
+// =======================================================================
+// ======================== GEOGRAPHY APIs ==============================
+// =======================================================================
+
 export const geoAPI = {
   // Regions
   getRegions: (params) =>
@@ -459,6 +500,16 @@ export const geoAPI = {
 
   deleteRegion: (id) =>
     api.delete(`/regions/regions/${id}`).then((r) => r.data),
+
+  // Regional Dashboard Endpoints
+  getRegionalDashboardSummary: (params) =>
+    api.get("/regions/regions/dashboard/summary", { params }).then((r) => r.data),
+
+  getRegionalAreas: (params) =>
+    api.get("/regions/regions/dashboard/areas", { params }).then((r) => r.data),
+
+  getRegionalApprovals: (params) =>
+    api.get("/regions/regions/dashboard/approvals", { params }).then((r) => r.data),
 
   // Areas
   getAreas: (params) =>
@@ -478,6 +529,16 @@ export const geoAPI = {
 
   deleteArea: (id) =>
     api.delete(`/areas/${id}`).then((r) => r.data),
+
+  // Area Dashboard Endpoints
+  getAreaDashboardSummary: (params) =>
+    api.get("/areas/dashboard/summary", { params }).then((r) => r.data),
+
+  getAreaDealers: (params) =>
+    api.get("/areas/dashboard/dealers", { params }).then((r) => r.data),
+
+  getAreaApprovals: (params) =>
+    api.get("/areas/dashboard/approvals", { params }).then((r) => r.data),
 
   // Territories
   getTerritories: (params) =>
@@ -624,6 +685,10 @@ export const campaignAPI = {
   // Get targeted dealers
   getTargetedDealers: (id) =>
     api.get(`/campaigns/${id}/dealers`).then((r) => r.data),
+
+  // Get workflow status
+  getWorkflowStatus: (id) =>
+    api.get(`/campaigns/${id}/workflow`).then((r) => r.data),
 };
 
 // =======================================================================

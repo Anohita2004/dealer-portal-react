@@ -110,13 +110,38 @@ export default function RegionalUserManagement() {
         role: filterRole !== "all" ? filterRole : undefined,
         status: filterStatus !== "all" ? filterStatus : undefined,
       };
-      const data = await userAPI.getUsers(params);
-      setUsers(data.data || data.users || []);
-      setTotal(data.total || data.data?.length || 0);
-      setTotalPages(data.totalPages || Math.ceil((data.total || 0) / pageSize));
+      
+      // Get current user's region to scope the request
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      if (user.regionId) {
+        params.regionId = user.regionId;
+      }
+      
+      try {
+        const data = await userAPI.getUsers(params);
+        setUsers(data.data || data.users || []);
+        setTotal(data.total || data.data?.length || 0);
+        setTotalPages(data.totalPages || Math.ceil((data.total || 0) / pageSize));
+      } catch (error) {
+        // Handle 403 Forbidden - regional admin doesn't have access to /api/admin/users
+        if (error.response?.status === 403) {
+          console.warn("Regional admin doesn't have access to user management endpoint");
+          toast.warning("User management is only available to super administrators");
+          setUsers([]);
+          setTotal(0);
+          setTotalPages(1);
+        } else {
+          throw error;
+        }
+      }
     } catch (error) {
       console.error("Failed to fetch users:", error);
-      toast.error("Failed to load users");
+      if (error.response?.status !== 403) {
+        toast.error("Failed to load users");
+      }
+      setUsers([]);
+      setTotal(0);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }
@@ -133,27 +158,65 @@ export default function RegionalUserManagement() {
 
   const loadDropdowns = async () => {
     try {
-      const [rolesData, regionsData, areasData, territoriesData, dealersData] = await Promise.all([
-        roleAPI.getRoles(),
-        geoAPI.getRegions(),
-        geoAPI.getAreas(),
-        geoAPI.getTerritories(),
-        dealerAPI.getDealers(),
+      // Get current user's region first
+      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      
+      // Use Promise.allSettled to handle individual failures gracefully
+      const [rolesResult, regionsResult, areasResult, territoriesResult, dealersResult] = await Promise.allSettled([
+        roleAPI.getRoles().catch(() => ({ data: [] })),
+        geoAPI.getRegions().catch(() => ({ data: [] })),
+        geoAPI.getAreas().catch(() => ({ data: [] })),
+        geoAPI.getTerritories().catch(() => ({ data: [] })),
+        dealerAPI.getDealers().catch(() => ({ data: [] })),
       ]);
 
-      setRoles(rolesData.data || rolesData || []);
-      setRegions(regionsData.data || regionsData || []);
-      setAreas(areasData.data || areasData || []);
-      setTerritories(territoriesData.data || territoriesData || []);
-      setDealers(dealersData.data || dealersData || []);
+      setRoles(
+        rolesResult.status === 'fulfilled' 
+          ? (rolesResult.value?.data || rolesResult.value || [])
+          : []
+      );
+      
+      // If regions endpoint fails, use current user's region if available
+      if (regionsResult.status === 'fulfilled' && regionsResult.value) {
+        const regions = regionsResult.value?.data || regionsResult.value || [];
+        setRegions(regions);
+      } else if (user.regionId) {
+        // If regions endpoint doesn't exist, create a placeholder from user's region
+        setRegions([{ id: user.regionId, name: user.region?.name || 'Current Region' }]);
+      } else {
+        setRegions([]);
+      }
+      
+      // Ensure areas is always an array
+      const areasData = areasResult.status === 'fulfilled'
+        ? (areasResult.value?.data || areasResult.value || [])
+        : [];
+      setAreas(Array.isArray(areasData) ? areasData : []);
+      
+      // Ensure territories is always an array
+      const territoriesData = territoriesResult.status === 'fulfilled'
+        ? (territoriesResult.value?.data || territoriesResult.value || [])
+        : [];
+      setTerritories(Array.isArray(territoriesData) ? territoriesData : []);
+      
+      // Ensure dealers is always an array
+      const dealersData = dealersResult.status === 'fulfilled'
+        ? (dealersResult.value?.data || dealersResult.value || [])
+        : [];
+      setDealers(Array.isArray(dealersData) ? dealersData : []);
 
-      // Get current user's region to filter
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
+      // Set current user's region
       if (user.regionId) {
         setForm((prev) => ({ ...prev, regionId: user.regionId }));
       }
     } catch (error) {
       console.error("Failed to load dropdowns:", error);
+      // Set empty arrays on complete failure
+      setRoles([]);
+      setRegions([]);
+      setAreas([]);
+      setTerritories([]);
+      setDealers([]);
     }
   };
 
@@ -264,9 +327,14 @@ export default function RegionalUserManagement() {
     return <Chip label="Active" color="success" size="small" />;
   };
 
-  const filteredAreas = areas.filter((a) => !form.regionId || a.regionId === form.regionId);
-  const filteredTerritories = territories.filter((t) => !form.areaId || t.areaId === form.areaId);
-  const filteredDealers = dealers.filter(
+  // Ensure arrays are always arrays to prevent filter errors
+  const safeAreas = Array.isArray(areas) ? areas : [];
+  const safeTerritories = Array.isArray(territories) ? territories : [];
+  const safeDealers = Array.isArray(dealers) ? dealers : [];
+  
+  const filteredAreas = safeAreas.filter((a) => !form.regionId || a.regionId === form.regionId);
+  const filteredTerritories = safeTerritories.filter((t) => !form.areaId || t.areaId === form.areaId);
+  const filteredDealers = safeDealers.filter(
     (d) =>
       (form.territoryId && d.territoryId === form.territoryId) ||
       (form.regionId && d.regionId === form.regionId)
