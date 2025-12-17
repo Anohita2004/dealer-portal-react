@@ -383,12 +383,45 @@ export default function RegionalAdminDashboard() {
 
       {/* KPI STATS */}
       <div className="stat-grid">
-        <StatCard title="Managers" value={summary.managers || 0} />
-        <StatCard title="Territories" value={summary.territories || 0} />
-        <StatCard title="Active Campaigns" value={summary.activeCampaigns || 0} />
-        <StatCard title="Pending Approvals" value={summary.pendingApprovals || 0} />
-        <StatCard title="Overdue Tasks" value={summary.overdueTasks || 0} />
-        <StatCard title="Overdue Payments" value={summary.overduePayments || 0} />
+        <StatCard 
+          title="Managers" 
+          value={summary.managers || 0}
+          scope="Region"
+          accent="#3b82f6"
+        />
+        <StatCard 
+          title="Territories" 
+          value={summary.territories || 0}
+          scope="Region"
+          accent="#3b82f6"
+        />
+        <StatCard 
+          title="Active Campaigns" 
+          value={summary.activeCampaigns || 0}
+          scope="Region"
+          accent="#6366f1"
+        />
+        <StatCard 
+          title="Pending Approvals" 
+          value={summary.pendingApprovals || 0}
+          scope="Awaiting Action"
+          accent="#f59e0b"
+          urgent={summary.pendingApprovals > 0}
+        />
+        <StatCard 
+          title="Overdue Tasks" 
+          value={summary.overdueTasks || 0}
+          scope="Region"
+          accent="#ef4444"
+          urgent={summary.overdueTasks > 0}
+        />
+        <StatCard 
+          title="Overdue Payments" 
+          value={summary.overduePayments || 0}
+          scope="Region"
+          accent="#ef4444"
+          urgent={summary.overduePayments > 0}
+        />
       </div>
 
       {/* TREND AND RANKINGS */}

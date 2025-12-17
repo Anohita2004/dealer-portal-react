@@ -14,7 +14,7 @@ import {
   ListItem,
   ListItemText,
 } from "@mui/material";
-import { ArrowLeft, Users, Calendar, Target } from "lucide-react";
+import { ArrowLeft, Users, Calendar, Target, Info, AlertCircle } from "lucide-react";
 import { campaignAPI } from "../../services/api";
 import { useWorkflow } from "../../hooks/useWorkflow";
 import {
@@ -24,10 +24,13 @@ import {
   WorkflowProgressBar,
 } from "../../components/workflow";
 import PageHeader from "../../components/PageHeader";
+import { explainCampaignVisibility, getCampaignLifecycleState, explainPerformanceCalculations, formatTargetAudience } from "../../utils/campaignTargeting";
+import { useAuth } from "../../context/AuthContext";
 
 export default function CampaignDetail() {
   const { id } = useParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const [campaign, setCampaign] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
@@ -120,16 +123,7 @@ export default function CampaignDetail() {
     return new Date(date).toLocaleString();
   };
 
-  // Format target audience
-  const formatTargetAudience = (targetAudience) => {
-    if (!targetAudience) return "All Dealers";
-    if (typeof targetAudience === "string") return targetAudience;
-    if (Array.isArray(targetAudience)) {
-      if (targetAudience.length === 0) return "All Dealers";
-      return targetAudience.join(", ");
-    }
-    return JSON.stringify(targetAudience);
-  };
+  // Use utility functions for formatting and explanations
 
   return (
     <Box sx={{ p: 3 }}>
@@ -175,19 +169,21 @@ export default function CampaignDetail() {
                   <Typography variant="body2" color="text.secondary">
                     Status
                   </Typography>
-                  <Chip
-                    label={campaign.status?.toUpperCase() || "PENDING"}
-                    color={
-                      campaign.status === "approved" || campaign.status === "active"
-                        ? "success"
-                        : campaign.status === "rejected"
-                        ? "error"
-                        : campaign.status === "ended"
-                        ? "default"
-                        : "warning"
-                    }
-                    size="small"
-                  />
+                  {(() => {
+                    const lifecycleState = getCampaignLifecycleState(campaign);
+                    return (
+                      <Box>
+                        <Chip
+                          label={lifecycleState.label}
+                          color={lifecycleState.color}
+                          size="small"
+                        />
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                          {lifecycleState.description}
+                        </Typography>
+                      </Box>
+                    );
+                  })()}
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
@@ -213,6 +209,23 @@ export default function CampaignDetail() {
                     label={formatTargetAudience(campaign.targetAudience)}
                     variant="outlined"
                   />
+                  {/* Why User Sees This Campaign - Backend Intelligence */}
+                  {user && (() => {
+                    const visibility = explainCampaignVisibility(campaign, user);
+                    if (visibility.isTargeted) {
+                      return (
+                        <Alert severity="info" icon={<Info size={18} />} sx={{ mt: 1 }}>
+                          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                            Why you see this campaign:
+                          </Typography>
+                          <Typography variant="caption">
+                            {visibility.explanation}
+                          </Typography>
+                        </Alert>
+                      );
+                    }
+                    return null;
+                  })()}
                 </Grid>
 
                 {campaign.description && (
@@ -245,42 +258,71 @@ export default function CampaignDetail() {
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
                   Campaign Analytics
                 </Typography>
+                
+                {/* Performance Calculations Explanation - Backend Intelligence */}
+                {(() => {
+                  const calculations = explainPerformanceCalculations(analytics);
+                  return (
+                    <Alert severity="info" icon={<Info size={18} />} sx={{ mb: 2 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                        Performance Calculations:
+                      </Typography>
+                      <Typography variant="caption" sx={{ display: "block", mb: 0.5 }}>
+                        {calculations.participationExplanation}
+                      </Typography>
+                      <Typography variant="caption" sx={{ display: "block" }}>
+                        {calculations.revenueExplanation}
+                      </Typography>
+                    </Alert>
+                  );
+                })()}
+
                 <Grid container spacing={2}>
-                  {analytics.totalDealers && (
+                  {analytics.participation?.totalTargeted && (
                     <Grid item xs={12} sm={4}>
                       <Card variant="outlined" sx={{ p: 2, textAlign: "center" }}>
                         <Users size={24} color="#3b82f6" style={{ margin: "0 auto 8px" }} />
                         <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                          {analytics.totalDealers}
+                          {analytics.participation.totalTargeted}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          Total Dealers
+                          Total Targeted
                         </Typography>
                       </Card>
                     </Grid>
                   )}
-                  {analytics.participationRate !== undefined && (
+                  {analytics.participation?.participated !== undefined && (
                     <Grid item xs={12} sm={4}>
                       <Card variant="outlined" sx={{ p: 2, textAlign: "center" }}>
                         <Target size={24} color="#22c55e" style={{ margin: "0 auto 8px" }} />
                         <Typography variant="h5" sx={{ fontWeight: 600 }}>
-                          {analytics.participationRate}%
+                          {analytics.participation.participated}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
-                          Participation Rate
+                          Participated
                         </Typography>
+                        {analytics.participation.participationRate !== undefined && (
+                          <Typography variant="caption" color="primary" sx={{ display: "block", mt: 0.5 }}>
+                            {analytics.participation.participationRate}% rate
+                          </Typography>
+                        )}
                       </Card>
                     </Grid>
                   )}
-                  {analytics.totalRevenue && (
+                  {analytics.revenue?.total && (
                     <Grid item xs={12} sm={4}>
                       <Card variant="outlined" sx={{ p: 2, textAlign: "center" }}>
                         <Typography variant="h5" sx={{ fontWeight: 600, color: "success.main" }}>
-                          ₹{analytics.totalRevenue.toLocaleString()}
+                          ₹{Number(analytics.revenue.total).toLocaleString()}
                         </Typography>
                         <Typography variant="caption" color="text.secondary">
                           Total Revenue
                         </Typography>
+                        {analytics.revenue.attributed !== undefined && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                            Attributed: ₹{Number(analytics.revenue.attributed).toLocaleString()}
+                          </Typography>
+                        )}
                       </Card>
                     </Grid>
                   )}

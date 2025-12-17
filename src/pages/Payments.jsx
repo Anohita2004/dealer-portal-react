@@ -22,6 +22,9 @@ import { useApiCall } from "../hooks/useApiCall";
 import PaymentApprovalCard from "../components/PaymentApprovalCard";
 import PageHeader from "../components/PageHeader";
 import { toast } from "react-toastify";
+import { isAccountsUser, getDisabledActionExplanation } from "../utils/accountsPermissions";
+import { Alert, Typography } from "@mui/material";
+import { Lock } from "lucide-react";
 
 export default function Payments() {
   const { user } = useAuth();
@@ -56,16 +59,34 @@ export default function Payments() {
       let data;
       if (user?.role === "dealer_admin") {
         data = await paymentAPI.getDealerPending();
-      } else if (user?.role === "finance_admin") {
+      } else if (user?.role === "finance_admin" || user?.role === "accounts_user") {
         data = await paymentAPI.getFinancePending();
       } else {
-        data = await paymentAPI.getAllPayments();
+        // For other roles, try finance pending (most common) or dealer pending
+        // Do NOT use getAllPayments() as it calls non-existent /api/payments
+        try {
+          data = await paymentAPI.getFinancePending();
+        } catch (e) {
+          // If finance pending fails, try dealer pending
+          try {
+            data = await paymentAPI.getDealerPending();
+          } catch (e2) {
+            // If both fail, user doesn't have access - set empty
+            data = { payments: [], data: [] };
+          }
+        }
       }
       const approvalsList = Array.isArray(data) ? data : data.payments || data.data || [];
       setPayments(approvalsList);
     } catch (err) {
+      // 404/403 = endpoint doesn't exist or role restriction - handle gracefully
+      if (err?.response?.status === 404 || err?.response?.status === 403) {
+        setPayments([]);
+        return;
+      }
       console.error("Failed to fetch pending approvals:", err);
       toast.error("Failed to load pending approvals");
+      setPayments([]);
     }
   };
 
@@ -91,8 +112,8 @@ export default function Payments() {
     }
   }, [viewMode, createDialogOpen]);
 
-  const canApprove = ["dealer_admin", "finance_admin", "regional_admin", "super_admin"].includes(user?.role);
-  const canCreate = ["dealer_staff", "dealer_admin"].includes(user?.role);
+  const canApprove = ["dealer_admin", "finance_admin", "accounts_user", "regional_admin", "super_admin"].includes(user?.role);
+  const canCreate = !isAccountsUser(user) && ["dealer_staff", "dealer_admin"].includes(user?.role);
 
   const handleCreatePayment = async () => {
     if (!selectedInvoice || !amount || !proofFile) {
@@ -154,8 +175,26 @@ export default function Payments() {
     <Box p={3}>
       <PageHeader
         title="Payments"
-        subtitle={viewMode === "approvals" ? "Pending payment approvals" : "View and manage payment requests"}
+        subtitle={
+          isAccountsUser(user)
+            ? "View all payment requests in scope. Approve or reject payments with mandatory remarks."
+            : viewMode === "approvals"
+            ? "Pending payment approvals"
+            : "View and manage payment requests"
+        }
       />
+
+      {/* Read-Only Notice for Accounts Users */}
+      {isAccountsUser(user) && viewMode === "list" && (
+        <Alert severity="info" icon={<Lock size={20} />} sx={{ mb: 3 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Accounts User Access
+          </Typography>
+          <Typography variant="body2">
+            {getDisabledActionExplanation(user, "create_orders")} You can view all payments in scope and approve/reject payment requests.
+          </Typography>
+        </Alert>
+      )}
 
       {/* Tabs */}
       <Box sx={{ mb: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
@@ -302,6 +341,16 @@ export default function Payments() {
       <Dialog open={createDialogOpen} onClose={() => setCreateDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>Create Payment Request</DialogTitle>
         <DialogContent>
+          {isAccountsUser(user) && (
+            <Alert severity="warning" sx={{ mb: 2 }} icon={<Lock size={20} />}>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                Action Not Permitted
+              </Typography>
+              <Typography variant="body2">
+                {getDisabledActionExplanation(user, "create_orders")}
+              </Typography>
+            </Alert>
+          )}
           <TextField
             fullWidth
             select

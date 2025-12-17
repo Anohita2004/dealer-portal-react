@@ -99,8 +99,74 @@ export default function ApprovalActions({
       .join(" ");
   };
 
-  if (isApproved || isRejected || !userCanApprove) {
-    return null;
+  // Show component even if user can't approve, to explain why
+  if (isApproved || isRejected) {
+    return (
+      <Box
+        sx={{
+          p: 3,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 2,
+          bgcolor: "background.paper",
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+          Approval Status
+        </Typography>
+        <Alert severity={isApproved ? "success" : "error"}>
+          This {entityType} has been {isApproved ? "approved" : "rejected"} and is no longer pending approval.
+        </Alert>
+      </Box>
+    );
+  }
+
+  // If user can't approve, show explanation instead of hiding
+  if (!userCanApprove) {
+    return (
+      <Box
+        sx={{
+          p: 3,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 2,
+          bgcolor: "background.paper",
+        }}
+      >
+        <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+          Approval Actions
+        </Typography>
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              Waiting for {formatStageName(currentStage)} approval
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Your role ({user?.role ? formatStageName(user.role) : "N/A"}) does not match the current approval stage. 
+              This order is currently at the <strong>{formatStageName(currentStage)}</strong> stage and requires approval from a {formatStageName(currentStage)}.
+            </Typography>
+          </Box>
+        </Alert>
+        {pipeline && pipeline.length > 0 && (
+          <Box sx={{ mt: 2 }}>
+            <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>
+              Approval Pipeline:
+            </Typography>
+            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+              {pipeline.map((stage, index) => (
+                <Chip
+                  key={stage}
+                  label={`${index + 1}. ${formatStageName(stage)}`}
+                  size="small"
+                  color={stage === currentStage ? "primary" : "default"}
+                  variant={stage === currentStage ? "filled" : "outlined"}
+                />
+              ))}
+            </Box>
+          </Box>
+        )}
+      </Box>
+    );
   }
 
   return (
@@ -171,6 +237,29 @@ export default function ApprovalActions({
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             You are approving this {entityType} at the {formatStageName(currentStage)} stage.
           </Typography>
+          
+          {/* What happens after approve - Backend Intelligence */}
+          {workflow && (
+            <Alert severity="info" sx={{ mb: 2 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                What happens next:
+              </Typography>
+              {workflow.isFinal ? (
+                <Typography variant="caption" component="div">
+                  This is the final approval stage. After approval, this {entityType} will be <strong>fully approved</strong> and the workflow will be complete.
+                </Typography>
+              ) : workflow.pendingStages && workflow.pendingStages.length > 0 ? (
+                <Typography variant="caption" component="div">
+                  After approval, this {entityType} will move to the <strong>{formatStageName(workflow.pendingStages[0])}</strong> stage for the next level of approval.
+                </Typography>
+              ) : (
+                <Typography variant="caption" component="div">
+                  After approval, this {entityType} will proceed to the next stage in the approval pipeline.
+                </Typography>
+              )}
+            </Alert>
+          )}
+          
           {validationError && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {validationError}
@@ -233,6 +322,17 @@ export default function ApprovalActions({
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Please provide a reason for rejection. This will be visible to the requester.
           </Typography>
+          
+          {/* What happens after reject - Backend Intelligence */}
+          <Alert severity="warning" sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              What happens after rejection:
+            </Typography>
+            <Typography variant="caption" component="div">
+              Rejecting this {entityType} will <strong>stop the approval workflow</strong>. The requester will be notified with your rejection reason, and they may need to resubmit with corrections.
+            </Typography>
+          </Alert>
+          
           {validationError && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {validationError}

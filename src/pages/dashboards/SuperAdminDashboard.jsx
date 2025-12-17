@@ -464,12 +464,58 @@ export default function SuperAdminDashboard() {
           <h1 style={{ fontSize: "2rem", fontWeight: 700, margin: 0, marginBottom: "0.5rem" }}>
             Super Admin Dashboard
           </h1>
-          <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.875rem", opacity: 0.7 }}>
-            <span>Viewing: All Data</span>
+          <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.875rem", alignItems: "center" }}>
+            <span style={{ padding: "0.25rem 0.75rem", background: "#fee2e2", color: "#dc2626", borderRadius: "4px", fontWeight: 600 }}>
+              GLOBAL SCOPE
+            </span>
+            <span style={{ opacity: 0.7 }}>Viewing: All Regions, All Roles, All Entities</span>
           </div>
         </div>
         <TimeFilter value={timeRange} onChange={setTimeRange} />
       </div>
+
+      {/* GOVERNANCE ALERTS - System-Wide Risks */}
+      {(() => {
+        const pendingApprovals = k.totalApprovalsPending || 0;
+        const hasRisks = pendingApprovals > 50 || k.totalOutstanding > 10000000;
+        
+        if (!hasRisks) return null;
+        
+        return (
+          <div style={{ 
+            marginBottom: "2rem", 
+            padding: "1.5rem", 
+            background: "#fef3c7", 
+            border: "2px solid #f59e0b", 
+            borderRadius: "12px" 
+          }}>
+            <h3 style={{ fontSize: "1.125rem", fontWeight: 700, margin: 0, marginBottom: "1rem", color: "#92400e" }}>
+              ⚠️ Governance Alerts
+            </h3>
+            <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
+              {pendingApprovals > 50 && (
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ fontSize: "1.25rem" }}>⚠️</span>
+                  <span>
+                    <strong>Approval Bottleneck:</strong> {pendingApprovals} items pending approval. Review workflow efficiency.
+                  </span>
+                </div>
+              )}
+              {k.totalOutstanding > 10000000 && (
+                <div style={{ display: "flex", alignItems: "center", gap: "0.5rem" }}>
+                  <span style={{ fontSize: "1.25rem" }}>💰</span>
+                  <span>
+                    <strong>High Outstanding:</strong> ₹{(k.totalOutstanding / 10000000).toFixed(1)}Cr outstanding. Monitor collection.
+                  </span>
+                </div>
+              )}
+            </div>
+            <div style={{ marginTop: "1rem", fontSize: "0.875rem", color: "#92400e", fontStyle: "italic" }}>
+              These are informational governance metrics. Use Reports and Workflows sections for detailed analysis.
+            </div>
+          </div>
+        );
+      })()}
 
       {/* COMPARISON WIDGETS */}
       <div
@@ -520,7 +566,11 @@ export default function SuperAdminDashboard() {
         }}
       >
         <KPI title="Total Invoices" value={k.totalInvoices || 0} color="#3b82f6" />
-        <KPI title="Pending Approvals" value={k.totalApprovalsPending || 0} color="#eab308" />
+        <KPI 
+          title="Pending Approvals" 
+          value={k.totalApprovalsPending || 0} 
+          color={k.totalApprovalsPending > 50 ? "#ef4444" : "#eab308"} 
+        />
         <KPI title="Active Campaigns" value={k.activeCampaigns || 0} color="#8b5cf6" />
         <KPI title="Collection Rate" value={`${collectionRate.toFixed(1)}%`} color={collectionRate > 80 ? "#22c55e" : collectionRate > 60 ? "#eab308" : "#ef4444"} />
         <KPI title="Avg Order Value" value={avgOrderValue ? `₹${(avgOrderValue / 1000).toFixed(1)}K` : "₹0"} color="#6366f1" />

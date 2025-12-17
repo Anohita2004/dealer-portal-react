@@ -88,11 +88,35 @@ export default function DealerDashboard() {
           invoiceAPI.getInvoices(params).catch(() => ({ data: { invoices: [] } })),
           orderAPI.getMyOrders(params).catch(() => ({ data: [] })),
           paymentAPI.getMyRequests(params).catch(() => ({ data: [] })),
-          campaignAPI.getActiveCampaigns().catch(() => ({ data: [] })),
+          campaignAPI.getActiveCampaigns().catch((err) => {
+            // Silently handle 403/404 - expected permission/endpoint issues
+            if (err.response?.status !== 403 && err.response?.status !== 404 && !err.silent) {
+              console.error("Active campaigns error:", err);
+            }
+            return { data: [] };
+          }),
           documentAPI.getDocuments(params).catch(() => ({ data: { documents: [] } })),
-          reportAPI.getDealerPerformance({ ...params, trend: true }).catch(() => ({ trend: [] })),
-          api.get("/inventory/summary").catch(() => ({ data: { inventory: [] } })),
-          api.get("/payments/due").catch(() => ({ data: [] })),
+          reportAPI.getDealerPerformance({ ...params, trend: true }).catch((err) => {
+            // Silently handle 403/404 - expected permission/endpoint issues
+            if (err.response?.status !== 403 && err.response?.status !== 404 && !err.silent) {
+              console.error("Dealer performance error:", err);
+            }
+            return { trend: [] };
+          }),
+          api.get("/inventory/summary").catch((err) => {
+            // Silently handle 403/404 - expected permission/endpoint issues
+            if (err.response?.status !== 403 && err.response?.status !== 404 && !err.silent) {
+              console.error("Inventory summary error:", err);
+            }
+            return { data: { inventory: [] } };
+          }),
+          api.get("/payments/due").catch((err) => {
+            // Silently handle 403/404 - expected permission/endpoint issues
+            if (err.response?.status !== 403 && err.response?.status !== 404 && !err.silent) {
+              console.error("Payments due error:", err);
+            }
+            return { data: [] };
+          }),
         ]);
 
         if (!mounted) return;
@@ -103,7 +127,7 @@ export default function DealerDashboard() {
         setSummary(summary || {});
         setPreviousSummary(prevSummary || {});
         setInvoices(invoiceRes.status === 'fulfilled' ? (invoiceRes.value.data?.invoices || invoiceRes.value.invoices || invoiceRes.value || []) : []);
-        setOrders(orderRes.status === 'fulfilled' ? (orderRes.value.data || orderRes.value || []) : []);
+        setOrders(orderRes.status === 'fulfilled' ? (Array.isArray(orderRes.value.data) ? orderRes.value.data : Array.isArray(orderRes.value) ? orderRes.value : []) : []);
         setPayments(paymentRes.status === 'fulfilled' ? (paymentRes.value.data || paymentRes.value || []) : []);
         setPromotions(promoRes.status === 'fulfilled' ? (promoRes.value.data || promoRes.value || []) : []);
         setDocuments(docRes.status === 'fulfilled' ? (docRes.value.data?.documents || docRes.value.documents || docRes.value || []) : []);
@@ -122,8 +146,11 @@ export default function DealerDashboard() {
           setPricingStats([]);
         }
       } catch (err) {
-        console.error("Dealer dashboard error:", err);
-        toast.error("Failed to load dealer dashboard (see console).");
+        // Only log non-silent errors (silent errors are expected permission/404 issues)
+        if (!err.silent) {
+          console.error("Dealer dashboard error:", err);
+          toast.error("Failed to load dealer dashboard (see console).");
+        }
       } finally {
         if (mounted) setLoading(false);
       }
@@ -297,7 +324,7 @@ export default function DealerDashboard() {
         />
         <ComparisonWidget
           title="Total Orders"
-          current={orders.length || 0}
+          current={Array.isArray(orders) ? orders.length : 0}
           previous={0}
           formatValue={(v) => v.toLocaleString()}
           color="#3b82f6"
@@ -317,13 +344,19 @@ export default function DealerDashboard() {
           title="Due Payments"
           value={duePayments.length || 0}
           icon={<AlertCircle />}
+          scope="Dealer"
+          accent="#ef4444"
+          urgent={duePayments.length > 0}
           onClick={() => navigate("/payments/due")}
           style={{ cursor: "pointer" }}
         />
         <StatCard
           title="Pending Orders"
-          value={orders.filter((o) => o.status === "pending").length || 0}
+          value={Array.isArray(orders) ? orders.filter((o) => (o.status || o.approvalStatus || "").toLowerCase() === "pending").length : 0}
           icon={<Box />}
+          scope="Dealer"
+          accent="#f59e0b"
+          urgent={Array.isArray(orders) && orders.some((o) => (o.status || o.approvalStatus || "").toLowerCase() === "pending")}
           onClick={() => navigate("/orders?status=pending")}
           style={{ cursor: "pointer" }}
         />
@@ -331,6 +364,8 @@ export default function DealerDashboard() {
           title="Promotions"
           value={promotions?.length || 0}
           icon={<Tag />}
+          scope="Active"
+          accent="#6366f1"
         />
       </div>
 
@@ -364,8 +399,15 @@ export default function DealerDashboard() {
                       <td>{p.invoiceNumber || p.invoiceId}</td>
                       <td>₹{Number(p.amount || 0).toLocaleString()}</td>
                       <td>{p.dueDate ? new Date(p.dueDate).toLocaleDateString() : "-"}</td>
-                      <td className={p.isOverdue ? "status-pending" : "status-approved"}>
-                        {p.isOverdue ? "Overdue" : "Due Soon"}
+                      <td className={
+                        p.isOverdue 
+                          ? "status-overdue" 
+                          : p.status === "overdue" 
+                          ? "status-overdue"
+                          : "status-pending"
+                      }>
+                        {/* Backend enum: paid, unpaid, partial, overdue */}
+                        {p.isOverdue || p.status === "overdue" ? "Overdue" : p.status === "partial" ? "Partial" : "Due Soon"}
                       </td>
                     </tr>
                   ))}
@@ -393,8 +435,15 @@ export default function DealerDashboard() {
                       <td>{o.orderNumber || o.id}</td>
                       <td>{o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "-"}</td>
                       <td>{Number(o.totalAmount || 0).toLocaleString()}</td>
-                      <td className={o.status === "approved" ? "status-approved" : "status-pending"}>
-                        {o.status || "Unknown"}
+                      <td className={
+                        (o.status || o.approvalStatus || "").toLowerCase() === "approved" 
+                          ? "status-approved" 
+                          : (o.status || o.approvalStatus || "").toLowerCase() === "rejected"
+                          ? "status-rejected"
+                          : "status-pending"
+                      }>
+                        {/* Backend enum: pending, approved, rejected */}
+                        {(o.status || o.approvalStatus || "pending").toLowerCase()}
                       </td>
                     </tr>
                   ))}
@@ -422,8 +471,17 @@ export default function DealerDashboard() {
                       <td>{i.invoiceNumber}</td>
                       <td>{i.invoiceDate ? new Date(i.invoiceDate).toLocaleDateString() : "-"}</td>
                       <td>{Number(i.totalAmount || 0).toLocaleString()}</td>
-                      <td className={i.status === "Paid" ? "status-approved" : "status-pending"}>
-                        {i.status || "Unknown"}
+                      <td className={
+                        (i.status || "").toLowerCase() === "paid" 
+                          ? "status-approved" 
+                          : (i.status || "").toLowerCase() === "overdue"
+                          ? "status-overdue"
+                          : (i.status || "").toLowerCase() === "partial"
+                          ? "status-partial"
+                          : "status-pending"
+                      }>
+                        {/* Backend enum: paid, unpaid, partial, overdue */}
+                        {(i.status || "unpaid").toLowerCase()}
                       </td>
                     </tr>
                   ))}

@@ -251,7 +251,7 @@ export default function ManagerDashboard() {
       newPrice: fmtCurrency(a.newPrice),
       requestedBy: a.requestedBy || "—",
       requestedAt: fmtDate(a.createdAt),
-      status: (a.status || "pending").toString(),
+      status: (a.status || "pending").toString().toLowerCase(), // Backend enum: pending, approved, rejected
       actions: (
         <div style={{ display: "flex", gap: 8 }}>
           <button
@@ -370,10 +370,36 @@ export default function ManagerDashboard() {
       <div className="dashboard-grid">
         <div className="left-col">
           <div className="kpi-row">
-            <StatCard title="Total Dealers" value={summary.totalDealers || 0} icon={<Users size={20} />} />
-            <StatCard title="Pending Pricing" value={summary.pendingPricing || 0} icon={<Activity size={20} />} />
-            <StatCard title="Pending Documents" value={summary.pendingDocuments || 0} icon={<FileText size={20} />} />
-            <StatCard title="Recent Sales" value={fmtCurrency(summary.recentSales || 0)} icon={<BarChart2 size={20} />} />
+            <StatCard 
+              title="Total Dealers" 
+              value={summary.totalDealers || 0} 
+              icon={<Users size={20} />}
+              scope="Territory/Area"
+              accent="#3b82f6"
+            />
+            <StatCard 
+              title="Pending Pricing" 
+              value={summary.pendingPricing || 0} 
+              icon={<Activity size={20} />}
+              scope="Awaiting Approval"
+              accent="#f59e0b"
+              urgent={summary.pendingPricing > 0}
+            />
+            <StatCard 
+              title="Pending Documents" 
+              value={summary.pendingDocuments || 0} 
+              icon={<FileText size={20} />}
+              scope="Awaiting Approval"
+              accent="#f59e0b"
+              urgent={summary.pendingDocuments > 0}
+            />
+            <StatCard 
+              title="Recent Sales" 
+              value={fmtCurrency(summary.recentSales || 0)} 
+              icon={<BarChart2 size={20} />}
+              scope="Territory/Area"
+              accent="#10b981"
+            />
           </div>
 
           {lowStock.length > 0 && (

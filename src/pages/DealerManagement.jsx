@@ -10,7 +10,7 @@ import {
   InputAdornment,
 } from "@mui/material";
 import { Search, TrendingUp, DollarSign, Package } from "lucide-react";
-import { managerAPI } from "../services/api";
+import { dealerAPI } from "../services/api";
 import { toast } from "react-toastify";
 import PageHeader from "../components/PageHeader";
 import ScopedDataTable from "../components/ScopedDataTable";
@@ -27,11 +27,13 @@ export default function DealerManagement() {
   const fetchDealers = async () => {
     try {
       setLoading(true);
-      const data = await managerAPI.getDealers();
-      setDealers(Array.isArray(data) ? data : data.dealers || []);
+      // Use /dealers endpoint which is automatically scoped by user role
+      const data = await dealerAPI.getDealers({ page: 1, pageSize: 100 });
+      setDealers(Array.isArray(data) ? data : data.data || data.dealers || []);
     } catch (error) {
       console.error("Failed to fetch dealers:", error);
       toast.error("Failed to load dealers");
+      setDealers([]);
     } finally {
       setLoading(false);
     }
@@ -139,7 +141,7 @@ export default function DealerManagement() {
         />
 
         <ScopedDataTable
-          endpoint="/managers/dealers"
+          endpoint="/dealers"
           columns={columns}
           title="Dealers"
           data={filteredDealers}

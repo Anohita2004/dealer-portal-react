@@ -111,10 +111,36 @@ export default function RegionalApprovals() {
 
   const loadPaymentApprovals = async () => {
     try {
-      const data = await paymentAPI.getAllPayments({ status: "pending" });
-      setPayments(data.data || data || []);
+      // Payments are workflow-driven - use finance pending endpoint
+      // If that doesn't work, try dealer pending
+      let data;
+      try {
+        data = await paymentAPI.getFinancePending();
+      } catch (e) {
+        if (e?.response?.status === 404 || e?.response?.status === 403) {
+          try {
+            data = await paymentAPI.getDealerPending();
+          } catch (e2) {
+            // Both endpoints failed - user doesn't have access
+            setPayments([]);
+            return;
+          }
+        } else {
+          throw e;
+        }
+      }
+      const paymentsList = Array.isArray(data) ? data : data.payments || data.data || [];
+      // Filter for pending status client-side
+      setPayments(paymentsList.filter(p => p.status === "pending" || p.approvalStatus === "pending"));
     } catch (error) {
+      // 404/403 = endpoint doesn't exist or role restriction - handle gracefully
+      if (error?.response?.status === 404 || error?.response?.status === 403) {
+        setPayments([]);
+        return;
+      }
+      // Only log non-permission errors
       console.error("Failed to load payment approvals:", error);
+      setPayments([]);
     }
   };
 

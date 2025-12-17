@@ -15,14 +15,16 @@ import {
   TableHead,
   Divider,
   Chip,
+  Alert,
 } from "@mui/material";
-import { Plus, Trash2, ShoppingCart } from "lucide-react";
+import { Plus, Trash2, ShoppingCart, Lock } from "lucide-react";
 import { materialAPI, orderAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { useApiCall } from "../../hooks/useApiCall";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { toast } from "react-toastify";
+import { isAccountsUser, getDisabledActionExplanation } from "../../utils/accountsPermissions";
 
 export default function CreateOrder() {
   const { user } = useAuth();
@@ -136,8 +138,20 @@ export default function CreateOrder() {
     <Box p={3}>
       <PageHeader
         title="Create New Order"
-        subtitle="Add materials to your order and submit for approval"
+        subtitle={isReadOnly ? "Read-only access. Orders cannot be created by accounts users." : "Add materials to your order and submit for approval"}
       />
+
+      {/* Read-Only Notice for Accounts Users */}
+      {isReadOnly && (
+        <Alert severity="warning" icon={<Lock size={20} />} sx={{ mb: 3 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Action Not Permitted
+          </Typography>
+          <Typography variant="body2">
+            {getDisabledActionExplanation(user, "create_orders")}
+          </Typography>
+        </Alert>
+      )}
 
       <Box sx={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 3, mt: 3 }}>
         {/* Left: Add Items Form */}
@@ -181,6 +195,7 @@ export default function CreateOrder() {
               type="number"
               size="small"
               inputProps={{ min: 1 }}
+              disabled={isReadOnly}
             />
 
             {/* UNIT PRICE */}
@@ -193,6 +208,7 @@ export default function CreateOrder() {
               type="number"
               size="small"
               inputProps={{ min: 0.01, step: 0.01 }}
+              disabled={isReadOnly}
             />
 
             <Button
@@ -201,7 +217,7 @@ export default function CreateOrder() {
               fullWidth
               onClick={addItem}
               sx={{ mt: 2 }}
-              disabled={!selectedMaterial || !quantity}
+              disabled={isReadOnly || !selectedMaterial || !quantity}
             >
               Add to Order
             </Button>
@@ -243,6 +259,7 @@ export default function CreateOrder() {
                             size="small"
                             color="error"
                             onClick={() => removeItem(index)}
+                            disabled={isReadOnly}
                           >
                             <Trash2 size={16} />
                           </IconButton>
@@ -271,6 +288,7 @@ export default function CreateOrder() {
                   margin="normal"
                   size="small"
                   placeholder="Add any notes or special instructions..."
+                  disabled={isReadOnly}
                 />
 
                 <Button
@@ -279,7 +297,7 @@ export default function CreateOrder() {
                   fullWidth
                   size="large"
                   onClick={handleSubmit}
-                  disabled={loading || orderItems.length === 0}
+                  disabled={isReadOnly || loading || orderItems.length === 0}
                   sx={{ mt: 2 }}
                   startIcon={<ShoppingCart size={18} />}
                 >

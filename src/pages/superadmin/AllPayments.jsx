@@ -1,43 +1,50 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Box,
   TextField,
   InputAdornment,
   Button,
   Chip,
+  Alert,
+  Typography,
 } from "@mui/material";
 import { Search, Download } from "lucide-react";
 import { paymentAPI } from "../../services/api";
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
 import ScopedDataTable from "../../components/ScopedDataTable";
+import { useAuth } from "../../context/AuthContext";
 
 export default function AllPayments() {
-  const [payments, setPayments] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
 
-  useEffect(() => {
-    fetchPayments();
-  }, []);
-
-  const fetchPayments = async () => {
+  // Fetch function for ScopedDataTable - uses workflow-based endpoint
+  // Super Admin should use finance pending endpoint to see all payments in workflow
+  const fetchPaymentsFn = async ({ page, limit }) => {
     try {
-      setLoading(true);
-      const data = await paymentAPI.getAllPayments();
-      setPayments(Array.isArray(data) ? data : data.payments || data.data || []);
+      // For Super Admin, use finance pending endpoint which shows all payments in workflow
+      const data = await paymentAPI.getFinancePending();
+      const paymentsList = Array.isArray(data) ? data : data.payments || data.data || [];
+      
+      // Apply client-side pagination if needed
+      const start = (page - 1) * limit;
+      const end = start + limit;
+      const paginated = paymentsList.slice(start, end);
+      
+      return {
+        data: paginated,
+        total: paymentsList.length,
+      };
     } catch (error) {
-      console.error("Failed to fetch payments:", error);
-      toast.error("Failed to load payments");
-    } finally {
-      setLoading(false);
+      // 404 = endpoint doesn't exist - return empty
+      // 403 = role restriction - return empty
+      if (error?.response?.status === 404 || error?.response?.status === 403) {
+        return { data: [], total: 0 };
+      }
+      throw error;
     }
   };
-
-  const filteredPayments = payments.filter((payment) =>
-    payment.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    payment.dealer?.businessName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const columns = [
     { field: "invoiceNumber", headerName: "Invoice #", flex: 0.8 },
@@ -100,12 +107,17 @@ export default function AllPayments() {
         />
       </Box>
 
+      {/* Note: Payments are workflow-driven. Super Admin sees all payments via finance pending endpoint */}
+      <Alert severity="info" sx={{ mb: 2 }}>
+        <Typography variant="body2">
+          Payments are workflow-driven and role-scoped. This view shows all payments currently in the finance approval workflow.
+        </Typography>
+      </Alert>
+
       <ScopedDataTable
-        endpoint="/payments"
+        fetchFn={fetchPaymentsFn}
         columns={columns}
-        title="Payments"
-        data={filteredPayments}
-        loading={loading}
+        title="All Payments (Workflow View)"
       />
     </Box>
   );

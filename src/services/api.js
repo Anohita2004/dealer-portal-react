@@ -35,6 +35,38 @@ api.interceptors.response.use(
       window.location.href = "/login";
     }
 
+    // Suppress console errors for expected 400/403/404 errors on optional endpoints
+    // These are validation, permission-based, or optional features handled gracefully in components
+    // Note: Browser Network tab will still show these requests (this is normal browser behavior)
+    if (err.response?.status === 400 || err.response?.status === 403 || err.response?.status === 404) {
+      const optionalEndpoints = [
+        "/chat/",
+        "/notifications",
+        "/campaigns/active",
+        "/reports/dealer-performance",
+        "/reports/dashboard/", // Dashboard endpoints may have validation errors
+        "/inventory/summary",
+        "/payments/due",
+        "/managers/approval-queue",
+        "/managers/recent-activity",
+        "/managers/dealers"
+      ];
+      const isOptional = optionalEndpoints.some((path) => 
+        originalUrl.includes(path)
+      );
+      
+      if (isOptional) {
+        // Silently handle - these are expected validation/permission errors or optional endpoints
+        // The error will still be available in catch blocks for handling
+        // but we won't log it to console
+        // Browser Network tab will still show these (cannot be suppressed)
+        err.silent = true;
+        // Prevent axios from logging to console by removing error message
+        err.config = err.config || {};
+        err.config._suppressErrorLog = true;
+      }
+    }
+
     return Promise.reject(err);
   }
 );
@@ -263,9 +295,20 @@ export const paymentAPI = {
   getMyRequests: (params) =>
     api.get("/payments/mine", { params }).then((r) => r.data),
 
-  // Get all payments (super admin - scoped)
+  // DEPRECATED: Get all payments - endpoint /api/payments does not exist
+  // Payments are workflow-driven and role-scoped. Use:
+  // - getMyRequests() for dealer_staff/dealer_admin
+  // - getDealerPending() for dealer_admin
+  // - getFinancePending() for finance_admin/accounts_user
+  // This function is kept for backward compatibility but will return 404
   getAllPayments: (params) =>
-    api.get("/payments", { params }).then((r) => r.data),
+    api.get("/payments", { params }).then((r) => r.data).catch((err) => {
+      // Return empty array for 404/403 to prevent crashes
+      if (err?.response?.status === 404 || err?.response?.status === 403) {
+        return { data: [], payments: [] };
+      }
+      throw err;
+    }),
 
   // Get payment by ID
   getPaymentById: (id) =>
@@ -588,30 +631,24 @@ export const chatAPI = {
   getConversation: (partnerId, params) =>
     api.get(`/chat/conversation/${partnerId}`, { params }).then((r) => r.data),
 
-  // Send message
+  // Send message (updated to match guide: POST /api/chat/send)
   sendMessage: (payload) =>
-    api.post("/chat/messages", payload).then((r) => r.data),
+    api.post("/chat/send", payload).then((r) => r.data),
 
-  // Mark conversation as read
+  // Mark conversation as read (updated to match guide: PATCH /api/chat/:partnerId/read)
   markRead: async (partnerId) => {
-    const candidates = [
-      { method: "patch", url: `/chat/${partnerId}/read` },
-      { method: "post", url: `/chat/${partnerId}/read` },
-      { method: "patch", url: `/chat/mark-read/${partnerId}` },
-      { method: "post", url: `/chat/mark-read/${partnerId}` },
-    ];
-
-    let lastErr = null;
-    for (const c of candidates) {
+    try {
+      const res = await api.patch(`/chat/${partnerId}/read`);
+      return res.data;
+    } catch (err) {
+      // Fallback to POST if PATCH doesn't work
       try {
-        const res = await api[c.method](c.url);
+        const res = await api.post(`/chat/${partnerId}/read`);
         return res.data;
-      } catch (err) {
-        lastErr = err;
-        if (err.response && err.response.status === 404) continue;
+      } catch (fallbackErr) {
+        throw fallbackErr || err;
       }
     }
-    return Promise.reject(lastErr || new Error("Failed to mark chat read"));
   },
 
   // Get unread count

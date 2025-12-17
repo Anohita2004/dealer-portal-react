@@ -10,8 +10,9 @@ import {
   Grid,
   CircularProgress,
   Alert,
+  Divider,
 } from "@mui/material";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, AlertCircle, FileText } from "lucide-react";
 import { paymentAPI } from "../../services/api";
 import { useWorkflow } from "../../hooks/useWorkflow";
 import {
@@ -260,9 +261,98 @@ export default function PaymentDetail() {
                     <Typography variant="body1">{payment.remarks}</Typography>
                   </Grid>
                 )}
+
+                {/* Finance Remarks - Backend Intelligence */}
+                {payment.financeRemarks && (
+                  <Grid item xs={12}>
+                    <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                      Finance Remarks
+                    </Typography>
+                    <Alert severity="info" sx={{ mt: 1 }}>
+                      <Typography variant="body2">{payment.financeRemarks}</Typography>
+                    </Alert>
+                  </Grid>
+                )}
+
+                {/* Reconciliation State - Backend Intelligence */}
+                {payment.reconciliationStatus && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Reconciliation Status
+                    </Typography>
+                    <Chip
+                      label={payment.reconciliationStatus.charAt(0).toUpperCase() + payment.reconciliationStatus.slice(1)}
+                      color={
+                        payment.reconciliationStatus === "reconciled"
+                          ? "success"
+                          : payment.reconciliationStatus === "pending"
+                          ? "warning"
+                          : payment.reconciliationStatus === "discrepancy"
+                          ? "error"
+                          : "default"
+                      }
+                      size="small"
+                    />
+                    {payment.reconciliationStatus === "discrepancy" && payment.reconciliationNotes && (
+                      <Typography variant="caption" color="error" sx={{ display: "block", mt: 0.5 }}>
+                        {payment.reconciliationNotes}
+                      </Typography>
+                    )}
+                  </Grid>
+                )}
+
+                {/* Proof Document Status */}
+                {payment.proofFile && (
+                  <Grid item xs={12} sm={6}>
+                    <Typography variant="body2" color="text.secondary">
+                      Proof Document
+                    </Typography>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Chip label="Uploaded" color="success" size="small" />
+                      <Button
+                        size="small"
+                        variant="outlined"
+                        startIcon={<Download />}
+                        onClick={handleDownloadProof}
+                      >
+                        View Proof
+                      </Button>
+                    </Box>
+                  </Grid>
+                )}
               </Grid>
             </CardContent>
           </Card>
+
+          {/* Why Payment is Pending - Backend Intelligence */}
+          {workflow && workflow.approvalStatus === "pending" && (
+            <Card sx={{ mb: 3 }}>
+              <CardContent>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}>
+                  <AlertCircle size={20} />
+                  Payment Status Explanation
+                </Typography>
+                <Alert severity="info">
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Why this payment is pending:
+                  </Typography>
+                  <Typography variant="body2">
+                    This payment is currently at the <strong>{workflow.currentStage ? workflow.currentStage.split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ") : "approval"}</strong> stage and requires approval before it can proceed.
+                  </Typography>
+                  {workflow.pendingStages && workflow.pendingStages.length > 0 && (
+                    <Box sx={{ mt: 1 }}>
+                      <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                        Required next action:
+                      </Typography>
+                      <Typography variant="body2">
+                        Waiting for <strong>{workflow.pendingStages[0].split("_").map(w => w.charAt(0).toUpperCase() + w.slice(1)).join(" ")}</strong> to review and approve this payment request.
+                      </Typography>
+                    </Box>
+                  )}
+                </Alert>
+              </CardContent>
+            </Card>
+          )}
         </Grid>
 
         {/* Workflow Section */}

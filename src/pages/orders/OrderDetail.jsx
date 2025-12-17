@@ -17,8 +17,9 @@ import {
   Grid,
   CircularProgress,
   Alert,
+  Divider,
 } from "@mui/material";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, AlertCircle, Package, Receipt, CreditCard, CheckCircle, Clock } from "lucide-react";
 import { orderAPI } from "../../services/api";
 import { useWorkflow } from "../../hooks/useWorkflow";
 import {
@@ -28,6 +29,7 @@ import {
   WorkflowProgressBar,
 } from "../../components/workflow";
 import PageHeader from "../../components/PageHeader";
+import { getOrderLifecycleStatus, getInventoryImpact, getOrderLinks } from "../../utils/orderLifecycle";
 
 export default function OrderDetail() {
   const { id } = useParams();
@@ -167,17 +169,32 @@ export default function OrderDetail() {
                   <Typography variant="body2" color="text.secondary">
                     Status
                   </Typography>
-                  <Chip
-                    label={order.status?.toUpperCase() || "PENDING"}
-                    color={
-                      order.status === "approved"
-                        ? "success"
-                        : order.status === "rejected"
-                        ? "error"
-                        : "warning"
-                    }
-                    size="small"
-                  />
+                  {(() => {
+                    const lifecycleStatus = getOrderLifecycleStatus(order);
+                    return (
+                      <Box>
+                        <Chip
+                          label={lifecycleStatus.label}
+                          color={lifecycleStatus.color}
+                          size="small"
+                          icon={
+                            lifecycleStatus.isBlocked ? (
+                              <AlertCircle size={14} />
+                            ) : lifecycleStatus.lifecycleStage === "approved" ? (
+                              <CheckCircle size={14} />
+                            ) : (
+                              <Clock size={14} />
+                            )
+                          }
+                        />
+                        {lifecycleStatus.description && (
+                          <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                            {lifecycleStatus.description}
+                          </Typography>
+                        )}
+                      </Box>
+                    );
+                  })()}
                 </Grid>
 
                 <Grid item xs={12} sm={6}>
@@ -207,6 +224,133 @@ export default function OrderDetail() {
               </Grid>
             </CardContent>
           </Card>
+
+          {/* Blocking Reason Alert - Backend Intelligence */}
+          {(() => {
+            const lifecycleStatus = getOrderLifecycleStatus(order);
+            if (lifecycleStatus.isBlocked && lifecycleStatus.blockingReason) {
+              return (
+                <Alert severity="warning" sx={{ mb: 3 }} icon={<AlertCircle />}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    Order Blocked
+                  </Typography>
+                  <Typography variant="body2">
+                    {lifecycleStatus.blockingReason}
+                  </Typography>
+                </Alert>
+              );
+            }
+            return null;
+          })()}
+
+          {/* Inventory Impact Preview - Backend Intelligence */}
+          {(() => {
+            const inventoryImpact = getInventoryImpact(order);
+            if (inventoryImpact && inventoryImpact.items.length > 0) {
+              return (
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}>
+                      <Package size={20} />
+                      Inventory Impact Preview
+                    </Typography>
+                    {inventoryImpact.hasLowStock && (
+                      <Alert severity="warning" sx={{ mb: 2 }}>
+                        This order will result in low stock for some materials
+                      </Alert>
+                    )}
+                    <TableContainer component={Paper} variant="outlined">
+                      <Table size="small">
+                        <TableHead>
+                          <TableRow>
+                            <TableCell>Material</TableCell>
+                            <TableCell align="right">Order Qty</TableCell>
+                            <TableCell align="right">Available Stock</TableCell>
+                            <TableCell align="right">After Order</TableCell>
+                            <TableCell align="center">Status</TableCell>
+                          </TableRow>
+                        </TableHead>
+                        <TableBody>
+                          {inventoryImpact.items.map((item, index) => {
+                            const afterOrder = item.availableStock !== null 
+                              ? item.availableStock - item.quantity 
+                              : null;
+                            return (
+                              <TableRow key={index}>
+                                <TableCell>{item.materialName}</TableCell>
+                                <TableCell align="right">{item.quantity}</TableCell>
+                                <TableCell align="right">
+                                  {item.availableStock !== null ? item.availableStock : "N/A"}
+                                </TableCell>
+                                <TableCell align="right">
+                                  {afterOrder !== null ? afterOrder : "N/A"}
+                                </TableCell>
+                                <TableCell align="center">
+                                  {item.willBeLow ? (
+                                    <Chip label="Low Stock" size="small" color="warning" />
+                                  ) : afterOrder !== null && afterOrder < 0 ? (
+                                    <Chip label="Insufficient" size="small" color="error" />
+                                  ) : (
+                                    <Chip label="OK" size="small" color="success" />
+                                  )}
+                                </TableCell>
+                              </TableRow>
+                            );
+                          })}
+                        </TableBody>
+                      </Table>
+                    </TableContainer>
+                  </CardContent>
+                </Card>
+              );
+            }
+            return null;
+          })()}
+
+          {/* Linked Invoices and Payments - Backend Intelligence */}
+          {(() => {
+            const links = getOrderLinks(order);
+            if (links.hasLinked) {
+              return (
+                <Card sx={{ mb: 3 }}>
+                  <CardContent>
+                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                      Related Documents
+                    </Typography>
+                    <Grid container spacing={2}>
+                      {links.invoices.length > 0 && (
+                        <Grid item xs={12} sm={6}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                            <Receipt size={18} />
+                            <Typography variant="subtitle2">Linked Invoices</Typography>
+                          </Box>
+                          {links.invoices.map((inv, idx) => (
+                            <Typography key={idx} variant="body2" color="text.secondary">
+                              • {inv.invoiceNumber || inv.id?.slice(0, 8)}
+                            </Typography>
+                          ))}
+                        </Grid>
+                      )}
+                      {links.payments.length > 0 && (
+                        <Grid item xs={12} sm={6}>
+                          <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
+                            <CreditCard size={18} />
+                            <Typography variant="subtitle2">Linked Payments</Typography>
+                          </Box>
+                          {links.payments.map((pay, idx) => (
+                            <Typography key={idx} variant="body2" color="text.secondary">
+                              • Payment #{pay.id?.slice(0, 8) || idx + 1}
+                            </Typography>
+                          ))}
+                        </Grid>
+                      )}
+                    </Grid>
+                  </CardContent>
+                </Card>
+              );
+            }
+            return null;
+          })()}
 
           {/* Order Items */}
           <Card>

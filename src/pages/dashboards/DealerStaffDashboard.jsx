@@ -73,7 +73,20 @@ export default function DealerStaffDashboard() {
       setOrdersTrend(formatTrendData(orders, "orders"));
       setPaymentsTrend(formatTrendData(payments, "payments"));
     } catch (error) {
-      console.error("Failed to fetch dealer staff dashboard data:", error);
+      // Handle 400 Bad Request (likely date range validation) silently
+      // Handle 403/404 permission errors silently
+      if (error.response?.status === 400 || error.response?.status === 403 || error.response?.status === 404 || error.silent) {
+        // Silently handle - expected validation or permission errors
+        // Set empty data to prevent UI errors
+        setSummary({});
+        setOrders([]);
+        setPayments([]);
+        setRecentOrders([]);
+        setRecentPayments([]);
+      } else {
+        // Only log unexpected errors
+        console.error("Failed to fetch dealer staff dashboard data:", error);
+      }
     }
   }, [timeRange]);
 

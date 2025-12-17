@@ -147,6 +147,17 @@ export default function WorkflowStatus({ workflow, entityType = "order" }) {
               Final approval stage
             </Typography>
           )}
+          {/* Next Approver Role - Backend Intelligence */}
+          {!isApproved && !isRejected && pendingStages.length > 0 && (
+            <Box sx={{ mt: 1, pt: 1, borderTop: "1px solid", borderColor: "divider" }}>
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 0.5 }}>
+                Next Approver:
+              </Typography>
+              <Typography variant="body2" sx={{ fontWeight: 600, color: "primary.main" }}>
+                {formatStageName(pendingStages[0])}
+              </Typography>
+            </Box>
+          )}
         </Box>
       )}
 

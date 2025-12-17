@@ -18,9 +18,14 @@ import {
   TextField,
   Snackbar,
   Alert,
+  LinearProgress,
+  Tooltip,
 } from "@mui/material";
 import { orderAPI, materialAPI, invoiceAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
+import { getOrderLifecycleStatus, getInventoryImpact, getApprovalProgress } from "../../utils/orderLifecycle";
+import { Clock, AlertCircle, CheckCircle, XCircle } from "lucide-react";
+
 export default function MyOrders() {
   const [orders, setOrders] = useState([]);
   const [materials, setMaterials] = useState({});
@@ -29,6 +34,7 @@ export default function MyOrders() {
   const [totalAmount, setTotalAmount] = useState("");
   const [description, setDescription] = useState("");
   const [snack, setSnack] = useState({ open: false, severity: "success", message: "" });
+  const [workflows, setWorkflows] = useState({}); // Store workflow data per order
   const { user: currentUser } = useAuth();
 
   useEffect(() => {
@@ -44,7 +50,31 @@ export default function MyOrders() {
 
         // 2. Load orders
         const ores = await orderAPI.getMyOrders();
-        setOrders(ores?.orders || []);
+        const ordersList = ores?.orders || ores?.data || ores || [];
+        setOrders(Array.isArray(ordersList) ? ordersList : []);
+
+        // 3. Load workflow data for orders to show approval progress
+        const workflowPromises = (Array.isArray(ordersList) ? ordersList : [])
+          .filter((order) => order.id)
+          .map(async (order) => {
+            try {
+              const workflowRes = await orderAPI.getWorkflowStatus(order.id);
+              return {
+                orderId: order.id,
+                workflow: workflowRes.workflow || workflowRes.data || workflowRes,
+              };
+            } catch (err) {
+              // Silently fail - workflow data is optional
+              return { orderId: order.id, workflow: null };
+            }
+          });
+
+        const workflowResults = await Promise.all(workflowPromises);
+        const workflowMap = {};
+        workflowResults.forEach(({ orderId, workflow }) => {
+          if (workflow) workflowMap[orderId] = workflow;
+        });
+        setWorkflows(workflowMap);
       } catch (err) {
         console.error(err);
       }
@@ -53,11 +83,7 @@ export default function MyOrders() {
     loadData();
   }, []);
 
-  const statusColor = {
-    Pending: "warning",
-    Approved: "success",
-    Rejected: "error",
-  };
+  // Use lifecycle-aware status utility instead of hardcoded colors
 
   const refreshOrders = async () => {
     try {
@@ -133,6 +159,12 @@ export default function MyOrders() {
 
             <TableBody>
               {orders.map((order) => {
+                // Get lifecycle-aware status from backend intelligence
+                const lifecycleStatus = getOrderLifecycleStatus(order);
+                const workflow = workflows[order.id];
+                const approvalProgress = getApprovalProgress(workflow);
+                const inventoryImpact = getInventoryImpact(order);
+
                 // join material names for display
                 const materialsText = (order.items || [])
                   .map((it) => materials[it.materialId]?.name || "Unknown")
@@ -145,18 +177,67 @@ export default function MyOrders() {
 
                 const canRaiseInvoice =
                   (currentUser?.role || "").toLowerCase() === "dealer_staff" &&
-                  order?.status === "Approved";
+                  lifecycleStatus.lifecycleStage === "approved";
 
                 return (
                   <TableRow key={order.id}>
-                    <TableCell>{order.orderNumber}</TableCell>
-                    <TableCell>{materialsText || "—"}</TableCell>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                          {order.orderNumber || order.id?.slice(0, 8)}
+                        </Typography>
+                        {workflow && approvalProgress > 0 && approvalProgress < 100 && (
+                          <Box sx={{ mt: 0.5, display: "flex", alignItems: "center", gap: 0.5 }}>
+                            <LinearProgress
+                              variant="determinate"
+                              value={approvalProgress}
+                              sx={{ flex: 1, height: 4, borderRadius: 1 }}
+                            />
+                            <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.7rem" }}>
+                              {approvalProgress}%
+                            </Typography>
+                          </Box>
+                        )}
+                      </Box>
+                    </TableCell>
+                    <TableCell>
+                      <Box>
+                        <Typography variant="body2">{materialsText || "—"}</Typography>
+                        {inventoryImpact?.hasLowStock && (
+                          <Chip
+                            label="Low Stock Impact"
+                            size="small"
+                            color="warning"
+                            sx={{ mt: 0.5, fontSize: "0.65rem", height: 20 }}
+                          />
+                        )}
+                      </Box>
+                    </TableCell>
                     <TableCell>{totalQty}</TableCell>
                     <TableCell>
-                      <Chip
-                        label={order.status}
-                        color={statusColor[order.status] || "default"}
-                      />
+                      <Tooltip title={lifecycleStatus.description}>
+                        <Chip
+                          label={lifecycleStatus.label}
+                          color={lifecycleStatus.color}
+                          size="small"
+                          icon={
+                            lifecycleStatus.isBlocked ? (
+                              <AlertCircle size={14} />
+                            ) : lifecycleStatus.lifecycleStage === "approved" ? (
+                              <CheckCircle size={14} />
+                            ) : lifecycleStatus.lifecycleStage === "rejected" ? (
+                              <XCircle size={14} />
+                            ) : (
+                              <Clock size={14} />
+                            )
+                          }
+                        />
+                      </Tooltip>
+                      {lifecycleStatus.isBlocked && lifecycleStatus.blockingReason && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, fontSize: "0.7rem" }}>
+                          {lifecycleStatus.blockingReason}
+                        </Typography>
+                      )}
                     </TableCell>
                     <TableCell>
                       {canRaiseInvoice ? (
@@ -169,18 +250,17 @@ export default function MyOrders() {
                           Raise Invoice
                         </Button>
                       ) : (
-                        <Button
-                          variant="outlined"
-                          size="small"
-                          disabled
-                          title={
-                            order.status !== "Approved"
-                              ? "Order not approved"
-                              : "Insufficient role"
-                          }
-                        >
-                          Raise Invoice
-                        </Button>
+                        <Tooltip title={lifecycleStatus.isBlocked ? lifecycleStatus.blockingReason : "Insufficient role"}>
+                          <span>
+                            <Button
+                              variant="outlined"
+                              size="small"
+                              disabled
+                            >
+                              Raise Invoice
+                            </Button>
+                          </span>
+                        </Tooltip>
                       )}
                     </TableCell>
                   </TableRow>

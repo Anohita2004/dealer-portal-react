@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import {
   Box,
   Grid,
@@ -6,13 +6,38 @@ import {
   Typography,
   CircularProgress,
   Divider,
+  Alert,
+  Chip,
+  Stack,
+  Button,
 } from "@mui/material";
+import { useAuth } from "../../context/AuthContext";
+import { getReportScopeExplanation, formatAppliedFilters, getDataFreshness } from "../../utils/reportScope";
+import { Info, RefreshCw, Filter } from "lucide-react";
 
 const KPI = { p: 2, borderRadius: 2, boxShadow: "0 6px 18px rgba(2,6,23,0.06)" };
 const ACCENT = "#0d6efd";
 
-export default function AccountStatementReport({ data, loading, error, fetchReport, filters }) {
-  useEffect(() => { if (!data) fetchReport(); }, []); // eslint-disable-line
+export default function AccountStatementReport({ data, loading, error, fetchReport, filters, role }) {
+  const { user } = useAuth();
+  const [dataFetchedAt, setDataFetchedAt] = useState(null);
+
+  useEffect(() => { 
+    if (!data) {
+      fetchReport();
+    } else {
+      setDataFetchedAt(new Date().toISOString());
+    }
+  }, [data]); // eslint-disable-line
+
+  // Get scope explanation
+  const scopeExplanation = getReportScopeExplanation(user);
+  
+  // Get applied filters
+  const appliedFilters = formatAppliedFilters(filters);
+  
+  // Get data freshness
+  const dataFreshness = getDataFreshness(data, dataFetchedAt);
 
   if (loading) return <Box sx={{ mt: 3, textAlign: "center" }}><CircularProgress /></Box>;
   if (error) return <Box sx={{ mt: 3 }}><Typography color="error">{error}</Typography></Box>;
@@ -33,6 +58,58 @@ export default function AccountStatementReport({ data, loading, error, fetchRepo
 
   return (
     <Box mt={3}>
+      {/* Role-Based Scope Explanation - Backend Intelligence */}
+      <Alert severity="info" icon={<Info size={18} />} sx={{ mb: 2 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+          Report Scope: {scopeExplanation.scope}
+        </Typography>
+        <Typography variant="caption">
+          {scopeExplanation.explanation}
+        </Typography>
+      </Alert>
+
+      {/* Applied Filters - Backend Intelligence */}
+      {appliedFilters.length > 0 && (
+        <Box sx={{ mb: 2, display: 'flex', alignItems: 'center', gap: 1, flexWrap: 'wrap' }}>
+          <Filter size={16} />
+          <Typography variant="caption" sx={{ fontWeight: 600 }}>
+            Applied Filters:
+          </Typography>
+          <Stack direction="row" spacing={1} flexWrap="wrap">
+            {appliedFilters.map((filter, idx) => (
+              <Chip
+                key={idx}
+                label={`${filter.label}: ${filter.value}`}
+                size="small"
+                variant="outlined"
+                color="primary"
+              />
+            ))}
+          </Stack>
+        </Box>
+      )}
+
+      {/* Data Freshness Indicator - Backend Intelligence */}
+      {dataFetchedAt && (
+        <Alert 
+          severity={dataFreshness.color === "success" ? "success" : dataFreshness.color === "warning" ? "warning" : "error"}
+          icon={<RefreshCw size={18} />}
+          sx={{ mb: 2 }}
+          action={
+            <Button size="small" onClick={() => fetchReport()}>
+              Refresh
+            </Button>
+          }
+        >
+          <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+            Data Freshness: {dataFreshness.label}
+          </Typography>
+          <Typography variant="caption">
+            {dataFreshness.description}
+          </Typography>
+        </Alert>
+      )}
+
       <Grid container spacing={2}>
         <Grid item xs={12} md={3}>
           <Paper sx={KPI}>

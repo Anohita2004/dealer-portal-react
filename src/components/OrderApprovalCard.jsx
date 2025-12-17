@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -7,22 +7,52 @@ import {
   Button,
   Chip,
   Divider,
+  Alert,
+  Tooltip,
 } from "@mui/material";
-import { CheckCircle, XCircle } from "lucide-react";
+import { CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 import ApprovalWorkflow from "./ApprovalWorkflow";
 import { orderAPI } from "../services/api";
 import { toast } from "react-toastify";
+import { useWorkflow } from "../hooks/useWorkflow";
+import { getOrderLifecycleStatus, getApprovalProgress } from "../utils/orderLifecycle";
 
 /**
  * Order Approval Card Component
- * Based on FRONTEND_INTEGRATION_GUIDE.md
+ * Enhanced to display backend workflow intelligence: stages, SLA urgency, and permissions
  */
 export default function OrderApprovalCard({ order, onUpdate }) {
+  const [workflow, setWorkflow] = useState(null);
+  const [workflowLoading, setWorkflowLoading] = useState(false);
+
+  // Fetch workflow data to get SLA and stage information
+  useEffect(() => {
+    const fetchWorkflow = async () => {
+      if (!order?.id) return;
+      setWorkflowLoading(true);
+      try {
+        const response = await orderAPI.getWorkflowStatus(order.id);
+        const workflowData = response.workflow || response.data || response;
+        setWorkflow(workflowData);
+      } catch (err) {
+        // Silently fail - workflow data is optional for list view
+        console.debug("Could not fetch workflow for order:", order.id);
+      } finally {
+        setWorkflowLoading(false);
+      }
+    };
+    fetchWorkflow();
+  }, [order?.id]);
+
   const handleApprove = async () => {
     try {
       await orderAPI.approveOrder(order.id, { action: "approve" });
       toast.success("Order approved successfully");
       if (onUpdate) onUpdate();
+      // Refresh workflow data
+      const response = await orderAPI.getWorkflowStatus(order.id);
+      const workflowData = response.workflow || response.data || response;
+      setWorkflow(workflowData);
     } catch (error) {
       console.error("Failed to approve order:", error);
       toast.error(error.response?.data?.error || "Failed to approve order");
@@ -36,17 +66,56 @@ export default function OrderApprovalCard({ order, onUpdate }) {
       await orderAPI.rejectOrder(order.id, { action: "reject", reason: rejectionReason, remarks: rejectionReason });
       toast.success("Order rejected");
       if (onUpdate) onUpdate();
+      // Refresh workflow data
+      const response = await orderAPI.getWorkflowStatus(order.id);
+      const workflowData = response.workflow || response.data || response;
+      setWorkflow(workflowData);
     } catch (error) {
       console.error("Failed to reject order:", error);
       toast.error(error.response?.data?.error || "Failed to reject order");
     }
   };
 
+  // Calculate SLA urgency from backend data
+  const getSLAUrgency = () => {
+    if (!workflow?.currentSlaExpiresAt) return null;
+
+    const expiresAt = new Date(workflow.currentSlaExpiresAt);
+    const now = new Date();
+    const diffMs = expiresAt - now;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const isOverdue = diffMs < 0;
+    const isDueSoon = diffMs > 0 && diffMs < 24 * 60 * 60 * 1000; // Less than 24 hours
+
+    return {
+      isOverdue,
+      isDueSoon,
+      diffHours: Math.abs(diffHours),
+      diffMinutes: Math.abs(diffMinutes),
+      expiresAt,
+    };
+  };
+
+  const slaUrgency = getSLAUrgency();
+  
+  // Get current stage from workflow (backend authority) or fallback to order data
+  const currentStage = workflow?.currentStage || order.approvalStage || order.currentStage;
+  
+  // Format stage name for display
+  const formatStageName = (stage) => {
+    if (!stage) return "N/A";
+    return stage
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
+  };
+
   return (
     <Card sx={{ mb: 2, "&:hover": { boxShadow: 4 } }}>
       <CardContent>
         <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "start", mb: 2 }}>
-          <Box>
+          <Box sx={{ flex: 1 }}>
             <Typography variant="h6" gutterBottom>
               {order.orderNumber || `Order #${order.id}`}
             </Typography>
@@ -60,33 +129,130 @@ export default function OrderApprovalCard({ order, onUpdate }) {
               Date: {order.createdAt ? new Date(order.createdAt).toLocaleDateString() : "N/A"}
             </Typography>
           </Box>
-          <Box>
-            <Chip
-              label={order.approvalStatus?.toUpperCase() || order.status?.toUpperCase() || "PENDING"}
-              color={
-                order.approvalStatus === "approved" || order.status === "approved"
-                  ? "success"
-                  : order.approvalStatus === "rejected" || order.status === "rejected"
-                  ? "error"
-                  : "warning"
+          <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
+            {(() => {
+              const lifecycleStatus = getOrderLifecycleStatus(order);
+              return (
+                <Tooltip title={lifecycleStatus.description}>
+                  <Chip
+                    label={lifecycleStatus.label}
+                    color={lifecycleStatus.color}
+                    size="small"
+                    icon={
+                      lifecycleStatus.isBlocked ? (
+                        <AlertCircle size={14} />
+                      ) : lifecycleStatus.lifecycleStage === "approved" ? (
+                        <CheckCircle size={14} />
+                      ) : lifecycleStatus.lifecycleStage === "rejected" ? (
+                        <XCircle size={14} />
+                      ) : (
+                        <Clock size={14} />
+                      )
+                    }
+                  />
+                </Tooltip>
+              );
+            })()}
+            {currentStage && (
+              <Chip
+                label={`Stage: ${formatStageName(currentStage)}`}
+                variant="outlined"
+                size="small"
+                color="primary"
+              />
+            )}
+            {/* Approval Progress */}
+            {workflow && (() => {
+              const progress = getApprovalProgress(workflow);
+              if (progress > 0 && progress < 100) {
+                return (
+                  <Box sx={{ width: "100%", mt: 0.5 }}>
+                    <Box sx={{ display: "flex", justifyContent: "space-between", mb: 0.5 }}>
+                      <Typography variant="caption" color="text.secondary">
+                        Approval Progress
+                      </Typography>
+                      <Typography variant="caption" color="text.secondary">
+                        {progress}%
+                      </Typography>
+                    </Box>
+                    <Box
+                      sx={{
+                        width: "100%",
+                        height: 4,
+                        bgcolor: "grey.200",
+                        borderRadius: 1,
+                        overflow: "hidden",
+                      }}
+                    >
+                      <Box
+                        sx={{
+                          width: `${progress}%`,
+                          height: "100%",
+                          bgcolor: "primary.main",
+                          transition: "width 0.3s ease",
+                        }}
+                      />
+                    </Box>
+                  </Box>
+                );
               }
-              sx={{ mb: 1 }}
-            />
-            <Typography variant="caption" display="block" color="text.secondary">
-              Stage: {order.approvalStage || order.currentStage || "N/A"}
-            </Typography>
+              return null;
+            })()}
+            {/* SLA Urgency Badge - Backend Intelligence */}
+            {slaUrgency && workflow?.approvalStatus === "pending" && (
+              <Chip
+                icon={slaUrgency.isOverdue ? <AlertCircle size={16} /> : <Clock size={16} />}
+                label={
+                  slaUrgency.isOverdue
+                    ? `Overdue: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
+                    : slaUrgency.isDueSoon
+                    ? `Due in: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
+                    : `SLA: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
+                }
+                color={slaUrgency.isOverdue ? "error" : slaUrgency.isDueSoon ? "warning" : "info"}
+                size="small"
+                sx={{ fontWeight: slaUrgency.isOverdue || slaUrgency.isDueSoon ? 600 : 400 }}
+              />
+            )}
           </Box>
         </Box>
+
+        {/* Blocking Reason Alert - Backend Intelligence */}
+        {(() => {
+          const lifecycleStatus = getOrderLifecycleStatus(order);
+          if (lifecycleStatus.isBlocked && lifecycleStatus.blockingReason) {
+            return (
+              <Alert severity="warning" sx={{ mb: 2 }} icon={<AlertCircle />}>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Order Blocked: {lifecycleStatus.blockingReason}
+                </Typography>
+              </Alert>
+            );
+          }
+          return null;
+        })()}
+
+        {/* SLA Urgency Alert - Visual prominence for overdue items */}
+        {slaUrgency && slaUrgency.isOverdue && workflow?.approvalStatus === "pending" && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <AlertCircle size={20} />
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                SLA Overdue: This order has exceeded its approval deadline by {slaUrgency.diffHours}h {slaUrgency.diffMinutes}m
+              </Typography>
+            </Box>
+          </Alert>
+        )}
 
         <Divider sx={{ my: 2 }} />
 
         <ApprovalWorkflow
           entity={{ type: "order", ...order }}
-          currentStage={order.approvalStage || order.currentStage}
-          approvalStatus={order.approvalStatus || order.status}
+          currentStage={workflow?.currentStage || order.approvalStage || order.currentStage}
+          approvalStatus={workflow?.approvalStatus || order.approvalStatus || order.status}
           onApprove={handleApprove}
           onReject={handleReject}
-          approvalHistory={order.approvalHistory || order.history || []}
+          approvalHistory={workflow?.timeline || order.approvalHistory || order.history || []}
           showHistory={true}
         />
 

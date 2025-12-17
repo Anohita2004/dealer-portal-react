@@ -1,68 +1,133 @@
 // src/pages/payments/FinancePendingPayments.jsx
 import React, { useEffect, useState } from "react";
-import api from "../../services/api";
+import { Box, Button, Typography, Alert } from "@mui/material";
+import { paymentAPI } from "../../services/api";
 import { toast } from "react-toastify";
+import PaymentApprovalCard from "../../components/PaymentApprovalCard";
+import PageHeader from "../../components/PageHeader";
+import { useAuth } from "../../context/AuthContext";
+import { isAccountsUser } from "../../utils/accountsPermissions";
+import { Info } from "lucide-react";
 
-export default function FinancePendingPayments({ currentUserStage = "finance_admin" }) {
-  const [rows, setRows] = useState([]);
+export default function FinancePendingPayments() {
+  const { user } = useAuth();
+  const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(false);
-  const [remarks, setRemarks] = useState({});
+  const [hasAccess, setHasAccess] = useState(true);
 
   const load = async () => {
     setLoading(true);
     try {
-      const res = await api.get("/payment/pending");
-      setRows(res.data.requests || res.data || []);
-    } catch (e) { console.error(e); }
-    setLoading(false);
+      const res = await paymentAPI.getFinancePending();
+      const paymentsList = res.payments || res.data || res || [];
+      setPayments(Array.isArray(paymentsList) ? paymentsList : []);
+      setHasAccess(true);
+    } catch (e) {
+      // 403 = not permitted for accounts_user (may be finance_admin only)
+      // 404 = endpoint doesn't exist
+      if (e?.response?.status === 403 || e?.response?.status === 404) {
+        setHasAccess(false);
+        setPayments([]);
+        // Don't show error toast for permission issues
+        return;
+      }
+      console.error("Failed to load payments:", e);
+      toast.error("Failed to load pending payments");
+      setHasAccess(true); // Assume access for other errors
+    } finally {
+      setLoading(false);
+    }
   };
-  useEffect(() => { load(); }, []);
 
-  const act = async (id, action) => {
-    try {
-      await api.post(`/payment/${id}/${action}`, { remarks: remarks[id] || "" });
-      toast.success(`${action}ed`);
-      setRows(rows.filter(r => r.id !== id));
-    } catch (e) { console.error(e); toast.error("Failed"); }
-  };
+  useEffect(() => {
+    load();
+  }, []);
 
   const reconcile = async () => {
     try {
-      await api.post("/payment/reconcile/trigger");
-      toast.success("Reconcile triggered");
+      await paymentAPI.triggerReconcile();
+      toast.success("Auto-reconciliation triggered");
       load();
-    } catch (e) { console.error(e); toast.error("Failed"); }
+    } catch (e) {
+      console.error("Reconciliation failed:", e);
+      toast.error("Failed to trigger reconciliation");
+    }
   };
 
+  // If accounts_user doesn't have access, show explanation
+  if (!hasAccess && isAccountsUser(user)) {
+    return (
+      <Box sx={{ p: 3 }}>
+        <PageHeader
+          title="Payment Approvals"
+          subtitle="Review and approve payment requests at your workflow stage"
+        />
+        <Alert severity="info" icon={<Info size={20} />} sx={{ mt: 2 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Access Restricted
+          </Typography>
+          <Typography variant="body2">
+            Payment approvals are managed through the workflow system. You will see payments that require your approval based on your role and the current workflow stage.
+          </Typography>
+        </Alert>
+      </Box>
+    );
+  }
+
   return (
-    <div>
-      <h2>Finance — Pending Payments</h2>
-      <div style={{ marginBottom: 12 }}>
-        <button onClick={reconcile}>Trigger Auto-Reconcile</button>
-      </div>
-      <table style={{ width: "100%" }}>
-        <thead><tr><th>Invoice</th><th>Dealer</th><th>Amount</th><th>Proof</th><th>Remarks</th><th>Actions</th></tr></thead>
-        <tbody>
-          {rows.map(r => (
-            <tr key={r.id}>
-              <td>{r.invoiceNumber}</td>
-              <td>{r.dealerName}</td>
-              <td>{r.amount}</td>
-              <td>{r.proofUrl ? <a href={r.proofUrl} target="_blank" rel="noreferrer">View</a> : "—"}</td>
-              <td><input value={remarks[r.id] || ""} onChange={(e) => setRemarks({ ...remarks, [r.id]: e.target.value })} placeholder="remarks" /></td>
-              <td>
-                {r.currentStage === currentUserStage ? (
-                  <>
-                    <button onClick={() => act(r.id, "approve")}>Approve</button>
-                    <button onClick={() => act(r.id, "reject")}>Reject</button>
-                  </>
-                ) : "Not your stage"}
-              </td>
-            </tr>
+    <Box sx={{ p: 3 }}>
+      <PageHeader
+        title={isAccountsUser(user) ? "Payment Approvals" : "Finance — Pending Payments"}
+        subtitle={
+          isAccountsUser(user)
+            ? "Review and approve payment requests at your workflow stage. Verify amounts, proof documents, and provide mandatory remarks."
+            : "Review and approve payment requests from dealers"
+        }
+      />
+
+      {/* Accounts User Context */}
+      {isAccountsUser(user) && (
+        <Alert severity="info" icon={<Info size={20} />} sx={{ mb: 3 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Your Role: Payment Verification
+          </Typography>
+          <Typography variant="body2">
+            As an Accounts user, you verify payments at the finance approval stage. Review invoice amounts, payment proof, and UTR numbers. Your approval/rejection with remarks is recorded in the audit trail.
+          </Typography>
+        </Alert>
+      )}
+
+      <Box sx={{ mb: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+        <Typography variant="body2" color="text.secondary">
+          {payments.length} payment(s) pending {isAccountsUser(user) ? "your" : "finance"} approval
+        </Typography>
+        {!isAccountsUser(user) && (
+          <Button variant="outlined" onClick={reconcile}>
+            Trigger Auto-Reconcile
+          </Button>
+        )}
+      </Box>
+
+      {loading ? (
+        <Typography>Loading payments...</Typography>
+      ) : payments.length === 0 ? (
+        <Box sx={{ textAlign: "center", py: 4 }}>
+          <Typography variant="body1" color="text.secondary">
+            No pending payments for finance approval
+          </Typography>
+        </Box>
+      ) : (
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          {payments.map((payment) => (
+            <PaymentApprovalCard
+              key={payment.id}
+              payment={payment}
+              onUpdate={load}
+              userRole={user?.role}
+            />
           ))}
-          {rows.length === 0 && <tr><td colSpan={6}>No pending payments</td></tr>}
-        </tbody>
-      </table>
-    </div>
+        </Box>
+      )}
+    </Box>
   );
 }

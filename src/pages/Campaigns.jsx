@@ -14,6 +14,7 @@ import {
   Grid,
   Divider,
   Tooltip,
+  Alert,
 } from "@mui/material";
 import {
   Target,
@@ -27,6 +28,7 @@ import {
   MapPin,
   Building2,
   TrendingUp,
+  Info,
 } from "lucide-react";
 import { campaignAPI } from "../services/api";
 import { AuthContext } from "../context/AuthContext";
@@ -34,6 +36,7 @@ import CampaignForm from "../components/CampaignForm";
 import CampaignTargeting from "../components/CampaignTargeting";
 import { toast } from "react-toastify";
 import PageHeader from "../components/PageHeader";
+import { explainCampaignVisibility, getCampaignLifecycleState, formatTargetAudience } from "../utils/campaignTargeting";
 
 export default function Campaigns() {
   const { user } = useContext(AuthContext);
@@ -47,7 +50,7 @@ export default function Campaigns() {
 
   // Check if user can manage campaigns - handle different role formats
   const userRole = user?.role || user?.roleDetails?.name || user?.roleName || "";
-  const canManage = userRole === "super_admin" || userRole === "key_user";
+  const canManage = !isAccountsUser(user) && (userRole === "super_admin" || userRole === "key_user");
   
   // Debug: Log user role to verify (can be removed in production)
   useEffect(() => {
@@ -150,18 +153,7 @@ export default function Campaigns() {
     }).join("");
   };
 
-  // Get campaign status
-  const getCampaignStatus = (campaign) => {
-    if (!campaign.isActive) return { label: "Inactive", color: "default" };
-    
-    const now = new Date();
-    const start = new Date(campaign.startDate);
-    const end = new Date(campaign.endDate);
-
-    if (now < start) return { label: "Upcoming", color: "info" };
-    if (now > end) return { label: "Ended", color: "default" };
-    return { label: "Active", color: "success" };
-  };
+  // Use lifecycle state utility instead of custom function
 
   return (
     <Box sx={{ p: 3 }}>
@@ -194,9 +186,10 @@ export default function Campaigns() {
       ) : (
         <Grid container spacing={3}>
           {campaigns.map((campaign) => {
-            const status = getCampaignStatus(campaign);
+            const lifecycleState = getCampaignLifecycleState(campaign);
+            const visibility = explainCampaignVisibility(campaign, user);
             return (
-              <Grid item xs={12} md={6} lg={4} key={campaign.id}>
+              <Grid item xs={12} md={6} key={campaign.id}>
                 <Card sx={{ height: "100%", display: "flex", flexDirection: "column" }}>
                   <CardContent sx={{ flex: 1 }}>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "start", mb: 2 }}>
@@ -204,11 +197,24 @@ export default function Campaigns() {
                         {campaign.campaignName}
                       </Typography>
                       <Chip
-                        label={status.label}
-                        color={status.color}
+                        label={lifecycleState.label}
+                        color={lifecycleState.color}
                         size="small"
+                        title={lifecycleState.description}
                       />
                     </Box>
+
+                    {/* Why User Sees This Campaign - Backend Intelligence */}
+                    {!canManage && visibility.isTargeted && (
+                      <Alert severity="info" icon={<Info size={18} />} sx={{ mb: 2 }}>
+                        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                          Why you see this campaign:
+                        </Typography>
+                        <Typography variant="caption">
+                          {visibility.explanation}
+                        </Typography>
+                      </Alert>
+                    )}
 
                     <Chip
                       label={campaign.campaignType.replace("_", " ").toUpperCase()}
@@ -245,8 +251,18 @@ export default function Campaigns() {
                     <Box sx={{ mb: 2 }}>
                       <Typography variant="caption" color="text.secondary" sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                         <Target size={14} />
-                        Target: {getTargetDisplay(campaign.targetAudience)}
+                        Target: {formatTargetAudience(campaign.targetAudience)}
                       </Typography>
+                      {lifecycleState.daysRemaining !== undefined && lifecycleState.state === "active" && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                          {lifecycleState.daysRemaining} day(s) remaining
+                        </Typography>
+                      )}
+                      {lifecycleState.daysRemaining !== undefined && lifecycleState.state === "upcoming" && (
+                        <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                          Starts in {lifecycleState.daysRemaining} day(s)
+                        </Typography>
+                      )}
                     </Box>
 
                     {campaign.productGroup && (

@@ -23,6 +23,9 @@ import {
   MenuItem,
   Stack,
   CircularProgress,
+  Alert,
+  Collapse,
+  IconButton,
 } from "@mui/material";
 import {
   Download,
@@ -47,14 +50,20 @@ import {
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
 import DataTable from "../../components/DataTable";
+import { useAuth } from "../../context/AuthContext";
+import { getReportScopeExplanation, formatAppliedFilters, getDataFreshness, getExportClarity } from "../../utils/reportScope";
+import { Info, ChevronDown, ChevronUp, RefreshCw, Filter } from "lucide-react";
 
 export default function RegionalReports() {
+  const { user } = useAuth();
   const [activeTab, setActiveTab] = useState(0);
   const [loading, setLoading] = useState(false);
   const [dateRange, setDateRange] = useState({
     startDate: new Date(new Date().getFullYear(), 0, 1).toISOString().split("T")[0],
     endDate: new Date().toISOString().split("T")[0],
   });
+  const [dataFetchedAt, setDataFetchedAt] = useState(null);
+  const [scopeExplanationOpen, setScopeExplanationOpen] = useState(true);
 
   // Report data states
   const [salesData, setSalesData] = useState(null);
@@ -113,9 +122,11 @@ export default function RegionalReports() {
           await loadOrderPipelines(params);
           break;
       }
+      setDataFetchedAt(new Date().toISOString());
     } catch (error) {
       console.error("Failed to load report data:", error);
       toast.error("Failed to load report data");
+      setDataFetchedAt(null);
     } finally {
       setLoading(false);
     }
@@ -207,14 +218,21 @@ export default function RegionalReports() {
 
   const loadOverdueData = async () => {
     try {
-      const [tasksData, paymentsData] = await Promise.all([
+      const [tasksData] = await Promise.all([
         taskAPI.getTasks(),
-        paymentAPI.getAllPayments({ status: "overdue" }),
+        // Removed: paymentAPI.getAllPayments({ status: "overdue" }) - endpoint doesn't exist
+        // Overdue payments should be fetched via workflow-based endpoints if available
       ]);
       setOverdueTasks(tasksData.tasks || tasksData || []);
-      setOverduePayments(paymentsData.data || paymentsData || []);
+      // Overdue payments endpoint doesn't exist - set empty
+      setOverduePayments([]);
     } catch (error) {
-      console.error("Failed to load overdue data:", error);
+      // Only log non-permission errors
+      if (error?.response?.status !== 403 && error?.response?.status !== 404) {
+        console.error("Failed to load overdue data:", error);
+      }
+      setOverdueTasks([]);
+      setOverduePayments([]);
     }
   };
 
@@ -230,6 +248,14 @@ export default function RegionalReports() {
   const handleExport = async (format = "excel") => {
     try {
       const reportType = getReportType();
+      const scopeExplanation = getReportScopeExplanation(user);
+      const exportClarity = getExportClarity(reportType, dateRange, scopeExplanation, format);
+      
+      // Show export clarity in toast
+      toast.info(`Exporting: ${exportClarity.reportLabel} (${exportClarity.format})`, {
+        autoClose: 3000,
+      });
+      
       const blob = await reportAPI.exportExcel(reportType, {
         startDate: dateRange.startDate,
         endDate: dateRange.endDate,
@@ -628,12 +654,48 @@ export default function RegionalReports() {
     }
   };
 
+  // Get scope explanation
+  const scopeExplanation = getReportScopeExplanation(user);
+  
+  // Get applied filters
+  const appliedFilters = formatAppliedFilters(dateRange);
+  
+  // Get data freshness
+  const dataFreshness = getDataFreshness(salesData || outstandingData || invoicesData, dataFetchedAt);
+  
+  // Get export clarity
+  const exportClarity = getExportClarity(getReportType(), dateRange, scopeExplanation, "excel");
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Regional Reports"
         subtitle="Comprehensive reports for your region"
       />
+
+      {/* Role-Based Scope Explanation - Backend Intelligence */}
+      <Alert 
+        severity="info" 
+        icon={<Info size={18} />}
+        sx={{ mb: 2 }}
+        action={
+          <IconButton
+            size="small"
+            onClick={() => setScopeExplanationOpen(!scopeExplanationOpen)}
+          >
+            {scopeExplanationOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </IconButton>
+        }
+      >
+        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+          Report Scope: {scopeExplanation.scope}
+        </Typography>
+        <Collapse in={scopeExplanationOpen}>
+          <Typography variant="caption" sx={{ display: 'block' }}>
+            {scopeExplanation.explanation}
+          </Typography>
+        </Collapse>
+      </Alert>
 
       {/* Date Range & Export */}
       <Card sx={{ mb: 3 }}>
@@ -663,6 +725,65 @@ export default function RegionalReports() {
               Export Excel
             </Button>
           </Stack>
+          
+          {/* Applied Filters - Backend Intelligence */}
+          {appliedFilters.length > 0 && (
+            <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 0.5, mb: 1 }}>
+                <Filter size={14} />
+                Applied Filters:
+              </Typography>
+              <Stack direction="row" spacing={1} flexWrap="wrap">
+                {appliedFilters.map((filter, idx) => (
+                  <Chip
+                    key={idx}
+                    label={`${filter.label}: ${filter.value}`}
+                    size="small"
+                    variant="outlined"
+                    color="primary"
+                  />
+                ))}
+              </Stack>
+            </Box>
+          )}
+
+          {/* Data Freshness Indicator - Backend Intelligence */}
+          {dataFetchedAt && (
+            <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+              <Alert 
+                severity={dataFreshness.color === "success" ? "success" : dataFreshness.color === "warning" ? "warning" : "error"}
+                icon={<RefreshCw size={18} />}
+                sx={{ mb: 1 }}
+                action={
+                  <Button size="small" onClick={() => loadReportData()}>
+                    Refresh
+                  </Button>
+                }
+              >
+                <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                  Data Freshness: {dataFreshness.label}
+                </Typography>
+                <Typography variant="caption">
+                  {dataFreshness.description}
+                </Typography>
+              </Alert>
+            </Box>
+          )}
+
+          {/* Export Clarity - Backend Intelligence */}
+          <Box sx={{ mt: 2, pt: 2, borderTop: 1, borderColor: 'divider' }}>
+            <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+              Export Information:
+            </Typography>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mb: 0.5 }}>
+              {exportClarity.description}
+            </Typography>
+            {exportClarity.includes.length > 0 && (
+              <Typography variant="caption" color="text.secondary" sx={{ display: 'block' }}>
+                Includes: {exportClarity.includes.join("; ")}
+              </Typography>
+            )}
+          </Box>
         </CardContent>
       </Card>
 

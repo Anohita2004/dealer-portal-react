@@ -667,24 +667,54 @@ export default function Users() {
       </Menu>
 
       {/* Delete Dialog */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
-        <DialogTitle>Delete User</DialogTitle>
+      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <AlertCircle size={20} color="#ef4444" />
+            Delete User - Impact Warning
+          </Box>
+        </DialogTitle>
         <DialogContent>
-          <Alert severity="warning">
-            Are you sure you want to delete user <strong>{selectedUser?.username}</strong>? This action cannot be undone.
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              This action is permanent and cannot be undone.
+            </Typography>
+            <Typography variant="body2">
+              Deleting user <strong>{selectedUser?.username}</strong> will:
+            </Typography>
+            <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
+              <li><Typography variant="body2">Remove all access immediately</Typography></li>
+              <li><Typography variant="body2">Affect any pending approvals assigned to this user</Typography></li>
+              <li><Typography variant="body2">Be logged in audit trail as a Super Admin override</Typography></li>
+            </Box>
           </Alert>
+          {selectedUser && (
+            <Box sx={{ mt: 2, p: 1.5, background: "#f3f4f6", borderRadius: 1 }}>
+              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                User Details:
+              </Typography>
+              <Typography variant="body2"><strong>Role:</strong> {selectedUser.roleDetails?.name || selectedUser.role || "N/A"}</Typography>
+              <Typography variant="body2"><strong>Region:</strong> {selectedUser.region?.name || "N/A"}</Typography>
+              <Typography variant="body2"><strong>Status:</strong> {selectedUser.isActive ? "Active" : "Inactive"}</Typography>
+            </Box>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
           <Button onClick={handleDelete} color="error" variant="contained">
-            Delete
+            Delete Permanently
           </Button>
         </DialogActions>
       </Dialog>
 
       {/* Bulk Action Dialog */}
-      <Dialog open={bulkActionDialogOpen} onClose={() => setBulkActionDialogOpen(false)}>
-        <DialogTitle>Bulk Action</DialogTitle>
+      <Dialog open={bulkActionDialogOpen} onClose={() => setBulkActionDialogOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>
+          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+            <AlertCircle size={20} color={bulkAction === "delete" ? "#ef4444" : "#f59e0b"} />
+            Bulk Action - Impact Warning
+          </Box>
+        </DialogTitle>
         <DialogContent>
           <FormControl fullWidth sx={{ mt: 2 }}>
             <InputLabel>Action</InputLabel>
@@ -694,14 +724,41 @@ export default function Users() {
               <MenuItem value="delete">Delete Users</MenuItem>
             </Select>
           </FormControl>
-          <Alert severity="info" sx={{ mt: 2 }}>
-            This will affect {selectedUsers.length} user(s)
-          </Alert>
+          {bulkAction && (
+            <Alert 
+              severity={bulkAction === "delete" ? "error" : "warning"} 
+              sx={{ mt: 2 }}
+            >
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                Impact: This will affect {selectedUsers.length} user(s)
+              </Typography>
+              {bulkAction === "delete" && (
+                <Typography variant="body2">
+                  <strong>Warning:</strong> Bulk deletion is permanent and cannot be undone. All affected users will lose access immediately.
+                </Typography>
+              )}
+              {bulkAction === "deactivate" && (
+                <Typography variant="body2">
+                  Users will lose access but can be reactivated later. Pending approvals may be affected.
+                </Typography>
+              )}
+              {bulkAction === "activate" && (
+                <Typography variant="body2">
+                  Users will regain access immediately. Ensure proper role assignments are in place.
+                </Typography>
+              )}
+            </Alert>
+          )}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setBulkActionDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleBulkAction} variant="contained" disabled={!bulkAction}>
-            Apply
+          <Button 
+            onClick={handleBulkAction} 
+            variant="contained" 
+            disabled={!bulkAction}
+            color={bulkAction === "delete" ? "error" : "primary"}
+          >
+            Confirm {bulkAction === "delete" ? "Permanent Deletion" : "Action"}
           </Button>
         </DialogActions>
       </Dialog>

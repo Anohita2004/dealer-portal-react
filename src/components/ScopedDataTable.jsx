@@ -4,12 +4,16 @@ import { useAuth } from "../context/AuthContext";
 import DataTable from "./DataTable";
 
 /**
- * ScopedDataTable - Automatically filters data based on user role
- * The backend handles scoping, so we just need to call the endpoint
- * without any manual filtering
+ * ScopedDataTable - Displays data fetched via a provided function
+ * 
+ * NEW: Accepts fetchFn (async function) - preferred for workflow-driven endpoints
+ * OLD: Accepts endpoint (string) - deprecated, builds URLs like /api/{resource}
+ * 
+ * Handles 403/404 gracefully without crashing
  */
 const ScopedDataTable = ({
-  endpoint,
+  fetchFn, // NEW: async function that accepts { page, limit } and returns { data, total } or array
+  endpoint, // DEPRECATED: string endpoint path (e.g., "/orders") - will build URL
   columns,
   title,
   onRowClick,
@@ -19,6 +23,7 @@ const ScopedDataTable = ({
   const { user } = useAuth();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [pagination, setPagination] = useState({
     page: 1,
     limit: 10,
@@ -27,13 +32,74 @@ const ScopedDataTable = ({
 
   useEffect(() => {
     fetchData();
-  }, [endpoint, pagination.page, pagination.limit, refreshTrigger]);
+  }, [pagination.page, pagination.limit, refreshTrigger, endpoint]);
 
   const fetchData = async () => {
-    if (!endpoint) return;
+    // Prefer fetchFn over endpoint
+    if (fetchFn && typeof fetchFn === "function") {
+      try {
+        setLoading(true);
+        setError(null);
+        
+        const result = await fetchFn({
+          page: pagination.page,
+          limit: pagination.limit,
+        });
+        
+        // Handle different response formats
+        if (result && result.data) {
+          setData(Array.isArray(result.data) ? result.data : []);
+          setPagination((prev) => ({
+            ...prev,
+            total: result.total || result.data.length || 0,
+          }));
+        } else if (Array.isArray(result)) {
+          setData(result);
+          setPagination((prev) => ({
+            ...prev,
+            total: result.length,
+          }));
+        } else if (result && result.payments) {
+          // Handle payment-specific format
+          setData(Array.isArray(result.payments) ? result.payments : []);
+          setPagination((prev) => ({
+            ...prev,
+            total: result.total || result.payments.length || 0,
+          }));
+        } else {
+          setData([]);
+        }
+      } catch (error) {
+        // 404 = endpoint doesn't exist - remove data source silently
+        // 403 = role restriction - hide table or show role-safe message
+        if (error?.response?.status === 404) {
+          setError("Data source not available");
+          setData([]);
+        } else if (error?.response?.status === 403) {
+          setError("Access restricted");
+          setData([]);
+        } else {
+          // Only log non-permission errors
+          console.error("Error fetching scoped data:", error);
+          setError("Failed to load data");
+          setData([]);
+        }
+      } finally {
+        setLoading(false);
+      }
+      return;
+    }
+
+    // DEPRECATED: Legacy endpoint-based fetching (for backward compatibility)
+    if (!endpoint) {
+      setError("No fetch function or endpoint provided");
+      setLoading(false);
+      return;
+    }
 
     try {
       setLoading(true);
+      setError(null);
       const response = await fetch(
         `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}${endpoint}?page=${pagination.page}&limit=${pagination.limit}`,
         {
@@ -43,16 +109,29 @@ const ScopedDataTable = ({
         }
       );
 
-      if (!response.ok) throw new Error("Failed to fetch data");
+      if (!response.ok) {
+        // 404 = endpoint doesn't exist
+        // 403 = role restriction
+        if (response.status === 404) {
+          setError("Data source not available");
+          setData([]);
+          return;
+        } else if (response.status === 403) {
+          setError("Access restricted");
+          setData([]);
+          return;
+        }
+        throw new Error("Failed to fetch data");
+      }
 
       const result = await response.json();
       
       // Handle different response formats
       if (result.data) {
-        setData(result.data);
+        setData(Array.isArray(result.data) ? result.data : []);
         setPagination((prev) => ({
           ...prev,
-          total: result.total || result.data.length,
+          total: result.total || result.data.length || 0,
         }));
       } else if (Array.isArray(result)) {
         setData(result);
@@ -64,7 +143,11 @@ const ScopedDataTable = ({
         setData([]);
       }
     } catch (error) {
-      console.error("Error fetching scoped data:", error);
+      // 404/403 already handled above
+      if (error?.response?.status !== 404 && error?.response?.status !== 403) {
+        console.error("Error fetching scoped data:", error);
+        setError("Failed to load data");
+      }
       setData([]);
     } finally {
       setLoading(false);
@@ -98,6 +181,11 @@ const ScopedDataTable = ({
       : null;
   };
 
+  // If error is 403 or 404, don't show the table
+  if (error && (error === "Access restricted" || error === "Data source not available")) {
+    return null; // Hide table for permission/endpoint issues
+  }
+
   return (
     <div>
       {getScopeIndicator() && (
@@ -113,6 +201,13 @@ const ScopedDataTable = ({
         >
           <Typography variant="caption" color="info.dark" fontWeight="medium">
             {getScopeIndicator()}
+          </Typography>
+        </Box>
+      )}
+      {error && error !== "Access restricted" && error !== "Data source not available" && (
+        <Box sx={{ mb: 2, p: 1.5, bgcolor: "error.light", borderRadius: 1 }}>
+          <Typography variant="caption" color="error.dark">
+            {error}
           </Typography>
         </Box>
       )}

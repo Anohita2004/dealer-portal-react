@@ -5,6 +5,22 @@ import { useThemeMode } from "../context/ThemeContext";
 import { useNotifications } from "../context/NotificationContext";
 import SearchInput from "./SearchInput";
 
+// Helper function to format username for display
+function formatUsername(username) {
+  if (!username) return "User";
+  
+  // Replace underscores and hyphens with spaces
+  let formatted = username.replace(/[_-]/g, " ");
+  
+  // Capitalize first letter of each word
+  formatted = formatted
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+  
+  return formatted;
+}
+
 import {
   IconButton,
   Tooltip,
@@ -182,10 +198,14 @@ export default function Navbar() {
         {user && (
           <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
             <Avatar sx={{ width: 36, height: 36, bgcolor: "#f97316" }}>
-              {user.name ? user.name[0].toUpperCase() : "U"}
+              {user.name 
+                ? user.name[0].toUpperCase() 
+                : (user.username ? user.username[0].toUpperCase() : "U")}
             </Avatar>
             <div style={{ fontSize: "0.9rem", color: "#cbd5e1" }}>
-              <strong>{user.name || "User"}</strong>
+              <strong>
+                {user.name || (user.username ? formatUsername(user.username) : "User")}
+              </strong>
             </div>
           </div>
         )}

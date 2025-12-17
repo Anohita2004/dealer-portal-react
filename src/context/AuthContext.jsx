@@ -153,17 +153,49 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Invalid token received");
       }
 
+      // Try to fetch full user profile if name is missing
+      // Use user's own profile endpoint instead of admin endpoint to avoid permission issues
+      let fullUser = newUser;
+      if (!newUser.name && newUser.id) {
+        try {
+          // Try user's own profile endpoint first (no admin permission needed)
+          let userRes;
+          try {
+            userRes = await api.get(`/users/me`);
+          } catch (meError) {
+            // Fallback to admin endpoint only if user has admin role
+            if (newUser.role === "super_admin" || newUser.role === "admin") {
+              userRes = await api.get(`/admin/users/${newUser.id}`);
+            } else {
+              throw meError; // Re-throw if not admin
+            }
+          }
+          
+          if (userRes?.data && (userRes.data.name || userRes.data.fullName || userRes.data.firstName)) {
+            fullUser = { ...newUser, ...userRes.data };
+          }
+        } catch (err) {
+          // If fetching fails (403 Forbidden is expected for non-admin users), continue with basic user object
+          // This is normal behavior - the user object from verifyOTP response is sufficient
+          if (err.response?.status === 403) {
+            console.debug("User profile fetch skipped: User doesn't have admin permissions (this is expected)");
+          } else {
+            console.warn("Could not fetch full user profile:", err);
+          }
+        }
+      }
+
       localStorage.setItem("token", newToken);
-      localStorage.setItem("user", JSON.stringify(newUser));
+      localStorage.setItem("user", JSON.stringify(fullUser));
 
       setToken(newToken);
-      setUser(newUser);
+      setUser(fullUser);
       setIsAuthenticated(true);
 
       // Connect socket after successful authentication
       connectSocket();
 
-      return newUser;
+      return fullUser;
     } catch (error) {
       setIsAuthenticated(false);
       throw error;

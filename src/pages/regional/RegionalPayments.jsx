@@ -40,22 +40,32 @@ export default function RegionalPayments() {
   const fetchPayments = async () => {
     try {
       setLoading(true);
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const params = {
-        page,
-        pageSize,
-        search: searchTerm || undefined,
-        status: statusFilter !== "all" ? statusFilter : undefined,
-        regionId: user.regionId,
-      };
-
-      const data = await paymentAPI.getAllPayments(params);
-      setPayments(data.data || data.payments || data || []);
-      setTotalPages(data.totalPages || Math.ceil((data.total || 0) / pageSize));
+      // Payments are workflow-driven - no generic /api/payments endpoint
+      // Regional managers should use finance pending or dealer pending endpoints
+      // If those don't work, show empty state gracefully
+      try {
+        const data = await paymentAPI.getFinancePending();
+        const paymentsList = Array.isArray(data) ? data : data.payments || data.data || [];
+        setPayments(paymentsList);
+        setTotalPages(Math.ceil(paymentsList.length / pageSize));
+      } catch (e) {
+        // 404 = endpoint doesn't exist - show empty
+        // 403 = role restriction - show empty
+        if (e?.response?.status === 404 || e?.response?.status === 403) {
+          setPayments([]);
+          setTotalPages(1);
+          return;
+        }
+        throw e;
+      }
     } catch (error) {
-      console.error("Failed to fetch payments:", error);
-      toast.error("Failed to load payments");
+      // Only log non-permission errors
+      if (error?.response?.status !== 403 && error?.response?.status !== 404) {
+        console.error("Failed to fetch payments:", error);
+        toast.error("Failed to load payments");
+      }
       setPayments([]);
+      setTotalPages(1);
     } finally {
       setLoading(false);
     }

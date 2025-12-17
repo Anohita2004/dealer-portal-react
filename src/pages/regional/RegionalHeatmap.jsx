@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import { Box, Card, CardContent, Typography, Select, MenuItem, FormControl, InputLabel, TextField, Button, Grid } from "@mui/material";
+import { Box, Card, CardContent, Typography, Select, MenuItem, FormControl, InputLabel, TextField, Button, Grid, Alert, Collapse, IconButton } from "@mui/material";
 import { MapContainer, TileLayer, useMap } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
@@ -7,6 +7,9 @@ import "leaflet.heat";
 import { geoAPI, reportAPI } from "../../services/api";
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
+import { useAuth } from "../../context/AuthContext";
+import { getMapScopeExplanation, getHeatmapLegend } from "../../utils/mapScope";
+import { Info, ChevronDown, ChevronUp } from "lucide-react";
 
 // Heat layer component
 function HeatLayer({ points, enabled = true }) {
@@ -68,6 +71,7 @@ function HeatLayer({ points, enabled = true }) {
 }
 
 export default function RegionalHeatmap() {
+  const { user } = useAuth();
   const [heatmapData, setHeatmapData] = useState([]);
   const [granularity, setGranularity] = useState("region");
   const [startDate, setStartDate] = useState(() => {
@@ -77,6 +81,17 @@ export default function RegionalHeatmap() {
   });
   const [endDate, setEndDate] = useState(() => new Date().toISOString().slice(0, 10));
   const [loading, setLoading] = useState(false);
+  const [scopeExplanationOpen, setScopeExplanationOpen] = useState(true);
+
+  // Get scope explanation
+  const scopeExplanation = getMapScopeExplanation(user, {
+    dealerCount: 0,
+    regionCount: 0,
+    territoryCount: 0,
+  });
+
+  // Get heatmap legend
+  const heatmapLegend = getHeatmapLegend(granularity);
 
   const fetchHeatmapData = async () => {
     try {
@@ -108,6 +123,44 @@ export default function RegionalHeatmap() {
         title="Regional Heatmap"
         subtitle="Visualize sales density across your region"
       />
+
+      {/* Scope Explanation - Backend Intelligence */}
+      <Alert 
+        severity="info" 
+        icon={<Info size={18} />}
+        sx={{ mb: 3 }}
+        action={
+          <IconButton
+            size="small"
+            onClick={() => setScopeExplanationOpen(!scopeExplanationOpen)}
+          >
+            {scopeExplanationOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </IconButton>
+        }
+      >
+        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+          Map Scope: {scopeExplanation.scope}
+        </Typography>
+        <Collapse in={scopeExplanationOpen}>
+          <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>
+            {scopeExplanation.explanation}
+          </Typography>
+          {scopeExplanation.hiddenData.length > 0 && (
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                Hidden Data (due to role permissions):
+              </Typography>
+              <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                {scopeExplanation.hiddenData.map((item, idx) => (
+                  <Typography key={idx} component="li" variant="caption" color="text.secondary">
+                    {item}
+                  </Typography>
+                ))}
+              </Box>
+            </Box>
+          )}
+        </Collapse>
+      </Alert>
 
       <Card sx={{ mb: 3 }}>
         <CardContent>
@@ -159,6 +212,36 @@ export default function RegionalHeatmap() {
               </Button>
             </Grid>
           </Grid>
+        </CardContent>
+      </Card>
+
+      {/* Heatmap Legend - Backend Intelligence */}
+      <Card sx={{ mb: 3 }}>
+        <CardContent>
+          <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+            Heatmap Legend: {heatmapLegend.description}
+          </Typography>
+          <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}>
+            {heatmapLegend.labels.map((item, idx) => (
+              <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                <Box
+                  sx={{
+                    width: 20,
+                    height: 20,
+                    borderRadius: 1,
+                    backgroundColor: item.color,
+                    border: '1px solid #ccc',
+                  }}
+                />
+                <Typography variant="caption">
+                  <strong>{item.value}</strong>: {item.description}
+                </Typography>
+              </Box>
+            ))}
+          </Box>
+          <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+            Colors represent sales density from low (blue) to very high (red)
+          </Typography>
         </CardContent>
       </Card>
 

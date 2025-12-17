@@ -109,6 +109,31 @@ import RegionalInventory from "./pages/regional/RegionalInventory";
 import StockAlerts from "./pages/regional/StockAlerts";
 import MaterialSummary from "./pages/regional/MaterialSummary";
 
+// Area Manager Pages
+import AreaHeatmap from "./pages/area/AreaHeatmap";
+import AreaDealers from "./pages/area/AreaDealers";
+import AreaStaff from "./pages/area/AreaStaff";
+import AreaApprovals from "./pages/area/AreaApprovals";
+import AreaOrders from "./pages/area/AreaOrders";
+import AreaDocuments from "./pages/area/AreaDocuments";
+import AreaPayments from "./pages/area/AreaPayments";
+import AreaPricing from "./pages/area/AreaPricing";
+import AreaSales from "./pages/area/AreaSales";
+import AreaOutstanding from "./pages/area/AreaOutstanding";
+import AreaDealerPerformance from "./pages/area/AreaDealerPerformance";
+import AreaCampaigns from "./pages/area/AreaCampaigns";
+import AreaInventory from "./pages/area/AreaInventory";
+
+// Territory Manager Pages
+import TerritoryDealers from "./pages/territory/TerritoryDealers";
+import TerritoryOrders from "./pages/territory/TerritoryOrders";
+import TerritoryPayments from "./pages/territory/TerritoryPayments";
+import TerritoryDocuments from "./pages/territory/TerritoryDocuments";
+import TerritorySales from "./pages/territory/TerritorySales";
+import TerritoryDealerPerformance from "./pages/territory/TerritoryDealerPerformance";
+import TerritoryOutstanding from "./pages/territory/TerritoryOutstanding";
+import TerritoryInventory from "./pages/territory/TerritoryInventory";
+
 
 export default function App() {
   return (
@@ -727,15 +752,14 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-<Route
-  path="payments/finance/pending"
-  element={
-    <ProtectedRoute allowed={["finance_admin"]}>
-      <FinancePendingPayments />
-    </ProtectedRoute>
-  }
-/>
-
+            <Route
+              path="payments/finance/pending"
+              element={
+                <ProtectedRoute allowed={["finance_admin", "accounts_user"]}>
+                  <FinancePendingPayments />
+                </ProtectedRoute>
+              }
+            />
 
             {/* ============================================================
                REGIONAL MANAGER
@@ -762,27 +786,187 @@ export default function App() {
             {/* ============================================================
                AREA MANAGER
             ============================================================ */}
-            <Route
-              path="dealers"
-              element={
-                <ProtectedRoute allowed={["area_manager"]}>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="area">
+              <Route
+                path="heatmap"
+                element={
+                  <ProtectedRoute allowed={["area_manager"]}>
+                    <AreaHeatmap />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="dealers"
+                element={
+                  <ProtectedRoute allowed={["area_manager"]}>
+                    <AreaDealers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="staff"
+                element={
+                  <ProtectedRoute allowed={["area_manager"]}>
+                    <AreaStaff />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="approvals"
+                element={
+                  <ProtectedRoute allowed={["area_manager"]}>
+                    <AreaApprovals />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="orders"
+                element={
+                  <ProtectedRoute allowed={["area_manager"]}>
+                    <AreaOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="documents"
+                element={
+                  <ProtectedRoute allowed={["area_manager"]}>
+                    <AreaDocuments />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="payments"
+                element={
+                  <ProtectedRoute allowed={["area_manager"]}>
+                    <AreaPayments />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="pricing"
+                element={
+                  <ProtectedRoute allowed={["area_manager"]}>
+                    <AreaPricing />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="reports">
+                <Route
+                  path="sales"
+                  element={
+                    <ProtectedRoute allowed={["area_manager"]}>
+                      <AreaSales />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="outstanding"
+                  element={
+                    <ProtectedRoute allowed={["area_manager"]}>
+                      <AreaOutstanding />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="dealer-performance"
+                  element={
+                    <ProtectedRoute allowed={["area_manager"]}>
+                      <AreaDealerPerformance />
+                    </ProtectedRoute>
+                  }
+                />
+              </Route>
+              <Route
+                path="campaigns"
+                element={
+                  <ProtectedRoute allowed={["area_manager"]}>
+                    <AreaCampaigns />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="inventory"
+                element={
+                  <ProtectedRoute allowed={["area_manager"]}>
+                    <AreaInventory />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
 
 
             {/* ============================================================
                TERRITORY MANAGER
             ============================================================ */}
-            <Route
-              path="dealers"
-              element={
-                <ProtectedRoute allowed={["territory_manager"]}>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
+            <Route path="territory">
+              <Route
+                path="dealers"
+                element={
+                  <ProtectedRoute allowed={["territory_manager"]}>
+                    <TerritoryDealers />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="orders"
+                element={
+                  <ProtectedRoute allowed={["territory_manager"]}>
+                    <TerritoryOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="payments"
+                element={
+                  <ProtectedRoute allowed={["territory_manager"]}>
+                    <TerritoryPayments />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="documents"
+                element={
+                  <ProtectedRoute allowed={["territory_manager"]}>
+                    <TerritoryDocuments />
+                  </ProtectedRoute>
+                }
+              />
+              <Route path="reports">
+                <Route
+                  path="sales"
+                  element={
+                    <ProtectedRoute allowed={["territory_manager"]}>
+                      <TerritorySales />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="dealer-performance"
+                  element={
+                    <ProtectedRoute allowed={["territory_manager"]}>
+                      <TerritoryDealerPerformance />
+                    </ProtectedRoute>
+                  }
+                />
+                <Route
+                  path="outstanding"
+                  element={
+                    <ProtectedRoute allowed={["territory_manager"]}>
+                      <TerritoryOutstanding />
+                    </ProtectedRoute>
+                  }
+                />
+              </Route>
+              <Route
+                path="inventory"
+                element={
+                  <ProtectedRoute allowed={["territory_manager"]}>
+                    <TerritoryInventory />
+                  </ProtectedRoute>
+                }
+              />
+            </Route>
 
 
             {/* ============================================================
@@ -834,8 +1018,20 @@ export default function App() {
             <Route
               path="chat"
               element={
-                <ProtectedRoute allowed={["dealer_admin"]}>
-                  <DealerChat />
+                <ProtectedRoute allowed={[
+                  "super_admin",
+                  "dealer_admin",
+                  "dealer_staff",
+                  "regional_manager",
+                  "area_manager",
+                  "territory_manager",
+                  "technical_admin",
+                  "finance_admin",
+                  "inventory_user",
+                  "accounts_user",
+                  "regional_admin"
+                ]}>
+                  <ChatUI />
                 </ProtectedRoute>
               }
             />
@@ -914,7 +1110,7 @@ export default function App() {
 <Route
   path="payments/:id"
   element={
-    <ProtectedRoute>
+    <ProtectedRoute allowed={["dealer_staff", "dealer_admin", "finance_admin", "accounts_user", "super_admin", "regional_admin"]}>
       <PaymentDetail />
     </ProtectedRoute>
   }

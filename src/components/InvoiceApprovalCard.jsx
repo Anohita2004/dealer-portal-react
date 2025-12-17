@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useState, useEffect } from "react";
 import {
   Card,
   CardContent,
@@ -8,39 +8,110 @@ import {
   Chip,
   Divider,
   IconButton,
+  Alert,
 } from "@mui/material";
-import { CheckCircle, XCircle, Download, FileText } from "lucide-react";
-import ApprovalWorkflow from "./ApprovalWorkflow";
+import { CheckCircle, XCircle, Download, FileText, Clock, AlertCircle } from "lucide-react";
 import { invoiceAPI } from "../services/api";
 import { toast } from "react-toastify";
+import { useWorkflow } from "../hooks/useWorkflow";
+import {
+  WorkflowStatus,
+  WorkflowTimeline,
+  ApprovalActions,
+  WorkflowProgressBar,
+} from "./workflow";
 
 /**
  * Invoice Approval Card Component
- * Displays invoice details with approval workflow
+ * Enhanced to display backend workflow intelligence: stages, SLA, next approver, timeline
  */
 export default function InvoiceApprovalCard({ invoice, onUpdate }) {
-  const handleApprove = async () => {
+  const [workflow, setWorkflow] = useState(null);
+  const [workflowLoading, setWorkflowLoading] = useState(false);
+
+  // Fetch workflow data to get SLA and stage information
+  useEffect(() => {
+    const fetchWorkflow = async () => {
+      if (!invoice?.id) return;
+      setWorkflowLoading(true);
+      try {
+        const response = await invoiceAPI.getWorkflowStatus(invoice.id);
+        const workflowData = response.workflow || response.data || response;
+        setWorkflow(workflowData);
+      } catch (err) {
+        // Silently fail - workflow data is optional for list view
+        console.debug("Could not fetch workflow for invoice:", invoice.id);
+      } finally {
+        setWorkflowLoading(false);
+      }
+    };
+    fetchWorkflow();
+  }, [invoice?.id]);
+  const handleApprove = async (remarks) => {
     try {
-      await invoiceAPI.approveInvoice(invoice.id, { action: "approve" });
+      await invoiceAPI.approveInvoice(invoice.id, { action: "approve", remarks });
       toast.success("Invoice approved successfully");
       if (onUpdate) onUpdate();
+      // Refresh workflow data
+      const response = await invoiceAPI.getWorkflowStatus(invoice.id);
+      const workflowData = response.workflow || response.data || response;
+      setWorkflow(workflowData);
     } catch (error) {
       console.error("Failed to approve invoice:", error);
       toast.error(error.response?.data?.error || "Failed to approve invoice");
     }
   };
 
-  const handleReject = async (rejectionReason) => {
-    if (!rejectionReason) return;
+  const handleReject = async (reason, remarks) => {
+    if (!reason) return;
 
     try {
-      await invoiceAPI.approveInvoice(invoice.id, { action: "reject", reason: rejectionReason, remarks: rejectionReason });
+      await invoiceAPI.approveInvoice(invoice.id, { action: "reject", reason, remarks });
       toast.success("Invoice rejected");
       if (onUpdate) onUpdate();
+      // Refresh workflow data
+      const response = await invoiceAPI.getWorkflowStatus(invoice.id);
+      const workflowData = response.workflow || response.data || response;
+      setWorkflow(workflowData);
     } catch (error) {
       console.error("Failed to reject invoice:", error);
       toast.error(error.response?.data?.error || "Failed to reject invoice");
     }
+  };
+
+  // Calculate SLA urgency from backend data
+  const getSLAUrgency = () => {
+    if (!workflow?.currentSlaExpiresAt) return null;
+
+    const expiresAt = new Date(workflow.currentSlaExpiresAt);
+    const now = new Date();
+    const diffMs = expiresAt - now;
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffMinutes = Math.floor((diffMs % (1000 * 60 * 60)) / (1000 * 60));
+    const isOverdue = diffMs < 0;
+    const isDueSoon = diffMs > 0 && diffMs < 24 * 60 * 60 * 1000; // Less than 24 hours
+
+    return {
+      isOverdue,
+      isDueSoon,
+      diffHours: Math.abs(diffHours),
+      diffMinutes: Math.abs(diffMinutes),
+      expiresAt,
+    };
+  };
+
+  const slaUrgency = getSLAUrgency();
+  
+  // Get current stage from workflow (backend authority) or fallback to invoice data
+  const currentStage = workflow?.currentStage || invoice.approvalStage || invoice.currentStage;
+  
+  // Format stage name for display
+  const formatStageName = (stage) => {
+    if (!stage) return "N/A";
+    return stage
+      .split("_")
+      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+      .join(" ");
   };
 
   const downloadPdf = async () => {
@@ -89,18 +160,40 @@ export default function InvoiceApprovalCard({ invoice, onUpdate }) {
           </Box>
           <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
             <Chip
-              label={invoice.approvalStatus?.toUpperCase() || invoice.status?.toUpperCase() || "PENDING"}
+              label={workflow?.approvalStatus?.toUpperCase() || invoice.approvalStatus?.toUpperCase() || invoice.status?.toUpperCase() || "PENDING"}
               color={
-                invoice.approvalStatus === "approved" || invoice.status === "approved"
+                workflow?.approvalStatus === "approved" || invoice.approvalStatus === "approved" || invoice.status === "approved"
                   ? "success"
-                  : invoice.approvalStatus === "rejected" || invoice.status === "rejected"
+                  : workflow?.approvalStatus === "rejected" || invoice.approvalStatus === "rejected" || invoice.status === "rejected"
                   ? "error"
                   : "warning"
               }
+              size="small"
             />
-            <Typography variant="caption" display="block" color="text.secondary">
-              Stage: {invoice.approvalStage || invoice.currentStage || "N/A"}
-            </Typography>
+            {currentStage && (
+              <Chip
+                label={`Stage: ${formatStageName(currentStage)}`}
+                variant="outlined"
+                size="small"
+                color="primary"
+              />
+            )}
+            {/* SLA Urgency Badge - Backend Intelligence */}
+            {slaUrgency && workflow?.approvalStatus === "pending" && (
+              <Chip
+                icon={slaUrgency.isOverdue ? <AlertCircle size={16} /> : <Clock size={16} />}
+                label={
+                  slaUrgency.isOverdue
+                    ? `Overdue: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
+                    : slaUrgency.isDueSoon
+                    ? `Due in: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
+                    : `SLA: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
+                }
+                color={slaUrgency.isOverdue ? "error" : slaUrgency.isDueSoon ? "warning" : "info"}
+                size="small"
+                sx={{ fontWeight: slaUrgency.isOverdue || slaUrgency.isDueSoon ? 600 : 400 }}
+              />
+            )}
             <IconButton
               size="small"
               onClick={downloadPdf}
@@ -112,17 +205,50 @@ export default function InvoiceApprovalCard({ invoice, onUpdate }) {
           </Box>
         </Box>
 
+        {/* SLA Urgency Alert - Visual prominence for overdue items */}
+        {slaUrgency && slaUrgency.isOverdue && workflow?.approvalStatus === "pending" && (
+          <Alert severity="error" sx={{ mb: 2 }}>
+            <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+              <AlertCircle size={20} />
+              <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                SLA Overdue: This invoice has exceeded its approval deadline by {slaUrgency.diffHours}h {slaUrgency.diffMinutes}m
+              </Typography>
+            </Box>
+          </Alert>
+        )}
+
         <Divider sx={{ my: 2 }} />
 
-        <ApprovalWorkflow
-          entity={{ type: "invoice", ...invoice }}
-          currentStage={invoice.approvalStage || invoice.currentStage}
-          approvalStatus={invoice.approvalStatus || invoice.status}
-          onApprove={handleApprove}
-          onReject={handleReject}
-          approvalHistory={invoice.approvalHistory || invoice.history || []}
-          showHistory={true}
-        />
+        {/* Workflow Progress Bar */}
+        {workflow && <WorkflowProgressBar workflow={workflow} />}
+
+        {/* Workflow Status */}
+        {workflow && (
+          <Box sx={{ mt: 2 }}>
+            <WorkflowStatus workflow={workflow} entityType="invoice" />
+          </Box>
+        )}
+
+        {/* Approval Actions */}
+        {workflow && (
+          <Box sx={{ mt: 2 }}>
+            <ApprovalActions
+              workflow={workflow}
+              entityType="invoice"
+              entityId={invoice.id}
+              onApprove={handleApprove}
+              onReject={handleReject}
+              loading={workflowLoading}
+            />
+          </Box>
+        )}
+
+        {/* Workflow Timeline */}
+        {workflow && workflow.timeline && (
+          <Box sx={{ mt: 2 }}>
+            <WorkflowTimeline timeline={workflow.timeline} workflow={workflow} />
+          </Box>
+        )}
 
         {invoice.description && (
           <Box sx={{ mt: 2 }}>

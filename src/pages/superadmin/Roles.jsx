@@ -58,6 +58,20 @@ export default function SuperAdminRolesPage() {
 
   // Assign permissions to role
   const assignPermissions = async () => {
+    if (!selectedRole) return;
+    
+    // Show confirmation with impact warning
+    const confirmed = window.confirm(
+      `⚠️ Impact Warning: Changing permissions for role "${selectedRole.name}" will affect all users with this role.\n\n` +
+      `This change will:\n` +
+      `- Immediately apply to all ${selectedRole.name} users\n` +
+      `- Be logged in audit trail\n` +
+      `- Potentially change access to workflows and data\n\n` +
+      `Continue with permission assignment?`
+    );
+    
+    if (!confirmed) return;
+    
     try {
       for (const pid of selectedPermissions) {
         await api.post("/roles/assign-permission", {
@@ -65,7 +79,7 @@ export default function SuperAdminRolesPage() {
           permissionId: pid,
         });
       }
-      toast.success("Permissions updated");
+      toast.success("Permissions updated. All users with this role are affected.");
       setAssignModalOpen(false);
       loadData();
     } catch (err) {
@@ -209,6 +223,17 @@ export default function SuperAdminRolesPage() {
       {/* Assign Permissions Modal */}
       {assignModalOpen && (
         <Modal onClose={() => setAssignModalOpen(false)} title={`Assign Permissions to ${selectedRole?.name}`}>
+          <div style={{ 
+            padding: "0.75rem", 
+            marginBottom: "1rem", 
+            background: "#fef3c7", 
+            border: "1px solid #f59e0b", 
+            borderRadius: "4px",
+            fontSize: "0.875rem"
+          }}>
+            <strong>⚠️ Impact Warning:</strong> Changing permissions will affect all users with role "{selectedRole?.name}". 
+            This action is logged in audit trail.
+          </div>
           <div className="grid gap-2 max-h-80 overflow-y-auto p-2">
             {permissions.map((p) => (
               <label key={p.id} className="flex items-center gap-2">
@@ -217,16 +242,19 @@ export default function SuperAdminRolesPage() {
                   checked={selectedPermissions.includes(p.id)}
                   onChange={() => togglePermission(p.id)}
                 />
-                {p.key}
+                <span>
+                  <strong>{p.key}</strong>
+                  {p.description && <span style={{ fontSize: "0.75rem", color: "#6b7280", marginLeft: "0.5rem" }}>— {p.description}</span>}
+                </span>
               </label>
             ))}
           </div>
 
           <button
             onClick={assignPermissions}
-            className="w-full mt-4 bg-orange-500 text-white py-2 rounded"
+            className="w-full mt-4 bg-orange-500 text-white py-2 rounded font-semibold"
           >
-            Save Permissions
+            Save Permissions (Affects All {selectedRole?.name} Users)
           </button>
         </Modal>
       )}

@@ -41,15 +41,21 @@ export default function AdminOrders() {
       const ordersList = res.orders || res.data || res || [];
       setOrders(Array.isArray(ordersList) ? ordersList : []);
     } catch (err) {
-      console.error(err);
+      // Suppress console errors for 403 (permission denied)
+      if (err.response?.status !== 403) {
+        console.error(err);
+      }
       // Fallback to getting all orders (backend will scope automatically)
       try {
         const fallbackRes = await orderAPI.getAllOrders();
         const ordersList = fallbackRes.orders || fallbackRes.data || fallbackRes || [];
         setOrders(Array.isArray(ordersList) ? ordersList : []);
       } catch (fallbackErr) {
-        console.error("Fallback also failed:", fallbackErr);
-        alert("Failed to fetch orders");
+        // Suppress console errors for 403 (permission denied)
+        if (fallbackErr.response?.status !== 403) {
+          console.error("Fallback also failed:", fallbackErr);
+          alert("Failed to fetch orders");
+        }
       }
     } finally {
       setLoading(false);
@@ -111,6 +117,27 @@ export default function AdminOrders() {
     }
 
     return true;
+  });
+
+  // Sort orders by SLA urgency (backend intelligence: prioritize overdue and due soon)
+  // Note: This will be enhanced when workflow data is available in list view
+  // For now, pending orders are shown first, and OrderApprovalCard will fetch and display SLA per item
+  const sortedOrders = [...filteredOrders].sort((a, b) => {
+    // Prioritize pending orders
+    const aPending = a.status === "pending" || a.approvalStatus === "pending";
+    const bPending = b.status === "pending" || b.approvalStatus === "pending";
+    if (aPending && !bPending) return -1;
+    if (!aPending && bPending) return 1;
+    
+    // Within pending, sort by creation date (newest first for now)
+    // TODO: When backend provides SLA in list response, sort by SLA expiration
+    if (aPending && bPending) {
+      const aDate = new Date(a.createdAt || 0);
+      const bDate = new Date(b.createdAt || 0);
+      return bDate - aDate;
+    }
+    
+    return 0;
   });
 
   // ===== Status colors =====
@@ -195,7 +222,7 @@ export default function AdminOrders() {
         </Card>
       ) : (
         <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          {filteredOrders.map((order) => (
+          {sortedOrders.map((order) => (
             <OrderApprovalCard
               key={order.id}
               order={order}

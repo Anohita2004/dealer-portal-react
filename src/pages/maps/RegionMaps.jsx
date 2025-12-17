@@ -9,8 +9,9 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.heat';
 import { geoAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { Box, Card, CardContent, Typography, Switch, FormControlLabel, Select, MenuItem, InputLabel, FormControl, Button, Chip } from '@mui/material';
-import { Map as MapIcon, Layers, TrendingUp, Users } from 'lucide-react';
+import { Box, Card, CardContent, Typography, Switch, FormControlLabel, Select, MenuItem, InputLabel, FormControl, Button, Chip, Alert, Collapse, IconButton } from '@mui/material';
+import { Map as MapIcon, Layers, TrendingUp, Users, Info, ChevronDown, ChevronUp } from 'lucide-react';
+import { getMapScopeExplanation, getHeatmapLegend, explainBackendQueryParams } from '../../utils/mapScope';
 
 // small helper: safe array
 const safeArray = (v) => (Array.isArray(v) ? v : []);
@@ -188,6 +189,7 @@ export default function RegionMap() {
   const [regions, setRegions] = useState({ type: 'FeatureCollection', features: [] });
   const [territories, setTerritories] = useState({ type: 'FeatureCollection', features: [] });
   const [regionSales, setRegionSales] = useState({});
+  const [scopeExplanationOpen, setScopeExplanationOpen] = useState(true);
 
   // Layer visibility controls
   const [showDealers, setShowDealers] = useState(true);
@@ -407,16 +409,64 @@ export default function RegionMap() {
     }
   };
 
-  // Get scope indicator text
-  const getScopeText = () => {
-    if (user?.role === 'super_admin') return 'Viewing: All Regions';
-    if (user?.regionId) return 'Viewing: Your Region';
-    if (user?.territoryId) return 'Viewing: Your Territory';
-    return 'Viewing: Your Scope';
-  };
+  // Get scope explanation from utility
+  const scopeExplanation = getMapScopeExplanation(user, {
+    dealerCount: filteredDealers.length,
+    regionCount: regions.features.length,
+    territoryCount: territories.features.length,
+  });
+
+  // Get heatmap legend
+  const heatmapLegend = getHeatmapLegend(granularity);
+
+  // Validate backend query parameters
+  const queryParams = explainBackendQueryParams({
+    start: startDate,
+    end: endDate,
+    granularity,
+    regionId: user?.regionId,
+    territoryId: user?.territoryId,
+  }, user);
 
   return (
     <Box sx={{ height: '100%', display: 'flex', flexDirection: 'column', gap: 2, p: 2 }}>
+      {/* Scope Explanation - Backend Intelligence */}
+      <Alert 
+        severity="info" 
+        icon={<Info size={18} />}
+        action={
+          <IconButton
+            size="small"
+            onClick={() => setScopeExplanationOpen(!scopeExplanationOpen)}
+          >
+            {scopeExplanationOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
+          </IconButton>
+        }
+      >
+        <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+          Map Scope: {scopeExplanation.scope}
+        </Typography>
+        <Collapse in={scopeExplanationOpen}>
+          <Typography variant="caption" sx={{ display: 'block', mb: 0.5 }}>
+            {scopeExplanation.explanation}
+          </Typography>
+          {scopeExplanation.hiddenData.length > 0 && (
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="caption" sx={{ fontWeight: 600, display: 'block', mb: 0.5 }}>
+                Hidden Data (due to role permissions):
+              </Typography>
+              <Box component="ul" sx={{ m: 0, pl: 2 }}>
+                {scopeExplanation.hiddenData.map((item, idx) => (
+                  <Typography key={idx} component="li" variant="caption" color="text.secondary">
+                    {item}
+                  </Typography>
+                ))}
+              </Box>
+            </Box>
+          )}
+        </Collapse>
+      </Alert>
+
       {/* Controls Panel */}
       <Card>
         <CardContent>
@@ -424,9 +474,10 @@ export default function RegionMap() {
             {/* Scope Indicator */}
             <Chip 
               icon={<MapIcon size={16} />} 
-              label={getScopeText()} 
+              label={scopeExplanation.scope} 
               color="primary" 
               variant="outlined"
+              title={scopeExplanation.explanation}
             />
 
             {/* Heatmap Granularity */}
@@ -582,6 +633,39 @@ export default function RegionMap() {
           </Box>
         </CardContent>
       </Card>
+
+      {/* Heatmap Legend - Backend Intelligence */}
+      {showHeatmap && (
+        <Card>
+          <CardContent>
+            <Typography variant="subtitle2" gutterBottom sx={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 1 }}>
+              <Layers size={18} />
+              Heatmap Legend: {heatmapLegend.description}
+            </Typography>
+            <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2, mt: 1 }}>
+              {heatmapLegend.labels.map((item, idx) => (
+                <Box key={idx} sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
+                  <Box
+                    sx={{
+                      width: 20,
+                      height: 20,
+                      borderRadius: 1,
+                      backgroundColor: item.color,
+                      border: '1px solid #ccc',
+                    }}
+                  />
+                  <Typography variant="caption">
+                    <strong>{item.value}</strong>: {item.description}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+            <Typography variant="caption" color="text.secondary" sx={{ display: 'block', mt: 1 }}>
+              Colors represent sales density from low (blue) to very high (red)
+            </Typography>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Map Container */}
       <Box sx={{ flex: 1, minHeight: 500, borderRadius: 2, overflow: 'hidden', border: '1px solid #e0e0e0' }}>

@@ -64,22 +64,41 @@ export const disconnectSocket = () => {
 };
 
 // =========================================================
-// EVENTS (no change, this is fine)
+// CHAT EVENTS
 // =========================================================
+// Join user's personal room (for receiving all messages)
+export const joinUserRoom = (data) => getSocket()?.emit("join_user_room", data);
+
+// Join chat room between two users
 export const joinChatRoom = (u1, u2) => getSocket()?.emit("join_chat", { u1, u2 });
 export const leaveChatRoom = (u1, u2) => getSocket()?.emit("leave_chat", { u1, u2 });
+
+// Send message via socket
 export const sendChatMessage = (msg) => getSocket()?.emit("send_message", msg);
 
-export const onReceiveMessage = cb => getSocket()?.on("receive_message", cb);
+// Message event handlers
+export const onReceiveMessage = (cb) => getSocket()?.on("receive_message", cb);
 export const offReceiveMessage = () => getSocket()?.off("receive_message");
 
-export const onNewMessageNotification = cb => getSocket()?.on("new_message_notification", cb);
-export const onTyping = cb => getSocket()?.on("typing", cb);
+export const onNewMessageNotification = (cb) => getSocket()?.on("new_message_notification", cb);
+export const offNewMessageNotification = () => getSocket()?.off("new_message_notification");
 
-export const onUserOnline = cb => getSocket()?.on("user_online", cb);
-export const onUserOffline = cb => getSocket()?.on("user_offline", cb);
+export const onMessageSent = (cb) => getSocket()?.on("message_sent", cb);
+export const offMessageSent = () => getSocket()?.off("message_sent");
 
-export const onNewNotification = cb => getSocket()?.on("notification:new", cb);
+export const onMessageError = (cb) => getSocket()?.on("message_error", cb);
+export const offMessageError = () => getSocket()?.off("message_error");
+
+// Typing indicators
+export const onTyping = (cb) => getSocket()?.on("typing", cb);
+export const offTyping = () => getSocket()?.off("typing");
+
+// User presence
+export const onUserOnline = (cb) => getSocket()?.on("user_online", cb);
+export const onUserOffline = (cb) => getSocket()?.on("user_offline", cb);
+
+// General notifications
+export const onNewNotification = (cb) => getSocket()?.on("notification:new", cb);
 export const offNewNotification = () => getSocket()?.off("notification:new");
 
 // dynamic event shortcuts

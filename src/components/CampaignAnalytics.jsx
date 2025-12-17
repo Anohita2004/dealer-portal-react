@@ -7,10 +7,16 @@ import {
   Grid,
   CircularProgress,
   Divider,
+  Alert,
+  Accordion,
+  AccordionSummary,
+  AccordionDetails,
 } from "@mui/material";
 import { ResponsiveContainer, BarChart, Bar, XAxis, YAxis, Tooltip, Legend, PieChart, Pie, Cell } from "recharts";
 import { campaignAPI } from "../services/api";
 import { toast } from "react-toastify";
+import { explainPerformanceCalculations } from "../utils/campaignTargeting";
+import { Info, ChevronDown } from "lucide-react";
 
 const COLORS = ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#8b5cf6"];
 
@@ -66,11 +72,42 @@ export default function CampaignAnalytics({ campaignId }) {
 
   const revenueData = analytics.revenue?.breakdown || [];
 
+  const calculations = explainPerformanceCalculations(analytics);
+
   return (
     <Box sx={{ p: 3 }}>
       <Typography variant="h5" gutterBottom fontWeight="bold">
         {analytics.campaignName || "Campaign Analytics"}
       </Typography>
+
+      {/* Performance Calculations Explanation - Backend Intelligence */}
+      <Alert severity="info" icon={<Info size={18} />} sx={{ mb: 3 }}>
+        <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+          How Performance Metrics Are Calculated:
+        </Typography>
+        <Accordion>
+          <AccordionSummary expandIcon={<ChevronDown size={16} />}>
+            <Typography variant="caption">View calculation details</Typography>
+          </AccordionSummary>
+          <AccordionDetails>
+            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
+              {calculations.calculations.map((calc, idx) => (
+                <Box key={idx} sx={{ mb: 1 }}>
+                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                    {calc.metric}: {calc.value}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    Formula: {calc.formula}
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
+                    Calculation: {calc.breakdown}
+                  </Typography>
+                </Box>
+              ))}
+            </Box>
+          </AccordionDetails>
+        </Accordion>
+      </Alert>
 
       <Grid container spacing={3} sx={{ mt: 2 }}>
         {/* Participation Stats */}
@@ -88,6 +125,9 @@ export default function CampaignAnalytics({ campaignId }) {
                 </Typography>
                 <Typography variant="h4" fontWeight="bold" color="primary">
                   {analytics.participation?.participationRate || 0}%
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                  {calculations.participationExplanation}
                 </Typography>
               </Box>
               <ResponsiveContainer width="100%" height={200}>
@@ -135,6 +175,9 @@ export default function CampaignAnalytics({ campaignId }) {
                 </Typography>
                 <Typography variant="h5" fontWeight="bold">
                   ₹{Number(analytics.revenue?.attributed || 0).toLocaleString()}
+                </Typography>
+                <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5 }}>
+                  {calculations.revenueExplanation}
                 </Typography>
               </Box>
             </CardContent>
