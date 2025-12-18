@@ -37,6 +37,7 @@ import SuperAdminUsers from "./pages/superadmin/Users";
 import SuperAdminRoles from "./pages/superadmin/Roles";
 import SuperAdminTeamManagement from "./pages/superadmin/TeamManagement";
 import UserFormPage from "./pages/superadmin/UserFormPage"; // if using it
+import DealerFormPage from "./pages/superadmin/DealerFormPage";
 
 
 // 🛠 Admin & Config
@@ -83,6 +84,8 @@ import AllDealers from "./pages/superadmin/AllDealers";
 import UserActivity from "./pages/superadmin/UserActivity";
 import TeamPerformance from "./pages/superadmin/TeamPerformance";
 import RegionWiseReports from "./pages/superadmin/RegionWiseReports";
+import DealerProfile from "./pages/DealerProfile";
+import DealerDetail from "./pages/DealerDetail";
 
 import MyPaymentRequests from "./pages/payments/MyPaymentRequest";
 import Tasks from "./pages/Tasks";
@@ -280,6 +283,22 @@ export default function App() {
               element={
                 <ProtectedRoute allowed={["territory_manager", "area_manager", "regional_manager"]}>
                   <DealerManagement />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="dealers/:id"
+              element={
+                <ProtectedRoute
+                  allowed={[
+                    "territory_manager",
+                    "area_manager",
+                    "regional_manager",
+                    "regional_admin",
+                    "super_admin",
+                  ]}
+                >
+                  <DealerDetail />
                 </ProtectedRoute>
               }
             />
@@ -489,8 +508,39 @@ export default function App() {
     }
   />
 
-</Route>
-<Route path="superadmin/users/new" element={<ProtectedRoute allowed={["super_admin"]}><UserFormPage /></ProtectedRoute>} />
+            </Route>
+            <Route
+              path="superadmin/users/new"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <UserFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="superadmin/users/:id"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <UserFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="superadmin/dealers/new"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <DealerFormPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="superadmin/dealers/:id"
+              element={
+                <ProtectedRoute allowed={["super_admin"]}>
+                  <DealerFormPage />
+                </ProtectedRoute>
+              }
+            />
 
             {/* ============================================================
                TECHNICAL ADMIN
@@ -950,6 +1000,14 @@ export default function App() {
             {/* ============================================================
                DEALER ADMIN
             ============================================================ */}
+            <Route
+              path="dealer/profile"
+              element={
+                <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
+                  <DealerProfile />
+                </ProtectedRoute>
+              }
+            />
             <Route
               path="documents"
               element={

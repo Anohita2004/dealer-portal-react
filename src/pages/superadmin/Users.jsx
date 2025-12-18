@@ -278,7 +278,7 @@ export default function Users() {
   };
 
   return (
-    <Box sx={{ width: "100%", height: "100%" }}>
+    <Box sx={{ p: 3, width: "100%", maxWidth: 1400, mx: "auto" }}>
       <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, flexWrap: "wrap", gap: 2 }}>
         <Box>
           <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5, color: "#f97316", fontSize: "1.75rem" }}>
@@ -453,13 +453,22 @@ export default function Users() {
       </Card>
 
       {/* Table */}
-      <Card sx={{ borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)", overflow: "hidden", width: "100%", maxWidth: "100%" }}>
-        <TableContainer 
-          sx={{ 
-            width: "100%", 
-            maxWidth: "100%", 
+      <Card
+        sx={{
+          borderRadius: 2,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
+          overflow: "hidden",
+          width: "100%",
+          maxWidth: "100%",
+        }}
+      >
+        <TableContainer
+          sx={{
+            width: "100%",
+            maxWidth: "100%",
             overflowX: "auto",
-            overflowY: "visible"
+            maxHeight: "60vh",
+            overflowY: "auto",
           }}
         >
           <Table sx={{ width: "100%", tableLayout: "auto" }}>

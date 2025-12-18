@@ -12,6 +12,7 @@ import TaskList from "../../components/TaskList";
 import TimeFilter from "../../components/dashboard/TimeFilter";
 import TrendLineChart from "../../components/dashboard/TrendLineChart";
 import ComparisonWidget from "../../components/dashboard/ComparisonWidget";
+import DealerMyManagerCard from "../../components/DealerMyManagerCard";
 import { useNavigate } from "react-router-dom";
 
 import {
@@ -259,6 +260,10 @@ export default function DealerDashboard() {
           <TimeFilter value={timeRange} onChange={setTimeRange} />
         </div>
       </header>
+
+      <div style={{ marginBottom: "1rem", maxWidth: 360 }}>
+        <DealerMyManagerCard />
+      </div>
 
       <Toolbar
         left={[

@@ -11,12 +11,14 @@ import {
   Typography,
 } from "@mui/material";
 import { Search, Download, TrendingUp, DollarSign, Package } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import { dealerAPI } from "../../services/api";
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
 import ScopedDataTable from "../../components/ScopedDataTable";
 
 export default function AllDealers() {
+  const navigate = useNavigate();
   const [dealers, setDealers] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
@@ -46,37 +48,125 @@ export default function AllDealers() {
   const totalSales = dealers.reduce((sum, d) => sum + Number(d.totalSales || 0), 0);
   const totalOutstanding = dealers.reduce((sum, d) => sum + Number(d.outstanding || 0), 0);
 
+  const handleToggleBlock = async (dealer) => {
+    const action = dealer.isBlocked ? "unblock" : "block";
+    const reason = window.prompt(
+      `Enter reason to ${action} this dealer:`
+    );
+    if (!reason) return;
+
+    try {
+      await dealerAPI.blockDealer(dealer.id, !dealer.isBlocked, reason);
+      toast.success(`Dealer ${action}ed successfully`);
+      fetchDealers();
+    } catch (error) {
+      console.error("Failed to update dealer status:", error);
+      toast.error("Failed to update dealer block status");
+    }
+  };
+
+  const handleVerify = async (dealer) => {
+    const licenseNumber = window.prompt("Enter License Number:");
+    if (!licenseNumber) return;
+    const licenseDocument =
+      window.prompt("Enter License Document URL (optional):") || null;
+
+    try {
+      await dealerAPI.verifyDealer(dealer.id, {
+        licenseNumber,
+        licenseDocument,
+      });
+      toast.success("Dealer verified successfully");
+      fetchDealers();
+    } catch (error) {
+      console.error("Failed to verify dealer:", error);
+      toast.error("Failed to verify dealer");
+    }
+  };
+
   const columns = [
-    { field: "businessName", headerName: "Business Name", flex: 1.5 },
-    { field: "code", headerName: "Code", flex: 0.6 },
-    { field: "region", headerName: "Region", flex: 0.8, renderCell: (params) => params.row.region?.name || "N/A" },
-    { field: "territory", headerName: "Territory", flex: 0.8, renderCell: (params) => params.row.territory?.name || "N/A" },
+    { key: "businessName", label: "Business Name" },
     {
-      field: "totalSales",
-      headerName: "Total Sales",
-      flex: 0.8,
-      renderCell: (params) => `₹${Number(params.value || 0).toLocaleString()}`,
+      key: "dealerCode",
+      label: "Code",
+      render: (_, row) => row.dealerCode || row.code || "N/A",
     },
     {
-      field: "outstanding",
-      headerName: "Outstanding",
-      flex: 0.8,
-      renderCell: (params) => `₹${Number(params.value || 0).toLocaleString()}`,
+      key: "region",
+      label: "Region",
+      render: (_, row) => row.region?.name || "N/A",
     },
     {
-      field: "status",
-      headerName: "Status",
-      flex: 0.6,
-      renderCell: (params) => {
-        const status = params.value || "active";
+      key: "territory",
+      label: "Territory",
+      render: (_, row) => row.territory?.name || "N/A",
+    },
+    {
+      key: "totalSales",
+      label: "Total Sales",
+      render: (value) => `₹${Number(value || 0).toLocaleString()}`,
+    },
+    {
+      key: "outstanding",
+      label: "Outstanding",
+      render: (value) => `₹${Number(value || 0).toLocaleString()}`,
+    },
+    {
+      key: "status",
+      label: "Status",
+      render: (_, row) => {
+        const status = row.isBlocked
+          ? "blocked"
+          : row.isActive === false
+          ? "inactive"
+          : "active";
         return (
           <Chip
             label={status.toUpperCase()}
-            color={status === "active" ? "success" : status === "blocked" ? "error" : "default"}
+            color={
+              status === "active"
+                ? "success"
+                : status === "blocked"
+                ? "error"
+                : "default"
+            }
             size="small"
           />
         );
       },
+    },
+    {
+      key: "actions",
+      label: "Actions",
+      render: (_, row) => (
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={() => navigate(`/superadmin/dealers/${row.id}`)}
+          >
+            Edit
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            color={row.isBlocked ? "success" : "error"}
+            onClick={() => handleToggleBlock(row)}
+          >
+            {row.isBlocked ? "Unblock" : "Block"}
+          </Button>
+          {!row.isVerified && (
+            <Button
+              size="small"
+              variant="contained"
+              color="primary"
+              onClick={() => handleVerify(row)}
+            >
+              Verify
+            </Button>
+          )}
+        </Box>
+      ),
     },
   ];
 
@@ -85,11 +175,22 @@ export default function AllDealers() {
       <PageHeader
         title="All Dealers"
         subtitle="View and manage all dealers across the system"
-        action={
-          <Button variant="outlined" startIcon={<Download size={18} />}>
+        actions={[
+          <Button
+            key="export"
+            variant="outlined"
+            startIcon={<Download size={18} />}
+          >
             Export
-          </Button>
-        }
+          </Button>,
+          <Button
+            key="create"
+            variant="contained"
+            onClick={() => navigate("/superadmin/dealers/new")}
+          >
+            Create Dealer
+          </Button>,
+        ]}
       />
 
       <Grid container spacing={3} sx={{ mt: 2, mb: 3 }}>

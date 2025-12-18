@@ -538,29 +538,30 @@ export const materialAPI = {
 export const geoAPI = {
   // Regions
   getRegions: (params) =>
+    // List regions
     api.get("/regions", { params }).then((r) => r.data),
 
   getRegionById: (id) =>
-    api.get(`/regions/regions/${id}`).then((r) => r.data),
+    api.get(`/regions/${id}`).then((r) => r.data),
 
   createRegion: (payload) =>
-    api.post("/regions/regions", payload).then((r) => r.data),
+    api.post("/regions", payload).then((r) => r.data),
 
   updateRegion: (id, payload) =>
-    api.put(`/regions/regions/${id}`, payload).then((r) => r.data),
+    api.put(`/regions/${id}`, payload).then((r) => r.data),
 
   deleteRegion: (id) =>
-    api.delete(`/regions/regions/${id}`).then((r) => r.data),
+    api.delete(`/regions/${id}`).then((r) => r.data),
 
   // Regional Dashboard Endpoints
   getRegionalDashboardSummary: (params) =>
-    api.get("/regions/regions/dashboard/summary", { params }).then((r) => r.data),
+    api.get("/regions/dashboard/summary", { params }).then((r) => r.data),
 
   getRegionalAreas: (params) =>
-    api.get("/regions/regions/dashboard/areas", { params }).then((r) => r.data),
+    api.get("/regions/dashboard/areas", { params }).then((r) => r.data),
 
   getRegionalApprovals: (params) =>
-    api.get("/regions/regions/dashboard/approvals", { params }).then((r) => r.data),
+    api.get("/regions/dashboard/approvals", { params }).then((r) => r.data),
 
   // Areas
   getAreas: (params) =>
@@ -853,6 +854,22 @@ export const dealerAPI = {
   // Get dealer hierarchy
   getDealerHierarchy: (id) =>
     api.get(`/dealers/${id}/hierarchy`).then((r) => r.data),
+
+  // Dealer self profile (for dealer_admin / dealer_staff)
+  getMyDealerProfile: () =>
+    api.get("/dealers/profile").then((r) => r.data),
+
+  // Dealer → My Manager (for dealer_admin / dealer_staff)
+  getMyManager: () =>
+    api.get("/dealers/my-manager").then((r) => r.data),
+
+  // Block / Unblock dealer (super_admin / key_user)
+  blockDealer: (id, isBlocked, reason) =>
+    api.put(`/dealers/${id}/block`, { isBlocked, reason }).then((r) => r.data),
+
+  // Verify dealer (super_admin / key_user)
+  verifyDealer: (id, payload = {}) =>
+    api.put(`/dealers/${id}/verify`, payload).then((r) => r.data),
 };
 
 // =======================================================================

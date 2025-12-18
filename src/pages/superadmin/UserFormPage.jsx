@@ -137,6 +137,7 @@ export default function UserFormPage() {
         geoAPI.getRegions().catch(() => []),
         geoAPI.getAreas().catch(() => []),
         geoAPI.getTerritories().catch(() => []),
+        // Use the same pattern as other dealer lists (no extra params)
         dealerAPI.getDealers().catch(() => []),
         teamAPI.getTeams().catch(() => []),
       ]);
@@ -157,20 +158,13 @@ export default function UserFormPage() {
       const selectedRole = roles.find((r) => r.id === form.roleId);
       if (!selectedRole) return;
 
-      const roleName = selectedRole.name?.toLowerCase() || "";
+      const roleName = selectedRole.name?.toLowerCase().replace(/\s+/g, "_") || "";
       const hierarchy = roleHierarchy[roleName];
 
       if (!hierarchy || hierarchy.canHaveManager.length === 0) {
         setManagers([]);
         return;
       }
-
-      // Load managers based on hierarchy requirements
-      const params = {};
-      if (form.regionId) params.regionId = form.regionId;
-      if (form.areaId) params.areaId = form.areaId;
-      if (form.territoryId) params.territoryId = form.territoryId;
-      if (form.dealerId) params.dealerId = form.dealerId;
 
       // Get users with manager roles
       const managerRoles = hierarchy.canHaveManager;
@@ -181,13 +175,31 @@ export default function UserFormPage() {
       );
 
       const managersList = allManagers.flatMap((m) => m?.users || m?.data || []);
-      
-      // Filter managers based on hierarchy
+
+      // Filter managers based on hierarchy + role-specific rules
       const filtered = managersList.filter((manager) => {
+        // For dealer_admin, we want Territory/Area/Regional managers that
+        // cover the dealer's geographic scope, not dealerId.
+        if (roleName === "dealer_admin") {
+          const dealer = dealers.find((d) => d.id === form.dealerId);
+          if (!dealer) return true; // no dealer selected yet – show all
+
+          if (dealer.regionId && manager.regionId && dealer.regionId !== manager.regionId) return false;
+          if (dealer.areaId && manager.areaId && dealer.areaId !== manager.areaId) return false;
+          if (dealer.territoryId && manager.territoryId && dealer.territoryId !== manager.territoryId) return false;
+          return true;
+        }
+
+        // Generic: match explicit scope fields from the form when present
         if (form.regionId && manager.regionId !== form.regionId) return false;
         if (form.areaId && manager.areaId !== form.areaId) return false;
         if (form.territoryId && manager.territoryId !== form.territoryId) return false;
-        if (form.dealerId && manager.dealerId !== form.dealerId) return false;
+
+        // For dealer_staff, manager must be a dealer_admin on the same dealer
+        if (roleName === "dealer_staff" && form.dealerId) {
+          if (!manager.dealerId || manager.dealerId !== form.dealerId) return false;
+        }
+
         return true;
       });
 
@@ -378,7 +390,25 @@ export default function UserFormPage() {
       navigate("/superadmin/users");
     } catch (err) {
       console.error("Save error:", err);
-      toast.error(err.response?.data?.error || "Failed to save user");
+      const msg =
+        err.response?.data?.error ||
+        err.response?.data?.message ||
+        "Failed to save user";
+
+      const lower = String(msg).toLowerCase();
+      if (lower.includes("dealerid is required for dealer roles")) {
+        setErrors((prev) => ({
+          ...prev,
+          dealerId: "Dealer is required for dealer roles",
+        }));
+      } else if (lower.includes("dealerid is outside your allowed scope")) {
+        setErrors((prev) => ({
+          ...prev,
+          dealerId: "Selected dealer is outside your allowed scope",
+        }));
+      }
+
+      toast.error(msg);
     } finally {
       setLoading(false);
     }
@@ -389,7 +419,7 @@ export default function UserFormPage() {
   const selectedRole = roles.find((r) => r.id === form.roleId);
 
   return (
-    <Box sx={{ p: 3, maxWidth: 1200, mx: "auto" }}>
+    <Box sx={{ p: 3, maxWidth: 1200, mx: "auto", boxSizing: "border-box" }}>
       <PageHeader
         title={isEdit ? "Edit User" : "Create New User"}
         subtitle={isEdit ? "Update user information and assignments" : "Create a new user with role-based assignments"}
@@ -614,7 +644,7 @@ export default function UserFormPage() {
 
                   {hierarchy && hierarchy.requires.includes("dealer") && (
                     <Grid item xs={12} md={6}>
-                      <FormControl fullWidth required error={!!errors.dealerId} disabled={!form.territoryId && !form.areaId && !form.regionId}>
+                      <FormControl fullWidth required error={!!errors.dealerId}>
                         <InputLabel>Dealer</InputLabel>
                         <Select
                           value={form.dealerId}

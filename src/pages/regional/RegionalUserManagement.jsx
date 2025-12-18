@@ -176,10 +176,14 @@ export default function RegionalUserManagement() {
           : []
       );
       
-      // If regions endpoint fails, use current user's region if available
+      // If regions endpoint succeeds, normalise to a safe array
+      // Backend may return: { data: [...] }, { regions: [...] }, or a raw array
       if (regionsResult.status === 'fulfilled' && regionsResult.value) {
-        const regions = regionsResult.value?.data || regionsResult.value || [];
-        setRegions(regions);
+        const rawRegions =
+          regionsResult.value?.data ||
+          regionsResult.value?.regions ||
+          regionsResult.value;
+        setRegions(Array.isArray(rawRegions) ? rawRegions : []);
       } else if (user.regionId) {
         // If regions endpoint doesn't exist, create a placeholder from user's region
         setRegions([{ id: user.regionId, name: user.region?.name || 'Current Region' }]);
@@ -201,7 +205,10 @@ export default function RegionalUserManagement() {
       
       // Ensure dealers is always an array
       const dealersData = dealersResult.status === 'fulfilled'
-        ? (dealersResult.value?.data || dealersResult.value || [])
+        ? (dealersResult.value?.dealers ||
+           dealersResult.value?.data ||
+           dealersResult.value ||
+           [])
         : [];
       setDealers(Array.isArray(dealersData) ? dealersData : []);
 
@@ -222,22 +229,61 @@ export default function RegionalUserManagement() {
 
   const loadManagers = async () => {
     try {
+      // Resolve current role so we can determine the correct manager role(s)
+      const selectedRole =
+        roles.find((r) => r.id === form.roleId || r.name === form.roleId) || null;
+      const roleName = selectedRole?.name || "";
+
+      let managerRoles = [];
+
+      if (roleName === "dealer_staff") {
+        // Dealer Staff should report to a Dealer Admin
+        managerRoles = ["dealer_admin"];
+      } else if (roleName === "dealer_admin") {
+        // Dealer Admin reports upward to manager hierarchy
+        managerRoles = ["area_manager", "territory_manager", "regional_manager"];
+      } else if (roleName === "area_manager") {
+        managerRoles = ["territory_manager", "regional_manager", "regional_admin"];
+      } else if (roleName === "territory_manager") {
+        managerRoles = ["area_manager", "regional_manager"];
+      } else if (roleName === "regional_manager") {
+        managerRoles = ["regional_admin"];
+      } else {
+        // No manager concept for this role in this screen
+        setManagers([]);
+        return;
+      }
+
       const params = {
-        role: ["area_manager", "territory_manager", "regional_manager"].join(","),
-        regionId: form.regionId,
+        role: managerRoles.join(","),
+        regionId: form.regionId || undefined,
+        areaId: form.areaId || undefined,
+        territoryId: form.territoryId || undefined,
+        dealerId: form.dealerId || undefined,
       };
+
       const data = await userAPI.getUsers(params);
-      setManagers(data.data || data.users || []);
+      let mgrs = data.data || data.users || [];
+
+      // For dealer_staff, make sure managers are tied to the same dealer when possible
+      if (roleName === "dealer_staff" && form.dealerId) {
+        mgrs = mgrs.filter((m) => m.dealerId === form.dealerId);
+      }
+
+      setManagers(mgrs);
     } catch (error) {
       console.error("Failed to load managers:", error);
     }
   };
 
   useEffect(() => {
-    if (form.regionId) {
+    if (form.roleId) {
       loadManagers();
+    } else {
+      setManagers([]);
     }
-  }, [form.regionId]);
+    // Re-evaluate manager options when hierarchy fields change
+  }, [form.roleId, form.regionId, form.areaId, form.territoryId, form.dealerId]);
 
   const handleCreateUser = () => {
     setIsEdit(false);
@@ -294,7 +340,27 @@ export default function RegionalUserManagement() {
   const handleSaveUser = async (e) => {
     e.preventDefault();
     try {
-      const payload = { ...form };
+      // Ensure we always send a numeric roleId from the roles list
+      const selectedRole =
+        roles.find((r) => r.id === form.roleId || r.name === form.roleId) || null;
+      const roleName = selectedRole?.name || "";
+
+      if (!selectedRole) {
+        toast.error("Please select a valid role");
+        return;
+      }
+
+      // For dealer roles, backend requires the user to be attached to a dealer (dealerId)
+      if ((roleName === "dealer_admin" || roleName === "dealer_staff") && !form.dealerId) {
+        toast.error("Select which dealer this user belongs to (required for dealer admin / staff).");
+        return;
+      }
+
+      const payload = {
+        ...form,
+        // Force roleId to the numeric id expected by the backend
+        roleId: selectedRole.id,
+      };
       if (!payload.password) delete payload.password;
 
       if (isEdit) {
@@ -334,11 +400,23 @@ export default function RegionalUserManagement() {
   
   const filteredAreas = safeAreas.filter((a) => !form.regionId || a.regionId === form.regionId);
   const filteredTerritories = safeTerritories.filter((t) => !form.areaId || t.areaId === form.areaId);
-  const filteredDealers = safeDealers.filter(
-    (d) =>
-      (form.territoryId && d.territoryId === form.territoryId) ||
-      (form.regionId && d.regionId === form.regionId)
-  );
+  const filteredDealers = safeDealers.filter((d) => {
+    // If a territory is selected, prefer matching by territory
+    if (form.territoryId) {
+      return d.territoryId === form.territoryId;
+    }
+    // Otherwise, if a region is selected and dealer has a regionId, match on region
+    if (form.regionId && d.regionId) {
+      return d.regionId === form.regionId;
+    }
+    // Fallback: show all dealers returned by the backend for this role
+    return true;
+  });
+
+  // Resolve selected role name (slug) from numeric roleId
+  const selectedRoleForForm =
+    roles.find((r) => r.id === form.roleId || r.name === form.roleId) || null;
+  const selectedRoleName = selectedRoleForForm?.name || "";
 
   return (
     <Box sx={{ p: 3 }}>
@@ -585,9 +663,9 @@ export default function RegionalUserManagement() {
                   </Select>
                 </FormControl>
               </Grid>
-              {(form.roleId === "area_manager" ||
-                form.roleId === "territory_manager" ||
-                form.roleId === "dealer_staff") && (
+              {(selectedRoleName === "area_manager" ||
+                selectedRoleName === "territory_manager" ||
+                selectedRoleName === "dealer_staff") && (
                 <Grid item xs={12} sm={6}>
                   <FormControl fullWidth>
                     <InputLabel>Area</InputLabel>
@@ -612,7 +690,8 @@ export default function RegionalUserManagement() {
                   </FormControl>
                 </Grid>
               )}
-              {(form.roleId === "territory_manager" || form.roleId === "dealer_staff") && (
+              {(selectedRoleName === "territory_manager" ||
+                selectedRoleName === "dealer_staff") && (
                 <Grid item xs={12} sm={6}>
                   <FormControl fullWidth>
                     <InputLabel>Territory</InputLabel>
@@ -632,7 +711,8 @@ export default function RegionalUserManagement() {
                   </FormControl>
                 </Grid>
               )}
-              {(form.roleId === "dealer_admin" || form.roleId === "dealer_staff") && (
+              {(selectedRoleName === "dealer_admin" ||
+                selectedRoleName === "dealer_staff") && (
                 <Grid item xs={12} sm={6}>
                   <FormControl fullWidth>
                     <InputLabel>Dealer</InputLabel>

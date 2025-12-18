@@ -24,6 +24,7 @@ import {
   FaFileContract,
   FaExclamationTriangle,
   FaBoxes,
+  FaBuilding,
 } from "react-icons/fa";
 
 // Helper function to format username for display
@@ -180,6 +181,7 @@ export default function Sidebar() {
       { label: "Territory Inventory", path: "/territory/inventory", icon: <FaWarehouse />, section: "Inventory" },
     ],
     dealer_admin: [
+      { label: "My Company", path: "/dealer/profile", icon: <FaBuilding /> },
       { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
       { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
       { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
@@ -189,6 +191,7 @@ export default function Sidebar() {
     dealer_staff: [
       // Dashboard Section
       { label: "My Dashboard", path: "/dashboard", icon: <FaHome />, section: "Dashboard" },
+      { label: "My Company", path: "/dealer/profile", icon: <FaBuilding />, section: "Dashboard" },
       
       // Orders Section
       { label: "My Orders", path: "/orders/my", icon: <FaFileAlt />, section: "Orders" },
