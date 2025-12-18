@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { dashboardAPI, orderAPI, pricingAPI, reportAPI, managerAPI } from "../../services/api";
+import { dashboardAPI } from "../../services/api";
 import PageHeader from "../../components/PageHeader";
 import StatCard from "../../components/StatCard";
 import Card from "../../components/Card";
@@ -48,18 +48,9 @@ export default function RegionalManagerDashboard() {
       const params = getTimeRangeParams(timeRange);
       const prevParams = getTimeRangeParams(timeRange, true);
       
-      const [
-        summaryRes,
-        prevSummaryRes,
-        approvalsRes,
-        dealersRes,
-        areaRes,
-      ] = await Promise.allSettled([
+      const [summaryRes, prevSummaryRes] = await Promise.allSettled([
         dashboardAPI.getManagerDashboard(params).catch(() => ({})),
         dashboardAPI.getManagerDashboard(prevParams).catch(() => ({})),
-        dashboardAPI.getManagerApprovalQueue(params).catch(() => ({ items: [] })),
-        managerAPI.getDealers(params).catch(() => ({ data: { dealers: [] } })),
-        reportAPI.getTerritoryReport(params).catch(() => ({ data: [] })),
       ]);
 
       const summary = summaryRes.status === 'fulfilled' ? summaryRes.value : {};
@@ -82,7 +73,16 @@ export default function RegionalManagerDashboard() {
         totalOutstanding: prevSummary.totalOutstanding || 0,
       });
 
-      setPendingItems(approvalsRes.status === 'fulfilled' ? (approvalsRes.value.items || []) : []);
+      // Pending workflow items (read-only view for Regional Manager)
+      const queueSource =
+        summary.pendingItems ||
+        summary.pendingOrders ||
+        summary.pendingWorkflows;
+      const approvals =
+        queueSource && Array.isArray(queueSource)
+          ? queueSource
+          : [];
+      setPendingItems(approvals);
       setRecentActivity(summary.recentActivity || []);
 
       // Format performance data for chart
@@ -97,32 +97,46 @@ export default function RegionalManagerDashboard() {
       setPerformanceData(perfData);
 
       // Format dealer ranking
-      const dealers = dealersRes.status === 'fulfilled' ? (dealersRes.value.data?.dealers || dealersRes.value.dealers || []) : [];
+      const dealerRankingSource =
+        summary.dealerRanking ||
+        summary.topDealers ||
+        summary.dealerPerformance ||
+        [];
+      const dealers = Array.isArray(dealerRankingSource) ? dealerRankingSource : [];
       setDealerRanking(
         dealers
           .map((d) => ({
-            id: d.id,
-            name: d.businessName || d.dealerName || "Unknown",
-            value: Number(d.totalSales || d.sales || 0),
-            change: d.growth || 0,
+            id: d.id || d.dealerId,
+            name: d.businessName || d.dealerName || d.name || "Unknown",
+            value: Number(d.totalSales || d.sales || d.revenue || 0),
+            change: d.growth || d.change || 0,
           }))
           .sort((a, b) => b.value - a.value)
       );
 
       // Format area/territory ranking
-      const areas = areaRes.status === 'fulfilled' ? (areaRes.value.data || areaRes.value || []) : [];
+      const areaSource =
+        summary.areaRanking ||
+        summary.territoryRanking ||
+        summary.territories ||
+        summary.areas ||
+        [];
+      const areas = Array.isArray(areaSource) ? areaSource : [];
       setAreaRanking(
         areas
           .map((a) => ({
             id: a.id || a.areaId || a.territoryId,
             name: a.areaName || a.territoryName || a.name,
-            value: Number(a.totalSales || a.sales || 0),
-            change: a.growth || 0,
+            value: Number(a.totalSales || a.sales || a.revenue || 0),
+            change: a.growth || a.change || 0,
           }))
           .sort((a, b) => b.value - a.value)
       );
     } catch (error) {
-      console.error("Failed to fetch dashboard data:", error);
+      // 403/404 are expected for optional or not-yet-configured widgets
+      if (error?.response?.status !== 403 && error?.response?.status !== 404) {
+        console.error("Failed to fetch dashboard data:", error);
+      }
     } finally {
       setLoading(false);
     }
@@ -158,15 +172,6 @@ export default function RegionalManagerDashboard() {
     };
   }
 
-  const handleApprovalAction = async (itemId, action) => {
-    try {
-      await orderAPI.approveOrder(itemId, { action });
-      loadData(); // Refresh data
-    } catch (error) {
-      console.error(`Failed to ${action} item:`, error);
-    }
-  };
-
   if (loading) {
     return (
       <div style={{ padding: "2rem", textAlign: "center" }}>
@@ -180,7 +185,7 @@ export default function RegionalManagerDashboard() {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "1.5rem", flexWrap: "wrap", gap: "1rem" }}>
         <PageHeader 
           title="Regional Manager Dashboard" 
-          subtitle="Operations and approvals for your region"
+          subtitle="Execution-focused view of your assigned dealers, orders, and inventory"
         />
         <TimeFilter value={timeRange} onChange={setTimeRange} />
       </div>
@@ -226,7 +231,7 @@ export default function RegionalManagerDashboard() {
           color="#3b82f6"
         />
         <StatCard 
-          title="Pending Approvals" 
+          title="Pending Orders in Workflow" 
           value={stats.pendingApprovals}
           icon={<Clock size={24} />}
           color="#f59e0b"
@@ -245,7 +250,7 @@ export default function RegionalManagerDashboard() {
           color="#10b981"
         />
         <StatCard 
-          title="Approval Rate" 
+          title="Workflow Completion Rate" 
           value={`${stats.approvalRate}%`}
           icon={<CheckCircle size={24} />}
           color="#22c55e"
@@ -300,7 +305,7 @@ export default function RegionalManagerDashboard() {
         marginBottom: "2rem"
       }}>
         {/* Pending Approvals */}
-        <Card title="Pending Approvals" icon={<FileText size={20} />}>
+        <Card title="Orders in Workflow" icon={<FileText size={20} />}>
           {pendingItems.length === 0 ? (
             <div style={{ 
               textAlign: "center", 
@@ -308,7 +313,7 @@ export default function RegionalManagerDashboard() {
               color: "var(--text-secondary)" 
             }}>
               <CheckCircle size={48} style={{ opacity: 0.3, marginBottom: "1rem" }} />
-              <p>No pending approvals</p>
+              <p>No orders currently waiting in your workflow</p>
             </div>
           ) : (
             <div style={{ maxHeight: "280px", overflowY: "auto" }}>
@@ -334,32 +339,18 @@ export default function RegionalManagerDashboard() {
                   </div>
                   <div style={{ display: "flex", gap: "0.5rem" }}>
                     <button
-                      onClick={() => handleApprovalAction(item.id, "approve")}
+                      onClick={() => navigate(`/orders/${item.id}`)}
                       style={{
                         padding: "0.25rem 0.75rem",
                         borderRadius: "6px",
                         border: "none",
-                        background: "#22c55e",
+                        background: "#3b82f6",
                         color: "#fff",
                         cursor: "pointer",
                         fontSize: "0.85rem"
                       }}
                     >
-                      Approve
-                    </button>
-                    <button
-                      onClick={() => handleApprovalAction(item.id, "reject")}
-                      style={{
-                        padding: "0.25rem 0.75rem",
-                        borderRadius: "6px",
-                        border: "none",
-                        background: "#ef4444",
-                        color: "#fff",
-                        cursor: "pointer",
-                        fontSize: "0.85rem"
-                      }}
-                    >
-                      Reject
+                      View Details
                     </button>
                   </div>
                 </div>
@@ -523,7 +514,7 @@ export default function RegionalManagerDashboard() {
           }}
         >
           <FileText size={20} />
-          Review Approvals
+          Track Orders
         </button>
         <button
           onClick={() => navigate("/chat")}

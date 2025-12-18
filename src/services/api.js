@@ -47,6 +47,9 @@ api.interceptors.response.use(
         "/reports/dashboard/", // Dashboard endpoints may have validation errors
         "/inventory/summary",
         "/payments/due",
+        // Manager-specific helper endpoints are intentionally *not* called directly
+        // from the UI anymore. They are kept here only for backward compatibility
+        // with older builds that might still hit them.
         "/managers/approval-queue",
         "/managers/recent-activity",
         "/managers/dealers"
@@ -139,7 +142,12 @@ export const dashboardAPI = {
     api.get("/managers/summary", { params }).then((r) => r.data),
 
   getManagerApprovalQueue: (params) =>
-    api.get("/managers/approval-queue", { params }).then((r) => r.data),
+    // NOTE: Frontend must NOT call /managers/approval-queue directly.
+    // Regional/Area/Territory managers see only role-scoped, workflow-based
+    // pending items via the generic /orders endpoint with status filter.
+    api
+      .get("/orders", { params: { ...(params || {}), status: "pending" } })
+      .then((r) => r.data),
 
   getDealerApprovals: () =>
     api.get("/dealer/approvals").then((r) => r.data),
@@ -1003,12 +1011,15 @@ export const managerAPI = {
     api.get("/managers/summary").then((r) => r.data),
 
   // Get assigned dealers (scoped by manager's territory/area/region)
+  // NOTE: Do NOT call /managers/dealers. Backend exposes scoped dealers
+  // via the generic /dealers endpoint, which enforces hierarchical RBAC
+  // and territory/dealer scoping for the current user.
   getDealers: (params) =>
-    api.get("/managers/dealers", { params }).then((r) => r.data),
+    api.get("/dealers", { params }).then((r) => r.data),
 
-  // Get dealer by ID
+  // Get dealer by ID (scoped)
   getDealer: (id) =>
-    api.get(`/managers/dealers/${id}`).then((r) => r.data),
+    api.get(`/dealers/${id}`).then((r) => r.data),
 
   // Get pricing requests from dealers under manager
   getPricing: (params) =>

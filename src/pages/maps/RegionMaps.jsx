@@ -184,6 +184,8 @@ const getTerritoryStyle = (feature) => {
 
 export default function RegionMap() {
   const { user } = useAuth();
+  const role = user?.role?.toLowerCase?.() || "";
+  const isRegionalManager = role === "regional_manager";
   const [dealers, setDealers] = useState([]);
   const [heatPoints, setHeatPoints] = useState([]);
   const [regions, setRegions] = useState({ type: 'FeatureCollection', features: [] });
@@ -220,6 +222,15 @@ export default function RegionMap() {
   // map center fallback
   const mapCenter = [20.5937, 78.9629]; // India center
   const mapRef = useRef();
+
+  // Enforce "dealer pins only" view for Regional Manager
+  useEffect(() => {
+    if (isRegionalManager) {
+      setShowHeatmap(false);
+      setShowRegions(false);
+      setShowTerritories(false);
+    }
+  }, [isRegionalManager]);
 
   // Filter dealers based on filters
   const filteredDealers = useMemo(() => {
@@ -575,36 +586,40 @@ export default function RegionMap() {
               }
               label="Dealers"
             />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={showHeatmap}
-                  onChange={(e) => setShowHeatmap(e.target.checked)}
-                  size="small"
+            {!isRegionalManager && (
+              <>
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={showHeatmap}
+                      onChange={(e) => setShowHeatmap(e.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label="Heatmap"
                 />
-              }
-              label="Heatmap"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={showRegions}
-                  onChange={(e) => setShowRegions(e.target.checked)}
-                  size="small"
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={showRegions}
+                      onChange={(e) => setShowRegions(e.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label="Regions"
                 />
-              }
-              label="Regions"
-            />
-            <FormControlLabel
-              control={
-                <Switch
-                  checked={showTerritories}
-                  onChange={(e) => setShowTerritories(e.target.checked)}
-                  size="small"
+                <FormControlLabel
+                  control={
+                    <Switch
+                      checked={showTerritories}
+                      onChange={(e) => setShowTerritories(e.target.checked)}
+                      size="small"
+                    />
+                  }
+                  label="Territories"
                 />
-              }
-              label="Territories"
-            />
+              </>
+            )}
 
             {/* Reload Button */}
             <Button

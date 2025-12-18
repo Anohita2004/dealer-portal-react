@@ -20,6 +20,7 @@ import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
 import PendingIcon from "@mui/icons-material/Pending";
 import CloseIcon from "@mui/icons-material/Close";
 import { CheckCircle, XCircle, Clock, User } from "lucide-react";
+import { useAuth } from "../context/AuthContext";
 
 const ApprovalWorkflow = ({ 
   entity, 
@@ -31,6 +32,9 @@ const ApprovalWorkflow = ({
   approvalHistory = [],
   showHistory = true
 }) => {
+  const { user } = useAuth();
+  const role = user?.role?.toLowerCase?.() || "";
+  const isRegionalManager = role === "regional_manager";
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   // Define workflow stages based on entity type
@@ -110,7 +114,7 @@ const ApprovalWorkflow = ({
         })}
       </Stepper>
 
-      {showActions && !isApproved && !isRejected && currentIndex >= 0 && (
+      {showActions && !isApproved && !isRejected && currentIndex >= 0 && !isRegionalManager && (
         <Box sx={{ mt: 3, display: "flex", gap: 2, justifyContent: "flex-end" }}>
           <Button
             variant="outlined"

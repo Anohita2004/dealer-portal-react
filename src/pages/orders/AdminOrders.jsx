@@ -161,14 +161,20 @@ export default function AdminOrders() {
       <PageHeader
         title={
           role === "regional_manager"
-            ? "Regional Manager Approval Panel"
+            ? "Regional Manager Order Tracking"
             : role === "regional_admin"
             ? "Regional Admin Approval Panel"
             : role === "super_admin"
             ? "Super Admin Approval Panel"
             : "Dealer Orders (Approval Panel)"
         }
-        subtitle={`${filteredOrders.length} order(s) ${statusFilter === "pending" ? "pending" : ""} for approval`}
+        subtitle={
+          role === "regional_manager"
+            ? `${filteredOrders.length} order(s) currently in workflow for your assigned dealers`
+            : `${filteredOrders.length} order(s) ${
+                statusFilter === "pending" ? "pending" : ""
+              } for approval`
+        }
       />
 
       {/* Filters */}

@@ -93,7 +93,7 @@ export default function Invoices() {
     return true;
   });
 
-  const canApprove = ["dealer_admin", "territory_manager", "area_manager", "regional_manager", "regional_admin"].includes(user?.role);
+  const canApprove = ["dealer_admin", "territory_manager", "area_manager", "regional_admin"].includes(user?.role);
 
   return (
     <Box p={3}>

@@ -200,7 +200,7 @@ export default function App() {
             <Route
               path="dashboard/manager"
               element={
-                <ProtectedRoute allowed={["territory_manager", "area_manager", "regional_manager"]}>
+                <ProtectedRoute allowed={["territory_manager", "area_manager"]}>
                   <ManagerDashboard />
                 </ProtectedRoute>
               }
@@ -760,28 +760,6 @@ export default function App() {
                 </ProtectedRoute>
               }
             />
-
-            {/* ============================================================
-               REGIONAL MANAGER
-            ============================================================ */}
-            <Route
-              path="approvals"
-              element={
-                <ProtectedRoute allowed={["regional_manager"]}>
-                  <PricingApprovals />
-                </ProtectedRoute>
-              }
-            />
-
-            <Route
-              path="dealers"
-              element={
-                <ProtectedRoute allowed={["regional_manager"]}>
-                  <Admin />
-                </ProtectedRoute>
-              }
-            />
-
 
             {/* ============================================================
                AREA MANAGER

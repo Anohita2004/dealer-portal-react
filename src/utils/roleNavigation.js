@@ -7,7 +7,9 @@ export const ROLE_LANDING_PAGES = {
   super_admin: "/dashboard/super",
   technical_admin: "/technical-admin",
   regional_admin: "/dashboard/regional",
-  regional_manager: "/dashboard/manager",
+  // Regional Manager has a dedicated insight-focused dashboard
+  regional_manager: "/dashboard/regional-manager",
+  // Territory / Area managers continue to use the generic manager dashboard
   area_manager: "/dashboard/manager",
   territory_manager: "/dashboard/manager",
   dealer_admin: "/dashboard/dealer",

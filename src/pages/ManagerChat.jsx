@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import api from "../services/api";
+import api, { dealerAPI } from "../services/api";
 import { getSocket, onEvent, offEvent } from "../services/socket";
 import { toast } from "react-toastify";
 import "./Chat.css";
@@ -15,8 +15,10 @@ export default function ManagerChat() {
   useEffect(() => {
     (async () => {
       try {
-        const res = await api.get("/managers/dealers");
-        const dealerList = res.data.dealers || [];
+        const data = await dealerAPI.getDealers();
+        const dealerList = Array.isArray(data)
+          ? data
+          : data.dealers || data.data || [];
 
         // Map dealers to include their linked user info
         const formatted = dealerList.map((d) => ({

@@ -1,16 +1,19 @@
-import React, { useState } from "react";
+import React, { useState, useContext } from "react";
 import { Box, Tabs, Tab, Typography } from "@mui/material";
 import { FileText, Receipt, CreditCard, File, DollarSign } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import AdminOrders from "./orders/AdminOrders";
 import PricingApprovals from "./PricingApprovals";
 import { useNavigate } from "react-router-dom";
+import { AuthContext } from "../context/AuthContext";
 
 export default function Approvals() {
+  const { user } = useContext(AuthContext);
   const [selectedTab, setSelectedTab] = useState(0);
   const navigate = useNavigate();
+  const role = user?.role?.toLowerCase();
 
-  const tabs = [
+  const baseTabs = [
     { label: "Orders", value: "orders", icon: <FileText size={18} />, component: AdminOrders },
     {
       label: "Invoices",
@@ -47,13 +50,24 @@ export default function Approvals() {
     },
   ];
 
+  // Role-based tab visibility
+  // Regional Manager: execution-focused tracking only (orders, read-only)
+  const tabs =
+    role === "regional_manager"
+      ? baseTabs.filter((tab) => tab.value === "orders")
+      : baseTabs;
+
   const CurrentComponent = tabs[selectedTab].component;
 
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
-        title="Pending Approvals"
-        subtitle="Review and approve pending requests"
+        title={role === "regional_manager" ? "Orders & Workflow" : "Pending Approvals"}
+        subtitle={
+          role === "regional_manager"
+            ? "Track order status and workflow stages for your assigned dealers. Approvals are handled by dealer and regional roles."
+            : "Review and approve pending requests"
+        }
       />
 
       <Tabs
