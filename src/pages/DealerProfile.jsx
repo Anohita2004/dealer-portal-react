@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useContext } from "react";
 import {
   Box,
   Grid,
@@ -12,20 +12,42 @@ import { toast } from "react-toastify";
 import PageHeader from "../components/PageHeader";
 import { dealerAPI } from "../services/api";
 import DealerMyManagerCard from "../components/DealerMyManagerCard";
+import { AuthContext } from "../context/AuthContext";
 
 export default function DealerProfile() {
+  const { user } = useContext(AuthContext);
   const [dealer, setDealer] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
 
   useEffect(() => {
     const loadProfile = async () => {
+      // Check if user has dealerId before making the API call
+      if (!user?.dealerId) {
+        setError("Your account is not linked to a dealer. Please contact your administrator.");
+        setLoading(false);
+        return;
+      }
+
       try {
         const data = await dealerAPI.getMyDealerProfile();
         const d = data.dealer || data;
         setDealer(d || null);
+        setError(null);
       } catch (err) {
         console.error("Failed to load dealer profile:", err);
-        toast.error("Failed to load dealer profile");
+        
+        // Provide more specific error messages
+        if (err.response?.status === 403) {
+          setError("You don't have permission to view dealer profile. Your account may not be properly linked to a dealer.");
+          toast.error("Access denied: Your account is not linked to a dealer");
+        } else if (err.response?.status === 404) {
+          setError("Dealer profile not found. Please contact your administrator.");
+          toast.error("Dealer profile not found");
+        } else {
+          setError("Failed to load dealer profile. Please try again later.");
+          toast.error("Failed to load dealer profile");
+        }
         setDealer(null);
       } finally {
         setLoading(false);
@@ -33,7 +55,7 @@ export default function DealerProfile() {
     };
 
     loadProfile();
-  }, []);
+  }, [user]);
 
   if (loading) {
     return (
@@ -43,12 +65,25 @@ export default function DealerProfile() {
     );
   }
 
-  if (!dealer) {
+  if (error || !dealer) {
     return (
       <Box sx={{ p: 3 }}>
-        <Typography color="text.secondary">
-          Dealer profile is not available.
-        </Typography>
+        <PageHeader
+          title="Dealer Profile"
+          subtitle="Unable to load profile"
+        />
+        <Card sx={{ mt: 2 }}>
+          <CardContent>
+            <Typography color="error" variant="body1" sx={{ mb: 1 }}>
+              {error || "Dealer profile is not available."}
+            </Typography>
+            <Typography variant="body2" color="text.secondary">
+              {!user?.dealerId 
+                ? "Your user account is not linked to a dealer. Please contact your administrator to link your account to a dealer."
+                : "Please contact your administrator if you believe this is an error."}
+            </Typography>
+          </CardContent>
+        </Card>
       </Box>
     );
   }

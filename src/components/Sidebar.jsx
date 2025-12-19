@@ -296,7 +296,7 @@ export default function Sidebar() {
       {links.map((l, idx) => {
         const showSection = !collapsed && l.section && (idx === 0 || links[idx - 1]?.section !== l.section);
         return (
-          <React.Fragment key={l.path}>
+          <React.Fragment key={`${idx}-${l.path}-${l.label}`}>
             {showSection && (
               <div style={{
                 marginTop: idx > 0 ? "1rem" : "0",

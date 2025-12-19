@@ -24,7 +24,7 @@ import { useApiCall } from "../../hooks/useApiCall";
 import { useNavigate } from "react-router-dom";
 import PageHeader from "../../components/PageHeader";
 import { toast } from "react-toastify";
-import { isAccountsUser, getDisabledActionExplanation } from "../../utils/accountsPermissions";
+import { isAccountsUser, getDisabledActionExplanation, canAccountsUserPerform } from "../../utils/accountsPermissions";
 
 export default function CreateOrder() {
   const { user } = useAuth();
@@ -38,6 +38,9 @@ export default function CreateOrder() {
   const [selectedMaterial, setSelectedMaterial] = useState("");
   const [quantity, setQuantity] = useState("");
   const [unitPrice, setUnitPrice] = useState("");
+
+  // Check if user is accounts user (read-only for order creation)
+  const isReadOnly = !canAccountsUserPerform(user, "create_orders");
 
   useEffect(() => {
     const fetchMaterials = async () => {
