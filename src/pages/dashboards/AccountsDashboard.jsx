@@ -59,14 +59,14 @@ export default function AccountsDashboard() {
 
   // Role-Based Color Themes
   const roleTheme = {
-    dealer: { color: "#3b82f6", bg: "#eff6ff" },
-    manager: { color: "#f59e0b", bg: "#fff7ed" },
-    accounts: { color: "#22c55e", bg: "#f0fdf4" },
-    admin: { color: "#8b5cf6", bg: "#f5f3ff" },
+    dealer: { color: "var(--color-primary)", bg: "var(--color-primary-soft)" },
+    manager: { color: "var(--color-warning)", bg: "rgba(245, 158, 11, 0.1)" },
+    accounts: { color: "var(--color-success)", bg: "rgba(22, 163, 74, 0.1)" },
+    admin: { color: "var(--color-primary-dark)", bg: "rgba(37, 99, 235, 0.1)" },
   };
 
-  const theme = roleTheme[user?.role] || { color: "#6b7280", bg: "#f9fafb" };
-  const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
+  const theme = roleTheme[user?.role] || { color: "var(--color-text-secondary)", bg: "var(--color-background)" };
+  const COLORS = ["var(--color-success)", "var(--color-primary)", "var(--color-warning)", "var(--color-error)", "var(--color-primary-dark)"];
 
 
   // Helper to handle API errors gracefully (403/404 are expected for permission issues)
@@ -355,12 +355,12 @@ export default function AccountsDashboard() {
           value={summary.totalInvoices || invoices.length}
         />
         <SummaryCard
-          icon={<TrendingUp size={20} color="#16a34a" />}
+          icon={<TrendingUp size={20} color="var(--color-success)" />}
           label="Credit Notes"
           value={`₹${summary.totalCredit || 0}`}
         />
         <SummaryCard
-          icon={<TrendingDown size={20} color="#dc2626" />}
+          icon={<TrendingDown size={20} color="var(--color-error)" />}
           label="Debit Notes"
           value={`₹${summary.totalDebit || 0}`}
         />
@@ -371,7 +371,7 @@ export default function AccountsDashboard() {
         />
         {pendingPayments.length > 0 && (
           <SummaryCard
-            icon={<Clock size={20} color="#f59e0b" />}
+            icon={<Clock size={20} color="var(--color-warning)" />}
             label="Pending Approvals"
             value={pendingPayments.length}
             urgent={pendingPayments.length > 0}
@@ -398,7 +398,7 @@ export default function AccountsDashboard() {
               <Tooltip />
               <Legend />
               <Bar dataKey="total" fill={theme.color} name="Total Invoices" />
-              <Bar dataKey="paid" fill="#22c55e" name="Paid Amount" />
+              <Bar dataKey="paid" fill="var(--color-success)" name="Paid Amount" />
             </BarChart>
           </ResponsiveContainer>
         </ChartCard>
@@ -429,19 +429,19 @@ export default function AccountsDashboard() {
       {/* Account Statement Table */}
       <div
         style={{
-          background: "white",
-          borderRadius: "12px",
-          boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+          background: "var(--color-surface)",
+          borderRadius: "var(--radius-lg)",
+          boxShadow: "var(--shadow-sm)",
           marginTop: "2rem",
           padding: "1rem",
         }}
       >
-        <h4 style={{ color: "#111827", marginBottom: "1rem", display: "flex", alignItems: "center", gap: 8 }}>
+        <h4 style={{ color: "var(--color-text-primary)", marginBottom: "var(--spacing-4)", display: "flex", alignItems: "center", gap: 8 }}>
           <FileText size={18} /> Recent Account Statements
         </h4>
 
         {loading ? (
-          <p style={{ color: "#9ca3af" }}>Loading statements...</p>
+          <p style={{ color: "var(--color-text-secondary)" }}>Loading statements...</p>
         ) : (
           <DataTable columns={columns} rows={filtered.slice(0, 8)} />
         )}
@@ -470,7 +470,7 @@ export default function AccountsDashboard() {
           >
             <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
               <h4 style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
-                <AlertTriangle size={18} color="#ef4444" /> Outstanding Invoices
+                <AlertTriangle size={18} color="var(--color-error)" /> Outstanding Invoices
               </h4>
               <Button
                 size="small"
@@ -489,7 +489,7 @@ export default function AccountsDashboard() {
                     key={inv.id}
                     sx={{
                       p: 1.5,
-                      border: "1px solid #e5e7eb",
+                      border: "1px solid var(--color-border)",
                       borderRadius: 1,
                       display: "flex",
                       justifyContent: "space-between",
@@ -533,7 +533,7 @@ export default function AccountsDashboard() {
         >
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
             <h4 style={{ display: "flex", alignItems: "center", gap: 8, margin: 0 }}>
-              <Clock size={18} color="#f59e0b" /> Pending Payment Approvals
+              <Clock size={18} color="var(--color-warning)" /> Pending Payment Approvals
             </h4>
             <Button
               size="small"
@@ -587,7 +587,7 @@ export default function AccountsDashboard() {
       <div style={{ marginTop: "2rem", display: "flex", gap: "1rem", flexWrap: "wrap" }}>
         <div
           style={{
-            background: reconciliation.length ? "#fee2e2" : "#dcfce7",
+            background: reconciliation.length ? "rgba(220, 38, 38, 0.1)" : "rgba(22, 163, 74, 0.1)",
             padding: "1rem",
             borderRadius: "12px",
             flex: 1,
@@ -599,9 +599,9 @@ export default function AccountsDashboard() {
           </h4>
           <p style={{ display: "flex", alignItems: "center", gap: 8 }}>
             {reconciliation.length ? (
-              <AlertCircle size={18} color="#dc2626" />
+              <AlertCircle size={18} color="var(--color-error)" />
             ) : (
-              <CheckCircle2 size={18} color="#16a34a" />
+              <CheckCircle2 size={18} color="var(--color-success)" />
             )}
             {reconciliation.length
               ? `${reconciliation.length} invoice(s) pending`
@@ -631,8 +631,8 @@ function SummaryCard({ icon, label, value, urgent }) {
     >
       {icon}
       <div>
-        <div style={{ fontSize: "0.9rem", color: "#6b7280" }}>{label}</div>
-        <div style={{ fontWeight: 700, color: urgent ? "#dc2626" : "#111827" }}>{value}</div>
+        <div style={{ fontSize: "0.9rem", color: "var(--color-text-secondary)" }}>{label}</div>
+        <div style={{ fontWeight: 700, color: urgent ? "var(--color-error)" : "var(--color-text-primary)" }}>{value}</div>
       </div>
     </div>
   );

@@ -9,6 +9,7 @@ import {
   Tabs,
   Tab,
   Button,
+  Chip,
 } from "@mui/material";
 import { Search, Filter, FileText, Download } from "lucide-react";
 import { invoiceAPI } from "../services/api";
@@ -188,7 +189,7 @@ export default function Invoices() {
             <Box sx={{ overflowX: "auto" }}>
               <table style={{ width: "100%", borderCollapse: "collapse" }}>
                 <thead>
-                  <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
+                  <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
                     <th style={{ padding: "12px", textAlign: "left" }}>Invoice #</th>
                     <th style={{ padding: "12px", textAlign: "left" }}>Date</th>
                     <th style={{ padding: "12px", textAlign: "left" }}>Dealer</th>

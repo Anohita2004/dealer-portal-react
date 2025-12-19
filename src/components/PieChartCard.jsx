@@ -10,7 +10,7 @@ import {
 } from "recharts";
 
 export default function PieChartCard({ title, data = [] }) {
-  const COLORS = ["#f97316", "#22c55e", "#a78bfa", "#ef4444", "#06b6d4"];
+  const COLORS = ["var(--color-primary)", "var(--color-success)", "var(--color-primary-dark)", "var(--color-error)", "var(--color-warning)"];
 
   // ✅ Ensure data is always an array in the correct format
   const chartData = Array.isArray(data)
@@ -28,8 +28,8 @@ export default function PieChartCard({ title, data = [] }) {
           borderRadius: 3,
           boxShadow: 2,
           p: 2,
-          backgroundColor: "rgba(255,255,255,0.04)",
-          color: "#94a3b8",
+          backgroundColor: "var(--color-surface)",
+          color: "var(--color-text-secondary)",
           textAlign: "center",
         }}
       >
@@ -47,8 +47,8 @@ export default function PieChartCard({ title, data = [] }) {
         borderRadius: 3,
         boxShadow: 2,
         p: 2,
-        backgroundColor: "rgba(255,255,255,0.04)",
-        color: "#e2e8f0",
+        backgroundColor: "var(--color-surface)",
+        color: "var(--color-text-primary)",
       }}
     >
       <CardContent>
@@ -76,9 +76,9 @@ export default function PieChartCard({ title, data = [] }) {
             </Pie>
             <Tooltip
               contentStyle={{
-                backgroundColor: "rgba(12,12,14,0.9)",
-                border: "1px solid rgba(255,255,255,0.08)",
-                color: "#e2e8f0",
+                backgroundColor: "var(--color-surface)",
+                border: "1px solid var(--color-border)",
+                color: "var(--color-text-primary)",
               }}
             />
             <Legend />

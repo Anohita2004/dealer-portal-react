@@ -9,14 +9,14 @@ export default function Layout() {
       style={{
         display: "flex",
         minHeight: "100vh",
-        background: "var(--bg-glow), var(--bg-base)",
-        color: "var(--text-color)",
+        background: "var(--color-background)",
+        color: "var(--color-text-primary)",
       }}
     >
-      {/* ✅ Sidebar - now flexible height */}
+      {/* Sidebar */}
       <Sidebar />
 
-      {/* ✅ Main section (Navbar + dashboard) */}
+      {/* Main section (Navbar + dashboard) */}
       <div
         style={{
           flex: 1,
@@ -29,19 +29,18 @@ export default function Layout() {
         <main
           style={{
             flex: 1,
-            padding: "2rem",
+            padding: "var(--spacing-6)",
             overflowX: "hidden",
           }}
         >
           <div
             style={{
-              background: "var(--card-bg)",
-              borderRadius: "20px",
-              border: "1px solid var(--card-border)",
-              padding: "2rem",
-              boxShadow: "0 4px 20px rgba(0,0,0,0.15)",
-              backdropFilter: "blur(12px)",
-              minHeight: "calc(100vh - 100px)", // subtracts navbar height
+              background: "var(--color-surface)",
+              borderRadius: "var(--radius-xl)",
+              border: "1px solid var(--color-border)",
+              padding: "var(--spacing-6)",
+              boxShadow: "var(--shadow-subtle)",
+              minHeight: "calc(100vh - 100px)",
             }}
           >
             <Outlet />

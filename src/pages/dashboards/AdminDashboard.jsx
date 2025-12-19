@@ -53,12 +53,12 @@ export default function AdminDashboard() {
 
   // 🌈 Same visual identity as Accounts Dashboard
   const roleTheme = {
-    admin: { color: "#8b5cf6", bg: "#f5f3ff" },
-    accounts: { color: "#22c55e", bg: "#f0fdf4" },
-    manager: { color: "#f59e0b", bg: "#fff7ed" },
-    dealer: { color: "#3b82f6", bg: "#eff6ff" },
+    admin: { color: "var(--color-primary-dark)", bg: "rgba(37, 99, 235, 0.1)" },
+    accounts: { color: "var(--color-success)", bg: "rgba(22, 163, 74, 0.1)" },
+    manager: { color: "var(--color-warning)", bg: "rgba(245, 158, 11, 0.1)" },
+    dealer: { color: "var(--color-primary)", bg: "var(--color-primary-soft)" },
   };
-  const theme = roleTheme[user?.role] || { color: "#6b7280", bg: "#f9fafb" };
+  const theme = roleTheme[user?.role] || { color: "var(--color-text-secondary)", bg: "var(--color-background)" };
 
   useEffect(() => {
     const load = async () => {
@@ -224,8 +224,8 @@ export default function AdminDashboard() {
                 <YAxis />
                 <Tooltip />
                 <Bar dataKey="dealersOnboarded" fill={theme.color} name="Onboarded" />
-                <Bar dataKey="blocked" fill="#ef4444" name="Blocked" />
-                <Bar dataKey="totalSales" fill="#f59e0b" name="Sales" />
+                <Bar dataKey="blocked" fill="var(--color-error)" name="Blocked" />
+                <Bar dataKey="totalSales" fill="var(--color-warning)" name="Sales" />
               </BarChart>
             </ResponsiveContainer>
           </Card>

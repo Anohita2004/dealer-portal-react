@@ -160,14 +160,14 @@ export default function DealerStaffDashboard() {
           current={summary.myOrders || 0}
           previous={previousSummary.myOrders || 0}
           formatValue={(v) => v.toLocaleString()}
-          color="#3b82f6"
+          color="var(--color-primary)"
         />
         <ComparisonWidget
           title="My Payments"
           current={summary.myPayments || 0}
           previous={previousSummary.myPayments || 0}
           formatValue={(v) => v.toLocaleString()}
-          color="#10b981"
+          color="var(--color-success)"
         />
       </div>
 
@@ -224,7 +224,7 @@ export default function DealerStaffDashboard() {
           <TrendLineChart
             data={ordersTrend}
             dataKeys={["value"]}
-            colors={["#3b82f6"]}
+            colors={["var(--color-primary)"]}
             height={250}
           />
         </Card>
@@ -233,7 +233,7 @@ export default function DealerStaffDashboard() {
           <TrendLineChart
             data={paymentsTrend}
             dataKeys={["value"]}
-            colors={["#10b981"]}
+            colors={["var(--color-success)"]}
             height={250}
           />
         </Card>
@@ -256,7 +256,7 @@ export default function DealerStaffDashboard() {
                       cursor: "pointer",
                       transition: "background 0.2s",
                     }}
-                    onMouseEnter={(e) => e.target.style.background = "#f3f4f6"}
+                    onMouseEnter={(e) => e.target.style.background = "var(--color-background)"}
                     onMouseLeave={(e) => e.target.style.background = "transparent"}
                   >
                     <strong>{order.orderNumber || order.id}</strong>
@@ -275,7 +275,7 @@ export default function DealerStaffDashboard() {
               style={{ 
                 marginTop: "1rem", 
                 padding: "0.5rem 1rem",
-                background: "#3b82f6",
+                background: "var(--color-primary)",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",
@@ -304,7 +304,7 @@ export default function DealerStaffDashboard() {
                       cursor: "pointer",
                       transition: "background 0.2s",
                     }}
-                    onMouseEnter={(e) => e.target.style.background = "#f3f4f6"}
+                    onMouseEnter={(e) => e.target.style.background = "var(--color-background)"}
                     onMouseLeave={(e) => e.target.style.background = "transparent"}
                   >
                     <strong>₹{payment.amount || 0}</strong>
@@ -323,7 +323,7 @@ export default function DealerStaffDashboard() {
               style={{ 
                 marginTop: "1rem", 
                 padding: "0.5rem 1rem",
-                background: "#10b981",
+                background: "var(--color-success)",
                 color: "#fff",
                 border: "none",
                 borderRadius: "6px",

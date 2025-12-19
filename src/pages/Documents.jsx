@@ -166,8 +166,8 @@ export default function Documents() {
         onDrop={handleDrop}
         style={{
           border: dragOver
-            ? "2px dashed #f97316"
-            : "2px dashed var(--card-border)",
+            ? "2px dashed var(--color-primary)"
+            : "2px dashed var(--color-border)",
           padding: "2rem",
           borderRadius: 15,
           textAlign: "center",
@@ -231,7 +231,7 @@ export default function Documents() {
                     style={{
                       width: `${progress[f.name]}%`,
                       height: "100%",
-                      background: "#f97316",
+                      background: "var(--color-primary)",
                       borderRadius: 4,
                     }}
                   />

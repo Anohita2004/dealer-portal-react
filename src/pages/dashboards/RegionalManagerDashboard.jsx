@@ -204,21 +204,21 @@ export default function RegionalManagerDashboard() {
           current={stats.monthlyRevenue || 0}
           previous={previousStats.monthlyRevenue || 0}
           formatValue={(v) => v >= 1000000 ? `₹${(v / 1000000).toFixed(1)}M` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
-          color="#10b981"
+          color="var(--color-success)"
         />
         <ComparisonWidget
           title="Total Dealers"
           current={stats.totalDealers || 0}
           previous={previousStats.totalDealers || 0}
           formatValue={(v) => v.toLocaleString()}
-          color="#3b82f6"
+          color="var(--color-primary)"
         />
         <ComparisonWidget
           title="Total Outstanding"
           current={stats.totalOutstanding || 0}
           previous={previousStats.totalOutstanding || 0}
           formatValue={(v) => v >= 1000000 ? `₹${(v / 1000000).toFixed(1)}M` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
-          color="#ef4444"
+          color="var(--color-error)"
         />
       </div>
 
@@ -228,38 +228,38 @@ export default function RegionalManagerDashboard() {
           title="Total Dealers" 
           value={stats.totalDealers}
           icon={<Users size={24} />}
-          color="#3b82f6"
+          accent="var(--color-primary)"
         />
         <StatCard 
           title="Pending Orders in Workflow" 
           value={stats.pendingApprovals}
           icon={<Clock size={24} />}
-          color="#f59e0b"
+          accent="var(--color-warning)"
           onClick={() => navigate("/orders/approvals")}
         />
         <StatCard 
           title="Upcoming Visits" 
           value={stats.upcomingVisits}
           icon={<MapPin size={24} />}
-          color="#8b5cf6"
+          accent="var(--color-primary-dark)"
         />
         <StatCard 
           title="Active Orders" 
           value={stats.activeOrders}
           icon={<TrendingUp size={24} />}
-          color="#10b981"
+          accent="var(--color-success)"
         />
         <StatCard 
           title="Workflow Completion Rate" 
           value={`${stats.approvalRate}%`}
           icon={<CheckCircle size={24} />}
-          color="#22c55e"
+          accent="var(--color-success)"
         />
         <StatCard 
           title="Pending Documents" 
           value={stats.pendingDocuments}
           icon={<FileText size={24} />}
-          color="#f59e0b"
+          accent="var(--color-warning)"
         />
       </div>
 
@@ -276,7 +276,7 @@ export default function RegionalManagerDashboard() {
           <TrendLineChart
             data={performanceData.map(d => ({ label: d.month, value: d.revenue }))}
             dataKeys={["value"]}
-            colors={["#3b82f6"]}
+            colors={["var(--color-primary)"]}
             height={300}
             formatValue={(v) => `₹${(v / 1000).toFixed(0)}K`}
             showArea={true}
@@ -292,7 +292,7 @@ export default function RegionalManagerDashboard() {
             formatValue={(v) => `₹${(v / 100000).toFixed(1)}L`}
             showChange={true}
             maxItems={8}
-            color="#3b82f6"
+            color="var(--color-primary)"
           />
         </Card>
       </div>
@@ -310,7 +310,7 @@ export default function RegionalManagerDashboard() {
             <div style={{ 
               textAlign: "center", 
               padding: "2rem",
-              color: "var(--text-secondary)" 
+              color: "var(--color-text-secondary)" 
             }}>
               <CheckCircle size={48} style={{ opacity: 0.3, marginBottom: "1rem" }} />
               <p>No orders currently waiting in your workflow</p>
@@ -322,7 +322,7 @@ export default function RegionalManagerDashboard() {
                   key={idx}
                   style={{
                     padding: "0.75rem",
-                    borderBottom: "1px solid var(--card-border)",
+                    borderBottom: "1px solid var(--color-border)",
                     display: "flex",
                     justifyContent: "space-between",
                     alignItems: "center"
@@ -332,7 +332,7 @@ export default function RegionalManagerDashboard() {
                     <div style={{ fontWeight: 600 }}>{item.title || `Order #${item.id}`}</div>
                     <div style={{ 
                       fontSize: "0.85rem", 
-                      color: "var(--text-secondary)" 
+                      color: "var(--color-text-secondary)" 
                     }}>
                       {item.dealer || "Unknown"} • {item.type || "Order"}
                     </div>
@@ -344,8 +344,8 @@ export default function RegionalManagerDashboard() {
                         padding: "0.25rem 0.75rem",
                         borderRadius: "6px",
                         border: "none",
-                        background: "#3b82f6",
-                        color: "#fff",
+                        background: "var(--color-primary)",
+                        color: "var(--color-surface)",
                         cursor: "pointer",
                         fontSize: "0.85rem"
                       }}
@@ -368,7 +368,7 @@ export default function RegionalManagerDashboard() {
                 border: "1px solid var(--card-border)",
                 borderRadius: "6px",
                 cursor: "pointer",
-                color: "var(--text-primary)"
+                color: "var(--color-text-primary)"
               }}
             >
               View All ({pendingItems.length})
@@ -386,7 +386,7 @@ export default function RegionalManagerDashboard() {
             formatValue={(v) => `₹${(v / 100000).toFixed(1)}L`}
             showChange={true}
             maxItems={6}
-            color="#10b981"
+            color="var(--color-success)"
           />
         </Card>
       </div>
@@ -416,7 +416,7 @@ export default function RegionalManagerDashboard() {
                   <td colSpan="4" style={{ 
                     padding: "2rem", 
                     textAlign: "center",
-                    color: "var(--text-secondary)"
+                    color: "var(--color-text-secondary)"
                   }}>
                     No recent activity
                   </td>
@@ -434,17 +434,17 @@ export default function RegionalManagerDashboard() {
                         padding: "0.25rem 0.5rem",
                         borderRadius: "12px",
                         fontSize: "0.75rem",
-                        background: activity.status === "approved" ? "#22c55e20" : 
-                                  activity.status === "rejected" ? "#ef444420" : "#f59e0b20",
-                        color: activity.status === "approved" ? "#22c55e" : 
-                              activity.status === "rejected" ? "#ef4444" : "#f59e0b"
+                        background: activity.status === "approved" ? "rgba(22, 163, 74, 0.2)" : 
+                                  activity.status === "rejected" ? "rgba(220, 38, 38, 0.2)" : "rgba(245, 158, 11, 0.2)",
+                        color: activity.status === "approved" ? "var(--color-success)" : 
+                              activity.status === "rejected" ? "var(--color-error)" : "var(--color-warning)"
                       }}>
                         {activity.status}
                       </span>
                     </td>
                     <td style={{ 
                       padding: "0.75rem",
-                      color: "var(--text-secondary)",
+                      color: "var(--color-text-secondary)",
                       fontSize: "0.85rem"
                     }}>
                       {new Date(activity.date).toLocaleDateString()}
@@ -469,18 +469,18 @@ export default function RegionalManagerDashboard() {
           style={{
             padding: "1rem",
             borderRadius: "12px",
-            border: "1px solid var(--card-border)",
-            background: "var(--card-bg)",
+            border: "1px solid var(--color-border)",
+            background: "var(--color-surface)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             gap: "0.5rem",
-            color: "var(--text-primary)",
+            color: "var(--color-text-primary)",
             transition: "all 0.2s"
           }}
           onMouseOver={(e) => {
             e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+            e.currentTarget.style.boxShadow = "var(--shadow-md)";
           }}
           onMouseOut={(e) => {
             e.currentTarget.style.transform = "translateY(0)";
@@ -495,18 +495,18 @@ export default function RegionalManagerDashboard() {
           style={{
             padding: "1rem",
             borderRadius: "12px",
-            border: "1px solid var(--card-border)",
-            background: "var(--card-bg)",
+            border: "1px solid var(--color-border)",
+            background: "var(--color-surface)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             gap: "0.5rem",
-            color: "var(--text-primary)",
+            color: "var(--color-text-primary)",
             transition: "all 0.2s"
           }}
           onMouseOver={(e) => {
             e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+            e.currentTarget.style.boxShadow = "var(--shadow-md)";
           }}
           onMouseOut={(e) => {
             e.currentTarget.style.transform = "translateY(0)";
@@ -521,18 +521,18 @@ export default function RegionalManagerDashboard() {
           style={{
             padding: "1rem",
             borderRadius: "12px",
-            border: "1px solid var(--card-border)",
-            background: "var(--card-bg)",
+            border: "1px solid var(--color-border)",
+            background: "var(--color-surface)",
             cursor: "pointer",
             display: "flex",
             alignItems: "center",
             gap: "0.5rem",
-            color: "var(--text-primary)",
+            color: "var(--color-text-primary)",
             transition: "all 0.2s"
           }}
           onMouseOver={(e) => {
             e.currentTarget.style.transform = "translateY(-2px)";
-            e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.1)";
+            e.currentTarget.style.boxShadow = "var(--shadow-md)";
           }}
           onMouseOut={(e) => {
             e.currentTarget.style.transform = "translateY(0)";

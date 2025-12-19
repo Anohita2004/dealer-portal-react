@@ -356,28 +356,28 @@ export default function RegionalAdminDashboard() {
           current={summary.totalSales || 0}
           previous={previousSummary.totalSales || 0}
           formatValue={(v) => v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
-          color="#10b981"
+          color="var(--color-success)"
         />
         <ComparisonWidget
           title="Total Dealers"
           current={summary.dealers || 0}
           previous={previousSummary.dealers || 0}
           formatValue={(v) => v.toLocaleString()}
-          color="#3b82f6"
+          color="var(--color-primary)"
         />
         <ComparisonWidget
           title="Total Outstanding"
           current={summary.totalOutstanding || 0}
           previous={previousSummary.totalOutstanding || 0}
           formatValue={(v) => v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
-          color="#ef4444"
+          color="var(--color-error)"
         />
         <ComparisonWidget
           title="Total Invoices"
           current={summary.totalInvoices || 0}
           previous={previousSummary.totalInvoices || 0}
           formatValue={(v) => v.toLocaleString()}
-          color="#6366f1"
+          color="var(--color-primary-dark)"
         />
       </div>
 
@@ -387,39 +387,39 @@ export default function RegionalAdminDashboard() {
           title="Managers" 
           value={summary.managers || 0}
           scope="Region"
-          accent="#3b82f6"
+          accent="var(--color-primary)"
         />
         <StatCard 
           title="Territories" 
           value={summary.territories || 0}
           scope="Region"
-          accent="#3b82f6"
+          accent="var(--color-primary)"
         />
         <StatCard 
           title="Active Campaigns" 
           value={summary.activeCampaigns || 0}
           scope="Region"
-          accent="#6366f1"
+          accent="var(--color-primary-dark)"
         />
         <StatCard 
           title="Pending Approvals" 
           value={summary.pendingApprovals || 0}
           scope="Awaiting Action"
-          accent="#f59e0b"
+          accent="var(--color-warning)"
           urgent={summary.pendingApprovals > 0}
         />
         <StatCard 
           title="Overdue Tasks" 
           value={summary.overdueTasks || 0}
           scope="Region"
-          accent="#ef4444"
+          accent="var(--color-error)"
           urgent={summary.overdueTasks > 0}
         />
         <StatCard 
           title="Overdue Payments" 
           value={summary.overduePayments || 0}
           scope="Region"
-          accent="#ef4444"
+          accent="var(--color-error)"
           urgent={summary.overduePayments > 0}
         />
       </div>
@@ -438,7 +438,7 @@ export default function RegionalAdminDashboard() {
           <TrendLineChart
             data={salesTrend}
             dataKeys={["value", "orders"]}
-            colors={["#10b981", "#3b82f6"]}
+            colors={["var(--color-success)", "var(--color-primary)"]}
             height={300}
             formatValue={(v) => `₹${(v / 1000).toFixed(0)}K`}
           />
@@ -453,7 +453,7 @@ export default function RegionalAdminDashboard() {
             formatValue={(v) => `₹${(v / 100000).toFixed(1)}L`}
             showChange={true}
             maxItems={8}
-            color="#3b82f6"
+            color="var(--color-primary)"
           />
         </Card>
       </div>
@@ -474,10 +474,10 @@ export default function RegionalAdminDashboard() {
                     onClick={() => navigate("/regional/reports")}
                     style={{
                       padding: "0.5rem 1rem",
-                      background: "rgba(59, 130, 246, 0.1)",
-                      border: "1px solid rgba(59, 130, 246, 0.3)",
+                      background: "var(--color-primary-soft)",
+                      border: "1px solid var(--color-primary)",
                       borderRadius: "0.5rem",
-                      color: "#60a5fa",
+                      color: "var(--color-primary)",
                       cursor: "pointer",
                     }}
                   >
@@ -505,10 +505,10 @@ export default function RegionalAdminDashboard() {
                     onClick={() => navigate("/regional/reports")}
                     style={{
                       padding: "0.5rem 1rem",
-                      background: "rgba(59, 130, 246, 0.1)",
-                      border: "1px solid rgba(59, 130, 246, 0.3)",
+                      background: "var(--color-primary-soft)",
+                      border: "1px solid var(--color-primary)",
                       borderRadius: "0.5rem",
-                      color: "#60a5fa",
+                      color: "var(--color-primary)",
                       cursor: "pointer",
                     }}
                   >
@@ -535,10 +535,10 @@ export default function RegionalAdminDashboard() {
                 onClick={() => navigate("/regional/users")}
                 style={{
                   padding: "0.75rem",
-                  background: "rgba(59, 130, 246, 0.1)",
-                  border: "1px solid rgba(59, 130, 246, 0.3)",
+                  background: "var(--color-primary-soft)",
+                  border: "1px solid var(--color-primary)",
                   borderRadius: "0.5rem",
-                  color: "#60a5fa",
+                  color: "var(--color-primary)",
                   cursor: "pointer",
                   textAlign: "left",
                 }}
@@ -550,9 +550,9 @@ export default function RegionalAdminDashboard() {
                 style={{
                   padding: "0.75rem",
                   background: "rgba(245, 158, 11, 0.1)",
-                  border: "1px solid rgba(245, 158, 11, 0.3)",
+                  border: "1px solid var(--color-warning)",
                   borderRadius: "0.5rem",
-                  color: "#fbbf24",
+                  color: "var(--color-warning)",
                   cursor: "pointer",
                   textAlign: "left",
                 }}
@@ -563,10 +563,10 @@ export default function RegionalAdminDashboard() {
                 onClick={() => navigate("/regional/reports")}
                 style={{
                   padding: "0.75rem",
-                  background: "rgba(16, 185, 129, 0.1)",
-                  border: "1px solid rgba(16, 185, 129, 0.3)",
+                  background: "rgba(22, 163, 74, 0.1)",
+                  border: "1px solid var(--color-success)",
                   borderRadius: "0.5rem",
-                  color: "#34d399",
+                  color: "var(--color-success)",
                   cursor: "pointer",
                   textAlign: "left",
                 }}
@@ -577,10 +577,10 @@ export default function RegionalAdminDashboard() {
                 onClick={() => navigate("/map-view")}
                 style={{
                   padding: "0.75rem",
-                  background: "rgba(139, 92, 246, 0.1)",
-                  border: "1px solid rgba(139, 92, 246, 0.3)",
+                  background: "rgba(37, 99, 235, 0.1)",
+                  border: "1px solid var(--color-primary-dark)",
                   borderRadius: "0.5rem",
-                  color: "#a78bfa",
+                  color: "var(--color-primary-dark)",
                   cursor: "pointer",
                   textAlign: "left",
                 }}

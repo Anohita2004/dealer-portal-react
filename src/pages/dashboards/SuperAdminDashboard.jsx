@@ -465,7 +465,7 @@ export default function SuperAdminDashboard() {
             Super Admin Dashboard
           </h1>
           <div style={{ display: "flex", gap: "0.5rem", fontSize: "0.875rem", alignItems: "center" }}>
-            <span style={{ padding: "0.25rem 0.75rem", background: "#fee2e2", color: "#dc2626", borderRadius: "4px", fontWeight: 600 }}>
+            <span style={{ padding: "var(--spacing-1) var(--spacing-3)", background: "rgba(220, 38, 38, 0.1)", color: "var(--color-error)", borderRadius: "var(--radius-sm)", fontWeight: "var(--font-weight-semibold)", fontSize: "var(--font-size-xs)" }}>
               GLOBAL SCOPE
             </span>
             <span style={{ opacity: 0.7 }}>Viewing: All Regions, All Roles, All Entities</span>
@@ -483,13 +483,13 @@ export default function SuperAdminDashboard() {
         
         return (
           <div style={{ 
-            marginBottom: "2rem", 
-            padding: "1.5rem", 
-            background: "#fef3c7", 
-            border: "2px solid #f59e0b", 
-            borderRadius: "12px" 
+            marginBottom: "var(--spacing-6)", 
+            padding: "var(--spacing-6)", 
+            background: "rgba(245, 158, 11, 0.1)", 
+            border: "2px solid var(--color-warning)", 
+            borderRadius: "var(--radius-lg)" 
           }}>
-            <h3 style={{ fontSize: "1.125rem", fontWeight: 700, margin: 0, marginBottom: "1rem", color: "#92400e" }}>
+            <h3 style={{ fontSize: "var(--font-size-lg)", fontWeight: "var(--font-weight-bold)", margin: 0, marginBottom: "var(--spacing-4)", color: "var(--color-warning)" }}>
               ⚠️ Governance Alerts
             </h3>
             <div style={{ display: "flex", flexDirection: "column", gap: "0.75rem" }}>
@@ -510,7 +510,7 @@ export default function SuperAdminDashboard() {
                 </div>
               )}
             </div>
-            <div style={{ marginTop: "1rem", fontSize: "0.875rem", color: "#92400e", fontStyle: "italic" }}>
+            <div style={{ marginTop: "var(--spacing-4)", fontSize: "var(--font-size-sm)", color: "var(--color-warning)", fontStyle: "italic" }}>
               These are informational governance metrics. Use Reports and Workflows sections for detailed analysis.
             </div>
           </div>
@@ -531,28 +531,28 @@ export default function SuperAdminDashboard() {
           current={totalSales}
           previous={pk.totalSales || 0}
           formatValue={(v) => v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
-          color="#10b981"
+          color="var(--color-success)"
         />
         <ComparisonWidget
           title="Total Dealers"
           current={k.totalDealers || 0}
           previous={pk.totalDealers || 0}
           formatValue={(v) => v.toLocaleString()}
-          color="#3b82f6"
+          color="var(--color-primary)"
         />
         <ComparisonWidget
           title="Total Orders"
           current={totalOrders}
           previous={pk.totalOrders || 0}
           formatValue={(v) => v.toLocaleString()}
-          color="#6366f1"
+          color="var(--color-primary-dark)"
         />
         <ComparisonWidget
           title="Outstanding Amount"
           current={k.totalOutstanding || 0}
           previous={pk.totalOutstanding || 0}
           formatValue={(v) => v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
-          color="#ef4444"
+          color="var(--color-error)"
         />
       </div>
 
@@ -565,16 +565,16 @@ export default function SuperAdminDashboard() {
           marginBottom: "2rem",
         }}
       >
-        <KPI title="Total Invoices" value={k.totalInvoices || 0} color="#3b82f6" />
+        <KPI title="Total Invoices" value={k.totalInvoices || 0} color="var(--color-primary)" />
         <KPI 
           title="Pending Approvals" 
           value={k.totalApprovalsPending || 0} 
-          color={k.totalApprovalsPending > 50 ? "#ef4444" : "#eab308"} 
+          color={k.totalApprovalsPending > 50 ? "var(--color-error)" : "var(--color-warning)"} 
         />
-        <KPI title="Active Campaigns" value={k.activeCampaigns || 0} color="#8b5cf6" />
-        <KPI title="Collection Rate" value={`${collectionRate.toFixed(1)}%`} color={collectionRate > 80 ? "#22c55e" : collectionRate > 60 ? "#eab308" : "#ef4444"} />
-        <KPI title="Avg Order Value" value={avgOrderValue ? `₹${(avgOrderValue / 1000).toFixed(1)}K` : "₹0"} color="#6366f1" />
-        <KPI title="Total Users" value={k.totalUsers || 0} color="#3b82f6" />
+        <KPI title="Active Campaigns" value={k.activeCampaigns || 0} color="var(--color-primary-dark)" />
+        <KPI title="Collection Rate" value={`${collectionRate.toFixed(1)}%`} color={collectionRate > 80 ? "var(--color-success)" : collectionRate > 60 ? "var(--color-warning)" : "var(--color-error)"} />
+        <KPI title="Avg Order Value" value={avgOrderValue ? `₹${(avgOrderValue / 1000).toFixed(1)}K` : "₹0"} color="var(--color-primary-dark)" />
+        <KPI title="Total Users" value={k.totalUsers || 0} color="var(--color-primary)" />
       </div>
 
       {/* TREND CHARTS AND RANKINGS */}
@@ -592,7 +592,7 @@ export default function SuperAdminDashboard() {
             <TrendLineChart
               data={c.salesTrend || []}
               dataKeys={["value", "orders"]}
-              colors={["#10b981", "#3b82f6"]}
+              colors={["var(--color-success)", "var(--color-primary)"]}
               height={300}
               formatValue={(v) => `₹${(v / 1000).toFixed(0)}K`}
             />
@@ -602,7 +602,7 @@ export default function SuperAdminDashboard() {
             <TrendLineChart
               data={c.userGrowth || []}
               dataKeys={["value"]}
-              colors={["#3b82f6"]}
+              colors={["var(--color-primary)"]}
               height={250}
             />
           </Card>
@@ -621,14 +621,14 @@ export default function SuperAdminDashboard() {
                   ]}
                   options={{
                     chart: { toolbar: { show: false } },
-                    colors: ["#3b82f6"],
+                    colors: ["var(--color-primary)"],
                     xaxis: { categories: c.regionComparison.map((r) => r.name) },
                     dataLabels: { enabled: false },
                   }}
                 />
               </div>
             ) : (
-              <div style={{ padding: "2rem", textAlign: "center", color: "#6b7280" }}>
+              <div style={{ padding: "var(--spacing-6)", textAlign: "center", color: "var(--color-text-secondary)" }}>
                 No region comparison data available
               </div>
             )}
@@ -646,7 +646,7 @@ export default function SuperAdminDashboard() {
               formatValue={(v) => `₹${(v / 1000000).toFixed(1)}M`}
               showChange={true}
               maxItems={10}
-              color="#3b82f6"
+              color="var(--color-primary)"
             />
           </Card>
 
@@ -659,7 +659,7 @@ export default function SuperAdminDashboard() {
               formatValue={(v) => `₹${(v / 100000).toFixed(1)}L`}
               showChange={true}
               maxItems={10}
-              color="#10b981"
+              color="var(--color-success)"
             />
           </Card>
         </div>
@@ -682,7 +682,7 @@ export default function SuperAdminDashboard() {
               series={c.dealerDistribution.map((d) => Number(d.count || d.value || 0))}
               options={{
                 labels: c.dealerDistribution.map((d) => d.region || d.label || "Unknown"),
-                colors: ["#3b82f6", "#10b981", "#f59e0b", "#ef4444", "#6366f1"],
+                colors: ["var(--color-primary)", "var(--color-success)", "var(--color-warning)", "var(--color-error)", "var(--color-primary-dark)"],
                 legend: { position: "bottom" },
               }}
             />
@@ -697,7 +697,7 @@ export default function SuperAdminDashboard() {
           <TrendLineChart
             data={c.docsPerMonth || []}
             dataKeys={["value"]}
-            colors={["#f59e0b"]}
+            colors={["var(--color-warning)"]}
             height={300}
             showArea={true}
           />
@@ -708,7 +708,7 @@ export default function SuperAdminDashboard() {
       <Card title="Recent Activity">
         <table style={{ width: "100%", borderCollapse: "collapse" }}>
           <thead>
-            <tr style={{ borderBottom: "1px solid #e5e7eb" }}>
+            <tr style={{ borderBottom: "1px solid var(--color-border)" }}>
               <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: 600 }}>User</th>
               <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: 600 }}>Action</th>
               <th style={{ textAlign: "left", padding: "0.75rem", fontWeight: 600 }}>Entity</th>
@@ -747,9 +747,9 @@ function KPI({ title, value, color }) {
       style={{
         padding: "1.5rem",
         borderRadius: "12px",
-        background: "#fff",
-        border: "1px solid #e5e7eb",
-        boxShadow: "0 1px 3px rgba(0,0,0,0.1)",
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+        boxShadow: "var(--shadow-sm)",
       }}
     >
       <h3 style={{ fontSize: "0.875rem", opacity: 0.7, marginBottom: "0.5rem", fontWeight: 500 }}>{title}</h3>

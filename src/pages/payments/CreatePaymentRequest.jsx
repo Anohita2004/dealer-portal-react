@@ -81,16 +81,44 @@ export default function CreatePaymentRequest() {
   // ========================================================================
   // RENDER FORM
   // ========================================================================
+  const inputStyle = {
+    width: "100%",
+    padding: "var(--spacing-3) var(--spacing-4)",
+    marginBottom: "var(--spacing-4)",
+    border: "1px solid var(--color-border)",
+    borderRadius: "var(--radius-md)",
+    background: "var(--color-surface)",
+    color: "var(--color-text-primary)",
+    fontSize: "var(--font-size-sm)",
+    fontFamily: "var(--font-family)",
+    transition: "all var(--transition-base)",
+  };
+
+  const labelStyle = {
+    display: "block",
+    marginBottom: "var(--spacing-2)",
+    color: "var(--color-text-primary)",
+    fontSize: "var(--font-size-sm)",
+    fontWeight: "var(--font-weight-medium)",
+  };
+
   return (
-    <div style={{ maxWidth: 860, margin: "20px auto" }}>
-      <h2>Create Payment Request</h2>
+    <div style={{ maxWidth: 860, margin: "var(--spacing-6) auto", padding: "var(--spacing-6)" }}>
+      <h2 style={{ 
+        fontSize: "var(--font-size-2xl)", 
+        fontWeight: "var(--font-weight-bold)", 
+        color: "var(--color-text-primary)",
+        marginBottom: "var(--spacing-6)"
+      }}>Create Payment Request</h2>
       <form onSubmit={submit}>
         {/* Invoice Select */}
-        <label>Invoice</label>
+        <label style={labelStyle}>Invoice</label>
         <select
           value={invoiceId}
           onChange={(e) => setInvoiceId(e.target.value)}
-          style={{ width: "100%", padding: 8, marginBottom: 12 }}
+          style={inputStyle}
+          onFocus={(e) => e.currentTarget.style.borderColor = "var(--color-primary)"}
+          onBlur={(e) => e.currentTarget.style.borderColor = "var(--color-border)"}
         >
           <option value="">Select invoice</option>
           {invoices.map((inv) => (
@@ -101,20 +129,24 @@ export default function CreatePaymentRequest() {
         </select>
 
         {/* Amount */}
-        <label>Amount</label>
+        <label style={labelStyle}>Amount</label>
         <input
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
-          style={{ width: "100%", padding: 8, marginBottom: 12 }}
+          style={inputStyle}
+          onFocus={(e) => e.currentTarget.style.borderColor = "var(--color-primary)"}
+          onBlur={(e) => e.currentTarget.style.borderColor = "var(--color-border)"}
         />
 
         {/* Payment Mode */}
-        <label>Payment Mode</label>
+        <label style={labelStyle}>Payment Mode</label>
         <select
           value={paymentMode}
           onChange={(e) => setPaymentMode(e.target.value)}
-          style={{ width: "100%", padding: 8, marginBottom: 12 }}
+          style={inputStyle}
+          onFocus={(e) => e.currentTarget.style.borderColor = "var(--color-primary)"}
+          onBlur={(e) => e.currentTarget.style.borderColor = "var(--color-border)"}
         >
           <option value="bank_transfer">Bank Transfer</option>
           <option value="upi">UPI</option>
@@ -123,20 +155,41 @@ export default function CreatePaymentRequest() {
         </select>
 
         {/* UTR / Reference */}
-        <label>UTR / Reference (optional)</label>
+        <label style={labelStyle}>UTR / Reference (optional)</label>
         <input
           value={utr}
           onChange={(e) => setUtr(e.target.value)}
-          style={{ width: "100%", padding: 8, marginBottom: 12 }}
+          style={inputStyle}
+          onFocus={(e) => e.currentTarget.style.borderColor = "var(--color-primary)"}
+          onBlur={(e) => e.currentTarget.style.borderColor = "var(--color-border)"}
         />
 
         {/* Proof File */}
-        <label>Proof (optional)</label>
-        <input type="file" onChange={handleFile} style={{ width: "100%", marginBottom: 12 }} />
-        {proofFile && <div style={{ marginBottom: 12 }}>{proofFile.name}</div>}
+        <label style={labelStyle}>Proof (optional)</label>
+        <input 
+          type="file" 
+          onChange={handleFile} 
+          style={{ 
+            width: "100%", 
+            marginBottom: "var(--spacing-4)",
+            fontSize: "var(--font-size-sm)"
+          }} 
+        />
+        {proofFile && (
+          <div style={{ 
+            marginBottom: "var(--spacing-4)",
+            padding: "var(--spacing-2)",
+            background: "var(--color-primary-soft)",
+            borderRadius: "var(--radius-md)",
+            color: "var(--color-primary)",
+            fontSize: "var(--font-size-sm)"
+          }}>
+            {proofFile.name}
+          </div>
+        )}
 
         {/* Buttons */}
-        <div style={{ display: "flex", gap: 8, justifyContent: "flex-end" }}>
+        <div style={{ display: "flex", gap: "var(--spacing-3)", justifyContent: "flex-end" }}>
           <button
             type="button"
             onClick={() => {
@@ -146,11 +199,58 @@ export default function CreatePaymentRequest() {
               setUtr("");
               setProofFile(null);
             }}
-            style={{ padding: "8px 12px" }}
+            style={{ 
+              padding: "var(--spacing-2) var(--spacing-3)", 
+              background: "var(--color-background)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-md)",
+              color: "var(--color-text-primary)",
+              cursor: "pointer",
+              fontSize: "var(--font-size-sm)",
+              fontWeight: "var(--font-weight-medium)",
+              transition: "all var(--transition-base)"
+            }}
+            onMouseEnter={(e) => {
+              e.currentTarget.style.background = "var(--color-primary-soft)";
+              e.currentTarget.style.borderColor = "var(--color-primary)";
+            }}
+            onMouseLeave={(e) => {
+              e.currentTarget.style.background = "var(--color-background)";
+              e.currentTarget.style.borderColor = "var(--color-border)";
+            }}
           >
             Reset
           </button>
-          <button type="submit" disabled={loading} style={{ padding: "8px 12px" }}>
+          <button 
+            type="submit" 
+            disabled={loading} 
+            style={{ 
+              padding: "var(--spacing-2) var(--spacing-3)",
+              background: loading ? "var(--color-border)" : "var(--color-primary)",
+              color: "var(--color-surface)",
+              border: "none",
+              borderRadius: "var(--radius-md)",
+              cursor: loading ? "not-allowed" : "pointer",
+              fontSize: "var(--font-size-sm)",
+              fontWeight: "var(--font-weight-semibold)",
+              transition: "all var(--transition-base)",
+              opacity: loading ? 0.6 : 1
+            }}
+            onMouseEnter={(e) => {
+              if (!loading) {
+                e.currentTarget.style.background = "var(--color-primary-dark)";
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow = "var(--shadow-md)";
+              }
+            }}
+            onMouseLeave={(e) => {
+              if (!loading) {
+                e.currentTarget.style.background = "var(--color-primary)";
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow = "none";
+              }
+            }}
+          >
             {loading ? "Submitting..." : "Submit Request"}
           </button>
         </div>

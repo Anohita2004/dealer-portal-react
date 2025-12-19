@@ -45,8 +45,8 @@ import {
 
 import "./ManagerDashboard.css";
 
-const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
-const ACCENT = "#3b82f6";
+const COLORS = ["var(--color-primary)", "var(--color-primary-soft)", "#2563EB", "#1E40AF", "var(--color-primary-soft)"];
+const ACCENT = "var(--color-primary)";
 
 export default function ManagerDashboard() {
   const navigate = useNavigate();
@@ -349,21 +349,21 @@ export default function ManagerDashboard() {
           current={safeNum(summary.recentSales)}
           previous={safeNum(previousSummary.recentSales)}
           formatValue={fmtCurrency}
-          color="#10b981"
+          color="var(--color-success)"
         />
         <ComparisonWidget
           title="Total Dealers"
           current={summary.totalDealers || 0}
           previous={previousSummary.totalDealers || 0}
           formatValue={(v) => v.toLocaleString()}
-          color="#3b82f6"
+          color="var(--color-primary)"
         />
         <ComparisonWidget
           title="Total Outstanding"
           current={safeNum(summary.totalOutstanding)}
           previous={safeNum(previousSummary.totalOutstanding)}
           formatValue={fmtCurrency}
-          color="#ef4444"
+          color="var(--color-error)"
         />
       </div>
 
@@ -375,14 +375,14 @@ export default function ManagerDashboard() {
               value={summary.totalDealers || 0} 
               icon={<Users size={20} />}
               scope="Territory/Area"
-              accent="#3b82f6"
+              accent="var(--color-primary)"
             />
             <StatCard 
               title="Pending Pricing" 
               value={summary.pendingPricing || 0} 
               icon={<Activity size={20} />}
               scope="Awaiting Approval"
-              accent="#f59e0b"
+              accent="var(--color-warning)"
               urgent={summary.pendingPricing > 0}
             />
             <StatCard 
@@ -390,7 +390,7 @@ export default function ManagerDashboard() {
               value={summary.pendingDocuments || 0} 
               icon={<FileText size={20} />}
               scope="Awaiting Approval"
-              accent="#f59e0b"
+              accent="var(--color-warning)"
               urgent={summary.pendingDocuments > 0}
             />
             <StatCard 
@@ -398,12 +398,12 @@ export default function ManagerDashboard() {
               value={fmtCurrency(summary.recentSales || 0)} 
               icon={<BarChart2 size={20} />}
               scope="Territory/Area"
-              accent="#10b981"
+              accent="var(--color-success)"
             />
           </div>
 
           {lowStock.length > 0 && (
-            <div className="alert-banner" style={{ background: "#fee2e2", color: "#b91c1c" }}>
+            <div className="alert-banner" style={{ background: "rgba(220, 38, 38, 0.1)", color: "var(--color-error)" }}>
               <Clock size={16} style={{ marginRight: 8 }} />
               {lowStock.length} products are critically low on stock
             </div>
@@ -413,7 +413,7 @@ export default function ManagerDashboard() {
             <TrendLineChart
               data={salesTrend}
               dataKeys={["value", "orders"]}
-              colors={["#10b981", "#3b82f6"]}
+              colors={["var(--color-success)", "var(--color-primary)"]}
               height={300}
               formatValue={fmtCurrency}
             />
@@ -423,15 +423,15 @@ export default function ManagerDashboard() {
             {inventory.length ? (
               <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
                 <div>
-                  <h3 style={{ color: "#ef4444" }}>{lowStock.length}</h3>
+                  <h3 style={{ color: "var(--color-error)" }}>{lowStock.length}</h3>
                   <p className="text-muted">Low</p>
                 </div>
                 <div>
-                  <h3 style={{ color: "#facc15" }}>{mediumStock.length}</h3>
+                  <h3 style={{ color: "var(--color-warning)" }}>{mediumStock.length}</h3>
                   <p className="text-muted">Moderate</p>
                 </div>
                 <div>
-                  <h3 style={{ color: "#10b981" }}>{highStock.length}</h3>
+                  <h3 style={{ color: "var(--color-success)" }}>{highStock.length}</h3>
                   <p className="text-muted">Healthy</p>
                 </div>
               </div>
@@ -449,9 +449,9 @@ export default function ManagerDashboard() {
                 }))}
                 margin={{ top: 10, right: 20, left: 0, bottom: 20 }}
               >
-                <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
-                <XAxis dataKey="businessName" stroke="#6b7280" />
-                <YAxis stroke="#6b7280" />
+                <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
+                <XAxis dataKey="businessName" stroke="var(--color-text-secondary)" />
+                <YAxis stroke="var(--color-text-secondary)" />
                 <Tooltip formatter={(v) => fmtCurrency(v)} />
                 <Legend />
                 <Bar dataKey="totalSales" fill={ACCENT} radius={[8, 8, 0, 0]} />
@@ -505,7 +505,7 @@ export default function ManagerDashboard() {
               formatValue={fmtCurrency}
               showChange={true}
               maxItems={8}
-              color="#3b82f6"
+              color="var(--color-primary)"
             />
           </Card>
 

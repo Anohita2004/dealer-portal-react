@@ -36,7 +36,10 @@ export const getLandingPageForRole = (role) => {
  */
 export const hasRoleAccess = (userRole, allowedRoles = []) => {
   if (!allowedRoles || allowedRoles.length === 0) return true;
-  return allowedRoles.includes(userRole);
+  if (!userRole) return false;
+  // Normalize role to lowercase for comparison
+  const normalizedUserRole = userRole.toLowerCase().trim();
+  return allowedRoles.some(role => role.toLowerCase().trim() === normalizedUserRole);
 };
 
 /**

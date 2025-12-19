@@ -67,18 +67,14 @@ export default function Navbar() {
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "0.75rem 1.5rem",
-        backdropFilter: "blur(14px)",
-        background: isDark ? "rgba(12,12,14,0.75)" : "rgba(255,255,255,0.8)",
-        borderBottom: isDark
-          ? "1px solid rgba(255,255,255,0.06)"
-          : "1px solid rgba(0,0,0,0.08)",
+        padding: "var(--spacing-3) var(--spacing-6)",
+        backdropFilter: "blur(12px)",
+        background: "var(--color-surface)",
+        borderBottom: "1px solid var(--color-border)",
         position: "sticky",
         top: 0,
         zIndex: 50,
-        boxShadow: isDark
-          ? "0 4px 24px rgba(0,0,0,0.4)"
-          : "0 4px 20px rgba(0,0,0,0.1)",
+        boxShadow: "var(--shadow-sm)",
       }}
     >
       {/* Search Bar */}
@@ -95,8 +91,13 @@ export default function Navbar() {
         <Tooltip title="Create New">
           <IconButton
             sx={{
-              color: "#f97316",
-              "&:hover": { transform: "scale(1.1)", color: "#fb923c" },
+              color: "var(--color-primary)",
+              "&:hover": { 
+                transform: "scale(1.05)", 
+                color: "var(--color-primary-dark)",
+                backgroundColor: "var(--color-primary-soft)"
+              },
+              transition: "all var(--transition-base)",
             }}
             onClick={() => navigate("/invoices")}
           >
@@ -109,8 +110,12 @@ export default function Navbar() {
           <IconButton
             onClick={handleNotifOpen}
             sx={{
-              color: isDark ? "#f8fafc" : "#1e293b",
-              "&:hover": { color: "#f97316" },
+              color: "var(--color-text-primary)",
+              "&:hover": { 
+                color: "var(--color-primary)",
+                backgroundColor: "var(--color-primary-soft)"
+              },
+              transition: "all var(--transition-base)",
             }}
           >
             <Badge badgeContent={unread} color="error">
@@ -135,10 +140,10 @@ export default function Navbar() {
               handleNotifClose();
             }}
             sx={{
-              fontWeight: 500,
-              color: "#f97316",
+              fontWeight: "var(--font-weight-medium)",
+              color: "var(--color-primary)",
               justifyContent: "center",
-              fontSize: "0.85rem",
+              fontSize: "var(--font-size-sm)",
             }}
           >
             Mark all as read
@@ -157,13 +162,13 @@ export default function Navbar() {
                   gap: 0.3,
                   backgroundColor: n.isRead
                     ? "transparent"
-                    : "rgba(249,115,22,0.08)",
+                    : "var(--color-primary-soft)",
                 }}
               >
                 <Typography
                   variant="subtitle2"
-                  fontWeight={!n.isRead ? 600 : 400}
-                  sx={{ color: "#f97316" }}
+                  fontWeight={!n.isRead ? "var(--font-weight-semibold)" : "var(--font-weight-normal)"}
+                  sx={{ color: "var(--color-primary)" }}
                 >
                   {n.title}
                 </Typography>
@@ -186,8 +191,12 @@ export default function Navbar() {
           <IconButton
             onClick={toggle}
             sx={{
-              color: isDark ? "#fbbf24" : "#0f172a",
-              "&:hover": { color: "#f97316" },
+              color: "var(--color-text-secondary)",
+              "&:hover": { 
+                color: "var(--color-primary)",
+                backgroundColor: "var(--color-primary-soft)"
+              },
+              transition: "all var(--transition-base)",
             }}
           >
             {isDark ? <Sun size={22} /> : <Moon size={22} />}
@@ -196,16 +205,24 @@ export default function Navbar() {
 
         {/* User */}
         {user && (
-          <div style={{ display: "flex", alignItems: "center", gap: "0.6rem" }}>
-            <Avatar sx={{ width: 36, height: 36, bgcolor: "#f97316" }}>
+          <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-2)" }}>
+            <Avatar sx={{ 
+              width: 36, 
+              height: 36, 
+              bgcolor: "var(--color-primary)",
+              fontSize: "var(--font-size-sm)",
+              fontWeight: "var(--font-weight-semibold)"
+            }}>
               {user.name 
                 ? user.name[0].toUpperCase() 
                 : (user.username ? user.username[0].toUpperCase() : "U")}
             </Avatar>
-            <div style={{ fontSize: "0.9rem", color: "#cbd5e1" }}>
-              <strong>
-                {user.name || (user.username ? formatUsername(user.username) : "User")}
-              </strong>
+            <div style={{ 
+              fontSize: "var(--font-size-sm)", 
+              color: "var(--color-text-primary)",
+              fontWeight: "var(--font-weight-medium)"
+            }}>
+              {user.name || (user.username ? formatUsername(user.username) : "User")}
             </div>
           </div>
         )}
@@ -214,7 +231,14 @@ export default function Navbar() {
         <Tooltip title="Logout">
           <IconButton
             onClick={handleLogout}
-            sx={{ color: "#ef4444", "&:hover": { transform: "scale(1.1)" } }}
+            sx={{ 
+              color: "var(--color-error)", 
+              "&:hover": { 
+                transform: "scale(1.05)",
+                backgroundColor: "rgba(220, 38, 38, 0.1)"
+              },
+              transition: "all var(--transition-base)",
+            }}
           >
             <LogOut size={22} />
           </IconButton>

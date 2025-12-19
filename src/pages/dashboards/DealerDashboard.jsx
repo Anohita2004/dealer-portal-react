@@ -61,8 +61,9 @@ export default function DealerDashboard() {
   const [showPriceModal, setShowPriceModal] = useState(false);
   const [duePayments, setDuePayments] = useState([]);
 
-  const COLORS = ["#3b82f6", "#60a5fa", "#2563eb", "#1d4ed8", "#93c5fd"];
-  const accent = "#3b82f6";
+  // Use design system colors
+  const COLORS = ["var(--color-primary)", "var(--color-primary-dark)", "#2563EB", "#1E40AF", "var(--color-primary-soft)"];
+  const accent = "var(--color-primary)";
 
   const loadData = useCallback(async () => {
     let mounted = true;
@@ -245,7 +246,7 @@ export default function DealerDashboard() {
   );
 
   return (
-    <div className="dashboard-container" style={{ background: "#f9fafb" }}>
+    <div className="dashboard-container" style={{ background: "var(--color-background)" }}>
       <header className="dashboard-header">
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", flexWrap: "wrap", gap: "1rem" }}>
           <div>
@@ -318,28 +319,28 @@ export default function DealerDashboard() {
           current={summary.totalSales || 0}
           previous={previousSummary.totalSales || 0}
           formatValue={(v) => `₹${Number(v || 0).toLocaleString()}`}
-          color="#10b981"
+          color="var(--color-success)"
         />
         <ComparisonWidget
           title="Outstanding"
           current={summary.outstanding || 0}
           previous={previousSummary.outstanding || 0}
           formatValue={(v) => `₹${Number(v || 0).toLocaleString()}`}
-          color="#ef4444"
+          color="var(--color-error)"
         />
         <ComparisonWidget
           title="Total Orders"
           current={Array.isArray(orders) ? orders.length : 0}
           previous={0}
           formatValue={(v) => v.toLocaleString()}
-          color="#3b82f6"
+          color="var(--color-primary)"
         />
         <ComparisonWidget
           title="Total Invoices"
           current={summary.totalInvoices || invoices.length || 0}
           previous={previousSummary.totalInvoices || 0}
           formatValue={(v) => v.toLocaleString()}
-          color="#6366f1"
+          color="var(--color-primary-dark)"
         />
       </div>
 
@@ -350,7 +351,7 @@ export default function DealerDashboard() {
           value={duePayments.length || 0}
           icon={<AlertCircle />}
           scope="Dealer"
-          accent="#ef4444"
+          accent="var(--color-error)"
           urgent={duePayments.length > 0}
           onClick={() => navigate("/payments/due")}
           style={{ cursor: "pointer" }}
@@ -360,7 +361,7 @@ export default function DealerDashboard() {
           value={Array.isArray(orders) ? orders.filter((o) => (o.status || o.approvalStatus || "").toLowerCase() === "pending").length : 0}
           icon={<Box />}
           scope="Dealer"
-          accent="#f59e0b"
+          accent="var(--color-warning)"
           urgent={Array.isArray(orders) && orders.some((o) => (o.status || o.approvalStatus || "").toLowerCase() === "pending")}
           onClick={() => navigate("/orders?status=pending")}
           style={{ cursor: "pointer" }}
@@ -370,7 +371,7 @@ export default function DealerDashboard() {
           value={promotions?.length || 0}
           icon={<Tag />}
           scope="Active"
-          accent="#6366f1"
+          accent="var(--color-primary-dark)"
         />
       </div>
 
@@ -381,7 +382,7 @@ export default function DealerDashboard() {
             <TrendLineChart
               data={trend || []}
               dataKeys={["value", "outstanding"]}
-              colors={[accent, "#93c5fd"]}
+              colors={[accent, "var(--color-primary-soft)"]}
               height={340}
               formatValue={(v) => `₹${Number(v || 0).toLocaleString()}`}
             />
@@ -506,8 +507,8 @@ export default function DealerDashboard() {
                   style={{
                     padding: "0.35rem 0.9rem",
                     borderRadius: "6px",
-                    border: docFilter === status ? `2px solid ${accent}` : "1px solid #ccc",
-                    background: docFilter === status ? "#bfdbfe" : "#fff",
+                    border: docFilter === status ? `2px solid ${accent}` : "1px solid var(--color-border)",
+                    background: docFilter === status ? "var(--color-primary-soft)" : "var(--color-surface)",
                     cursor: "pointer",
                     fontWeight: docFilter === status ? 600 : 500,
                   }}
@@ -597,7 +598,7 @@ export default function DealerDashboard() {
                   key={promo.id}
                   style={{
                     padding: "0.45rem 0",
-                    borderBottom: "1px solid #e5e7eb",
+                    borderBottom: "1px solid var(--color-border)",
                   }}
                 >
                   <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>

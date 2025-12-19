@@ -42,15 +42,15 @@ export default function InventoryDashboard() {
 
   // Themes per role
   const roleTheme = {
-    dealer: { color: "#3b82f6", bg: "#eff6ff" },
-    manager: { color: "#f59e0b", bg: "#fff7ed" },
-    inventory: { color: "#22c55e", bg: "#f0fdf4" },
-    admin: { color: "#8b5cf6", bg: "#f5f3ff" },
+    dealer: { color: "var(--color-primary)", bg: "var(--color-primary-soft)" },
+    manager: { color: "var(--color-warning)", bg: "rgba(245, 158, 11, 0.1)" },
+    inventory: { color: "var(--color-success)", bg: "rgba(22, 163, 74, 0.1)" },
+    admin: { color: "var(--color-primary-dark)", bg: "rgba(37, 99, 235, 0.1)" },
   };
 
-  const theme = roleTheme[user?.role] || { color: "#6b7280", bg: "#f9fafb" };
+  const theme = roleTheme[user?.role] || { color: "var(--color-text-secondary)", bg: "var(--color-background)" };
 
-  const COLORS = ["#22c55e", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
+  const COLORS = ["var(--color-success)", "var(--color-primary)", "var(--color-warning)", "var(--color-error)", "var(--color-primary-dark)"];
 
   // FETCH inventory
   const fetchInventory = async () => {
@@ -156,7 +156,7 @@ export default function InventoryDashboard() {
           style={{
             border: "none",
             padding: "6px 10px",
-            background: "#ef4444",
+            background: "var(--color-error)",
             color: "white",
             borderRadius: 6,
             cursor: "pointer",
@@ -254,10 +254,10 @@ export default function InventoryDashboard() {
               background: "white",
               padding: "1rem",
               borderRadius: "12px",
-              boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+              boxShadow: "var(--shadow-sm)",
             }}
           >
-            <h4 style={{ marginBottom: "1rem", color: "#111827" }}>
+            <h4 style={{ marginBottom: "var(--spacing-4)", color: "var(--color-text-primary)" }}>
               <Package size={18} style={{ marginRight: 6 }} />
               Stock Levels by Product
             </h4>
@@ -270,7 +270,7 @@ export default function InventoryDashboard() {
                 <Legend />
                 <Bar dataKey="available" fill={theme.color} name="Available" />
                 {(["inventory", "admin"].includes(user?.role)) && (
-                  <Bar dataKey="reorderLevel" fill="#f97316" name="Reorder Level" />
+                  <Bar dataKey="reorderLevel" fill="var(--color-warning)" name="Reorder Level" />
                 )}
               </BarChart>
             </ResponsiveContainer>
@@ -283,10 +283,10 @@ export default function InventoryDashboard() {
                 background: "white",
                 padding: "1rem",
                 borderRadius: "12px",
-                boxShadow: "0 2px 8px rgba(0,0,0,0.05)",
+                boxShadow: "var(--shadow-sm)",
               }}
             >
-              <h4 style={{ marginBottom: "1rem", color: "#111827" }}>
+              <h4 style={{ marginBottom: "var(--spacing-4)", color: "var(--color-text-primary)" }}>
                 <Factory size={18} style={{ marginRight: 6 }} />
                 Stock by Plant
               </h4>
@@ -315,7 +315,7 @@ export default function InventoryDashboard() {
       {/* Table */}
       <div style={{ marginTop: "2rem" }}>
         {loading ? (
-          <p style={{ color: "#9ca3af" }}>Loading inventory...</p>
+          <p style={{ color: "var(--color-text-secondary)" }}>Loading inventory...</p>
         ) : (
           <DataTable columns={columns} rows={filtered} />
         )}
@@ -349,7 +349,7 @@ export default function InventoryDashboard() {
 
         <div
           style={{
-            background: lowStockCount > 0 ? "#fee2e2" : "#dcfce7",
+            background: lowStockCount > 0 ? "rgba(220, 38, 38, 0.1)" : "rgba(22, 163, 74, 0.1)",
             padding: "1rem",
             borderRadius: "12px",
             flex: 1,

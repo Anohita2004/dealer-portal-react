@@ -11,7 +11,7 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
-import { ArrowLeft, Download } from "lucide-react";
+import { ArrowLeft, Download, Printer, FileText } from "lucide-react";
 import { invoiceAPI } from "../services/api";
 import { useWorkflow } from "../hooks/useWorkflow";
 import {
@@ -21,6 +21,8 @@ import {
   WorkflowProgressBar,
 } from "../components/workflow";
 import PageHeader from "../components/PageHeader";
+import InvoiceTemplate from "../components/InvoiceTemplate";
+import { Tabs, Tab } from "@mui/material";
 
 export default function InvoiceDetail() {
   const { id } = useParams();
@@ -28,6 +30,7 @@ export default function InvoiceDetail() {
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
+  const [viewMode, setViewMode] = useState("details"); // "details" or "invoice"
 
   const {
     workflow,
@@ -139,21 +142,69 @@ export default function InvoiceDetail() {
         subtitle="View invoice details and approval workflow"
       />
 
-      <Box sx={{ display: "flex", gap: 2, mb: 3 }}>
+      <Box sx={{ display: "flex", gap: 2, mb: 3, justifyContent: "space-between", alignItems: "center" }} className="no-print">
         <Button
           startIcon={<ArrowLeft />}
           onClick={() => navigate("/invoices")}
         >
           Back to Invoices
         </Button>
-        <Button
-          variant="outlined"
-          startIcon={<Download />}
-          onClick={handleDownloadPDF}
-        >
-          Download PDF
-        </Button>
+        <Box sx={{ display: "flex", gap: 2 }}>
+          <Button
+            variant="outlined"
+            startIcon={<Download />}
+            onClick={handleDownloadPDF}
+          >
+            Download PDF
+          </Button>
+          {viewMode === "invoice" && (
+            <Button
+              variant="outlined"
+              startIcon={<Printer />}
+              onClick={() => window.print()}
+            >
+              Print
+            </Button>
+          )}
+        </Box>
       </Box>
+
+      {/* View Mode Tabs */}
+      <Box sx={{ mb: 3, borderBottom: 1, borderColor: "divider" }} className="no-print">
+        <Tabs value={viewMode} onChange={(e, newValue) => setViewMode(newValue)}>
+          <Tab icon={<FileText size={18} />} iconPosition="start" label="Invoice View" value="invoice" />
+          <Tab label="Details & Workflow" value="details" />
+        </Tabs>
+      </Box>
+
+      {/* Invoice Template View */}
+      {viewMode === "invoice" && (
+        <Box
+          sx={{
+            background: "var(--color-background)",
+            padding: "var(--spacing-6)",
+            "@media print": {
+              padding: 0,
+              background: "white",
+            },
+          }}
+        >
+          <InvoiceTemplate
+            invoice={invoice}
+            dealer={invoice.dealer}
+            company={{
+              bankName: invoice.companyBankName || "Rimberio",
+              accountNumber: invoice.companyAccountNumber || "0123 4567 8901",
+              signatoryName: invoice.signatoryName || "Claudia",
+              signatoryTitle: invoice.signatoryTitle || "Finance Manager",
+            }}
+          />
+        </Box>
+      )}
+
+      {/* Details & Workflow View */}
+      {viewMode === "details" && (
+        <>
 
       {workflowError && (
         <Alert severity="warning" sx={{ mb: 3 }}>
@@ -313,6 +364,8 @@ export default function InvoiceDetail() {
         <Box sx={{ mt: 3 }}>
           <WorkflowTimeline timeline={workflow.timeline} workflow={workflow} />
         </Box>
+      )}
+        </>
       )}
     </Box>
   );

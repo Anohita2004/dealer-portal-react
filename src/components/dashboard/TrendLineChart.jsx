@@ -17,7 +17,7 @@ export default function TrendLineChart({
   title,
   data = [],
   dataKeys = [],
-  colors = ["#3b82f6", "#10b981", "#f59e0b"],
+  colors = ["var(--color-primary)", "var(--color-success)", "var(--color-warning)"],
   height = 300,
   showArea = false,
   showTrend = true,
@@ -29,8 +29,8 @@ export default function TrendLineChart({
         style={{
           padding: "2rem",
           textAlign: "center",
-          color: "#6b7280",
-          background: "#f9fafb",
+          color: "var(--color-text-secondary)",
+          background: "var(--color-background)",
           borderRadius: "8px",
         }}
       >
@@ -64,7 +64,7 @@ export default function TrendLineChart({
                 display: "flex",
                 alignItems: "center",
                 gap: "0.25rem",
-                color: trend >= 0 ? "#10b981" : "#ef4444",
+                color: trend >= 0 ? "var(--color-success)" : "var(--color-error)",
                 fontSize: "0.875rem",
                 fontWeight: 600,
               }}
@@ -77,20 +77,20 @@ export default function TrendLineChart({
       )}
       <ResponsiveContainer width="100%" height={height}>
         <ChartComponent data={data} margin={{ top: 5, right: 20, left: 0, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" stroke="#e5e7eb" />
+          <CartesianGrid strokeDasharray="3 3" stroke="var(--color-border)" />
           <XAxis
             dataKey="label"
-            stroke="#6b7280"
+            stroke="var(--color-text-secondary)"
             style={{ fontSize: "0.75rem" }}
-            tick={{ fill: "#6b7280" }}
+            tick={{ fill: "var(--color-text-secondary)" }}
           />
-          <YAxis stroke="#6b7280" style={{ fontSize: "0.75rem" }} tick={{ fill: "#6b7280" }} />
+          <YAxis stroke="var(--color-text-secondary)" style={{ fontSize: "0.75rem" }} tick={{ fill: "var(--color-text-secondary)" }} />
           <Tooltip
             contentStyle={{
-              background: "#fff",
-              border: "1px solid #e5e7eb",
-              borderRadius: "6px",
-              padding: "0.5rem",
+              background: "var(--color-surface)",
+              border: "1px solid var(--color-border)",
+              borderRadius: "var(--radius-sm)",
+              padding: "var(--spacing-2)",
             }}
             formatter={(value, name) => [formatValue(value), name]}
           />

@@ -6,17 +6,26 @@ export default function SearchInput({ placeholder = "Search", value, onChange, s
       style={{
         display: "flex",
         alignItems: "center",
-        gap: "0.5rem",
-        padding: "0.6rem 0.9rem",
-        borderRadius: 9999,
-        background: "rgba(255,255,255,0.06)",
-        border: "1px solid rgba(255,255,255,0.08)",
-        boxShadow: "inset 0 0 10px rgba(0,0,0,0.2)",
-        color: "#cbd5e1",
+        gap: "var(--spacing-2)",
+        padding: "var(--spacing-3) var(--spacing-4)",
+        borderRadius: "999px",
+        background: "var(--color-surface)",
+        border: "1px solid var(--color-border)",
+        boxShadow: "var(--shadow-sm)",
+        color: "var(--color-text-secondary)",
+        transition: "all var(--transition-base)",
         ...style,
       }}
+      onFocus={(e) => {
+        e.currentTarget.style.borderColor = "var(--color-primary)";
+        e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-primary-soft)";
+      }}
+      onBlur={(e) => {
+        e.currentTarget.style.borderColor = "var(--color-border)";
+        e.currentTarget.style.boxShadow = "var(--shadow-sm)";
+      }}
     >
-      <span style={{ opacity: 0.8 }}>🔎</span>
+      <span style={{ opacity: 0.7, fontSize: "var(--font-size-sm)" }}>🔎</span>
       <input
         value={value}
         onChange={onChange}
@@ -25,8 +34,10 @@ export default function SearchInput({ placeholder = "Search", value, onChange, s
           outline: "none",
           border: "none",
           background: "transparent",
-          color: "#e2e8f0",
+          color: "var(--color-text-primary)",
           width: "100%",
+          fontSize: "var(--font-size-sm)",
+          fontFamily: "var(--font-family)",
         }}
       />
     </div>

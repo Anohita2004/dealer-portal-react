@@ -14,20 +14,25 @@ const LoadingScreen = () => {
         alignItems: "center",
         minHeight: "100vh",
         flexDirection: "column",
-        gap: "1rem",
+        gap: "var(--spacing-4)",
+        background: "var(--color-background)",
       }}
     >
       <div
         style={{
           width: "50px",
           height: "50px",
-          border: "4px solid #f3f3f3",
-          borderTop: "4px solid #3498db",
+          border: "4px solid var(--color-border)",
+          borderTop: "4px solid var(--color-primary)",
           borderRadius: "50%",
           animation: "spin 1s linear infinite",
         }}
       />
-      <p style={{ color: "#666", fontSize: "14px" }}>Loading...</p>
+      <p style={{ 
+        color: "var(--color-text-secondary)", 
+        fontSize: "var(--font-size-sm)",
+        fontFamily: "var(--font-family)"
+      }}>Loading...</p>
       <style>
         {`
           @keyframes spin {

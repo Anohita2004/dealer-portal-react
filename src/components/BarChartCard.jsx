@@ -2,7 +2,7 @@ import React from "react";
 import { Card, CardContent, Typography } from "@mui/material";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid } from "recharts";
 
-export default function BarChartCard({ title, data, xKey, yKey, color = "#1976d2" }) {
+export default function BarChartCard({ title, data, xKey, yKey, color = "var(--color-primary)" }) {
   return (
     <Card sx={{ borderRadius: 3, boxShadow: 2, p: 2 }}>
       <CardContent>

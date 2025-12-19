@@ -2,29 +2,60 @@ import React from "react";
 
 export default function IconPillButton({ icon, label, onClick, tone = "primary" }) {
   const tones = {
-    primary: "linear-gradient(90deg, #f97316, #ea580c)",
-    success: "linear-gradient(90deg, #22c55e, #16a34a)",
-    warning: "linear-gradient(90deg, #f59e0b, #d97706)",
-    danger: "linear-gradient(90deg, #ef4444, #b91c1c)",
+    primary: {
+      background: "var(--color-primary)",
+      hover: "var(--color-primary-dark)",
+    },
+    success: {
+      background: "var(--color-success)",
+      hover: "#15803D",
+    },
+    warning: {
+      background: "var(--color-warning)",
+      hover: "#D97706",
+    },
+    danger: {
+      background: "var(--color-error)",
+      hover: "#B91C1C",
+    },
   };
+  
+  const toneStyle = tones[tone] || tones.primary;
+  
   return (
     <button
       onClick={onClick}
       style={{
         border: "none",
-        borderRadius: 9999,
-        padding: "0.5rem 0.9rem",
-        color: "#fff",
+        borderRadius: "999px",
+        padding: "var(--spacing-2) var(--spacing-3)",
+        color: "var(--color-surface)",
         display: "flex",
         alignItems: "center",
-        gap: "0.5rem",
-        background: tones[tone] || tones.primary,
-        boxShadow: "0 0 12px rgba(0,0,0,0.25)",
+        gap: "var(--spacing-2)",
+        background: toneStyle.background,
+        boxShadow: "var(--shadow-sm)",
         cursor: "pointer",
+        fontWeight: "var(--font-weight-semibold)",
+        fontSize: "var(--font-size-sm)",
+        transition: "all var(--transition-base)",
+      }}
+      onMouseEnter={(e) => {
+        e.currentTarget.style.background = toneStyle.hover;
+        e.currentTarget.style.boxShadow = "var(--shadow-md)";
+        e.currentTarget.style.transform = "translateY(-1px)";
+      }}
+      onMouseLeave={(e) => {
+        e.currentTarget.style.background = toneStyle.background;
+        e.currentTarget.style.boxShadow = "var(--shadow-sm)";
+        e.currentTarget.style.transform = "translateY(0)";
+      }}
+      onMouseDown={(e) => {
+        e.currentTarget.style.transform = "translateY(0)";
       }}
     >
       {icon && <span>{icon}</span>}
-      <span style={{ fontWeight: 600 }}>{label}</span>
+      <span>{label}</span>
     </button>
   );
 }

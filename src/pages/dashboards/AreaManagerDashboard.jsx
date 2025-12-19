@@ -184,21 +184,21 @@ export default function AreaManagerDashboard() {
           current={summary.totalSales || 0}
           previous={previousSummary.totalSales || 0}
           formatValue={(v) => v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
-          color="#10b981"
+          color="var(--color-success)"
         />
         <ComparisonWidget
           title="Total Dealers"
           current={summary.dealers || 0}
           previous={previousSummary.dealers || 0}
           formatValue={(v) => v.toLocaleString()}
-          color="#3b82f6"
+          color="var(--color-primary)"
         />
         <ComparisonWidget
           title="Total Outstanding"
           current={summary.totalOutstanding || 0}
           previous={previousSummary.totalOutstanding || 0}
           formatValue={(v) => v >= 10000000 ? `₹${(v / 10000000).toFixed(1)}Cr` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
-          color="#ef4444"
+          color="var(--color-error)"
         />
       </div>
 
@@ -226,7 +226,7 @@ export default function AreaManagerDashboard() {
           <TrendLineChart
             data={salesTrend}
             dataKeys={["value", "orders"]}
-            colors={["#10b981", "#3b82f6"]}
+            colors={["var(--color-success)", "var(--color-primary)"]}
             height={300}
             formatValue={(v) => `₹${(v / 1000).toFixed(0)}K`}
           />
@@ -241,7 +241,7 @@ export default function AreaManagerDashboard() {
             formatValue={(v) => `₹${(v / 100000).toFixed(1)}L`}
             showChange={true}
             maxItems={8}
-            color="#3b82f6"
+            color="var(--color-primary)"
           />
         </Card>
       </div>
@@ -258,7 +258,7 @@ export default function AreaManagerDashboard() {
                 className="approval-item"
                 style={{
                   padding: "0.75rem",
-                  borderBottom: "1px solid #e5e7eb",
+                  borderBottom: "1px solid var(--color-border)",
                   display: "flex",
                   justifyContent: "space-between",
                   alignItems: "center",
@@ -266,7 +266,7 @@ export default function AreaManagerDashboard() {
               >
                 <div>
                   <b>{a.dealer?.businessName || a.dealerName || "Unknown"}</b>
-                  <span style={{ display: "block", fontSize: "0.875rem", color: "#6b7280" }}>
+                  <span style={{ display: "block", fontSize: "0.875rem", color: "var(--color-text-secondary)" }}>
                     {a.documentType || a.type || "Approval"}
                   </span>
                 </div>
@@ -275,8 +275,8 @@ export default function AreaManagerDashboard() {
                   onClick={() => navigate(`/approvals/${a.id}`)}
                   style={{
                     padding: "0.5rem 1rem",
-                    background: "#3b82f6",
-                    color: "#fff",
+                    background: "var(--color-primary)",
+                    color: "var(--color-surface)",
                     border: "none",
                     borderRadius: "6px",
                     cursor: "pointer",
@@ -299,7 +299,7 @@ export default function AreaManagerDashboard() {
             formatValue={(v) => `₹${(v / 100000).toFixed(1)}L`}
             showChange={true}
             maxItems={6}
-            color="#10b981"
+            color="var(--color-success)"
           />
         </Card>
 
@@ -312,11 +312,11 @@ export default function AreaManagerDashboard() {
                   key={t.id || t.territoryId}
                   style={{
                     padding: "0.75rem",
-                    borderBottom: "1px solid #e5e7eb",
+                    borderBottom: "1px solid var(--color-border)",
                   }}
                 >
                   <div style={{ fontWeight: 600 }}>{t.territoryName || t.name}</div>
-                  <div style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+                  <div style={{ fontSize: "0.875rem", color: "var(--color-text-secondary)" }}>
                     Sales: ₹{Number(t.totalSales || t.sales || 0).toLocaleString()} • Dealers: {t.dealerCount || 0}
                   </div>
                 </div>

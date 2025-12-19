@@ -171,21 +171,21 @@ export default function TerritoryManagerDashboard() {
           current={summary.totalSales || 0}
           previous={previousSummary.totalSales || 0}
           formatValue={(v) => v >= 1000000 ? `₹${(v / 1000000).toFixed(1)}M` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
-          color="#10b981"
+          color="var(--color-success)"
         />
         <ComparisonWidget
           title="Total Dealers"
           current={summary.dealers || 0}
           previous={previousSummary.dealers || 0}
           formatValue={(v) => v.toLocaleString()}
-          color="#3b82f6"
+          color="var(--color-primary)"
         />
         <ComparisonWidget
           title="Total Outstanding"
           current={summary.totalOutstanding || 0}
           previous={previousSummary.totalOutstanding || 0}
           formatValue={(v) => v >= 1000000 ? `₹${(v / 1000000).toFixed(1)}M` : v >= 100000 ? `₹${(v / 100000).toFixed(1)}L` : `₹${v.toLocaleString()}`}
-          color="#ef4444"
+          color="var(--color-error)"
         />
       </div>
 
@@ -212,7 +212,7 @@ export default function TerritoryManagerDashboard() {
           <TrendLineChart
             data={salesTrend}
             dataKeys={["value", "orders"]}
-            colors={["#10b981", "#3b82f6"]}
+            colors={["var(--color-success)", "var(--color-primary)"]}
             height={300}
             formatValue={(v) => `₹${(v / 1000).toFixed(0)}K`}
           />
@@ -227,7 +227,7 @@ export default function TerritoryManagerDashboard() {
             formatValue={(v) => `₹${(v / 100000).toFixed(1)}L`}
             showChange={true}
             maxItems={8}
-            color="#3b82f6"
+            color="var(--color-primary)"
           />
         </Card>
       </div>
@@ -242,13 +242,13 @@ export default function TerritoryManagerDashboard() {
                     key={activity.id || idx}
                     style={{
                       padding: "0.75rem",
-                      borderBottom: "1px solid #e5e7eb",
+                      borderBottom: "1px solid var(--color-border)",
                     }}
                   >
                     <div style={{ fontWeight: 600, fontSize: "0.875rem" }}>
                       {activity.action || activity.title || "Activity"}
                     </div>
-                    <div style={{ fontSize: "0.75rem", color: "#6b7280", marginTop: "0.25rem" }}>
+                    <div style={{ fontSize: "0.75rem", color: "var(--color-text-secondary)", marginTop: "0.25rem" }}>
                       {activity.dealer || activity.dealerName || "Unknown"} • {activity.date ? new Date(activity.date).toLocaleDateString() : ""}
                     </div>
                   </div>
@@ -267,7 +267,7 @@ export default function TerritoryManagerDashboard() {
                     key={item.id}
                     style={{
                       padding: "0.75rem",
-                      borderBottom: "1px solid #e5e7eb",
+                      borderBottom: "1px solid var(--color-border)",
                       display: "flex",
                       justifyContent: "space-between",
                       alignItems: "center",
@@ -275,7 +275,7 @@ export default function TerritoryManagerDashboard() {
                   >
                     <div>
                       <div style={{ fontWeight: 600 }}>{item.title || `Order #${item.id}`}</div>
-                      <div style={{ fontSize: "0.875rem", color: "#6b7280" }}>
+                      <div style={{ fontSize: "0.875rem", color: "var(--color-text-secondary)" }}>
                         {item.dealer || "Unknown"} • {item.type || "Order"}
                       </div>
                     </div>
@@ -283,8 +283,8 @@ export default function TerritoryManagerDashboard() {
                       onClick={() => navigate(`/orders/${item.id}`)}
                       style={{
                         padding: "0.5rem 1rem",
-                        background: "#3b82f6",
-                        color: "#fff",
+                        background: "var(--color-primary)",
+                        color: "var(--color-surface)",
                         border: "none",
                         borderRadius: "6px",
                         cursor: "pointer",

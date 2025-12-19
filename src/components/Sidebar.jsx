@@ -273,60 +273,126 @@ export default function Sidebar() {
     };
   }, [pathname]);
 
+  const isActive = (path) => pathname === path;
+
   return (
     <aside style={{
       width: collapsed ? "70px" : "240px",
-      background: "var(--sidebar-bg)",
-      borderRight: "1px solid var(--card-border)",
-      padding: "1rem",
+      background: "var(--color-surface)",
+      borderRight: "1px solid var(--color-border)",
+      padding: "var(--spacing-4)",
       display: "flex",
       flexDirection: "column",
-      transition: "width .3s",
+      transition: "width var(--transition-slow)",
       overflowY: "auto"
     }}>
-      <div style={{display:"flex",justifyContent:collapsed?"center":"space-between",alignItems:"center",marginBottom:"1.5rem"}}>
-        {!collapsed && <h3 style={{color:"#f97316",fontWeight:"700"}}>
+      <div style={{
+        display: "flex",
+        justifyContent: collapsed ? "center" : "space-between",
+        alignItems: "center",
+        marginBottom: "var(--spacing-6)"
+      }}>
+        {!collapsed && <h3 style={{
+          color: "var(--color-primary)",
+          fontWeight: "var(--font-weight-bold)",
+          fontSize: "var(--font-size-lg)",
+          margin: 0
+        }}>
           {user?.name || (user?.username ? formatUsername(user.username) : "User")}
         </h3>}
-        <button onClick={()=>setCollapsed(!collapsed)} style={{padding:"6px",borderRadius:"6px"}}>
+        <button 
+          onClick={() => setCollapsed(!collapsed)} 
+          style={{
+            padding: "var(--spacing-2)",
+            borderRadius: "var(--radius-sm)",
+            border: "none",
+            background: "transparent",
+            color: "var(--color-text-secondary)",
+            cursor: "pointer",
+            transition: "all var(--transition-base)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center"
+          }}
+          onMouseEnter={(e) => {
+            e.currentTarget.style.background = "var(--color-primary-soft)";
+            e.currentTarget.style.color = "var(--color-primary)";
+          }}
+          onMouseLeave={(e) => {
+            e.currentTarget.style.background = "transparent";
+            e.currentTarget.style.color = "var(--color-text-secondary)";
+          }}
+        >
           <FaBars />
         </button>
       </div>
 
       {links.map((l, idx) => {
         const showSection = !collapsed && l.section && (idx === 0 || links[idx - 1]?.section !== l.section);
+        const active = isActive(l.path);
         return (
           <React.Fragment key={`${idx}-${l.path}-${l.label}`}>
             {showSection && (
               <div style={{
-                marginTop: idx > 0 ? "1rem" : "0",
-                marginBottom: "0.5rem",
-                padding: "0.5rem 0.5rem",
-                fontSize: "0.75rem",
-                fontWeight: 600,
-                color: "var(--text-color)",
-                opacity: 0.7,
+                marginTop: idx > 0 ? "var(--spacing-4)" : "0",
+                marginBottom: "var(--spacing-2)",
+                padding: "var(--spacing-2)",
+                fontSize: "var(--font-size-xs)",
+                fontWeight: "var(--font-weight-semibold)",
+                color: "var(--color-text-secondary)",
                 textTransform: "uppercase",
                 letterSpacing: "0.05em"
               }}>
                 {l.section}
               </div>
             )}
-            <Link to={l.path}
+            <Link 
+              to={l.path}
               style={{
-                display:"flex",alignItems:"center",gap:"10px",
-                padding:"10px",borderRadius:"8px",
-                color:pathname===l.path?"#f97316":"var(--text-color)",
-                fontWeight:pathname===l.path?600:400,
-                marginLeft: l.section && !collapsed ? "0.5rem" : "0"
-              }}>
-              <span>{l.icon}</span>
+                display: "flex",
+                alignItems: "center",
+                gap: "var(--spacing-2)",
+                padding: "var(--spacing-3) var(--spacing-4)",
+                borderRadius: "var(--radius-md)",
+                color: active ? "var(--color-primary)" : "var(--color-text-secondary)",
+                fontWeight: active ? "var(--font-weight-semibold)" : "var(--font-weight-normal)",
+                marginLeft: l.section && !collapsed ? "var(--spacing-2)" : "0",
+                textDecoration: "none",
+                transition: "all var(--transition-base)",
+                background: active ? "var(--color-primary-soft)" : "transparent"
+              }}
+              onMouseEnter={(e) => {
+                if (!active) {
+                  e.currentTarget.style.background = "var(--color-primary-soft)";
+                  e.currentTarget.style.color = "var(--color-primary)";
+                }
+              }}
+              onMouseLeave={(e) => {
+                if (!active) {
+                  e.currentTarget.style.background = "transparent";
+                  e.currentTarget.style.color = "var(--color-text-secondary)";
+                }
+              }}
+            >
+              <span style={{ display: "flex", alignItems: "center" }}>{l.icon}</span>
               {!collapsed && (
-                <span style={{display:"flex",alignItems:"center",gap:"6px"}}>
+                <span style={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: "var(--spacing-2)",
+                  fontSize: "var(--font-size-sm)"
+                }}>
                   {l.label}
-                  {l.path==="/chat" && unread>0 && (
-                    <span style={{background:"#ef4444",color:"#fff",padding:"1px 7px",borderRadius:"999px",fontSize:"11px"}}>
-                      {unread>99?"99+":unread}
+                  {l.path === "/chat" && unread > 0 && (
+                    <span style={{
+                      background: "var(--color-error)",
+                      color: "var(--color-surface)",
+                      padding: "2px 7px",
+                      borderRadius: "999px",
+                      fontSize: "var(--font-size-xs)",
+                      fontWeight: "var(--font-weight-semibold)"
+                    }}>
+                      {unread > 99 ? "99+" : unread}
                     </span>
                   )}
                 </span>

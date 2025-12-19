@@ -777,14 +777,7 @@ export default function App() {
             {/* ============================================================
                FINANCE ADMIN
             ============================================================ */}
-            <Route
-              path="invoices"
-              element={
-                <ProtectedRoute allowed={["finance_admin"]}>
-                  <Invoices />
-                </ProtectedRoute>
-              }
-            />
+            {/* Note: invoices route moved to dealer section below to avoid route conflict */}
             <Route
               path="invoices/:id"
               element={
@@ -1045,7 +1038,7 @@ export default function App() {
             <Route
               path="invoices"
               element={
-                <ProtectedRoute allowed={["dealer_admin"]}>
+                <ProtectedRoute allowed={["dealer_admin", "dealer_staff", "finance_admin"]}>
                   <Invoices />
                 </ProtectedRoute>
               }
