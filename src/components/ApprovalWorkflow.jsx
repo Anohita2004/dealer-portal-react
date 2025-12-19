@@ -13,7 +13,8 @@ import {
   Button, 
   TextField,
   Avatar,
-  Divider
+  Divider,
+  Alert
 } from "@mui/material";
 import CheckCircleIcon from "@mui/icons-material/CheckCircle";
 import RadioButtonUncheckedIcon from "@mui/icons-material/RadioButtonUnchecked";
@@ -34,13 +35,14 @@ const ApprovalWorkflow = ({
 }) => {
   const { user } = useAuth();
   const role = user?.role?.toLowerCase?.() || "";
-  const isRegionalManager = role === "regional_manager";
   const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
   const [rejectionReason, setRejectionReason] = useState("");
   // Define workflow stages based on entity type
   const getStages = (type) => {
     const workflows = {
-      order: ["territory_manager", "area_manager", "regional_manager"],
+      // Order workflow now includes dealer_admin as the first stage
+      // so dealer admins can approve orders before manager levels
+      order: ["dealer_admin", "territory_manager", "area_manager", "regional_manager"],
       invoice: ["dealer_admin", "territory_manager", "area_manager", "regional_manager", "regional_admin"],
       payment: ["dealer_admin", "territory_manager", "area_manager", "regional_manager", "regional_admin"],
       document: ["dealer_admin", "territory_manager", "area_manager", "regional_manager"],
@@ -54,6 +56,8 @@ const ApprovalWorkflow = ({
   const currentIndex = currentStage ? stages.indexOf(currentStage) : -1;
   const isApproved = approvalStatus === "approved";
   const isRejected = approvalStatus === "rejected";
+  // Check if order is fully approved (at final stage and approved)
+  const isFullyApproved = isApproved && (currentIndex === stages.length - 1 || currentIndex === -1);
 
   const getStageLabel = (stage) => {
     return stage
@@ -114,7 +118,23 @@ const ApprovalWorkflow = ({
         })}
       </Stepper>
 
-      {showActions && !isApproved && !isRejected && currentIndex >= 0 && !isRegionalManager && (
+      {/* Order Approved Message - Final Stage */}
+      {isFullyApproved && (
+        <Alert 
+          severity="success" 
+          icon={<CheckCircle size={24} />}
+          sx={{ mt: 3, mb: 2 }}
+        >
+          <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+            Order Approved
+          </Typography>
+          <Typography variant="body2">
+            This order has been fully approved through all stages and is ready for processing.
+          </Typography>
+        </Alert>
+      )}
+
+      {showActions && !isApproved && !isRejected && currentIndex >= 0 && (
         <Box sx={{ mt: 3, display: "flex", gap: 2, justifyContent: "flex-end" }}>
           <Button
             variant="outlined"

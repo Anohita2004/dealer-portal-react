@@ -12,7 +12,7 @@ import {
   InputAdornment,
 } from "@mui/material";
 import { Search, Filter } from "lucide-react";
-import { orderAPI } from "../../services/api";
+import { orderAPI, dashboardAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import OrderApprovalCard from "../../components/OrderApprovalCard";
 import PageHeader from "../../components/PageHeader";
@@ -33,30 +33,27 @@ export default function AdminOrders() {
     if (!role) return;
     setLoading(true);
     try {
-      // Use the pending approvals endpoint which automatically scopes by role
-      const res = await orderAPI.getPendingApprovals();
-      console.log("Fetched pending orders:", res);
+      let res;
 
-      // Handle different response formats
+      if (role === "dealer_admin") {
+        // Dealer admin: use dedicated pending orders endpoint
+        // Backend: GET /api/orders/pending (scoped to this dealer_admin's approvals)
+        res = await orderAPI.getPendingOrders();
+      } else {
+        // Managers / super_admin / regional_admin: use filtered orders endpoint
+        // Backend: GET /api/orders?status=pending (scoped by role & hierarchy)
+        res = await orderAPI.getPendingApprovals();
+      }
+
       const ordersList = res.orders || res.data || res || [];
       setOrders(Array.isArray(ordersList) ? ordersList : []);
     } catch (err) {
       // Suppress console errors for 403 (permission denied)
       if (err.response?.status !== 403) {
         console.error(err);
+        toast.error(err.response?.data?.error || "Failed to fetch orders");
       }
-      // Fallback to getting all orders (backend will scope automatically)
-      try {
-        const fallbackRes = await orderAPI.getAllOrders();
-        const ordersList = fallbackRes.orders || fallbackRes.data || fallbackRes || [];
-        setOrders(Array.isArray(ordersList) ? ordersList : []);
-      } catch (fallbackErr) {
-        // Suppress console errors for 403 (permission denied)
-        if (fallbackErr.response?.status !== 403) {
-          console.error("Fallback also failed:", fallbackErr);
-          alert("Failed to fetch orders");
-        }
-      }
+      setOrders([]);
     } finally {
       setLoading(false);
     }

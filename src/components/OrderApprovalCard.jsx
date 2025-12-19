@@ -217,6 +217,28 @@ export default function OrderApprovalCard({ order, onUpdate }) {
           </Box>
         </Box>
 
+        {/* Order Approved Banner - Final Stage */}
+        {(() => {
+          const lifecycleStatus = getOrderLifecycleStatus(order);
+          const isFullyApproved = 
+            (workflow?.approvalStatus === "approved" || order.approvalStatus === "approved" || order.status === "approved") &&
+            (lifecycleStatus.lifecycleStage === "approved" || !lifecycleStatus.isBlocked);
+          
+          if (isFullyApproved) {
+            return (
+              <Alert severity="success" sx={{ mb: 2 }} icon={<CheckCircle size={24} />}>
+                <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Order Approved
+                </Typography>
+                <Typography variant="body2">
+                  This order has been fully approved through all stages and is ready for processing.
+                </Typography>
+              </Alert>
+            );
+          }
+          return null;
+        })()}
+
         {/* Blocking Reason Alert - Backend Intelligence */}
         {(() => {
           const lifecycleStatus = getOrderLifecycleStatus(order);

@@ -21,7 +21,7 @@ import {
   LinearProgress,
   Tooltip,
 } from "@mui/material";
-import { orderAPI, materialAPI, invoiceAPI } from "../../services/api";
+import { orderAPI, materialAPI, invoiceAPI, userAPI, dealerAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
 import { getOrderLifecycleStatus, getInventoryImpact, getApprovalProgress } from "../../utils/orderLifecycle";
 import { Clock, AlertCircle, CheckCircle, XCircle } from "lucide-react";
@@ -35,6 +35,8 @@ export default function MyOrders() {
   const [description, setDescription] = useState("");
   const [snack, setSnack] = useState({ open: false, severity: "success", message: "" });
   const [workflows, setWorkflows] = useState({}); // Store workflow data per order
+  const [approvers, setApprovers] = useState({}); // Store approver info per order: { orderId: { name, role } }
+  const [dealerAdminApprover, setDealerAdminApprover] = useState(null); // For dealer_staff creator → their dealer_admin manager
   const { user: currentUser } = useAuth();
 
   useEffect(() => {
@@ -75,6 +77,78 @@ export default function MyOrders() {
           if (workflow) workflowMap[orderId] = workflow;
         });
         setWorkflows(workflowMap);
+
+        // 4. Load approver information for pending orders (generic, by stage/manager)
+        const approverPromises = (Array.isArray(ordersList) ? ordersList : [])
+          .filter((order) => {
+            const workflow = workflowMap[order.id];
+            const isPending =
+              workflow?.approvalStatus === "pending" ||
+              order.approvalStatus === "pending" ||
+              order.status === "pending";
+            return isPending && (order.dealerId || order.dealer?.id);
+          })
+          .map(async (order) => {
+            try {
+              const workflow = workflowMap[order.id];
+              const currentStage = workflow?.currentStage || order.approvalStage || order.currentStage;
+
+              if (!currentStage) return { orderId: order.id, approver: null };
+
+              const dealerId = order.dealerId || order.dealer?.id;
+
+              // For non-dealer_admin stages (territory_manager, area_manager, etc.), try dealer.managerId
+              if (currentStage !== "dealer_admin" && dealerId) {
+                const dealerRes = await dealerAPI.getDealerById(dealerId).catch(() => null);
+                const dealer = dealerRes?.dealer || dealerRes?.data || dealerRes;
+
+                if (dealer?.managerId) {
+                  const managerRes = await userAPI.getUserById(dealer.managerId).catch(() => null);
+                  const manager = managerRes?.user || managerRes?.data || managerRes;
+
+                  if (manager) {
+                    const roleName = manager.role?.name || manager.role || currentStage;
+                    const formattedRole = roleName
+                      .split("_")
+                      .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                      .join(" ");
+
+                    return {
+                      orderId: order.id,
+                      approver: {
+                        name: manager.name || manager.username || formattedRole,
+                        role: formattedRole,
+                      },
+                    };
+                  }
+                }
+              }
+
+              // Fallback: just show the role name
+              const formattedRole = currentStage
+                .split("_")
+                .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                .join(" ");
+
+              return {
+                orderId: order.id,
+                approver: {
+                  name: formattedRole,
+                  role: formattedRole,
+                },
+              };
+            } catch (err) {
+              console.debug("Could not fetch approver for order:", order.id, err);
+              return { orderId: order.id, approver: null };
+            }
+          });
+
+        const approverResults = await Promise.all(approverPromises);
+        const approverMap = {};
+        approverResults.forEach(({ orderId, approver }) => {
+          if (approver) approverMap[orderId] = approver;
+        });
+        setApprovers(approverMap);
       } catch (err) {
         console.error(err);
       }
@@ -84,6 +158,29 @@ export default function MyOrders() {
   }, []);
 
   // Use lifecycle-aware status utility instead of hardcoded colors
+
+  // Load the specific dealer_admin manager for this dealer_staff (if any)
+  useEffect(() => {
+    const loadDealerAdminApprover = async () => {
+      try {
+        const role = (currentUser?.role || "").toLowerCase();
+        if (role !== "dealer_staff" || !currentUser?.managerId) return;
+
+        const res = await userAPI.getUserById(currentUser.managerId).catch(() => null);
+        const manager = res?.user || res?.data || res;
+        if (!manager) return;
+
+        setDealerAdminApprover({
+          name: manager.name || manager.username || "Dealer Admin",
+          role: "Dealer Admin",
+        });
+      } catch (err) {
+        console.debug("Could not load dealer admin approver for current user:", err);
+      }
+    };
+
+    loadDealerAdminApprover();
+  }, [currentUser]);
 
   const refreshOrders = async () => {
     try {
@@ -163,6 +260,41 @@ export default function MyOrders() {
                 const lifecycleStatus = getOrderLifecycleStatus(order);
                 const workflow = workflows[order.id];
                 const approvalProgress = getApprovalProgress(workflow);
+
+                // Determine which role/stage is currently responsible for approval
+                const currentStage =
+                  workflow?.currentStage ||
+                  lifecycleStatus.approvalStage ||
+                  order.approvalStage ||
+                  order.currentStage;
+
+                const formatStageName = (stage) => {
+                  if (!stage) return null;
+                  return stage
+                    .split("_")
+                    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+                    .join(" ");
+                };
+
+                // Get approver info for this order
+                let approver = approvers[order.id];
+                // For dealer_staff creator, if stage is dealer_admin, use their assigned dealer_admin manager
+                if (
+                  currentStage === "dealer_admin" &&
+                  (currentUser?.role || "").toLowerCase() === "dealer_staff" &&
+                  dealerAdminApprover
+                ) {
+                  approver = dealerAdminApprover;
+                }
+                const pendingApproverLabel =
+                  (workflow?.approvalStatus === "pending" ||
+                    lifecycleStatus.lifecycleStage === "pending_approval" ||
+                    order.approvalStatus === "pending" ||
+                    order.status === "pending") && currentStage
+                    ? approver
+                      ? `Waiting for ${approver.name} (${approver.role}) approval`
+                      : `Waiting for ${formatStageName(currentStage)} approval`
+                    : null;
                 const inventoryImpact = getInventoryImpact(order);
 
                 // join material names for display
@@ -233,6 +365,15 @@ export default function MyOrders() {
                           }
                         />
                       </Tooltip>
+                      {pendingApproverLabel && (
+                        <Typography
+                          variant="caption"
+                          color="text.secondary"
+                          sx={{ display: "block", mt: 0.5, fontSize: "0.7rem" }}
+                        >
+                          {pendingApproverLabel}
+                        </Typography>
+                      )}
                       {lifecycleStatus.isBlocked && lifecycleStatus.blockingReason && (
                         <Typography variant="caption" color="text.secondary" sx={{ display: "block", mt: 0.5, fontSize: "0.7rem" }}>
                           {lifecycleStatus.blockingReason}

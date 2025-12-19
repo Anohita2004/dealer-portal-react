@@ -258,6 +258,11 @@ export const orderAPI = {
   getAllOrders: (params) =>
     api.get("/orders", { params }).then((r) => r.data),
 
+  // Unified pending orders endpoint for all approver roles
+  // Backend endpoint: GET /api/orders/pending
+  getPendingOrders: (params) =>
+    api.get("/orders/pending", { params }).then((r) => r.data),
+
   // Get order by ID
   getOrderById: (id) =>
     api.get(`/orders/${id}`).then((r) => r.data),
