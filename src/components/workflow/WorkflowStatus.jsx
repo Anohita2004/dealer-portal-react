@@ -1,5 +1,5 @@
 import React from "react";
-import { Box, Chip, Typography, LinearProgress } from "@mui/material";
+import { Box, Chip, Typography, LinearProgress, Skeleton, useTheme } from "@mui/material";
 import { CheckCircle, Clock, XCircle, AlertCircle } from "lucide-react";
 import { formatDistanceToNow } from "date-fns";
 
@@ -8,12 +8,29 @@ import { formatDistanceToNow } from "date-fns";
  * Displays current stage in pipeline, completed stages, pending stages, and SLA countdown
  */
 export default function WorkflowStatus({ workflow, entityType = "order" }) {
+  const theme = useTheme();
+
   if (!workflow) {
     return (
-      <Box sx={{ p: 2, textAlign: "center" }}>
-        <Typography variant="body2" color="text.secondary">
-          Loading workflow status...
-        </Typography>
+      <Box
+        sx={{
+          p: 3,
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: 2,
+          bgcolor: "background.paper",
+        }}
+      >
+        <Box sx={{ display: "flex", justifyContent: "space-between", mb: 2 }}>
+          <Skeleton variant="text" width={150} height={32} />
+          <Skeleton variant="rounded" width={80} height={24} />
+        </Box>
+        <Box sx={{ mb: 3 }}>
+          <Skeleton variant="text" width="100%" />
+          <Skeleton variant="rounded" width="100%" height={8} sx={{ mt: 1 }} />
+        </Box>
+        <Skeleton variant="rounded" width="100%" height={80} sx={{ mb: 2 }} />
+        <Skeleton variant="rounded" width="100%" height={60} />
       </Box>
     );
   }
@@ -132,11 +149,11 @@ export default function WorkflowStatus({ workflow, entityType = "order" }) {
         >
           <Box sx={{ display: "flex", alignItems: "center", gap: 1, mb: 1 }}>
             {isApproved ? (
-              <CheckCircle size={20} color="#22c55e" />
+              <CheckCircle size={20} color={theme.palette.success.main} />
             ) : isRejected ? (
-              <XCircle size={20} color="#ef4444" />
+              <XCircle size={20} color={theme.palette.error.main} />
             ) : (
-              <Clock size={20} color="#f59e0b" />
+              <Clock size={20} color={theme.palette.warning.main} />
             )}
             <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
               Current Stage: {formatStageName(currentStage)}
@@ -176,14 +193,14 @@ export default function WorkflowStatus({ workflow, entityType = "order" }) {
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             {slaStatus.isOverdue ? (
               <>
-                <AlertCircle size={20} color="#ef4444" />
+                <AlertCircle size={20} color={theme.palette.error.main} />
                 <Typography variant="body2" sx={{ fontWeight: 600, color: "error.main" }}>
                   Overdue: {slaStatus.diffHours}h {slaStatus.diffMinutes}m
                 </Typography>
               </>
             ) : (
               <>
-                <Clock size={20} color={slaStatus.isDueSoon ? "#f59e0b" : "#3b82f6"} />
+                <Clock size={20} color={slaStatus.isDueSoon ? theme.palette.warning.main : theme.palette.info.main} />
                 <Typography
                   variant="body2"
                   sx={{
@@ -227,22 +244,22 @@ export default function WorkflowStatus({ workflow, entityType = "order" }) {
                   isCompleted || isApproved
                     ? "success.50"
                     : isCurrent
-                    ? "primary.50"
-                    : "grey.50",
+                      ? "primary.50"
+                      : "grey.50",
                 border: "1px solid",
                 borderColor:
                   isCompleted || isApproved
                     ? "success.200"
                     : isCurrent
-                    ? "primary.200"
-                    : "grey.200",
+                      ? "primary.200"
+                      : "grey.200",
               }}
             >
               <Box sx={{ minWidth: 24, display: "flex", justifyContent: "center" }}>
                 {isCompleted || isApproved ? (
-                  <CheckCircle size={20} color="#22c55e" />
+                  <CheckCircle size={20} color={theme.palette.success.main} />
                 ) : isCurrent ? (
-                  <Clock size={20} color="#3b82f6" />
+                  <Clock size={20} color={theme.palette.info.main} />
                 ) : (
                   <Box
                     sx={{

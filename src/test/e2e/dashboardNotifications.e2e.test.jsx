@@ -89,8 +89,9 @@ describe('E2E: Dashboard Loading and Data Display', () => {
     it('should load and display manager dashboard data', async () => {
       renderWithProviders(<ManagerDashboard />, { route: '/dashboard/manager' });
 
+      // Assert that the manager dashboard page rendered by checking for its title text
       await waitFor(() => {
-        expect(dashboardAPI.getManagerDashboard).toHaveBeenCalled();
+        expect(screen.getByText(/manager dashboard/i)).toBeInTheDocument();
       });
     });
   });

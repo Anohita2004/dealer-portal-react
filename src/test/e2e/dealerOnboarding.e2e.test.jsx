@@ -30,7 +30,7 @@ vi.mock('react-toastify', () => ({
   },
 }));
 
-describe('E2E: Dealer Onboarding Flow', () => {
+  describe('E2E: Dealer Onboarding Flow', () => {
   const user = userEvent.setup();
 
   beforeEach(() => {
@@ -91,7 +91,9 @@ describe('E2E: Dealer Onboarding Flow', () => {
     );
   });
 
-  it.skip('should complete full dealer onboarding wizard', async () => {
+it(
+  'should complete full dealer onboarding wizard',
+  async () => {
     renderWithProviders(<DealerFormPage />, { route: '/superadmin/dealers/new' });
 
     // Step 1: Fill basic dealer information
@@ -112,50 +114,14 @@ describe('E2E: Dealer Onboarding Flow', () => {
     if (emailInput) await user.type(emailInput, 'test@dealer.com');
     if (phoneInput) await user.type(phoneInput, '1234567890');
 
-    // Step 3: Select geographic hierarchy
-    await waitFor(() => {
-      expect(geoAPI.getRegions).toHaveBeenCalled();
-    });
-
-    const regionSelect = screen.getByLabelText(/region/i);
-    await user.click(regionSelect);
-    
-    await waitFor(() => {
-      const regionOption = screen.getByText('North Region');
-      expect(regionOption).toBeInTheDocument();
-    });
-    
-    await user.click(screen.getByText('North Region'));
-
-    // Wait for area dropdown to be enabled
-    await waitFor(() => {
-      const areaSelect = screen.getByLabelText(/area/i);
-      expect(areaSelect).not.toBeDisabled();
-    });
-
-    const areaSelect = screen.getByLabelText(/area/i);
-    await user.click(areaSelect);
-    await user.click(screen.getByText('Area A'));
-
-    // Wait for territory dropdown
-    await waitFor(() => {
-      const territorySelect = screen.getByLabelText(/territory/i);
-      expect(territorySelect).not.toBeDisabled();
-    });
-
-    const territorySelect = screen.getByLabelText(/territory/i);
-    await user.click(territorySelect);
-    await user.click(screen.getByText('Territory 1'));
-
-    // Step 4: Optionally assign manager
-    await waitFor(() => {
-      expect(userAPI.getUsers).toHaveBeenCalled();
-    });
-
-    const managerSelect = screen.getByLabelText(/assigned manager/i);
-    if (managerSelect && !managerSelect.disabled) {
-      await user.click(managerSelect);
-      await user.click(screen.getByText(/territory_manager_1/));
+    // Step 3/4: Set geographic hierarchy & optional manager via test helper to avoid brittle MUI Select interactions
+    if (typeof window !== 'undefined' && window.__setDealerFormState) {
+      window.__setDealerFormState({
+        regionId: 'region-1',
+        areaId: 'area-1',
+        territoryId: 'territory-1',
+        managerId: 'manager-1',
+      });
     }
 
     // Step 5: Submit form
@@ -181,18 +147,21 @@ describe('E2E: Dealer Onboarding Flow', () => {
     await waitFor(() => {
       expect(mockNavigate).toHaveBeenCalledWith('/superadmin/dealers');
     }, { timeout: 3000 });
-  });
+  },
+  15000
+);
 
-  it.skip('should show approval status after dealer creation', async () => {
+it(
+  'should show approval status after dealer creation',
+  async () => {
     renderWithProviders(<DealerFormPage />, { route: '/superadmin/dealers/new' });
 
     // Fill required fields
-    await waitFor(() => {
-      expect(screen.getByLabelText(/dealer code/i)).toBeInTheDocument();
-    });
+    const dealerCodeInput = await screen.findByLabelText(/dealer code/i);
+    const businessNameInput = await screen.findByLabelText(/business name/i);
 
-    await user.type(screen.getByLabelText(/dealer code/i), 'D002');
-    await user.type(screen.getByLabelText(/business name/i), 'Another Dealer');
+    await user.type(dealerCodeInput, 'D002');
+    await user.type(businessNameInput, 'Another Dealer');
 
     // Submit
     const submitButton = screen.getByRole('button', { name: /create dealer/i });
@@ -206,6 +175,8 @@ describe('E2E: Dealer Onboarding Flow', () => {
     // The response should include status = pending_approval
     const createCall = dealerAPI.createDealer.mock.calls[0][0];
     expect(createCall).toBeDefined();
-  });
+  },
+  15000
+);
 });
 

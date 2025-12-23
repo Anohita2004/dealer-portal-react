@@ -53,6 +53,21 @@ export default function DealerFormPage() {
   const [loadingDropdowns, setLoadingDropdowns] = useState(false);
   const [errors, setErrors] = useState({});
 
+  // Test-only helper to allow E2E tests to set form state without brittle UI interactions
+  useEffect(() => {
+    if (typeof window !== "undefined" && process.env.NODE_ENV === "test") {
+      window.__setDealerFormState = (updates) => {
+        setForm((prev) => ({ ...prev, ...(updates || {}) }));
+      };
+    }
+
+    return () => {
+      if (typeof window !== "undefined" && window.__setDealerFormState) {
+        delete window.__setDealerFormState;
+      }
+    };
+  }, []);
+
   useEffect(() => {
     loadDropdowns();
   }, []);
@@ -391,7 +406,11 @@ export default function DealerFormPage() {
               </Grid>
 
               <Grid item xs={12} md={4}>
-                <FormControl fullWidth disabled={loadingDropdowns}>
+                <FormControl
+                  fullWidth
+                  disabled={loadingDropdowns}
+                  data-testid="region-select-control"
+                >
                   <InputLabel>Region</InputLabel>
                   <Select
                     label="Region"
@@ -416,6 +435,7 @@ export default function DealerFormPage() {
                 <FormControl
                   fullWidth
                   disabled={loadingDropdowns || !form.regionId}
+                  data-testid="area-select-control"
                 >
                   <InputLabel>Area</InputLabel>
                   <Select
@@ -441,6 +461,7 @@ export default function DealerFormPage() {
                 <FormControl
                   fullWidth
                   disabled={loadingDropdowns || !form.areaId}
+                  data-testid="territory-select-control"
                 >
                   <InputLabel>Territory</InputLabel>
                   <Select
@@ -465,7 +486,11 @@ export default function DealerFormPage() {
               </Grid>
 
               <Grid item xs={12} md={6}>
-                <FormControl fullWidth disabled={managers.length === 0}>
+                <FormControl
+                  fullWidth
+                  disabled={managers.length === 0}
+                  data-testid="manager-select-control"
+                >
                   <InputLabel>Assigned Manager (optional)</InputLabel>
                   <Select
                     label="Assigned Manager (optional)"

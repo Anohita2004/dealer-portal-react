@@ -103,7 +103,19 @@ export default function ManagerDashboard() {
       setPendingApprovals(pricingRes.status === 'fulfilled' ? (pricingRes.value.data?.updates || pricingRes.value.updates || []) : []);
       setMessages(msgRes.status === 'fulfilled' ? (msgRes.value.data?.messages || msgRes.value.messages || msgRes.value || []) : []);
       setCampaigns(campRes.status === 'fulfilled' ? (campRes.value.data?.campaigns || campRes.value.campaigns || campRes.value || []) : []);
-      setInventory(invRes.status === 'fulfilled' ? (invRes.value.data?.inventory || invRes.value.inventory || invRes.value || []) : []);
+      // Ensure inventory is always an array
+      let inventoryData = [];
+      if (invRes.status === 'fulfilled') {
+        const value = invRes.value;
+        if (Array.isArray(value)) {
+          inventoryData = value;
+        } else if (value?.data?.inventory && Array.isArray(value.data.inventory)) {
+          inventoryData = value.data.inventory;
+        } else if (value?.inventory && Array.isArray(value.inventory)) {
+          inventoryData = value.inventory;
+        }
+      }
+      setInventory(inventoryData);
 
       const trend = trendRes.status === 'fulfilled' ? (trendRes.value.trend || trendRes.value.data || []) : [];
       setSalesTrend(formatTrendData(trend));
@@ -204,12 +216,14 @@ export default function ManagerDashboard() {
     };
   }, []);
 
-  const lowStock = inventory.filter((i) => safeNum(i.available) < 20);
-  const mediumStock = inventory.filter((i) => {
+  // Ensure inventory is an array before filtering
+  const inventoryArray = Array.isArray(inventory) ? inventory : [];
+  const lowStock = inventoryArray.filter((i) => safeNum(i.available) < 20);
+  const mediumStock = inventoryArray.filter((i) => {
     const a = safeNum(i.available);
     return a >= 20 && a < 100;
   });
-  const highStock = inventory.filter((i) => safeNum(i.available) >= 100);
+  const highStock = inventoryArray.filter((i) => safeNum(i.available) >= 100);
 
   const handlePricingAction = async (id, action) => {
     try {
@@ -420,7 +434,7 @@ export default function ManagerDashboard() {
           </Card>
 
           <Card title="Stock Health Overview" style={{ marginBottom: 16 }}>
-            {inventory.length ? (
+            {inventoryArray.length ? (
               <div style={{ display: "flex", justifyContent: "space-around", textAlign: "center" }}>
                 <div>
                   <h3 style={{ color: "var(--color-error)" }}>{lowStock.length}</h3>
@@ -547,18 +561,18 @@ export default function ManagerDashboard() {
           </Card>
 
           <Card title="Stock Distribution" className="side-card" style={{ marginTop: 12 }}>
-            {inventory.length ? (
+            {inventoryArray.length ? (
               <ResponsiveContainer width="100%" height={180}>
                 <PieChart>
                   <Pie
-                    data={inventory.slice(0, 6).map((it) => ({ name: it.product || it.sku || "Item", value: safeNum(it.available) }))}
+                    data={inventoryArray.slice(0, 6).map((it) => ({ name: it.product || it.sku || "Item", value: safeNum(it.available) }))}
                     dataKey="value"
                     nameKey="name"
                     outerRadius={70}
                     innerRadius={30}
                     label
                   >
-                    {inventory.slice(0, 6).map((_, i) => (
+                    {inventoryArray.slice(0, 6).map((_, i) => (
                       <Cell key={i} fill={COLORS[i % COLORS.length]} />
                     ))}
                   </Pie>

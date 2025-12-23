@@ -61,24 +61,34 @@ global.localStorage = localStorageMock;
 global.fetch = vi.fn();
 
 // Mock IntersectionObserver
-global.IntersectionObserver = class IntersectionObserver {
+class MockIntersectionObserver {
   constructor() {}
   disconnect() {}
   observe() {}
+  unobserve() {}
   takeRecords() {
     return [];
   }
-  unobserve() {}
-};
+}
+
+global.IntersectionObserver = MockIntersectionObserver;
+if (typeof window !== 'undefined') {
+  window.IntersectionObserver = MockIntersectionObserver;
+}
 
 // Mock ResizeObserver for charts (e.g., Recharts ResponsiveContainer)
+class MockResizeObserver {
+  constructor() {}
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+}
+
 if (typeof global.ResizeObserver === 'undefined') {
-  global.ResizeObserver = class ResizeObserver {
-    constructor() {}
-    observe() {}
-    unobserve() {}
-    disconnect() {}
-  };
+  global.ResizeObserver = MockResizeObserver;
+}
+if (typeof window !== 'undefined' && typeof window.ResizeObserver === 'undefined') {
+  window.ResizeObserver = MockResizeObserver;
 }
 
 // Mock import.meta.env for Vite - this must be done before any imports that use it

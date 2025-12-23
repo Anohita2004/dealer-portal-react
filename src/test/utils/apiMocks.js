@@ -7,11 +7,11 @@ import { vi } from 'vitest';
 export const createApiMocks = () => ({
   // Core API instance
   default: {
-    get: vi.fn(),
-    post: vi.fn(),
-    put: vi.fn(),
-    patch: vi.fn(),
-    delete: vi.fn(),
+    get: vi.fn(() => Promise.resolve({ data: {} })),
+    post: vi.fn(() => Promise.resolve({ data: {} })),
+    put: vi.fn(() => Promise.resolve({ data: {} })),
+    patch: vi.fn(() => Promise.resolve({ data: {} })),
+    delete: vi.fn(() => Promise.resolve({ data: {} })),
     interceptors: {
       request: { use: vi.fn(), eject: vi.fn() },
       response: { use: vi.fn(), eject: vi.fn() },
@@ -80,14 +80,14 @@ export const createApiMocks = () => ({
   },
   
   documentAPI: {
-    getDocuments: vi.fn(),
-    uploadDocument: vi.fn(),
-    downloadDocument: vi.fn(),
+    getDocuments: vi.fn(() => Promise.resolve({ data: { documents: [] } })),
+    uploadDocument: vi.fn(() => Promise.resolve({})),
+    downloadDocument: vi.fn(() => Promise.resolve({})),
   },
   
   pricingAPI: {
-    getPending: vi.fn(),
-    approvePricing: vi.fn(),
+    getPending: vi.fn(() => Promise.resolve({ data: { updates: [] } })),
+    approvePricing: vi.fn(() => Promise.resolve({})),
   },
   
   invoiceAPI: {
@@ -112,8 +112,8 @@ export const createApiMocks = () => ({
   },
   
   chatAPI: {
-    getMessages: vi.fn(),
-    sendMessage: vi.fn(),
+    getMessages: vi.fn(() => Promise.resolve({ messages: [] })),
+    sendMessage: vi.fn(() => Promise.resolve({})),
   },
   
   notificationAPI: {
@@ -124,11 +124,11 @@ export const createApiMocks = () => ({
   },
   
   campaignAPI: {
-    getCampaigns: vi.fn(),
-    getActiveCampaigns: vi.fn(),
-    createCampaign: vi.fn(),
-    updateCampaign: vi.fn(),
-    deleteCampaign: vi.fn(),
+    getCampaigns: vi.fn(() => Promise.resolve({ campaigns: [] })),
+    getActiveCampaigns: vi.fn(() => Promise.resolve({ data: [] })),
+    createCampaign: vi.fn(() => Promise.resolve({})),
+    updateCampaign: vi.fn(() => Promise.resolve({})),
+    deleteCampaign: vi.fn(() => Promise.resolve({})),
   },
   
   reportAPI: {
@@ -157,25 +157,33 @@ export const createApiMocks = () => ({
   },
   
   featureToggleAPI: {
-    getFeatures: vi.fn(),
+    getFeatures: vi.fn(() => Promise.resolve({ features: [] })),
   },
   
   teamAPI: {
-    getTeams: vi.fn(),
-    createTeam: vi.fn(),
+    getTeams: vi.fn(() => Promise.resolve([])),
+    createTeam: vi.fn(() => Promise.resolve({})),
   },
   
   inventoryAPI: {
-    getSummary: vi.fn(),
+    getSummary: vi.fn(() => Promise.resolve({ data: {} })),
   },
   
   adminAPI: {
-    getStats: vi.fn(),
+    getStats: vi.fn(() => Promise.resolve({})),
   },
   
   managerAPI: {
-    getDealers: vi.fn(),
-    assignDealer: vi.fn(),
+    getDealers: vi.fn(() => Promise.resolve({ data: { dealers: [] } })),
+    assignDealer: vi.fn(() => Promise.resolve({})),
+  },
+
+  // Geo API – extend with heatmapData for SuperAdminDashboard
+  geoAPI: {
+    getRegions: vi.fn(() => Promise.resolve([])),
+    getAreas: vi.fn(() => Promise.resolve([])),
+    getTerritories: vi.fn(() => Promise.resolve([])),
+    getHeatmapData: vi.fn(() => Promise.resolve([])),
   },
 });
 
