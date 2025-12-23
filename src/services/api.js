@@ -493,6 +493,10 @@ export const materialAPI = {
   getMaterials: (params) =>
     api.get("/materials", { params }).then((r) => r.data),
 
+  // Get materials mapped to a specific dealer (for sales_executive, etc.)
+  getDealerMaterials: (dealerId) =>
+    api.get(`/materials/dealer/${dealerId}`).then((r) => r.data),
+
   // Get material groups
   getMaterialGroups: () =>
     api.get("/material-groups").then((r) => r.data),
@@ -530,6 +534,40 @@ export const materialAPI = {
   // Get material alerts
   getAlerts: () =>
     api.get("/materials/alerts").then((r) => r.data),
+
+  // ================== REGION / DEALER MATERIAL MAPPINGS ==================
+
+  // Get materials mapped to a specific region (admin-only)
+  getRegionMaterials: (regionId) =>
+    api.get(`/regions/${regionId}/materials`).then((r) => r.data),
+
+  // Assign materials to region
+  assignRegionMaterials: (regionId, materialIds) =>
+    api
+      .post(`/regions/${regionId}/materials`, { materialIds })
+      .then((r) => r.data),
+
+  // Unassign single material from region
+  unassignRegionMaterial: (regionId, materialId) =>
+    api
+      .delete(`/regions/${regionId}/materials/${materialId}`)
+      .then((r) => r.data),
+
+  // Get materials mapped to a specific dealer (admin view of mappings)
+  getDealerMaterialAssignments: (dealerId) =>
+    api.get(`/dealers/${dealerId}/materials`).then((r) => r.data),
+
+  // Assign materials to dealer
+  assignDealerMaterials: (dealerId, materialIds) =>
+    api
+      .post(`/dealers/${dealerId}/materials`, { materialIds })
+      .then((r) => r.data),
+
+  // Unassign single material from dealer
+  unassignDealerMaterial: (dealerId, materialId) =>
+    api
+      .delete(`/dealers/${dealerId}/materials/${materialId}`)
+      .then((r) => r.data),
 };
 
 // =======================================================================

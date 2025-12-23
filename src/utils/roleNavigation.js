@@ -84,6 +84,9 @@ export const ROUTE_ROLES = {
     "area_manager",
     "territory_manager",
   ],
+  "/sales/my-dealers": ["sales_executive"],
+  "/sales/orders/new": ["sales_executive"],
+  "/sales/payments/new": ["sales_executive"],
 };
 
 /**

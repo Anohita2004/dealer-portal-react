@@ -23,6 +23,7 @@ import {
 } from "@mui/material";
 import { orderAPI, materialAPI, invoiceAPI, userAPI, dealerAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
+import { getRoleName } from "../../utils/authUtils";
 import { getOrderLifecycleStatus, getInventoryImpact, getApprovalProgress } from "../../utils/orderLifecycle";
 import { Clock, AlertCircle, CheckCircle, XCircle } from "lucide-react";
 
@@ -42,10 +43,20 @@ export default function MyOrders() {
   useEffect(() => {
     async function loadData() {
       try {
-        // 1. Load materials
-        const mres = await materialAPI.getMaterials();
+        // 1. Load materials (dealer-scoped for dealer / sales roles)
+        const role = getRoleName(currentUser)?.toLowerCase?.() || (currentUser?.role || "").toLowerCase();
+        let mres;
+        if (
+          (role === "dealer_admin" || role === "dealer_staff" || role === "sales_executive") &&
+          currentUser?.dealerId
+        ) {
+          mres = await materialAPI.getDealerMaterials(currentUser.dealerId);
+        } else {
+          mres = await materialAPI.getMaterials();
+        }
+        const list = mres?.materials || mres?.data?.materials || mres?.data || mres || [];
         const matMap = {};
-        (mres?.materials || []).forEach((m) => {
+        (Array.isArray(list) ? list : []).forEach((m) => {
           matMap[m.id] = m;
         });
         setMaterials(matMap);
@@ -299,7 +310,12 @@ export default function MyOrders() {
 
                 // join material names for display
                 const materialsText = (order.items || [])
-                  .map((it) => materials[it.materialId]?.name || "Unknown")
+                  .map(
+                    (it) =>
+                      it.materialName ||
+                      materials[it.materialId]?.name ||
+                      "Unknown"
+                  )
                   .join(", ");
 
                 const totalQty = (order.items || []).reduce(

@@ -9,6 +9,7 @@ import {
   DialogActions,
   Typography,
   Alert,
+  Chip,
 } from "@mui/material";
 import { CheckCircle, XCircle, AlertCircle } from "lucide-react";
 import { useAuth } from "../../context/AuthContext";
@@ -47,15 +48,12 @@ export default function ApprovalActions({
   const canApprove = () => {
     if (!user || !currentStage || isApproved || isRejected) return false;
 
-     // Regional Managers have read-only visibility across workflows and
-     // must not perform approve/reject actions at any stage.
-     if (role === "regional_manager") return false;
-
     // Map user role to stage
     const roleToStage = {
       dealer_admin: "dealer_admin",
       territory_manager: "territory_manager",
       area_manager: "area_manager",
+      regional_manager: "regional_manager",
       regional_admin: "regional_admin",
       super_admin: "super_admin",
     };
@@ -140,32 +138,18 @@ export default function ApprovalActions({
         <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
           Approval Actions
         </Typography>
-        {role === "regional_manager" ? (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                Read-only workflow view
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Regional Managers track execution, delays, and risks for their dealers but do not approve or reject at any workflow stage.
-                Please escalate to your Regional Admin or the appropriate approver if an order or document needs attention.
-              </Typography>
-            </Box>
-          </Alert>
-        ) : (
-          <Alert severity="info" sx={{ mb: 2 }}>
-            <Box>
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                Waiting for {formatStageName(currentStage)} approval
-              </Typography>
-              <Typography variant="caption" color="text.secondary">
-                Your role ({user?.role ? formatStageName(user.role) : "N/A"}) does not match the current approval stage.{" "}
-                This item is currently at the <strong>{formatStageName(currentStage)}</strong> stage and requires approval from a{" "}
-                {formatStageName(currentStage)}.
-              </Typography>
-            </Box>
-          </Alert>
-        )}
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Box>
+            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+              Waiting for {formatStageName(currentStage)} approval
+            </Typography>
+            <Typography variant="caption" color="text.secondary">
+              Your role ({user?.role ? formatStageName(user.role) : "N/A"}) does not match the current approval stage.{" "}
+              This item is currently at the <strong>{formatStageName(currentStage)}</strong> stage and requires approval from a{" "}
+              {formatStageName(currentStage)}.
+            </Typography>
+          </Box>
+        </Alert>
         {pipeline && pipeline.length > 0 && (
           <Box sx={{ mt: 2 }}>
             <Typography variant="caption" color="text.secondary" sx={{ display: "block", mb: 1 }}>

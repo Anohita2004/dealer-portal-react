@@ -18,12 +18,73 @@ export default function FinancePendingPayments() {
   const load = async () => {
     setLoading(true);
     try {
-      const res = await paymentAPI.getFinancePending();
-      const paymentsList = res.payments || res.data || res || [];
+      let res;
+      const role = user?.role?.toLowerCase();
+      
+      // Role-based endpoint selection
+      if (role === "dealer_admin") {
+        res = await paymentAPI.getDealerPending();
+      } else if (role === "finance_admin" || role === "accounts_user") {
+        res = await paymentAPI.getFinancePending();
+      } else {
+        // For manager roles (territory_manager, area_manager, regional_manager, regional_admin)
+        // Try finance pending first, then filter by workflow stage
+        try {
+          res = await paymentAPI.getFinancePending();
+        } catch (e) {
+          // If finance pending fails, try dealer pending
+          try {
+            res = await paymentAPI.getDealerPending();
+          } catch (e2) {
+            // If both fail, user doesn't have access
+            if (e2?.response?.status === 403 || e2?.response?.status === 404) {
+              setHasAccess(false);
+              setPayments([]);
+              return;
+            }
+            throw e2;
+          }
+        }
+      }
+      
+      let paymentsList = Array.isArray(res) ? res : res.payments || res.data || res || [];
+      
+      // For manager roles, filter by workflow stage
+      if (["territory_manager", "area_manager", "regional_manager", "regional_admin"].includes(role)) {
+        // Fetch workflow status for each payment and filter by current stage
+        const filteredPayments = [];
+        for (const payment of paymentsList) {
+          try {
+            const workflowRes = await paymentAPI.getWorkflowStatus(payment.id);
+            const workflow = workflowRes.workflow || workflowRes.data || workflowRes;
+            const currentStage = workflow?.currentStage || payment.approvalStage;
+            
+            // Map role to stage name
+            const roleToStage = {
+              territory_manager: "territory_manager",
+              area_manager: "area_manager",
+              regional_manager: "regional_manager",
+              regional_admin: "regional_admin",
+            };
+            
+            const userStage = roleToStage[role];
+            if (currentStage === userStage && workflow?.approvalStatus === "pending") {
+              filteredPayments.push(payment);
+            }
+          } catch (err) {
+            // If workflow fetch fails, include payment if it's pending
+            if (payment.status === "pending" || payment.approvalStatus === "pending") {
+              filteredPayments.push(payment);
+            }
+          }
+        }
+        paymentsList = filteredPayments;
+      }
+      
       setPayments(Array.isArray(paymentsList) ? paymentsList : []);
       setHasAccess(true);
     } catch (e) {
-      // 403 = not permitted for accounts_user (may be finance_admin only)
+      // 403 = not permitted
       // 404 = endpoint doesn't exist
       if (e?.response?.status === 403 || e?.response?.status === 404) {
         setHasAccess(false);

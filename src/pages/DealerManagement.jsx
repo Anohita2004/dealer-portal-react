@@ -56,9 +56,14 @@ export default function DealerManagement() {
   const loadManagers = async () => {
     try {
       setLoadingManagers(true);
-      // Backend scopes managers automatically; we only filter by manager roles
+      // Backend scopes managers automatically; we only filter by manager-like roles
       const params = {
-        role: ["regional_manager", "area_manager", "territory_manager"].join(","),
+        role: [
+          "regional_manager",
+          "area_manager",
+          "territory_manager",
+          "sales_executive",
+        ].join(","),
       };
       const data = await userAPI.getUsers(params);
       const list = data.users || data.data || data || [];

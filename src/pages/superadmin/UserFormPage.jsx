@@ -75,6 +75,12 @@ export default function UserFormPage() {
 
   // Role hierarchy mapping
   const roleHierarchy = {
+    sales_executive: {
+      requires: [], // Geographic assignment is optional but recommended for hierarchy visibility
+      canHaveManager: ["territory_manager", "area_manager", "regional_manager", "regional_admin"],
+      description:
+        "Sales Executives work with assigned dealers and materials. They should be assigned to an Area/Territory Manager or Regional Manager/Admin for proper hierarchy placement. They can create orders and payment requests but cannot approve workflows or manage master data.",
+    },
     dealer_staff: {
       requires: ["dealer"],
       canHaveManager: ["dealer_admin"],
@@ -200,6 +206,15 @@ export default function UserFormPage() {
           if (!manager.dealerId || manager.dealerId !== form.dealerId) return false;
         }
 
+        // For sales_executive, filter managers by geographic scope if provided
+        if (roleName === "sales_executive") {
+          // If sales executive has geographic scope, filter managers by that scope
+          if (form.regionId && manager.regionId && form.regionId !== manager.regionId) return false;
+          if (form.areaId && manager.areaId && form.areaId !== manager.areaId) return false;
+          if (form.territoryId && manager.territoryId && form.territoryId !== manager.territoryId) return false;
+          // If no geographic scope set, show all eligible managers (no filtering)
+        }
+
         return true;
       });
 
@@ -303,6 +318,12 @@ export default function UserFormPage() {
       if (hierarchy.requires.includes("dealer") && !form.dealerId) {
         newErrors.dealerId = "Dealer is required for this role";
       }
+    }
+
+    // Sales Executive must have a manager for hierarchy placement
+    const roleName = selectedRole?.name?.toLowerCase().replace(/\s+/g, "_") || "";
+    if (roleName === "sales_executive" && !form.managerId) {
+      newErrors.managerId = "Manager is required for Sales Executive (needed for company hierarchy)";
     }
 
     setErrors(newErrors);
@@ -662,14 +683,91 @@ export default function UserFormPage() {
                     </Grid>
                   )}
 
+                  {/* Optional geographic assignment for sales_executive (for hierarchy visibility) */}
+                  {selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive" && (
+                    <>
+                      <Grid item xs={12}>
+                        <Typography variant="subtitle2" sx={{ mb: 1, color: "text.secondary" }}>
+                          Geographic Assignment (Optional - Recommended for hierarchy visibility)
+                        </Typography>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <FormControl fullWidth>
+                          <InputLabel>Region (Optional)</InputLabel>
+                          <Select
+                            value={form.regionId || ""}
+                            onChange={(e) => updateField("regionId", e.target.value)}
+                            label="Region (Optional)"
+                          >
+                            <MenuItem value="">
+                              <em>None</em>
+                            </MenuItem>
+                            {regions.map((r) => (
+                              <MenuItem key={r.id} value={r.id}>
+                                {r.name || r.regionName}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                          <FormHelperText>Assign to a region for hierarchy visibility</FormHelperText>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <FormControl fullWidth disabled={!form.regionId}>
+                          <InputLabel>Area (Optional)</InputLabel>
+                          <Select
+                            value={form.areaId || ""}
+                            onChange={(e) => updateField("areaId", e.target.value)}
+                            label="Area (Optional)"
+                          >
+                            <MenuItem value="">
+                              <em>None</em>
+                            </MenuItem>
+                            {filteredAreas.map((a) => (
+                              <MenuItem key={a.id} value={a.id}>
+                                {a.name || a.areaName}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                          <FormHelperText>{!form.regionId && "Select a region first"}</FormHelperText>
+                        </FormControl>
+                      </Grid>
+                      <Grid item xs={12} md={4}>
+                        <FormControl fullWidth disabled={!form.areaId}>
+                          <InputLabel>Territory (Optional)</InputLabel>
+                          <Select
+                            value={form.territoryId || ""}
+                            onChange={(e) => updateField("territoryId", e.target.value)}
+                            label="Territory (Optional)"
+                          >
+                            <MenuItem value="">
+                              <em>None</em>
+                            </MenuItem>
+                            {filteredTerritories.map((t) => (
+                              <MenuItem key={t.id} value={t.id}>
+                                {t.name || t.territoryName}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                          <FormHelperText>{!form.areaId && "Select an area first"}</FormHelperText>
+                        </FormControl>
+                      </Grid>
+                    </>
+                  )}
+
                   {hierarchy && hierarchy.canHaveManager.length > 0 && (
                     <Grid item xs={12}>
-                      <FormControl fullWidth>
-                        <InputLabel>Manager (Optional)</InputLabel>
+                      <FormControl 
+                        fullWidth 
+                        required={selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive"}
+                        error={selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive" && !form.managerId && !!errors.managerId}
+                      >
+                        <InputLabel>
+                          Manager {selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive" ? "(Required)" : "(Optional)"}
+                        </InputLabel>
                         <Select
-                          value={form.managerId}
+                          value={form.managerId || ""}
                           onChange={(e) => updateField("managerId", e.target.value)}
-                          label="Manager (Optional)"
+                          label={`Manager ${selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive" ? "(Required)" : "(Optional)"}`}
                           disabled={managers.length === 0}
                         >
                           <MenuItem value="">
@@ -682,8 +780,11 @@ export default function UserFormPage() {
                           ))}
                         </Select>
                         <FormHelperText>
-                          {managers.length === 0
+                          {errors.managerId ? errors.managerId : 
+                           managers.length === 0
                             ? "No managers available for this role/hierarchy"
+                            : selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive"
+                            ? `Required: Assign to ${hierarchy.canHaveManager.join(", ")} for hierarchy placement`
                             : `Available managers: ${hierarchy.canHaveManager.join(", ")}`}
                         </FormHelperText>
                       </FormControl>

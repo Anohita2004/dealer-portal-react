@@ -3,6 +3,7 @@ import { Link, useLocation } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 import api from "../services/api";
 import { getSocket, connectSocket } from "../services/socket";   // ← FIXED IMPORT
+import { getRoleName, isSalesExecutive } from "../utils/authUtils";
 
 import {
   FaHome,
@@ -50,7 +51,8 @@ export default function Sidebar() {
   const [collapsed, setCollapsed] = useState(false);
   const [unread, setUnread] = useState(0);
 
-  const role = user?.role?.toLowerCase() || "user";
+  const role = getRoleName(user) || "user";
+  const salesExec = isSalesExecutive(user);
 
   const orderApprovalRoles = ["super_admin", "regional_admin", "regional_manager", "dealer_admin"];
 
@@ -68,6 +70,7 @@ export default function Sidebar() {
       { label: "Users", path: "/superadmin/users", icon: <FaUsers />, section: "Governance" },
       { label: "Roles & Permissions", path: "/superadmin/roles", icon: <FaCogs />, section: "Governance" },
       { label: "Audit Logs", path: "/superadmin/activity", icon: <FaBell />, section: "Governance" },
+      { label: "Dealer Management", path: "/dealers", icon: <FaUsers />, section: "Governance" },
       
       // Global Visibility Section
       { label: "All Orders", path: "/superadmin/orders", icon: <FaFileAlt />, section: "Global Visibility" },
@@ -83,12 +86,16 @@ export default function Sidebar() {
       // System Configuration Section
       { label: "System Admin", path: "/superadmin/system-admin", icon: <FaCogs />, section: "System Configuration" },
       { label: "Feature Toggles", path: "/superadmin/feature-toggles", icon: <FaCogs />, section: "System Configuration" },
+      { label: "Dealer Material Assignment", path: "/materials/dealers", icon: <FaBoxes />, section: "System Configuration" },
+      { label: "Region Material Availability", path: "/materials/regions", icon: <FaSitemap />, section: "System Configuration" },
     ],
     technical_admin: [
       { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
       { label: "Material Master", path: "/materials", icon: <FaCogs /> },
       { label: "Material Import", path: "/materials/import", icon: <FaUpload /> },
       { label: "Material Analytics", path: "/materials/analytics", icon: <FaChartBar /> },
+      { label: "Dealer Material Assignment", path: "/materials/dealers", icon: <FaBoxes /> },
+      { label: "Region Material Availability", path: "/materials/regions", icon: <FaSitemap /> },
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
     regional_admin: [
@@ -152,9 +159,18 @@ export default function Sidebar() {
       { label: "Area Inventory Overview", path: "/area/inventory", icon: <FaWarehouse />, section: "Inventory" },
     ],
     regional_manager: [
-      { label: "Dealers", path: "/dealers", icon: <FaUsers /> },
-      { label: "Approvals", path: "/approvals", icon: <FaChartBar /> },
-      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
+      // Dashboard Section
+      { label: "Regional Manager Dashboard", path: "/dashboard/regional-manager", icon: <FaHome />, section: "Dashboard" },
+      
+      // Hierarchy Section
+      { label: "Dealers", path: "/dealers", icon: <FaUsers />, section: "Hierarchy" },
+      
+      // Workflows Section
+      { label: "Approvals", path: "/approvals", icon: <FaClipboardList />, section: "Workflows" },
+      { label: "Invoice Approvals", path: "/invoices", icon: <FaFileInvoice />, section: "Workflows" },
+      
+      // Reports Section
+      { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt />, section: "Reports" },
     ],
     territory_manager: [
       // Dashboard Section
@@ -165,6 +181,7 @@ export default function Sidebar() {
       
       // Workflows Section
       { label: "Approvals", path: "/approvals", icon: <FaClipboardList />, section: "Workflows" },
+      { label: "Invoice Approvals", path: "/invoices", icon: <FaFileInvoice />, section: "Workflows" },
       { label: "Orders", path: "/territory/orders", icon: <FaFileAlt />, section: "Workflows" },
       { label: "Payments", path: "/territory/payments", icon: <FaMoneyCheckAlt />, section: "Workflows" },
       { label: "Documents", path: "/territory/documents", icon: <FaFileAlt />, section: "Workflows" },
@@ -235,11 +252,22 @@ export default function Sidebar() {
       // Reports Section
       { label: "Financial Reports", path: "/accounts/reports", icon: <FaChartBar />, section: "Reports" },
     ],
+
+    // ================= SALES EXECUTIVE =================
+    sales_executive: [
+      // Dashboard Section
+      { label: "Sales Dashboard", path: "/dashboard", icon: <FaHome />, section: "Dashboard" },
+
+      // Dealers & Sales Workflows
+      { label: "My Dealers", path: "/sales/my-dealers", icon: <FaUsers />, section: "Sales" },
+      { label: "Create Order", path: "/sales/orders/new", icon: <FaFileAlt />, section: "Sales" },
+      { label: "Create Payment Request", path: "/sales/payments/new", icon: <FaMoneyCheckAlt />, section: "Sales" },
+    ],
   };
 
   const links = [...baseLinks, ...(roleLinks[role] || [])];
 
-  if (orderApprovalRoles.includes(role)) {
+  if (orderApprovalRoles.includes(role) && !salesExec) {
     links.push({ label: "Order Approvals", path: "/orders/approvals", icon: <FaChartBar /> });
   }
 

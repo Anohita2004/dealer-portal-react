@@ -16,6 +16,7 @@ import RegionalManagerDashboard from "./dashboards/RegionalManagerDashboard";
 import AreaManagerDashboard from "./dashboards/AreaManagerDashboard";
 import TerritoryManagerDashboard from "./dashboards/TerritoryManagerDashboard";
 import DealerStaffDashboard from "./dashboards/DealerStaffDashboard";
+import SalesExecutiveDashboard from "./dashboards/SalesExecutiveDashboard";
 
 /**
  * Dashboard - Role-based dashboard router
@@ -37,7 +38,7 @@ export default function Dashboard() {
     return <Navigate to="/login" replace />;
   }
 
-  const role = user.role?.toLowerCase();
+  const role = (user.roleDetails?.name || user.role || "").toLowerCase();
 
   const roleMap = {
     super_admin: <SuperAdminDashboard />,
@@ -51,6 +52,7 @@ export default function Dashboard() {
     dealer_staff: <DealerStaffDashboard />,
     inventory_user: <InventoryDashboard />,
     accounts_user: <AccountsDashboard />,
+    sales_executive: <SalesExecutiveDashboard />,
   };
 
   // If role has a specific dashboard route, redirect there

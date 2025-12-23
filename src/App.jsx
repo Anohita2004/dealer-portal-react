@@ -3,7 +3,7 @@ import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { AuthProvider } from "./context/AuthContext";
 
 // 🔐 Auth
-import ProtectedRoute from "./components/ProtectedRoute";
+import ProtectedRoute, { RoleRedirect } from "./components/ProtectedRoute";
 import Layout from "./components/Layout";
 
 // 🔑 Public
@@ -68,6 +68,8 @@ import ChatUI from "./pages/ChatUI";
 import MaterialImport from "./pages/Materials/MaterialImport";
 import MaterialAnalytics from "./pages/Materials/MaterialAnalytics";
 import MaterialAlerts from "./pages/Alerts/MaterialAlerts";
+import RegionMaterialAvailability from "./pages/Materials/RegionMaterialAvailability";
+import DealerMaterialAssignment from "./pages/Materials/DealerMaterialAssignment";
 
 import RegionMap from "./pages/maps/RegionMaps";
 import FeatureToggles from "./pages/superadmin/FeatureToggles";
@@ -137,6 +139,11 @@ import TerritoryDealerPerformance from "./pages/territory/TerritoryDealerPerform
 import TerritoryOutstanding from "./pages/territory/TerritoryOutstanding";
 import TerritoryInventory from "./pages/territory/TerritoryInventory";
 
+// Sales Executive Pages
+import MyDealersPage from "./pages/sales/MyDealersPage";
+import SalesCreateOrderPage from "./pages/sales/SalesCreateOrderPage";
+import SalesCreatePaymentPage from "./pages/sales/SalesCreatePaymentPage";
+
 
 export default function App() {
   return (
@@ -179,9 +186,9 @@ export default function App() {
             }
           >
 
-            {/* ================= DEFAULT ================= */}
-            <Route index element={<Dashboard />} />
-            <Route path="dashboard" element={<Dashboard />} />
+            {/* ================= DEFAULT (ROLE-AWARE) ================= */}
+            <Route index element={<RoleRedirect />} />
+            <Route path="dashboard" element={<RoleRedirect />} />
             
             {/* ================= ROLE-BASED DASHBOARDS ================= */}
             <Route
@@ -281,7 +288,15 @@ export default function App() {
             <Route
               path="dealers"
               element={
-                <ProtectedRoute allowed={["territory_manager", "area_manager", "regional_manager"]}>
+                <ProtectedRoute
+                  allowed={[
+                    "territory_manager",
+                    "area_manager",
+                    "regional_manager",
+                    "regional_admin",
+                    "super_admin",
+                  ]}
+                >
                   <DealerManagement />
                 </ProtectedRoute>
               }
@@ -554,13 +569,13 @@ export default function App() {
               }
             />
             <Route
-  path="materials"
-  element={
-    <ProtectedRoute allowed={["technical_admin", "super_admin"]}>
-      <Materials />
-    </ProtectedRoute>
-  }
-/>
+              path="materials"
+              element={
+                <ProtectedRoute allowed={["technical_admin", "super_admin"]}>
+                  <Materials />
+                </ProtectedRoute>
+              }
+            />
 
             <Route
               path="materials/import"
@@ -576,6 +591,38 @@ export default function App() {
               element={
                 <ProtectedRoute allowed={["technical_admin", "super_admin"]}>
                   <MaterialAnalytics />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="materials/regions"
+              element={
+                <ProtectedRoute
+                  allowed={[
+                    "technical_admin",
+                    "super_admin",
+                    "inventory_user",
+                    "regional_admin",
+                  ]}
+                >
+                  <RegionMaterialAvailability />
+                </ProtectedRoute>
+              }
+            />
+
+            <Route
+              path="materials/dealers"
+              element={
+                <ProtectedRoute
+                  allowed={[
+                    "technical_admin",
+                    "super_admin",
+                    "inventory_user",
+                    "regional_admin",
+                  ]}
+                >
+                  <DealerMaterialAssignment />
                 </ProtectedRoute>
               }
             />
@@ -1038,7 +1085,7 @@ export default function App() {
             <Route
               path="invoices"
               element={
-                <ProtectedRoute allowed={["dealer_admin", "dealer_staff", "finance_admin"]}>
+                <ProtectedRoute allowed={["dealer_admin", "dealer_staff", "finance_admin", "territory_manager", "area_manager", "regional_manager", "regional_admin"]}>
                   <Invoices />
                 </ProtectedRoute>
               }
@@ -1232,6 +1279,34 @@ export default function App() {
               element={
                 <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
                   <DealerChat />
+                </ProtectedRoute>
+              }
+            />
+
+            {/* ============================================================
+               SALES EXECUTIVE
+               ============================================================ */}
+            <Route
+              path="sales/my-dealers"
+              element={
+                <ProtectedRoute allowed={["sales_executive"]}>
+                  <MyDealersPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="sales/orders/new"
+              element={
+                <ProtectedRoute allowed={["sales_executive"]}>
+                  <SalesCreateOrderPage />
+                </ProtectedRoute>
+              }
+            />
+            <Route
+              path="sales/payments/new"
+              element={
+                <ProtectedRoute allowed={["sales_executive"]}>
+                  <SalesCreatePaymentPage />
                 </ProtectedRoute>
               }
             />

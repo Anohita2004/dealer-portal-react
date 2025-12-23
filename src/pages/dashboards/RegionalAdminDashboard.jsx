@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import api, { dashboardAPI, dealerAPI, reportAPI, taskAPI, campaignAPI, geoAPI, invoiceAPI, paymentAPI } from "../../services/api";
+import api, { dashboardAPI, dealerAPI, reportAPI, taskAPI, campaignAPI, geoAPI, invoiceAPI, paymentAPI, userAPI } from "../../services/api";
 import PageHeader from "../../components/PageHeader";
 import StatCard from "../../components/StatCard";
 import Card from "../../components/Card";
@@ -33,6 +33,7 @@ export default function RegionalAdminDashboard() {
   const [territoryPerformance, setTerritoryPerformance] = useState([]);
   const [salesTrend, setSalesTrend] = useState([]);
   const [territoryRanking, setTerritoryRanking] = useState([]);
+  const [salesExecutives, setSalesExecutives] = useState([]);
 
   const loadData = useCallback(async () => {
     setLoading(true);
@@ -49,7 +50,8 @@ export default function RegionalAdminDashboard() {
         campaignsData,
         invoicesData,
         areasData,
-        tasksData
+        tasksData,
+        salesExecData,
       ] = await Promise.allSettled([
         dealerAPI.getDealers({ limit: 100, ...params }).catch(() => ({ data: [] })),
         reportAPI.getTerritoryReport({ limit: 100, ...params }).catch(() => ({ data: [] })),
@@ -59,6 +61,8 @@ export default function RegionalAdminDashboard() {
         invoiceAPI.getInvoices({ limit: 1000, ...params }).catch(() => ({ data: [], invoices: [] })),
         geoAPI.getAreas(params).catch(() => ({ data: [], areas: [] })),
         taskAPI.getTasks().catch(() => ({ tasks: [] })),
+        // Scoped by backend; filter to sales_executive role
+        userAPI.getUsers({ role: "sales_executive", limit: 200 }).catch(() => ({ users: [] })),
       ]);
 
       // Extract data from responses
@@ -89,6 +93,12 @@ export default function RegionalAdminDashboard() {
 
       const tasks = tasksData.status === 'fulfilled'
         ? (Array.isArray(tasksData.value) ? tasksData.value : tasksData.value?.tasks || [])
+        : [];
+
+      const salesExecUsers = salesExecData.status === 'fulfilled'
+        ? (Array.isArray(salesExecData.value)
+            ? salesExecData.value
+            : salesExecData.value?.users || salesExecData.value?.data || [])
         : [];
 
       // Calculate summary from available data
@@ -157,6 +167,7 @@ export default function RegionalAdminDashboard() {
         totalAreas: totalAreas,
         overdueTasks: overdueTasks,
         overduePayments: overduePayments,
+        salesExecutives: salesExecUsers.length,
       };
 
       // Fetch previous period data for comparison
@@ -205,6 +216,7 @@ export default function RegionalAdminDashboard() {
         territories: data.totalTerritories || 0,
         overdueTasks: data.overdueTasks || 0,
         overduePayments: data.overduePayments || 0,
+        salesExecutives: data.salesExecutives || 0,
       });
 
       setPreviousSummary({
@@ -262,6 +274,16 @@ export default function RegionalAdminDashboard() {
       }
       
       setSalesTrend(formatTrendData(trend));
+
+      // Shape sales executives list for a small table (precomputed display fields)
+      const shapedSalesExecs = salesExecUsers.map((u) => ({
+        id: u.id,
+        username: u.username,
+        email: u.email,
+        displayRegion: u.region?.name || u.regionName || "—",
+        displayDealer: u.dealer?.businessName || u.dealerName || "—",
+      }));
+      setSalesExecutives(shapedSalesExecs);
     } catch (e) {
       console.error("Failed to load regional dashboard:", e);
     } finally {
@@ -330,6 +352,12 @@ export default function RegionalAdminDashboard() {
     { key: "territoryName", label: "Territory" },
     { key: "totalSales", label: "Sales", render: (val) => `₹${Number(val || 0).toLocaleString()}` },
     { key: "dealerCount", label: "Dealers" },
+  ];
+
+  const salesExecutiveColumns = [
+    { key: "username", label: "Sales Executive" },
+    { key: "displayRegion", label: "Region" },
+    { key: "displayDealer", label: "Primary Dealer" },
   ];
 
   return (
@@ -421,6 +449,12 @@ export default function RegionalAdminDashboard() {
           scope="Region"
           accent="var(--color-error)"
           urgent={summary.overduePayments > 0}
+        />
+        <StatCard 
+          title="Sales Executives" 
+          value={summary.salesExecutives || 0}
+          scope="Region"
+          accent="var(--color-primary-dark)"
         />
       </div>
 
@@ -588,6 +622,20 @@ export default function RegionalAdminDashboard() {
                 View Region Map
               </button>
             </div>
+          </Card>
+        </div>
+
+        <div className="column">
+          <Card title="Sales Executives in Region">
+            {salesExecutives.length > 0 ? (
+              <DataTable
+                columns={salesExecutiveColumns}
+                rows={salesExecutives.slice(0, 5)}
+                emptyMessage="No sales executives found for this region"
+              />
+            ) : (
+              <p className="text-muted">No sales executives found for this region</p>
+            )}
           </Card>
         </div>
       </div>

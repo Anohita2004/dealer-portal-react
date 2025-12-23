@@ -353,10 +353,15 @@ export default function PaymentApprovalCard({ payment, onUpdate, userRole }) {
           )}
 
           {/* Approval Actions */}
-          {workflow && (
+          {/* Show approval actions if workflow exists OR if payment is at dealer_admin stage */}
+          {(workflow || (payment.approvalStage === "dealer_admin" && (payment.approvalStatus === "pending" || payment.status === "dealer_admin_pending"))) && (
             <Box sx={{ mt: 2 }}>
               <ApprovalActions
-                workflow={workflow}
+                workflow={workflow || {
+                  currentStage: payment.approvalStage || "dealer_admin",
+                  approvalStatus: payment.approvalStatus || payment.status === "dealer_admin_pending" ? "pending" : payment.status,
+                  pipeline: payment.approvalStage ? [payment.approvalStage] : ["dealer_admin"],
+                }}
                 entityType="payment"
                 entityId={payment.id}
                 onApprove={handleApprove}

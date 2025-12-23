@@ -45,12 +45,20 @@ export default function CreateOrder() {
   useEffect(() => {
     const fetchMaterials = async () => {
       try {
-        const res = await materialAPI.getMaterials();
-        const list = res?.materials || res?.data || res || [];
-        setMaterials(Array.isArray(list) ? list : []);
+        // Dealer / sales roles must use dealer-scoped materials
+        if (user?.dealerId) {
+          const res = await materialAPI.getDealerMaterials(user.dealerId);
+          const list =
+            res?.materials || res?.data?.materials || res?.data || res || [];
+          setMaterials(Array.isArray(list) ? list : []);
+        } else {
+          const res = await materialAPI.getMaterials();
+          const list = res?.materials || res?.data || res || [];
+          setMaterials(Array.isArray(list) ? list : []);
+        }
       } catch (err) {
         console.error("Failed to fetch materials:", err);
-        toast.error("Failed to load materials");
+        toast.error("Failed to load materials for this dealer");
       }
     };
     fetchMaterials();
@@ -131,7 +139,14 @@ export default function CreateOrder() {
       }, 1500);
     } catch (err) {
       console.error("Order create error:", err);
-      toast.error(err.response?.data?.error || "Failed to create order");
+      if (err?.response?.status === 400 || err?.response?.status === 403) {
+        toast.error(
+          err?.response?.data?.error ||
+            "Material not available for this dealer or order not allowed."
+        );
+      } else {
+        toast.error(err?.response?.data?.error || "Failed to create order");
+      }
     }
   };
 
