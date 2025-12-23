@@ -143,14 +143,19 @@ export const getInventoryImpact = (order) => {
   if (!order.items || !Array.isArray(order.items)) return null;
 
   const impact = {
-    items: order.items.map((item) => ({
-      materialId: item.materialId,
-      materialName: item.material?.name || item.materialName || "Unknown",
-      quantity: item.quantity || item.qty || 0,
-      availableStock: item.material?.availableStock || item.availableStock || null,
-      willBeLow: item.material?.availableStock !== null && 
-                 (item.material.availableStock - (item.quantity || item.qty)) < 10,
-    })),
+    items: order.items.map((item) => {
+      const availableStock = item.material?.availableStock ?? item.availableStock ?? null;
+      const quantity = item.quantity || item.qty || 0;
+      const willBeLow = availableStock !== null && (availableStock - quantity) < 10;
+      
+      return {
+        materialId: item.materialId,
+        materialName: item.material?.name || item.materialName || "Unknown",
+        quantity: quantity,
+        availableStock: availableStock,
+        willBeLow: willBeLow,
+      };
+    }),
     hasLowStock: false,
     totalItems: order.items.length,
   };

@@ -2,6 +2,28 @@ import '@testing-library/jest-dom';
 import { expect, afterEach, vi } from 'vitest';
 import { cleanup } from '@testing-library/react';
 
+// CRITICAL: Mock import.meta.env BEFORE any modules that use it are imported
+// This must be at the very top of the setup file
+if (typeof globalThis.import === 'undefined') {
+  globalThis.import = {
+    meta: {
+      env: {
+        VITE_API_URL: 'http://localhost:3000/api',
+        VITE_SOCKET_URL: 'http://localhost:3000',
+      },
+    },
+  };
+} else {
+  if (!globalThis.import.meta) {
+    globalThis.import.meta = {};
+  }
+  if (!globalThis.import.meta.env) {
+    globalThis.import.meta.env = {};
+  }
+  globalThis.import.meta.env.VITE_API_URL = globalThis.import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+  globalThis.import.meta.env.VITE_SOCKET_URL = globalThis.import.meta.env.VITE_SOCKET_URL || 'http://localhost:3000';
+}
+
 // Cleanup after each test
 afterEach(() => {
   cleanup();
@@ -48,4 +70,28 @@ global.IntersectionObserver = class IntersectionObserver {
   }
   unobserve() {}
 };
+
+// Mock ResizeObserver for charts (e.g., Recharts ResponsiveContainer)
+if (typeof global.ResizeObserver === 'undefined') {
+  global.ResizeObserver = class ResizeObserver {
+    constructor() {}
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  };
+}
+
+// Mock import.meta.env for Vite - this must be done before any imports that use it
+Object.defineProperty(globalThis, 'import', {
+  value: {
+    meta: {
+      env: {
+        VITE_API_URL: 'http://localhost:3000/api',
+        VITE_SOCKET_URL: 'http://localhost:3000',
+      },
+    },
+  },
+  writable: true,
+  configurable: true,
+});
 

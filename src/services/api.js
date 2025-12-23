@@ -1,7 +1,17 @@
 import axios from "axios";
 
+// Safely access import.meta.env with fallback
+const getApiUrl = () => {
+  try {
+    return import.meta?.env?.VITE_API_URL || "http://localhost:3000/api";
+  } catch (e) {
+    // Fallback for test environments where import.meta might not be available
+    return "http://localhost:3000/api";
+  }
+};
+
 const api = axios.create({
-  baseURL: import.meta.env.VITE_API_URL || "http://localhost:3000/api",
+  baseURL: getApiUrl(),
   withCredentials: true,
 });
 

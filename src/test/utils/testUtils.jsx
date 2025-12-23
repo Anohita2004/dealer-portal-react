@@ -30,6 +30,7 @@ let currentMockAuthValue = {
 vi.mock('../../context/AuthContext', () => ({
   AuthProvider: ({ children }) => <>{children}</>,
   useAuth: () => currentMockAuthValue,
+  AuthContext: React.createContext(null),
 }));
 
 // Mock NotificationContext
@@ -43,6 +44,34 @@ const mockNotificationValue = {
 vi.mock('../../context/NotificationContext', () => ({
   NotificationProvider: ({ children }) => <>{children}</>,
   useNotifications: () => mockNotificationValue,
+}));
+
+// Mock useApiCall hook
+vi.mock('../../hooks/useApiCall', () => ({
+  default: vi.fn(() => ({
+    call: vi.fn(),
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
+    upload: vi.fn(),
+    loading: false,
+    error: null,
+    clearError: vi.fn(),
+  })),
+  useApiCall: vi.fn(() => ({
+    call: vi.fn(),
+    get: vi.fn(),
+    post: vi.fn(),
+    put: vi.fn(),
+    patch: vi.fn(),
+    delete: vi.fn(),
+    upload: vi.fn(),
+    loading: false,
+    error: null,
+    clearError: vi.fn(),
+  })),
 }));
 
 // Custom render function that includes all providers

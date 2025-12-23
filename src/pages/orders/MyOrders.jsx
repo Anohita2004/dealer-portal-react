@@ -323,9 +323,15 @@ export default function MyOrders() {
                   0
                 );
 
-                const canRaiseInvoice =
-                  (currentUser?.role || "").toLowerCase() === "dealer_staff" &&
-                  lifecycleStatus.lifecycleStage === "approved";
+                // Allow "Raise Invoice" ONLY when the order is fully approved in workflow terms
+                const isDealerStaff = (currentUser?.role || "").toLowerCase() === "dealer_staff";
+                const isLifecycleApproved = lifecycleStatus.lifecycleStage === "approved";
+                const isWorkflowApproved =
+                  workflow?.approvalStatus === "approved" ||
+                  order.approvalStatus === "approved" ||
+                  order.status === "approved";
+
+                const canRaiseInvoice = isDealerStaff && isLifecycleApproved && isWorkflowApproved;
 
                 return (
                   <TableRow key={order.id}>

@@ -397,6 +397,8 @@ export default function DealerFormPage() {
                     label="Region"
                     value={form.regionId}
                     onChange={(e) => handleChange("regionId", e.target.value)}
+                    // Ensure dropdown menu renders in document.body for stable tests
+                    MenuProps={{ container: document.body }}
                   >
                     {regions.map((r) => (
                       <MenuItem key={r.id} value={r.id}>
@@ -420,6 +422,8 @@ export default function DealerFormPage() {
                     label="Area"
                     value={form.areaId}
                     onChange={(e) => handleChange("areaId", e.target.value)}
+                    // Ensure dropdown menu renders in document.body for stable tests
+                    MenuProps={{ container: document.body }}
                   >
                     {filteredAreas.map((a) => (
                       <MenuItem key={a.id} value={a.id}>
@@ -445,6 +449,8 @@ export default function DealerFormPage() {
                     onChange={(e) =>
                       handleChange("territoryId", e.target.value)
                     }
+                    // Ensure dropdown menu renders in document.body for stable tests
+                    MenuProps={{ container: document.body }}
                   >
                     {filteredTerritories.map((t) => (
                       <MenuItem key={t.id} value={t.id}>
@@ -465,6 +471,8 @@ export default function DealerFormPage() {
                     label="Assigned Manager (optional)"
                     value={form.managerId}
                     onChange={(e) => handleChange("managerId", e.target.value)}
+                    // Ensure dropdown menu renders in document.body for stable tests
+                    MenuProps={{ container: document.body }}
                   >
                     <MenuItem value="">
                       <em>None</em>

@@ -195,6 +195,12 @@ export default function CreateOrder() {
               }}
               margin="normal"
               size="small"
+              // Ensure Material-UI Select menu renders in document.body for stable tests
+              SelectProps={{
+                MenuProps: {
+                  container: document.body,
+                },
+              }}
             >
               {materials.map((m) => (
                 <MenuItem key={m.id} value={m.id}>
