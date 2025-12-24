@@ -27,6 +27,7 @@ import { paymentAPI } from "../../services/api";
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
 import { useAuth } from "../../context/AuthContext";
+import { getPaymentStatusDisplay } from "../../utils/paymentStatus";
 
 export default function AreaPayments() {
   const navigate = useNavigate();
@@ -73,7 +74,8 @@ export default function AreaPayments() {
             }
 
             if (isUserTurn) {
-              filtered.push(payment);
+              // Store workflow in the payment object for better display in the table
+              filtered.push({ ...payment, workflow });
             }
           } catch (err) {
             if ((payment.status || "").toLowerCase() === "pending") filtered.push(payment);
@@ -197,11 +199,16 @@ export default function AreaPayments() {
                       </TableCell>
                       <TableCell>{payment.paymentMode || "N/A"}</TableCell>
                       <TableCell>
-                        <Chip
-                          label={payment.status || "pending"}
-                          size="small"
-                          color={getStatusColor(payment.status)}
-                        />
+                        {(() => {
+                          const statusInfo = getPaymentStatusDisplay(payment, payment.workflow);
+                          return (
+                            <Chip
+                              label={statusInfo.label}
+                              size="small"
+                              color={statusInfo.color}
+                            />
+                          );
+                        })()}
                       </TableCell>
                       <TableCell>
                         {payment.createdAt

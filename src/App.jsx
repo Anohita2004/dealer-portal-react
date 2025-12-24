@@ -252,6 +252,14 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="dashboard/accounts"
+                element={
+                  <ProtectedRoute allowed={["accounts_user", "finance_admin"]}>
+                    <AccountsDashboard />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* ================= TASKS ================= */}
               <Route
@@ -1191,7 +1199,17 @@ export default function App() {
               <Route
                 path="payments/:id"
                 element={
-                  <ProtectedRoute allowed={["dealer_staff", "dealer_admin", "finance_admin", "accounts_user", "super_admin", "regional_admin"]}>
+                  <ProtectedRoute allowed={[
+                    "dealer_staff",
+                    "dealer_admin",
+                    "finance_admin",
+                    "accounts_user",
+                    "super_admin",
+                    "regional_admin",
+                    "territory_manager",
+                    "area_manager",
+                    "regional_manager"
+                  ]}>
                     <PaymentDetail />
                   </ProtectedRoute>
                 }
@@ -1227,7 +1245,7 @@ export default function App() {
               <Route
                 path="accounts"
                 element={
-                  <ProtectedRoute allowed={["accounts_user"]}>
+                  <ProtectedRoute allowed={["accounts_user", "finance_admin"]}>
                     <AccountsDashboard />
                   </ProtectedRoute>
                 }
@@ -1236,7 +1254,7 @@ export default function App() {
               <Route
                 path="accounts/invoices"
                 element={
-                  <ProtectedRoute allowed={["accounts_user"]}>
+                  <ProtectedRoute allowed={["accounts_user", "finance_admin"]}>
                     <AccountsInvoices />
                   </ProtectedRoute>
                 }
@@ -1245,7 +1263,7 @@ export default function App() {
               <Route
                 path="accounts/notes"
                 element={
-                  <ProtectedRoute allowed={["accounts_user"]}>
+                  <ProtectedRoute allowed={["accounts_user", "finance_admin"]}>
                     <AccountsNotes />
                   </ProtectedRoute>
                 }
@@ -1254,7 +1272,7 @@ export default function App() {
               <Route
                 path="accounts/reports"
                 element={
-                  <ProtectedRoute allowed={["accounts_user"]}>
+                  <ProtectedRoute allowed={["accounts_user", "finance_admin"]}>
                     <AccountsReports />
                   </ProtectedRoute>
                 }

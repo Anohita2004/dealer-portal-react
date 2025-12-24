@@ -19,6 +19,7 @@ import PaymentApprovalCard from "../../components/PaymentApprovalCard";
 import PageHeader from "../../components/PageHeader";
 import { useAuth } from "../../context/AuthContext";
 import { useNavigate } from "react-router-dom";
+import { getPaymentStatusDisplay } from "../../utils/paymentStatus";
 
 export default function DealerAdminPayments() {
   const { user } = useAuth();
@@ -209,18 +210,20 @@ export default function DealerAdminPayments() {
                         ₹{Number(payment.amount || 0).toLocaleString()}
                       </td>
                       <td style={{ padding: "12px", textAlign: "center" }}>
-                        <Chip
-                          label={(payment.status || "PENDING").toUpperCase()}
-                          size="small"
-                          color={
-                            payment.status === "approved" ? "success" :
-                              (payment.status === "rejected" || payment.status === "blocked") ? "error" : "warning"
-                          }
-                          icon={
-                            payment.status === "approved" ? <CheckCircle size={14} /> :
-                              (payment.status === "rejected" || payment.status === "blocked") ? <XCircle size={14} /> : <Clock size={14} />
-                          }
-                        />
+                        {(() => {
+                          const statusInfo = getPaymentStatusDisplay(payment, payment.workflow);
+                          return (
+                            <Chip
+                              label={statusInfo.label.toUpperCase()}
+                              size="small"
+                              color={statusInfo.color}
+                              icon={
+                                statusInfo.icon === "success" ? <CheckCircle size={14} /> :
+                                  (statusInfo.icon === "error") ? <XCircle size={14} /> : <Clock size={14} />
+                              }
+                            />
+                          );
+                        })()}
                       </td>
                       <td style={{ padding: "12px", textAlign: "center" }}>
                         <Button

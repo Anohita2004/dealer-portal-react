@@ -236,8 +236,8 @@ export default function Sidebar() {
 
       // Financial Operations Section
       { label: "Payment Approvals", path: "/payments/finance/pending", icon: <FaMoneyCheckAlt />, section: "Financial Operations" },
-      { label: "All Payments", path: "/payments/my", icon: <FaMoneyCheckAlt />, section: "Financial Operations" },
-      { label: "Invoices", path: "/accounts/invoices", icon: <FaFileInvoice />, section: "Financial Operations" },
+      { label: "All Invoices", path: "/invoices", icon: <FaFileInvoice />, section: "Financial Operations" },
+      { label: "Reconciliation", path: "/accounts/invoices", icon: <FaClipboardList />, section: "Financial Operations" },
 
       // Reports Section
       { label: "Financial Reports", path: "/accounts/reports", icon: <FaChartBar />, section: "Reports" },

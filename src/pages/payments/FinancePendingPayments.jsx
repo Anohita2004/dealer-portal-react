@@ -20,12 +20,15 @@ export default function FinancePendingPayments() {
     try {
       let res;
       const role = user?.role?.toLowerCase();
-      
+
+      console.log("[FinancePendingPayments] User role:", role);
+
       // Role-based endpoint selection
       if (role === "dealer_admin") {
         res = await paymentAPI.getDealerPending();
       } else if (role === "finance_admin" || role === "accounts_user") {
         res = await paymentAPI.getFinancePending();
+        console.log("[FinancePendingPayments] Raw API response:", res);
       } else {
         // For manager roles (territory_manager, area_manager, regional_manager, regional_admin)
         // Try finance pending first, then filter by workflow stage
@@ -46,9 +49,12 @@ export default function FinancePendingPayments() {
           }
         }
       }
-      
-      let paymentsList = Array.isArray(res) ? res : res.payments || res.data || res || [];
-      
+
+      let paymentsList = Array.isArray(res) ? res : res.pending || res.payments || res.data || res || [];
+
+      console.log("[FinancePendingPayments] Extracted payments list:", paymentsList);
+      console.log("[FinancePendingPayments] Payments count:", paymentsList.length);
+
       // For manager roles, filter by workflow stage
       if (["territory_manager", "area_manager", "regional_manager", "regional_admin"].includes(role)) {
         // Fetch workflow status for each payment and filter by current stage
@@ -58,7 +64,7 @@ export default function FinancePendingPayments() {
             const workflowRes = await paymentAPI.getWorkflowStatus(payment.id);
             const workflow = workflowRes.workflow || workflowRes.data || workflowRes;
             const currentStage = workflow?.currentStage || payment.approvalStage;
-            
+
             // Map role to stage name
             const roleToStage = {
               territory_manager: "territory_manager",
@@ -66,7 +72,7 @@ export default function FinancePendingPayments() {
               regional_manager: "regional_manager",
               regional_admin: "regional_admin",
             };
-            
+
             const userStage = roleToStage[role];
             if (currentStage === userStage && workflow?.approvalStatus === "pending") {
               filteredPayments.push(payment);
@@ -80,10 +86,17 @@ export default function FinancePendingPayments() {
         }
         paymentsList = filteredPayments;
       }
-      
+
+      // For finance_admin, show ALL payments from the API without extra filtering
+      // The backend should already filter to only show payments at finance stage
+
+      console.log("[FinancePendingPayments] Final payments to display:", paymentsList.length);
+
       setPayments(Array.isArray(paymentsList) ? paymentsList : []);
       setHasAccess(true);
     } catch (e) {
+      console.error("[FinancePendingPayments] API Error:", e);
+      console.error("[FinancePendingPayments] Error response:", e?.response?.data);
       // 403 = not permitted
       // 404 = endpoint doesn't exist
       if (e?.response?.status === 403 || e?.response?.status === 404) {
