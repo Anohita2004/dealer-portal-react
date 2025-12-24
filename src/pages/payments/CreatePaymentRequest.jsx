@@ -19,7 +19,9 @@ export default function CreatePaymentRequest() {
     const loadInvoices = async () => {
       try {
         const res = await api.get("/invoices");
-        setInvoices(res.data.invoices || res.data);
+        const data = res.data;
+        const list = Array.isArray(data?.invoices) ? data.invoices : (Array.isArray(data) ? data : []);
+        setInvoices(list);
       } catch (err) {
         console.error("Failed to load invoices:", err);
         toast.error("Failed to load invoices");
@@ -104,16 +106,17 @@ export default function CreatePaymentRequest() {
 
   return (
     <div style={{ maxWidth: 860, margin: "var(--spacing-6) auto", padding: "var(--spacing-6)" }}>
-      <h2 style={{ 
-        fontSize: "var(--font-size-2xl)", 
-        fontWeight: "var(--font-weight-bold)", 
+      <h2 style={{
+        fontSize: "var(--font-size-2xl)",
+        fontWeight: "var(--font-weight-bold)",
         color: "var(--color-text-primary)",
         marginBottom: "var(--spacing-6)"
       }}>Create Payment Request</h2>
       <form onSubmit={submit}>
         {/* Invoice Select */}
-        <label style={labelStyle}>Invoice</label>
+        <label style={labelStyle} htmlFor="invoice-select">Invoice</label>
         <select
+          id="invoice-select"
           value={invoiceId}
           onChange={(e) => setInvoiceId(e.target.value)}
           style={inputStyle}
@@ -129,8 +132,9 @@ export default function CreatePaymentRequest() {
         </select>
 
         {/* Amount */}
-        <label style={labelStyle}>Amount</label>
+        <label style={labelStyle} htmlFor="amount-input">Amount</label>
         <input
+          id="amount-input"
           type="number"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}
@@ -140,8 +144,9 @@ export default function CreatePaymentRequest() {
         />
 
         {/* Payment Mode */}
-        <label style={labelStyle}>Payment Mode</label>
+        <label style={labelStyle} htmlFor="payment-mode-select">Payment Mode</label>
         <select
+          id="payment-mode-select"
           value={paymentMode}
           onChange={(e) => setPaymentMode(e.target.value)}
           style={inputStyle}
@@ -155,8 +160,9 @@ export default function CreatePaymentRequest() {
         </select>
 
         {/* UTR / Reference */}
-        <label style={labelStyle}>UTR / Reference (optional)</label>
+        <label style={labelStyle} htmlFor="utr-input">UTR / Reference (optional)</label>
         <input
+          id="utr-input"
           value={utr}
           onChange={(e) => setUtr(e.target.value)}
           style={inputStyle}
@@ -165,18 +171,19 @@ export default function CreatePaymentRequest() {
         />
 
         {/* Proof File */}
-        <label style={labelStyle}>Proof (optional)</label>
-        <input 
-          type="file" 
-          onChange={handleFile} 
-          style={{ 
-            width: "100%", 
+        <label style={labelStyle} htmlFor="proof-file">Proof (optional)</label>
+        <input
+          id="proof-file"
+          type="file"
+          onChange={handleFile}
+          style={{
+            width: "100%",
             marginBottom: "var(--spacing-4)",
             fontSize: "var(--font-size-sm)"
-          }} 
+          }}
         />
         {proofFile && (
-          <div style={{ 
+          <div style={{
             marginBottom: "var(--spacing-4)",
             padding: "var(--spacing-2)",
             background: "var(--color-primary-soft)",
@@ -199,8 +206,8 @@ export default function CreatePaymentRequest() {
               setUtr("");
               setProofFile(null);
             }}
-            style={{ 
-              padding: "var(--spacing-2) var(--spacing-3)", 
+            style={{
+              padding: "var(--spacing-2) var(--spacing-3)",
               background: "var(--color-background)",
               border: "1px solid var(--color-border)",
               borderRadius: "var(--radius-md)",
@@ -221,10 +228,10 @@ export default function CreatePaymentRequest() {
           >
             Reset
           </button>
-          <button 
-            type="submit" 
-            disabled={loading} 
-            style={{ 
+          <button
+            type="submit"
+            disabled={loading}
+            style={{
               padding: "var(--spacing-2) var(--spacing-3)",
               background: loading ? "var(--color-border)" : "var(--color-primary)",
               color: "var(--color-surface)",

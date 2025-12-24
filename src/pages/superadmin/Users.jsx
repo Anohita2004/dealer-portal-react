@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef, useMemo } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import {
   Box,
@@ -29,10 +29,12 @@ import {
   DialogActions,
   Alert,
   Grid,
-  Tooltip,
   Pagination,
   Stack,
   Divider,
+  Skeleton,
+  useTheme,
+  alpha
 } from "@mui/material";
 import {
   UserPlus,
@@ -41,13 +43,10 @@ import {
   Edit,
   Trash2,
   Download,
-  Filter,
   RefreshCw,
   UserCheck,
   UserX,
   Mail,
-  Shield,
-  MapPin,
   Building2,
   Calendar,
   CheckCircle,
@@ -56,10 +55,10 @@ import {
 } from "lucide-react";
 import { userAPI, roleAPI } from "../../services/api";
 import { toast } from "react-toastify";
-import PageHeader from "../../components/PageHeader";
 
 export default function Users() {
   const navigate = useNavigate();
+  const theme = useTheme();
 
   // State
   const [users, setUsers] = useState([]);
@@ -93,12 +92,24 @@ export default function Users() {
       const params = {
         page: requestedPage,
         pageSize,
+        // Send common variations to ensure backend compatibility
         search: searchTerm || undefined,
+        q: searchTerm || undefined,
+
         role: filterRole !== "all" ? filterRole : undefined,
+        roleId: filterRole !== "all" ? filterRole : undefined,
+
         status: filterStatus !== "all" ? filterStatus : undefined,
+
+        region: filterRegion !== "all" ? filterRegion : undefined,
         regionId: filterRegion !== "all" ? filterRegion : undefined,
+
         sort: sortBy,
+        sortBy: sortBy,
+
         order: sortOrder,
+        sortOrder: sortOrder,
+        direction: sortOrder,
       };
 
       const [usersRes, rolesRes] = await Promise.all([
@@ -120,18 +131,43 @@ export default function Users() {
     }
   };
 
+  // 1. Page Change Effect: Triggers fetch whenever page changes
   useEffect(() => {
     fetchData(page);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [page]);
 
+  // 2. Search Effect (Debounced): Resets to page 1
   useEffect(() => {
     if (debounceRef.current) clearTimeout(debounceRef.current);
+
+    // Don't trigger on initial mount if empty
+    if (searchTerm === "" && page === 1 && users.length === 0) return;
+
     debounceRef.current = setTimeout(() => {
-      setPage(1);
-      fetchData(1);
-    }, 300);
+      if (page === 1) {
+        fetchData(1); // Force fetch if already on page 1
+      } else {
+        setPage(1); // This triggers the page effect
+      }
+    }, 500);
+
     return () => clearTimeout(debounceRef.current);
-  }, [searchTerm, filterRole, filterStatus, filterRegion, sortBy, sortOrder, pageSize]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchTerm]);
+
+  // 3. Filters & Sort Effect (Immediate): Resets to page 1
+  useEffect(() => {
+    // Avoid double fetch on mount
+    if (users.length === 0 && page === 1) return;
+
+    if (page === 1) {
+      fetchData(1);
+    } else {
+      setPage(1);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [filterRole, filterStatus, filterRegion, sortBy, sortOrder, pageSize]);
 
   // Actions
   const handleMenuOpen = (event, user) => {
@@ -217,48 +253,34 @@ export default function Users() {
   const getStatusChip = (user) => {
     if (user.isBlocked) {
       return (
-        <Chip 
-          icon={<XCircle size={14} />} 
-          label="Blocked" 
+        <Chip
+          icon={<XCircle size={14} />}
+          label="Blocked"
           size="small"
-          sx={{ 
-            backgroundColor: "#ef4444", 
-            color: "white",
-            fontWeight: 500,
-            "& .MuiChip-icon": { color: "white" },
-            "& .MuiChip-label": { px: 1.5 }
-          }} 
+          color="error"
+          sx={{ fontWeight: 500 }}
         />
       );
     }
     if (user.isActive) {
       return (
-        <Chip 
-          icon={<CheckCircle size={14} />} 
-          label="Active" 
+        <Chip
+          icon={<CheckCircle size={14} />}
+          label="Active"
           size="small"
-          sx={{ 
-            backgroundColor: "#22c55e", 
-            color: "white",
-            fontWeight: 500,
-            "& .MuiChip-icon": { color: "white" },
-            "& .MuiChip-label": { px: 1.5 }
-          }} 
+          color="success"
+          sx={{ fontWeight: 500 }}
         />
       );
     }
     return (
-      <Chip 
-        icon={<AlertCircle size={14} />} 
-        label="Inactive" 
+      <Chip
+        icon={<AlertCircle size={14} />}
+        label="Inactive"
         size="small"
-        sx={{ 
-          backgroundColor: "#f97316", 
-          color: "white",
-          fontWeight: 500,
-          "& .MuiChip-icon": { color: "white" },
-          "& .MuiChip-label": { px: 1.5 }
-        }} 
+        color="warning"
+        variant="outlined"
+        sx={{ fontWeight: 500 }}
       />
     );
   };
@@ -278,23 +300,24 @@ export default function Users() {
   };
 
   return (
-    <Box sx={{ p: 3, width: "100%", maxWidth: 1400, mx: "auto" }}>
-      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 3, flexWrap: "wrap", gap: 2 }}>
+    <Box sx={{ width: "100%" }}>
+      {/* Header */}
+      <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 3 }}>
         <Box>
-          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5, color: "#f97316", fontSize: "1.75rem" }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 0.5, color: "text.primary" }}>
             User Management
           </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.875rem" }}>
-            Create, manage, and monitor all users in the system
+          <Typography variant="body2" color="text.secondary">
+            Manage users, roles, and access permissions.
           </Typography>
         </Box>
-        <Box sx={{ display: "flex", gap: 1, flexWrap: "wrap" }}>
+        <Stack direction="row" spacing={2}>
           <Button
             variant="outlined"
             startIcon={<Download size={18} />}
             onClick={handleExport}
             disabled={users.length === 0}
-            sx={{ color: "#f97316", borderColor: "#f97316", "&:hover": { borderColor: "#fb923c", backgroundColor: "rgba(249, 115, 22, 0.1)" } }}
+            size="small"
           >
             Export
           </Button>
@@ -302,332 +325,311 @@ export default function Users() {
             variant="contained"
             startIcon={<UserPlus size={18} />}
             onClick={() => navigate("/superadmin/users/new")}
-            sx={{ backgroundColor: "#f97316", "&:hover": { backgroundColor: "#fb923c" } }}
+            size="small"
           >
             Create User
           </Button>
-        </Box>
+        </Stack>
       </Box>
 
-      {/* Stats Cards */}
-      <Grid container spacing={2} sx={{ mb: 3 }}>
+      {/* Stats - Using Outlined Paper to distinguish from main background */}
+      <Grid container spacing={2} sx={{ mb: 4 }}>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom variant="body2" sx={{ fontSize: "0.875rem" }}>
-                Total Users
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: "#f97316" }}>
-                {total}
-              </Typography>
-            </CardContent>
-          </Card>
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+              TOTAL USERS
+            </Typography>
+            <Typography variant="h4" color="primary.main" fontWeight={700} sx={{ mt: 1 }}>
+              {loading ? <Skeleton width="60%" /> : total}
+            </Typography>
+          </Paper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom variant="body2" sx={{ fontSize: "0.875rem" }}>
-                Active Users
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: "#22c55e" }}>
-                {users.filter((u) => u.isActive && !u.isBlocked).length}
-              </Typography>
-            </CardContent>
-          </Card>
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+              ACTIVE
+            </Typography>
+            <Typography variant="h4" color="success.main" fontWeight={700} sx={{ mt: 1 }}>
+              {loading ? <Skeleton width="60%" /> : users.filter((u) => u.isActive && !u.isBlocked).length}
+            </Typography>
+          </Paper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom variant="body2" sx={{ fontSize: "0.875rem" }}>
-                Inactive Users
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: "#f97316" }}>
-                {users.filter((u) => !u.isActive).length}
-              </Typography>
-            </CardContent>
-          </Card>
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+              INACTIVE
+            </Typography>
+            <Typography variant="h4" color="warning.main" fontWeight={700} sx={{ mt: 1 }}>
+              {loading ? <Skeleton width="60%" /> : users.filter((u) => !u.isActive).length}
+            </Typography>
+          </Paper>
         </Grid>
         <Grid item xs={12} sm={6} md={3}>
-          <Card sx={{ borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-            <CardContent>
-              <Typography color="text.secondary" gutterBottom variant="body2" sx={{ fontSize: "0.875rem" }}>
-                Blocked Users
-              </Typography>
-              <Typography variant="h4" sx={{ fontWeight: 700, color: "#ef4444" }}>
-                {users.filter((u) => u.isBlocked).length}
-              </Typography>
-            </CardContent>
-          </Card>
+          <Paper variant="outlined" sx={{ p: 2, borderRadius: 2 }}>
+            <Typography variant="caption" color="text.secondary" fontWeight={600}>
+              BLOCKED
+            </Typography>
+            <Typography variant="h4" color="error.main" fontWeight={700} sx={{ mt: 1 }}>
+              {loading ? <Skeleton width="60%" /> : users.filter((u) => u.isBlocked).length}
+            </Typography>
+          </Paper>
         </Grid>
       </Grid>
 
-      {/* Filters */}
-      <Card sx={{ mb: 3, borderRadius: 2, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-        <CardContent>
-          <Grid container spacing={2} alignItems="center">
-            <Grid item xs={12} md={4}>
-              <TextField
-                fullWidth
-                size="small"
-                placeholder="Search username, email..."
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <Search size={18} />
-                    </InputAdornment>
-                  ),
-                }}
-              />
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Role</InputLabel>
-                <Select value={filterRole} label="Role" onChange={(e) => setFilterRole(e.target.value)}>
-                  <MenuItem value="all">All Roles</MenuItem>
-                  {roles.map((r) => (
-                    <MenuItem key={r.id} value={r.id}>
-                      {r.name}
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Status</InputLabel>
-                <Select value={filterStatus} label="Status" onChange={(e) => setFilterStatus(e.target.value)}>
-                  <MenuItem value="all">All Status</MenuItem>
-                  <MenuItem value="active">Active</MenuItem>
-                  <MenuItem value="inactive">Inactive</MenuItem>
-                  <MenuItem value="blocked">Blocked</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <FormControl fullWidth size="small">
-                <InputLabel>Page Size</InputLabel>
-                <Select value={pageSize} label="Page Size" onChange={(e) => setPageSize(e.target.value)}>
-                  <MenuItem value={10}>10</MenuItem>
-                  <MenuItem value={25}>25</MenuItem>
-                  <MenuItem value={50}>50</MenuItem>
-                  <MenuItem value={100}>100</MenuItem>
-                </Select>
-              </FormControl>
-            </Grid>
-            <Grid item xs={12} sm={6} md={2}>
-              <Button
-                fullWidth
-                variant="contained"
-                startIcon={<RefreshCw size={18} />}
-                onClick={() => fetchData(page)}
-                disabled={loading}
-                sx={{ backgroundColor: "#f97316", "&:hover": { backgroundColor: "#fb923c" } }}
-              >
-                Refresh
-              </Button>
-            </Grid>
+      <Divider sx={{ mb: 4 }} />
+
+      {/* Filters & Controls */}
+      <Box sx={{ mb: 3 }}>
+        <Grid container spacing={2} alignItems="center">
+          <Grid item xs={12} md={4}>
+            <TextField
+              fullWidth
+              size="small"
+              placeholder="Search users..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search size={18} />
+                  </InputAdornment>
+                ),
+              }}
+            />
           </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Role</InputLabel>
+              <Select value={filterRole} label="Role" onChange={(e) => setFilterRole(e.target.value)}>
+                <MenuItem value="all">All Roles</MenuItem>
+                {roles.map((r) => (
+                  <MenuItem key={r.id} value={r.id}>
+                    {r.name}
+                  </MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Status</InputLabel>
+              <Select value={filterStatus} label="Status" onChange={(e) => setFilterStatus(e.target.value)}>
+                <MenuItem value="all">All Status</MenuItem>
+                <MenuItem value="active">Active</MenuItem>
+                <MenuItem value="inactive">Inactive</MenuItem>
+                <MenuItem value="blocked">Blocked</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <FormControl fullWidth size="small">
+              <InputLabel>Rows</InputLabel>
+              <Select value={pageSize} label="Rows" onChange={(e) => setPageSize(e.target.value)}>
+                <MenuItem value={10}>10</MenuItem>
+                <MenuItem value={25}>25</MenuItem>
+                <MenuItem value={50}>50</MenuItem>
+                <MenuItem value={100}>100</MenuItem>
+              </Select>
+            </FormControl>
+          </Grid>
+          <Grid item xs={12} sm={6} md={2}>
+            <Button
+              fullWidth
+              variant="outlined"
+              startIcon={<RefreshCw size={18} />}
+              onClick={() => fetchData(page)}
+              disabled={loading}
+              size="small"
+            >
+              Refresh
+            </Button>
+          </Grid>
+        </Grid>
 
-          {selectedUsers.length > 0 && (
-            <Box sx={{ mt: 2, display: "flex", gap: 1, alignItems: "center" }}>
-              <Typography variant="body2" color="primary">
-                {selectedUsers.length} selected
-              </Typography>
-              <Button
-                size="small"
-                variant="outlined"
-                onClick={() => {
-                  setBulkActionDialogOpen(true);
-                }}
-              >
-                Bulk Actions
-              </Button>
-              <Button size="small" variant="text" onClick={() => setSelectedUsers([])}>
-                Clear Selection
-              </Button>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+        {selectedUsers.length > 0 && (
+          <Box sx={{ mt: 2, display: "flex", gap: 2, alignItems: "center", p: 1.5, bgcolor: alpha(theme.palette.primary.main, 0.05), borderRadius: 2, border: '1px dashed', borderColor: 'primary.main' }}>
+            <Typography variant="body2" color="primary" fontWeight={600}>
+              {selectedUsers.length} selected
+            </Typography>
+            <Button
+              size="small"
+              variant="contained"
+              disableElevation
+              onClick={() => setBulkActionDialogOpen(true)}
+            >
+              Bulk Actions
+            </Button>
+            <Button size="small" onClick={() => setSelectedUsers([])}>
+              Clear
+            </Button>
+          </Box>
+        )}
+      </Box>
 
-      {/* Table */}
-      <Card
-        sx={{
-          borderRadius: 2,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.1)",
-          overflow: "hidden",
-          width: "100%",
-          maxWidth: "100%",
-        }}
-      >
-        <TableContainer
-          sx={{
-            width: "100%",
-            maxWidth: "100%",
-            overflowX: "auto",
-            maxHeight: "60vh",
-            overflowY: "auto",
-          }}
-        >
-          <Table sx={{ width: "100%", tableLayout: "auto" }}>
-            <TableHead>
-              <TableRow sx={{ backgroundColor: "#fef3c7" }}>
-                <TableCell padding="checkbox" sx={{ fontWeight: 600, fontSize: "0.875rem", width: "5%" }}>
-                  <Checkbox
-                    checked={selectedUsers.length === users.length && users.length > 0}
-                    indeterminate={selectedUsers.length > 0 && selectedUsers.length < users.length}
-                    onChange={(e) => {
-                      if (e.target.checked) {
-                        setSelectedUsers(users.map((u) => u.id));
-                      } else {
-                        setSelectedUsers([]);
-                      }
-                    }}
-                  />
-                </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.875rem", width: "10%" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer" }} onClick={() => toggleSort("username")}>
-                    Username <SortIcon column="username" />
+      {/* Table - Remove Card wrapper, just use TableContainer with border */}
+      <TableContainer component={Paper} variant="outlined" sx={{ maxHeight: "60vh", borderRadius: 2, border: `1px solid ${theme.palette.divider}` }}>
+        <Table stickyHeader size="small">
+          <TableHead>
+            <TableRow>
+              <TableCell padding="checkbox" sx={{ bgcolor: "background.paper" }}>
+                <Checkbox
+                  checked={selectedUsers.length === users.length && users.length > 0}
+                  indeterminate={selectedUsers.length > 0 && selectedUsers.length < users.length}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedUsers(users.map((u) => u.id));
+                    } else {
+                      setSelectedUsers([]);
+                    }
+                  }}
+                />
+              </TableCell>
+              <TableCell sx={{ cursor: "pointer", bgcolor: "background.paper", fontWeight: 600 }} onClick={() => toggleSort("username")}>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  Username <SortIcon column="username" />
+                </Box>
+              </TableCell>
+              <TableCell sx={{ cursor: "pointer", bgcolor: "background.paper", fontWeight: 600 }} onClick={() => toggleSort("email")}>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  Email <SortIcon column="email" />
+                </Box>
+              </TableCell>
+              <TableCell sx={{ bgcolor: "background.paper", fontWeight: 600 }}>Role</TableCell>
+              <TableCell sx={{ bgcolor: "background.paper", fontWeight: 600 }}>Location</TableCell>
+              <TableCell sx={{ bgcolor: "background.paper", fontWeight: 600 }}>Dealer</TableCell>
+              <TableCell sx={{ bgcolor: "background.paper", fontWeight: 600 }}>Status</TableCell>
+              <TableCell sx={{ cursor: "pointer", bgcolor: "background.paper", fontWeight: 600 }} onClick={() => toggleSort("createdAt")}>
+                <Box display="flex" alignItems="center" gap={0.5}>
+                  Created <SortIcon column="createdAt" />
+                </Box>
+              </TableCell>
+              <TableCell align="right" sx={{ bgcolor: "background.paper" }}>Action</TableCell>
+            </TableRow>
+          </TableHead>
+          <TableBody>
+            {loading ? (
+              // Skeleton Rows
+              Array.from(new Array(5)).map((_, index) => (
+                <TableRow key={index}>
+                  <TableCell padding="checkbox"><Skeleton variant="rectangular" width={20} height={20} /></TableCell>
+                  <TableCell><Box display="flex" gap={1} alignItems="center"><Skeleton variant="circular" width={28} height={28} /><Skeleton width={100} /></Box></TableCell>
+                  <TableCell><Skeleton width={150} /></TableCell>
+                  <TableCell><Skeleton width={80} /></TableCell>
+                  <TableCell><Skeleton width={100} /></TableCell>
+                  <TableCell><Skeleton width={120} /></TableCell>
+                  <TableCell><Skeleton width={70} /></TableCell>
+                  <TableCell><Skeleton width={90} /></TableCell>
+                  <TableCell align="right"><Skeleton variant="circular" width={24} height={24} /></TableCell>
+                </TableRow>
+              ))
+            ) : users.length === 0 ? (
+              <TableRow>
+                <TableCell colSpan={9} align="center" sx={{ py: 8 }}>
+                  <Box display="flex" flexDirection="column" alignItems="center" gap={1}>
+                    <UserX size={40} color={theme.palette.text.disabled} />
+                    <Typography variant="body2" color="text.secondary">No users found</Typography>
                   </Box>
                 </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.875rem", width: "12%" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer" }} onClick={() => toggleSort("email")}>
-                    Email <SortIcon column="email" />
-                  </Box>
-                </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.875rem", width: "8%" }}>Role</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.875rem", width: "8%" }}>Region</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.875rem", width: "8%" }}>Area</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.875rem", width: "8%" }}>Territory</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.875rem", width: "12%" }}>Dealer</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.875rem", width: "8%" }}>Status</TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.875rem", width: "10%" }}>
-                  <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, cursor: "pointer" }} onClick={() => toggleSort("createdAt")}>
-                    Created <SortIcon column="createdAt" />
-                  </Box>
-                </TableCell>
-                <TableCell sx={{ fontWeight: 600, fontSize: "0.875rem", width: "12%" }}>Last Login</TableCell>
-                <TableCell align="right" sx={{ fontWeight: 600, fontSize: "0.875rem", width: "8%" }}>Actions</TableCell>
               </TableRow>
-            </TableHead>
-            <TableBody>
-              {loading ? (
-                <TableRow>
-                  <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
-                    <Typography>Loading...</Typography>
+            ) : (
+              users.map((user) => (
+                <TableRow key={user.id} hover sx={{ '&:hover': { bgcolor: 'action.hover' } }}>
+                  <TableCell padding="checkbox">
+                    <Checkbox
+                      checked={selectedUsers.includes(user.id)}
+                      onChange={(e) => {
+                        if (e.target.checked) {
+                          setSelectedUsers([...selectedUsers, user.id]);
+                        } else {
+                          setSelectedUsers(selectedUsers.filter((id) => id !== user.id));
+                        }
+                      }}
+                      size="small"
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+                      <Box sx={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: "50%",
+                        bgcolor: "primary.light",
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        color: "primary.main",
+                        fontWeight: 700,
+                        fontSize: "0.75rem"
+                      }}>
+                        {user.username.charAt(0).toUpperCase()}
+                      </Box>
+                      <Typography variant="body2" fontWeight={600}>
+                        {user.username}
+                      </Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                      <Mail size={14} color={theme.palette.text.secondary} />
+                      <Typography variant="body2">{user.email}</Typography>
+                    </Box>
+                  </TableCell>
+                  <TableCell>
+                    <Chip
+                      label={user.roleDetails?.name || user.role || "—"}
+                      size="small"
+                      variant="outlined"
+                      sx={{ borderColor: "divider", fontSize: "0.75rem", height: 24 }}
+                    />
+                  </TableCell>
+                  <TableCell>
+                    <Typography variant="body2" sx={{ fontSize: "0.80rem" }}>{user.region?.name || user.area?.name || "—"}</Typography>
+                    {user.territory?.name && (
+                      <Typography variant="caption" color="text.secondary" display="block">
+                        {user.territory?.name}
+                      </Typography>
+                    )}
+                  </TableCell>
+                  <TableCell>
+                    {user.dealer?.businessName ? (
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        <Building2 size={12} color={theme.palette.text.secondary} />
+                        <Typography variant="body2" sx={{ fontSize: "0.80rem" }}>{user.dealer.businessName}</Typography>
+                      </Box>
+                    ) : (
+                      "—"
+                    )}
+                  </TableCell>
+                  <TableCell>{getStatusChip(user)}</TableCell>
+                  <TableCell>
+                    <Typography variant="body2" color="text.secondary" sx={{ fontSize: "0.80rem" }}>
+                      {new Date(user.createdAt).toLocaleDateString()}
+                    </Typography>
+                  </TableCell>
+                  <TableCell align="right">
+                    <IconButton size="small" onClick={(e) => handleMenuOpen(e, user)}>
+                      <MoreVertical size={16} />
+                    </IconButton>
                   </TableCell>
                 </TableRow>
-              ) : users.length === 0 ? (
-                <TableRow>
-                  <TableCell colSpan={12} align="center" sx={{ py: 4 }}>
-                    <Typography color="text.secondary">No users found</Typography>
-                  </TableCell>
-                </TableRow>
-              ) : (
-                users.map((user) => (
-                  <TableRow key={user.id} hover sx={{ "&:hover": { backgroundColor: "rgba(0,0,0,0.02)" } }}>
-                    <TableCell padding="checkbox" sx={{ py: 1.5 }}>
-                      <Checkbox
-                        checked={selectedUsers.includes(user.id)}
-                        onChange={(e) => {
-                          if (e.target.checked) {
-                            setSelectedUsers([...selectedUsers, user.id]);
-                          } else {
-                            setSelectedUsers(selectedUsers.filter((id) => id !== user.id));
-                          }
-                        }}
-                      />
-                    </TableCell>
-                    <TableCell sx={{ py: 1.5 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Shield size={16} color="#6b7280" />
-                        <Typography variant="body2" fontWeight="medium" sx={{ fontSize: "0.875rem" }}>
-                          {user.username}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell sx={{ py: 1.5 }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                        <Mail size={14} color="#6b7280" />
-                        <Typography variant="body2" sx={{ fontSize: "0.875rem" }}>
-                          {user.email}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell>
-                      <Chip 
-                        label={user.roleDetails?.name || user.role || "—"} 
-                        size="small" 
-                        sx={{ 
-                          backgroundColor: "#f97316", 
-                          color: "white",
-                          fontWeight: 500,
-                          "& .MuiChip-label": { px: 1.5 }
-                        }} 
-                      />
-                    </TableCell>
-                    <TableCell sx={{ py: 1.5, fontSize: "0.875rem" }}>{user.region?.name || "—"}</TableCell>
-                    <TableCell sx={{ py: 1.5, fontSize: "0.875rem" }}>{user.area?.name || "—"}</TableCell>
-                    <TableCell sx={{ py: 1.5, fontSize: "0.875rem" }}>{user.territory?.name || "—"}</TableCell>
-                    <TableCell sx={{ py: 1.5, maxWidth: "180px", overflow: "hidden" }}>
-                      {user.dealer?.businessName ? (
-                        <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
-                          <Building2 size={14} color="#6b7280" style={{ flexShrink: 0 }} />
-                          <Typography variant="body2" sx={{ fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                            {user.dealer.businessName}
-                          </Typography>
-                        </Box>
-                      ) : (
-                        <Typography variant="body2" sx={{ fontSize: "0.875rem", color: "text.secondary" }}>
-                          —
-                        </Typography>
-                      )}
-                    </TableCell>
-                    <TableCell sx={{ py: 1.5, maxWidth: "100px" }}>{getStatusChip(user)}</TableCell>
-                    <TableCell sx={{ py: 1.5, maxWidth: "120px", overflow: "hidden" }}>
-                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5, minWidth: 0 }}>
-                        <Calendar size={14} color="#6b7280" style={{ flexShrink: 0 }} />
-                        <Typography variant="body2" sx={{ fontSize: "0.875rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                          {new Date(user.createdAt).toLocaleDateString()}
-                        </Typography>
-                      </Box>
-                    </TableCell>
-                    <TableCell sx={{ py: 1.5, fontSize: "0.875rem", maxWidth: "150px", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
-                      {user.lastLogin ? new Date(user.lastLogin).toLocaleString() : "Never"}
-                    </TableCell>
-                    <TableCell align="right" sx={{ py: 1.5, width: "60px" }}>
-                      <Tooltip title="More options">
-                        <IconButton size="small" onClick={(e) => handleMenuOpen(e, user)}>
-                          <MoreVertical size={18} />
-                        </IconButton>
-                      </Tooltip>
-                    </TableCell>
-                  </TableRow>
-                ))
-              )}
-            </TableBody>
-          </Table>
-        </TableContainer>
+              ))
+            )}
+          </TableBody>
+        </Table>
+      </TableContainer>
+      <Box sx={{ p: 2, display: "flex", justifyContent: "flex-end" }}>
+        <Pagination
+          count={totalPages}
+          page={page}
+          onChange={(e, value) => setPage(value)}
+          color="primary"
+          showFirstButton
+          showLastButton
+          size="small"
+        />
+      </Box>
 
-        {/* Pagination */}
-        <Box sx={{ p: 2, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-          <Typography variant="body2" color="text.secondary">
-            Showing {users.length} of {total} users
-          </Typography>
-          <Pagination
-            count={totalPages}
-            page={page}
-            onChange={(e, value) => setPage(value)}
-            color="primary"
-            showFirstButton
-            showLastButton
-          />
-        </Box>
-      </Card>
-
-      {/* Action Menu */}
+      {/* Action Menu - kept as is */}
       <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
         <MenuItem onClick={() => handleEdit(selectedUser)}>
           <Edit size={16} style={{ marginRight: 8 }} />
@@ -675,38 +677,18 @@ export default function Users() {
         </MenuItem>
       </Menu>
 
-      {/* Delete Dialog */}
+      {/* Dialogs kept as is */}
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <AlertCircle size={20} color="#ef4444" />
-            Delete User - Impact Warning
-          </Box>
+          Confirm User Deletion
         </DialogTitle>
         <DialogContent>
           <Alert severity="error" sx={{ mb: 2 }}>
-            <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-              This action is permanent and cannot be undone.
-            </Typography>
-            <Typography variant="body2">
-              Deleting user <strong>{selectedUser?.username}</strong> will:
-            </Typography>
-            <Box component="ul" sx={{ mt: 1, mb: 0, pl: 2 }}>
-              <li><Typography variant="body2">Remove all access immediately</Typography></li>
-              <li><Typography variant="body2">Affect any pending approvals assigned to this user</Typography></li>
-              <li><Typography variant="body2">Be logged in audit trail as a Super Admin override</Typography></li>
-            </Box>
+            This action is permanent and cannot be undone.
           </Alert>
-          {selectedUser && (
-            <Box sx={{ mt: 2, p: 1.5, background: "#f3f4f6", borderRadius: 1 }}>
-              <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                User Details:
-              </Typography>
-              <Typography variant="body2"><strong>Role:</strong> {selectedUser.roleDetails?.name || selectedUser.role || "N/A"}</Typography>
-              <Typography variant="body2"><strong>Region:</strong> {selectedUser.region?.name || "N/A"}</Typography>
-              <Typography variant="body2"><strong>Status:</strong> {selectedUser.isActive ? "Active" : "Inactive"}</Typography>
-            </Box>
-          )}
+          <Typography>
+            Are you sure you want to delete user <strong>{selectedUser?.username}</strong>?
+          </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDeleteDialogOpen(false)}>Cancel</Button>
@@ -716,16 +698,12 @@ export default function Users() {
         </DialogActions>
       </Dialog>
 
-      {/* Bulk Action Dialog */}
       <Dialog open={bulkActionDialogOpen} onClose={() => setBulkActionDialogOpen(false)} maxWidth="sm" fullWidth>
         <DialogTitle>
-          <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-            <AlertCircle size={20} color={bulkAction === "delete" ? "#ef4444" : "#f59e0b"} />
-            Bulk Action - Impact Warning
-          </Box>
+          Bulk Action Confirmation
         </DialogTitle>
         <DialogContent>
-          <FormControl fullWidth sx={{ mt: 2 }}>
+          <FormControl fullWidth sx={{ mt: 2, mb: 2 }}>
             <InputLabel>Action</InputLabel>
             <Select value={bulkAction} label="Action" onChange={(e) => setBulkAction(e.target.value)}>
               <MenuItem value="activate">Activate Users</MenuItem>
@@ -733,41 +711,19 @@ export default function Users() {
               <MenuItem value="delete">Delete Users</MenuItem>
             </Select>
           </FormControl>
-          {bulkAction && (
-            <Alert 
-              severity={bulkAction === "delete" ? "error" : "warning"} 
-              sx={{ mt: 2 }}
-            >
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                Impact: This will affect {selectedUsers.length} user(s)
-              </Typography>
-              {bulkAction === "delete" && (
-                <Typography variant="body2">
-                  <strong>Warning:</strong> Bulk deletion is permanent and cannot be undone. All affected users will lose access immediately.
-                </Typography>
-              )}
-              {bulkAction === "deactivate" && (
-                <Typography variant="body2">
-                  Users will lose access but can be reactivated later. Pending approvals may be affected.
-                </Typography>
-              )}
-              {bulkAction === "activate" && (
-                <Typography variant="body2">
-                  Users will regain access immediately. Ensure proper role assignments are in place.
-                </Typography>
-              )}
-            </Alert>
-          )}
+          <Typography variant="body2" color="text.secondary">
+            You have selected {selectedUsers.length} users.
+          </Typography>
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setBulkActionDialogOpen(false)}>Cancel</Button>
-          <Button 
-            onClick={handleBulkAction} 
-            variant="contained" 
+          <Button
+            onClick={handleBulkAction}
+            variant="contained"
             disabled={!bulkAction}
             color={bulkAction === "delete" ? "error" : "primary"}
           >
-            Confirm {bulkAction === "delete" ? "Permanent Deletion" : "Action"}
+            Confirm
           </Button>
         </DialogActions>
       </Dialog>

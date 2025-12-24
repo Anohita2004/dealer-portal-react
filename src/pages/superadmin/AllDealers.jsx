@@ -9,6 +9,8 @@ import {
   Card,
   CardContent,
   Typography,
+  Stack,
+  Divider,
 } from "@mui/material";
 import { Search, Download, TrendingUp, DollarSign, Package } from "lucide-react";
 import { useNavigate } from "react-router-dom";
@@ -118,8 +120,8 @@ export default function AllDealers() {
         const status = row.isBlocked
           ? "blocked"
           : row.isActive === false
-          ? "inactive"
-          : "active";
+            ? "inactive"
+            : "active";
         return (
           <Chip
             label={status.toUpperCase()}
@@ -127,8 +129,8 @@ export default function AllDealers() {
               status === "active"
                 ? "success"
                 : status === "blocked"
-                ? "error"
-                : "default"
+                  ? "error"
+                  : "default"
             }
             size="small"
           />
@@ -235,7 +237,7 @@ export default function AllDealers() {
         </Grid>
       </Grid>
 
-      <Box sx={{ mb: 2 }}>
+      <Box sx={{ mb: 4 }}>
         <TextField
           fullWidth
           placeholder="Search dealers by name or code..."
@@ -248,16 +250,131 @@ export default function AllDealers() {
               </InputAdornment>
             ),
           }}
+          sx={{
+            '& .MuiOutlinedInput-root': {
+              borderRadius: 2,
+              backgroundColor: 'background.paper',
+            }
+          }}
         />
       </Box>
 
-      <ScopedDataTable
-        endpoint="/dealers"
-        columns={columns}
-        title="Dealers"
-        data={filteredDealers}
-        loading={loading}
-      />
+      {loading ? (
+        <Typography variant="body1" textAlign="center" py={4}>
+          Loading dealers...
+        </Typography>
+      ) : filteredDealers.length === 0 ? (
+        <Typography variant="body1" textAlign="center" py={4} color="text.secondary">
+          No dealers found matching your search.
+        </Typography>
+      ) : (
+        <Grid container spacing={3}>
+          {filteredDealers.map((dealer) => (
+            <Grid item xs={12} md={6} lg={4} key={dealer.id}>
+              <Card
+                sx={{
+                  height: '100%',
+                  display: 'flex',
+                  flexDirection: 'column',
+                  transition: 'transform 0.2s, box-shadow 0.2s',
+                  '&:hover': {
+                    transform: 'translateY(-4px)',
+                    boxShadow: 4
+                  }
+                }}
+              >
+                <CardContent sx={{ flexGrow: 1 }}>
+                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
+                    <Box>
+                      <Typography variant="h6" fontWeight="bold" gutterBottom>
+                        {dealer.businessName}
+                      </Typography>
+                      <Stack direction="row" spacing={1} alignItems="center">
+                        <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace', bgcolor: 'action.hover', px: 0.5, borderRadius: 1 }}>
+                          {dealer.dealerCode || dealer.code || 'N/A'}
+                        </Typography>
+                      </Stack>
+                    </Box>
+                    <Chip
+                      label={(dealer.isBlocked ? 'BLOCKED' : dealer.isActive === false ? 'INACTIVE' : 'ACTIVE')}
+                      color={dealer.isBlocked ? 'error' : dealer.isActive === false ? 'default' : 'success'}
+                      size="small"
+                      sx={{ fontWeight: 'bold' }}
+                    />
+                  </Box>
+
+                  <Divider sx={{ my: 2 }} />
+
+                  <Grid container spacing={2}>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Region
+                      </Typography>
+                      <Typography variant="body2" fontWeight="medium">
+                        {dealer.region?.name || 'N/A'}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Territory
+                      </Typography>
+                      <Typography variant="body2" fontWeight="medium">
+                        {dealer.territory?.name || 'N/A'}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Total Sales
+                      </Typography>
+                      <Typography variant="body2" fontWeight="medium" color="success.main">
+                        ₹{Number(dealer.totalSales || 0).toLocaleString()}
+                      </Typography>
+                    </Grid>
+                    <Grid item xs={6}>
+                      <Typography variant="caption" color="text.secondary">
+                        Outstanding
+                      </Typography>
+                      <Typography variant="body2" fontWeight="medium" color={Number(dealer.outstanding) > 0 ? "warning.main" : "text.primary"}>
+                        ₹{Number(dealer.outstanding || 0).toLocaleString()}
+                      </Typography>
+                    </Grid>
+                  </Grid>
+                </CardContent>
+                <Box sx={{ p: 2, pt: 0, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    onClick={() => navigate(`/superadmin/dealers/${dealer.id}`)}
+                    sx={{ flex: 1 }}
+                  >
+                    Edit
+                  </Button>
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    color={dealer.isBlocked ? "success" : "error"}
+                    onClick={() => handleToggleBlock(dealer)}
+                    sx={{ flex: 1 }}
+                  >
+                    {dealer.isBlocked ? "Unblock" : "Block"}
+                  </Button>
+                  {!dealer.isVerified && (
+                    <Button
+                      size="small"
+                      variant="contained"
+                      color="primary"
+                      onClick={() => handleVerify(dealer)}
+                      sx={{ flex: 1, minWidth: '100%' }}
+                    >
+                      Verify
+                    </Button>
+                  )}
+                </Box>
+              </Card>
+            </Grid>
+          ))}
+        </Grid>
+      )}
     </Box>
   );
 }
