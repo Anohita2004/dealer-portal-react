@@ -106,7 +106,7 @@ export default function DealerFormPage() {
   const loadManagers = async () => {
     try {
       const params = {
-        role: ["regional_manager", "area_manager", "territory_manager"].join(","),
+        role: ["sales_executive", "territory_manager", "area_manager", "regional_manager"].join(","),
         regionId: form.regionId || undefined,
         areaId: form.areaId || undefined,
         territoryId: form.territoryId || undefined,
@@ -540,8 +540,8 @@ export default function DealerFormPage() {
                 {loading
                   ? "Saving..."
                   : isEdit
-                  ? "Update Dealer"
-                  : "Create Dealer"}
+                    ? "Update Dealer"
+                    : "Create Dealer"}
               </Button>
             </Box>
           </form>

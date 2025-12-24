@@ -85,7 +85,7 @@ The Dealer Management Portal follows a **geographic and role-based hierarchical 
 
 ### 7. **Dealer Admin**
 - **Geographic Requirements:** Must be assigned to **ONE Dealer**
-- **Can Have Manager:** Territory Manager OR Area Manager OR Regional Manager
+- **Can Have Manager:** Sales Executive OR Territory Manager OR Area Manager OR Regional Manager
 - **Scope:** Manages one dealer company
 
 ### 8. **Dealer Staff**
@@ -119,12 +119,12 @@ The Dealer Management Portal follows a **geographic and role-based hierarchical 
 2. **Manager Reporting:**
    - Managers report to their immediate superior in the hierarchy
    - Sales Executives report to their assigned manager (Territory/Area/Regional Manager or Regional Admin)
-   - Dealer Admin can report to Territory/Area/Regional Manager
+   - Dealer Admin can report to Sales Executive OR Territory/Area/Regional Manager
 
 3. **Dealer Assignment:**
    - Dealers are assigned to:
      - A geographic location (Region → Area → Territory)
-     - A manager (Territory/Area/Regional Manager)
+     - A manager (Sales Executive / Territory / Area / Regional Manager)
      - Sales Executives (via separate assignment system)
 
 4. **Data Scoping:**

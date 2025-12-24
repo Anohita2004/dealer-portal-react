@@ -66,7 +66,7 @@ export default function UserFormPage() {
 
   // Dropdown data
   const [roles, setRoles] = useState([]);
-  
+
   // Use ref to store latest form state for test helpers (avoids stale closure issues)
   const formRef = useRef(form);
   useEffect(() => {
@@ -82,21 +82,21 @@ export default function UserFormPage() {
         const currentForm = formRef.current;
         const next = { ...currentForm, ...(updates || {}) };
         formRef.current = next;
-        
+
         // Log for debugging
         if (process.env.NODE_ENV === "test") {
-          console.log('[__setUserFormState] Setting form state:', { 
-            prev: { ...currentForm }, 
-            updates, 
+          console.log('[__setUserFormState] Setting form state:', {
+            prev: { ...currentForm },
+            updates,
             next: { ...next },
-            roleIdSet: !!next.roleId 
+            roleIdSet: !!next.roleId
           });
         }
-        
+
         // Then update React state (async, but ref is already updated)
         setForm(next);
       };
-      
+
       // Update the reference whenever setForm changes (shouldn't happen, but just in case)
       // Actually, setForm is stable, so we don't need to update it
       // But we'll keep the reference fresh by re-creating the helper on each render
@@ -135,7 +135,7 @@ export default function UserFormPage() {
       };
       // Test helper to directly trigger form submission (bypasses button click timing issues)
       window.__submitForm = async () => {
-        const fakeEvent = { preventDefault: () => {} };
+        const fakeEvent = { preventDefault: () => { } };
         const currentFormState = formRef.current;
         console.log('[__submitForm] Calling handleSave with form state from formRef:', JSON.stringify({
           username: currentFormState.username,
@@ -190,8 +190,8 @@ export default function UserFormPage() {
     },
     dealer_admin: {
       requires: ["dealer"],
-      canHaveManager: ["territory_manager", "area_manager", "regional_manager"],
-      description: "Dealer Admin must be assigned to a dealer and can have Territory/Area/Regional Manager as manager",
+      canHaveManager: ["sales_executive", "territory_manager", "area_manager", "regional_manager"],
+      description: "Dealer Admin must be assigned to a dealer and can have Sales Executive, Territory, Area, or Regional Manager as manager",
     },
     territory_manager: {
       requires: ["region", "area", "territory"],
@@ -308,6 +308,16 @@ export default function UserFormPage() {
           if (!manager.dealerId || manager.dealerId !== form.dealerId) return false;
         }
 
+        // For dealer_admin, if manager is a sales_executive, they should ideally be linked to the same dealer
+        // or geography, but since sales_executives can have multiple dealers, we'll allow them if they match the geography
+        if (roleName === "dealer_admin" && manager.role === "sales_executive") {
+          const dealer = dealers.find((d) => d.id === form.dealerId);
+          if (dealer) {
+            if (dealer.regionId && manager.regionId && dealer.regionId !== manager.regionId) return false;
+            if (dealer.areaId && manager.areaId && dealer.areaId !== manager.areaId) return false;
+          }
+        }
+
         // For sales_executive, filter managers by geographic scope if provided
         if (roleName === "sales_executive") {
           // If sales executive has geographic scope, filter managers by that scope
@@ -384,7 +394,7 @@ export default function UserFormPage() {
   const validate = () => {
     // In test mode, use formRef to get the latest form state (avoids stale closure)
     const formToValidate = process.env.NODE_ENV === "test" ? formRef.current : form;
-    
+
     const newErrors = {};
 
     // Basic validations
@@ -433,7 +443,7 @@ export default function UserFormPage() {
     }
 
     setErrors(newErrors);
-    
+
     // Expose validation errors to tests for debugging
     if (typeof window !== "undefined" && process.env.NODE_ENV === "test") {
       window.__lastValidationErrors = newErrors;
@@ -442,7 +452,7 @@ export default function UserFormPage() {
       window.__lastValidationRoles = roles.length;
       window.__lastValidationSelectedRole = selectedRole ? { id: selectedRole.id, name: selectedRole.name } : null;
       window.__lastValidationHierarchy = hierarchy ? { requires: hierarchy.requires } : null;
-      
+
       // Detailed logging for test debugging
       if (Object.keys(newErrors).length > 0) {
         console.error('[VALIDATION FAILED]', {
@@ -456,7 +466,7 @@ export default function UserFormPage() {
         });
       }
     }
-    
+
     return Object.keys(newErrors).length === 0;
   };
 
@@ -511,16 +521,16 @@ export default function UserFormPage() {
 
     // In test mode, use formRef to get the latest form state (avoids stale closure)
     const currentForm = process.env.NODE_ENV === "test" ? formRef.current : form;
-    
+
     // Temporarily override form for validation if in test mode
     const originalForm = form;
     if (process.env.NODE_ENV === "test" && currentForm !== form) {
       // Use currentForm for validation by temporarily replacing form in validate's closure
       // Actually, we can't do this easily. Let's use formRef.current directly in validate
     }
-    
+
     const isValid = validate();
-    
+
     // Expose validation result for tests
     if (typeof window !== "undefined" && process.env.NODE_ENV === "test") {
       window.__lastSaveValidationResult = isValid;
@@ -528,7 +538,7 @@ export default function UserFormPage() {
       const currentFormState = process.env.NODE_ENV === "test" ? formRef.current : form;
       window.__lastSaveFormState = { ...currentFormState };
       window.__handleSaveCalled = true;
-      
+
       // Log to console (these should appear in test output)
       console.log('[HANDLE_SAVE] Called with form state:', JSON.stringify({
         username: currentFormState.username,
@@ -539,7 +549,7 @@ export default function UserFormPage() {
         dealerId: currentFormState.dealerId,
         regionId: currentFormState.regionId,
       }));
-      
+
       if (!isValid) {
         console.error('[HANDLE_SAVE] Validation failed:', JSON.stringify({
           errors: window.__lastSaveValidationErrors,
@@ -570,13 +580,13 @@ export default function UserFormPage() {
     try {
       // In test mode, use formRef to get the latest form state (avoids stale closure)
       const currentFormState = process.env.NODE_ENV === "test" ? formRef.current : form;
-      
+
       console.log('[HANDLE_SAVE] Entering try block, currentFormState:', JSON.stringify({
         username: currentFormState.username,
         roleId: currentFormState.roleId,
         isEdit,
       }));
-      
+
       const payload = {
         username: currentFormState.username.trim(),
         email: currentFormState.email.trim(),
@@ -969,8 +979,8 @@ export default function UserFormPage() {
 
                   {hierarchy && hierarchy.canHaveManager.length > 0 && (
                     <Grid item xs={12}>
-                      <FormControl 
-                        fullWidth 
+                      <FormControl
+                        fullWidth
                         required={selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive"}
                         error={selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive" && !form.managerId && !!errors.managerId}
                       >
@@ -993,12 +1003,12 @@ export default function UserFormPage() {
                           ))}
                         </Select>
                         <FormHelperText>
-                          {errors.managerId ? errors.managerId : 
-                           managers.length === 0
-                            ? "No managers available for this role/hierarchy"
-                            : selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive"
-                            ? `Required: Assign to ${hierarchy.canHaveManager.join(", ")} for hierarchy placement`
-                            : `Available managers: ${hierarchy.canHaveManager.join(", ")}`}
+                          {errors.managerId ? errors.managerId :
+                            managers.length === 0
+                              ? "No managers available for this role/hierarchy"
+                              : selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive"
+                                ? `Required: Assign to ${hierarchy.canHaveManager.join(", ")} for hierarchy placement`
+                                : `Available managers: ${hierarchy.canHaveManager.join(", ")}`}
                         </FormHelperText>
                       </FormControl>
                     </Grid>
