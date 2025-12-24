@@ -188,8 +188,8 @@ export default function DocumentDetail() {
                       document.status === "approved"
                         ? "success"
                         : document.status === "rejected"
-                        ? "error"
-                        : "warning"
+                          ? "error"
+                          : "warning"
                     }
                     size="small"
                   />
@@ -267,25 +267,55 @@ export default function DocumentDetail() {
             </CardContent>
           </Card>
 
-          {/* Document Preview (if image) */}
-          {document.fileUrl && (document.fileName?.match(/\.(jpg|jpeg|png|gif)$/i) || document.type === "image") && (
+          {/* Document Preview (if image or PDF) */}
+          {document.fileUrl && (
             <Card>
               <CardContent>
                 <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
                   Document Preview
                 </Typography>
-                <Box
-                  component="img"
-                  src={document.fileUrl}
-                  alt={document.name}
-                  sx={{
-                    maxWidth: "100%",
-                    height: "auto",
-                    borderRadius: 1,
-                    border: "1px solid",
-                    borderColor: "divider",
-                  }}
-                />
+
+                {document.fileName?.match(/\.(jpg|jpeg|png|gif)$/i) || document.type === "image" ? (
+                  <Box
+                    component="img"
+                    src={document.fileUrl}
+                    alt={document.name}
+                    sx={{
+                      maxWidth: "100%",
+                      height: "auto",
+                      borderRadius: 1,
+                      border: "1px solid",
+                      borderColor: "divider",
+                    }}
+                  />
+                ) : document.fileName?.match(/\.pdf$/i) || document.type === "pdf" ? (
+                  <Box
+                    component="iframe"
+                    src={`${document.fileUrl}#toolbar=0`}
+                    title="PDF Preview"
+                    sx={{
+                      width: "100%",
+                      height: "600px",
+                      border: "1px solid",
+                      borderColor: "divider",
+                      borderRadius: 1,
+                    }}
+                  />
+                ) : (
+                  <Box sx={{ p: 4, textAlign: "center", bgcolor: "action.hover", borderRadius: 1 }}>
+                    <FileText size={48} style={{ opacity: 0.5, marginBottom: 16 }} />
+                    <Typography color="text.secondary">
+                      Preview not available for this file type.
+                    </Typography>
+                    <Button
+                      variant="text"
+                      onClick={handleDownload}
+                      sx={{ mt: 1 }}
+                    >
+                      Download to View
+                    </Button>
+                  </Box>
+                )}
               </CardContent>
             </Card>
           )}

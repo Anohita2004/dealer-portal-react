@@ -36,7 +36,7 @@ export default function PaymentApprovalCard({ payment, onUpdate, userRole }) {
   const [previewOpen, setPreviewOpen] = useState(false);
   const [workflow, setWorkflow] = useState(null);
   const [workflowLoading, setWorkflowLoading] = useState(false);
-  
+
   // Use user from context if userRole prop not provided
   const effectiveUserRole = userRole || user?.role;
 
@@ -78,7 +78,7 @@ export default function PaymentApprovalCard({ payment, onUpdate, userRole }) {
     }
   };
 
-  const handleReject = async (reason, remarks) => {
+  const handleBlock = async (reason, remarks) => {
     if (!reason) return;
 
     try {
@@ -87,15 +87,15 @@ export default function PaymentApprovalCard({ payment, onUpdate, userRole }) {
       } else {
         await paymentAPI.rejectByFinance(payment.id, { action: "reject", reason, remarks });
       }
-      toast.success("Payment rejected");
+      toast.success("Payment blocked successfully");
       if (onUpdate) onUpdate();
       // Refresh workflow data
       const response = await paymentAPI.getWorkflowStatus(payment.id);
       const workflowData = response.workflow || response.data || response;
       setWorkflow(workflowData);
     } catch (error) {
-      console.error("Failed to reject payment:", error);
-      toast.error(error.response?.data?.error || "Failed to reject payment");
+      console.error("Failed to block payment:", error);
+      toast.error(error.response?.data?.error || "Failed to block payment");
     }
   };
 
@@ -121,10 +121,10 @@ export default function PaymentApprovalCard({ payment, onUpdate, userRole }) {
   };
 
   const slaUrgency = getSLAUrgency();
-  
+
   // Get current stage from workflow (backend authority) or fallback to payment data
   const currentStage = workflow?.currentStage || payment.approvalStage || payment.currentStage;
-  
+
   // Format stage name for display
   const formatStageName = (stage) => {
     if (!stage) return "N/A";
@@ -240,8 +240,8 @@ export default function PaymentApprovalCard({ payment, onUpdate, userRole }) {
                     slaUrgency.isOverdue
                       ? `Overdue: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
                       : slaUrgency.isDueSoon
-                      ? `Due in: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
-                      : `SLA: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
+                        ? `Due in: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
+                        : `SLA: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
                   }
                   color={slaUrgency.isOverdue ? "error" : slaUrgency.isDueSoon ? "warning" : "info"}
                   size="small"
@@ -265,8 +265,8 @@ export default function PaymentApprovalCard({ payment, onUpdate, userRole }) {
             const pendingReason = getPaymentPendingReason(payment, workflow);
             if (pendingReason) {
               return (
-                <Alert 
-                  severity={pendingReason.blockingType === "missing_proof" || pendingReason.blockingType === "finance_discrepancy" || pendingReason.blockingType === "reconciliation_discrepancy" ? "warning" : "info"} 
+                <Alert
+                  severity={pendingReason.blockingType === "missing_proof" || pendingReason.blockingType === "finance_discrepancy" || pendingReason.blockingType === "reconciliation_discrepancy" ? "warning" : "info"}
                   sx={{ mb: 2 }}
                   icon={<AlertCircle />}
                 >
@@ -319,14 +319,14 @@ export default function PaymentApprovalCard({ payment, onUpdate, userRole }) {
 
           {/* Reconciliation State - Backend Intelligence */}
           {payment.reconciliationStatus && (
-            <Alert 
+            <Alert
               severity={
-                payment.reconciliationStatus === "reconciled" 
-                  ? "success" 
-                  : payment.reconciliationStatus === "discrepancy" 
-                  ? "error" 
-                  : "warning"
-              } 
+                payment.reconciliationStatus === "reconciled"
+                  ? "success"
+                  : payment.reconciliationStatus === "discrepancy"
+                    ? "error"
+                    : "warning"
+              }
               sx={{ mb: 2 }}
             >
               <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
@@ -353,23 +353,27 @@ export default function PaymentApprovalCard({ payment, onUpdate, userRole }) {
           )}
 
           {/* Approval Actions */}
-          {/* Show approval actions if workflow exists OR if payment is at dealer_admin stage */}
-          {(workflow || (payment.approvalStage === "dealer_admin" && (payment.approvalStatus === "pending" || payment.status === "dealer_admin_pending"))) && (
-            <Box sx={{ mt: 2 }}>
-              <ApprovalActions
-                workflow={workflow || {
-                  currentStage: payment.approvalStage || "dealer_admin",
-                  approvalStatus: payment.approvalStatus || payment.status === "dealer_admin_pending" ? "pending" : payment.status,
-                  pipeline: payment.approvalStage ? [payment.approvalStage] : ["dealer_admin"],
-                }}
-                entityType="payment"
-                entityId={payment.id}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                loading={workflowLoading}
-              />
-            </Box>
-          )}
+          {/* Show approval actions if it's pending at any stage */}
+          {(() => {
+            const status = (workflow?.approvalStatus || payment.approvalStatus || payment.status || "").toLowerCase();
+            const isFinalized = status === "approved" || status === "rejected" || status === "blocked";
+            return !isFinalized;
+          })() && (
+              <Box sx={{ mt: 2 }}>
+                <ApprovalActions
+                  workflow={workflow || {
+                    currentStage: payment.approvalStage || payment.currentStage || "dealer_admin",
+                    approvalStatus: "pending",
+                    pipeline: [payment.approvalStage || "dealer_admin"],
+                  }}
+                  entityType="payment"
+                  entityId={payment.id}
+                  onApprove={handleApprove}
+                  onReject={handleBlock}
+                  loading={workflowLoading}
+                />
+              </Box>
+            )}
 
           {/* Workflow Timeline */}
           {workflow && workflow.timeline && (

@@ -36,12 +36,11 @@ export default function AdminOrders() {
       let res;
 
       if (role === "dealer_admin") {
-        // Dealer admin: use dedicated pending orders endpoint
-        // Backend: GET /api/orders/pending (scoped to this dealer_admin's approvals)
-        res = await orderAPI.getPendingOrders();
+        // Dealer admin: fetch all orders for their dealer to ensure visibility
+        // UI will handle the stage/status filtering
+        res = await orderAPI.getAllOrders({ dealerId: user.dealerId });
       } else {
-        // Managers / super_admin / regional_admin: use filtered orders endpoint
-        // Backend: GET /api/orders?status=pending (scoped by role & hierarchy)
+        // Managers / super_admin / regional_admin: use role-scoped pending approvals
         res = await orderAPI.getPendingApprovals();
       }
 
@@ -91,14 +90,17 @@ export default function AdminOrders() {
 
   // Filter orders
   const filteredOrders = orders.filter((order) => {
-    // Status filter
-    if (statusFilter === "pending" && order.status !== "pending" && order.approvalStatus !== "pending") {
+    const status = (order.status || "").toLowerCase();
+    const approvalStatus = (order.approvalStatus || "").toLowerCase();
+
+    // Status filter (case-insensitive)
+    if (statusFilter === "pending" && status !== "pending" && approvalStatus !== "pending") {
       return false;
     }
-    if (statusFilter === "approved" && order.status !== "approved" && order.approvalStatus !== "approved") {
+    if (statusFilter === "approved" && status !== "approved" && approvalStatus !== "approved") {
       return false;
     }
-    if (statusFilter === "rejected" && order.status !== "rejected" && order.approvalStatus !== "rejected") {
+    if (statusFilter === "rejected" && status !== "rejected" && approvalStatus !== "rejected") {
       return false;
     }
 
@@ -125,7 +127,7 @@ export default function AdminOrders() {
     const bPending = b.status === "pending" || b.approvalStatus === "pending";
     if (aPending && !bPending) return -1;
     if (!aPending && bPending) return 1;
-    
+
     // Within pending, sort by creation date (newest first for now)
     // TODO: When backend provides SLA in list response, sort by SLA expiration
     if (aPending && bPending) {
@@ -133,7 +135,7 @@ export default function AdminOrders() {
       const bDate = new Date(b.createdAt || 0);
       return bDate - aDate;
     }
-    
+
     return 0;
   });
 
@@ -160,17 +162,16 @@ export default function AdminOrders() {
           role === "regional_manager"
             ? "Regional Manager Order Tracking"
             : role === "regional_admin"
-            ? "Regional Admin Approval Panel"
-            : role === "super_admin"
-            ? "Super Admin Approval Panel"
-            : "Dealer Orders (Approval Panel)"
+              ? "Regional Admin Approval Panel"
+              : role === "super_admin"
+                ? "Super Admin Approval Panel"
+                : "Dealer Orders (Approval Panel)"
         }
         subtitle={
           role === "regional_manager"
             ? `${filteredOrders.length} order(s) currently in workflow for your assigned dealers`
-            : `${filteredOrders.length} order(s) ${
-                statusFilter === "pending" ? "pending" : ""
-              } for approval`
+            : `${filteredOrders.length} order(s) ${statusFilter === "pending" ? "pending" : ""
+            } for approval`
         }
       />
 

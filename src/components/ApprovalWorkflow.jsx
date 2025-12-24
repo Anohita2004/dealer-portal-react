@@ -1,16 +1,16 @@
 import React, { useState } from "react";
-import { 
-  Box, 
-  Stepper, 
-  Step, 
-  StepLabel, 
-  Chip, 
-  Typography, 
-  Dialog, 
-  DialogTitle, 
-  DialogContent, 
-  DialogActions, 
-  Button, 
+import {
+  Box,
+  Stepper,
+  Step,
+  StepLabel,
+  Chip,
+  Typography,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  Button,
   TextField,
   Avatar,
   Divider,
@@ -23,12 +23,12 @@ import CloseIcon from "@mui/icons-material/Close";
 import { CheckCircle, XCircle, Clock, User } from "lucide-react";
 import { useAuth } from "../context/AuthContext";
 
-const ApprovalWorkflow = ({ 
-  entity, 
-  currentStage, 
-  approvalStatus, 
-  onApprove, 
-  onReject, 
+const ApprovalWorkflow = ({
+  entity,
+  currentStage,
+  approvalStatus,
+  onApprove,
+  onReject,
   showActions = true,
   approvalHistory = [],
   showHistory = true
@@ -42,24 +42,46 @@ const ApprovalWorkflow = ({
     const workflows = {
       // Order workflow now includes dealer_admin as the first stage
       // so dealer admins can approve orders before manager levels
-      order: ["dealer_admin", "territory_manager", "area_manager", "regional_manager"],
-      invoice: ["dealer_admin", "territory_manager", "area_manager", "regional_manager", "regional_admin"],
-      payment: ["dealer_admin", "territory_manager", "area_manager", "regional_manager", "regional_admin"],
-      document: ["dealer_admin", "territory_manager", "area_manager", "regional_manager"],
+      order: ["dealer_admin", "sales_executive", "territory_manager", "area_manager", "regional_manager"],
+      invoice: ["dealer_admin", "sales_executive", "territory_manager", "area_manager", "regional_manager", "regional_admin"],
+      payment: ["dealer_admin", "sales_executive", "territory_manager", "area_manager", "regional_manager", "regional_admin"],
+      document: ["dealer_admin", "sales_executive", "territory_manager", "area_manager", "regional_manager"],
       pricing: ["area_manager", "regional_admin", "super_admin"],
       campaign: ["area_manager", "regional_admin", "super_admin"],
     };
+
+    // If entity has a custom pipeline from workflow service, use it instead
+    if (entity?.pipeline && Array.isArray(entity.pipeline)) {
+      return entity.pipeline;
+    }
+
     return workflows[type] || [];
   };
 
   const stages = getStages(entity?.type || entity?.entityType || "order");
-  const currentIndex = currentStage ? stages.indexOf(currentStage) : -1;
+
+  // Try to find index by exact name, or by parsing "StageX" pattern
+  let currentIndex = currentStage ? stages.indexOf(currentStage) : -1;
+  if (currentIndex === -1 && currentStage?.toLowerCase().startsWith("stage")) {
+    const stageNum = parseInt(currentStage.replace(/\D/g, ''), 10);
+    if (!isNaN(stageNum) && stageNum > 0 && stageNum <= stages.length) {
+      currentIndex = stageNum - 1;
+    }
+  }
   const isApproved = approvalStatus === "approved";
   const isRejected = approvalStatus === "rejected";
   // Check if order is fully approved (at final stage and approved)
   const isFullyApproved = isApproved && (currentIndex === stages.length - 1 || currentIndex === -1);
 
   const getStageLabel = (stage) => {
+    // If it's a generic "StageX", try to get the name from the stages array
+    if (stage?.toLowerCase().startsWith("stage")) {
+      const stageNum = parseInt(stage.replace(/\D/g, ''), 10);
+      if (!isNaN(stageNum) && stageNum > 0 && stageNum <= stages.length) {
+        stage = stages[stageNum - 1];
+      }
+    }
+
     return stage
       .split("_")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
@@ -82,6 +104,26 @@ const ApprovalWorkflow = ({
     return "pending";
   };
 
+  const canApproveAtCurrentStage = () => {
+    if (role === "super_admin") return true;
+    if (!currentStage) return false;
+
+    // Basic role match
+    if (role === currentStage) return true;
+
+    // Handle generic Stage1 mapping for dealer_admin
+    if (role === "dealer_admin" && (currentStage === "Stage1" || currentIndex === 0)) return true;
+
+    // Dealer Admin privilege: Can always approve/block items for their own dealer
+    // (This overrides the stage-gate for the dealer's own hierarchy)
+    const entityDealerId = entity?.dealerId || entity?.dealer_id || (entity?.dealer && (entity.dealer.id || entity.dealer._id));
+    if (role === "dealer_admin" && entityDealerId && String(entityDealerId) === String(user?.dealerId)) return true;
+
+    return false;
+  };
+
+  const userCanApprove = canApproveAtCurrentStage();
+
   return (
     <Box sx={{ width: "100%", py: 2 }}>
       <Box sx={{ mb: 2, display: "flex", alignItems: "center", gap: 2 }}>
@@ -95,6 +137,11 @@ const ApprovalWorkflow = ({
           }
           size="small"
         />
+        {!isApproved && !isRejected && currentStage && !userCanApprove && (
+          <Typography variant="caption" color="text.secondary">
+            (Awaiting {getStageLabel(currentStage)})
+          </Typography>
+        )}
       </Box>
 
       <Stepper activeStep={isApproved ? stages.length : currentIndex} orientation="horizontal">
@@ -107,8 +154,8 @@ const ApprovalWorkflow = ({
                   status === "completed"
                     ? CheckCircleIcon
                     : status === "active"
-                    ? PendingIcon
-                    : RadioButtonUncheckedIcon
+                      ? PendingIcon
+                      : RadioButtonUncheckedIcon
                 }
               >
                 {getStageLabel(stage)}
@@ -120,21 +167,21 @@ const ApprovalWorkflow = ({
 
       {/* Order Approved Message - Final Stage */}
       {isFullyApproved && (
-        <Alert 
-          severity="success" 
+        <Alert
+          severity="success"
           icon={<CheckCircle size={24} />}
           sx={{ mt: 3, mb: 2 }}
         >
           <Typography variant="h6" sx={{ fontWeight: 600, mb: 0.5 }}>
-            Order Approved
+            {entity?.type === "order" ? "Order Approved" : "Fully Approved"}
           </Typography>
           <Typography variant="body2">
-            This order has been fully approved through all stages and is ready for processing.
+            This {entity?.type || "item"} has been fully approved through all stages and is ready for the next process.
           </Typography>
         </Alert>
       )}
 
-      {showActions && !isApproved && !isRejected && currentIndex >= 0 && (
+      {showActions && !isApproved && !isRejected && userCanApprove && (
         <Box sx={{ mt: 3, display: "flex", gap: 2, justifyContent: "flex-end" }}>
           <Button
             variant="outlined"
@@ -142,7 +189,7 @@ const ApprovalWorkflow = ({
             startIcon={<XCircle size={18} />}
             onClick={() => setRejectDialogOpen(true)}
           >
-            Reject
+            Block
           </Button>
           <Button
             variant="contained"
@@ -166,7 +213,7 @@ const ApprovalWorkflow = ({
               const isApprove = historyItem.action === "approve";
               const isReject = historyItem.action === "reject";
               const isPending = historyItem.action === "pending";
-              
+
               return (
                 <Box key={index} sx={{ display: "flex", mb: 3, position: "relative" }}>
                   {/* Timeline Line */}
@@ -182,7 +229,7 @@ const ApprovalWorkflow = ({
                       }}
                     />
                   )}
-                  
+
                   {/* Timeline Dot */}
                   <Box sx={{ mr: 2, position: "relative", zIndex: 1 }}>
                     <Avatar
@@ -192,8 +239,8 @@ const ApprovalWorkflow = ({
                         bgcolor: isApprove
                           ? "success.main"
                           : isReject
-                          ? "error.main"
-                          : "grey.400",
+                            ? "error.main"
+                            : "grey.400",
                         border: isPending ? "2px solid" : "none",
                         borderColor: isPending ? "grey.400" : "transparent",
                       }}
@@ -207,7 +254,7 @@ const ApprovalWorkflow = ({
                       )}
                     </Avatar>
                   </Box>
-                  
+
                   {/* Timeline Content */}
                   <Box sx={{ flex: 1 }}>
                     <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", mb: 0.5 }}>
@@ -221,11 +268,11 @@ const ApprovalWorkflow = ({
                         </Typography>
                       </Box>
                       <Typography variant="caption" color="text.secondary" sx={{ fontSize: "0.75rem" }}>
-                        {historyItem.timestamp 
+                        {historyItem.timestamp
                           ? new Date(historyItem.timestamp).toLocaleString()
-                          : historyItem.createdAt 
-                          ? new Date(historyItem.createdAt).toLocaleString()
-                          : ""}
+                          : historyItem.createdAt
+                            ? new Date(historyItem.createdAt).toLocaleString()
+                            : ""}
                       </Typography>
                     </Box>
                     {historyItem.remarks && (
@@ -247,8 +294,8 @@ const ApprovalWorkflow = ({
       )}
 
       {/* Rejection Reason Dialog */}
-      <Dialog 
-        open={rejectDialogOpen} 
+      <Dialog
+        open={rejectDialogOpen}
         onClose={() => {
           setRejectDialogOpen(false);
           setRejectionReason("");
@@ -258,7 +305,7 @@ const ApprovalWorkflow = ({
       >
         <DialogTitle>
           <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <Typography variant="h6">Reject {entity?.type || "Item"}</Typography>
+            <Typography variant="h6">Block {entity?.type || "Item"}</Typography>
             <Button
               onClick={() => {
                 setRejectDialogOpen(false);
@@ -308,7 +355,7 @@ const ApprovalWorkflow = ({
             }}
             disabled={!rejectionReason.trim()}
           >
-            Reject
+            Block
           </Button>
         </DialogActions>
       </Dialog>

@@ -48,18 +48,46 @@ export default function ApprovalActions({
   const canApprove = () => {
     if (!user || !currentStage || isApproved || isRejected) return false;
 
-    // Map user role to stage
-    const roleToStage = {
-      dealer_admin: "dealer_admin",
-      territory_manager: "territory_manager",
-      area_manager: "area_manager",
-      regional_manager: "regional_manager",
-      regional_admin: "regional_admin",
-      super_admin: "super_admin",
-    };
+    // Aggressive normalization
+    const normalize = (str) => String(str || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
 
-    const userStage = roleToStage[role];
-    return userStage === currentStage;
+    // We try both user.role and the 'role' variable from line 37
+    const userRoleStr = user.role || role || "";
+    const normRole = normalize(userRoleStr);
+    const normStage = normalize(currentStage);
+
+    // 1. Super Admin Bypass
+    if (normRole.includes("superadmin")) return true;
+
+    // 2. Exact Normalized Match
+    if (normRole === normStage) return true;
+
+    // 3. Keyword Match (e.g., "territory" in both "territory_manager" and "Territory Manager")
+    // Only for specific manager roles to avoid false positives
+    const keywords = ["territory", "area", "regional", "finance", "dealer"];
+    for (const kw of keywords) {
+      if (normRole.includes(kw) && normStage.includes(kw)) {
+        return true;
+      }
+    }
+
+    // 4. Generic Stage Mapping (e.g., "Stage 3")
+    if (normStage.startsWith("stage")) {
+      const stageNum = parseInt(normStage.replace(/\D/g, ""), 10);
+      const pipeline = ["dealer_admin", "sales_executive", "territory_manager", "area_manager", "regional_manager", "regional_admin"];
+      if (!isNaN(stageNum) && stageNum > 0) {
+        const mappedRole = pipeline[stageNum - 1];
+        if (normRole === normalize(mappedRole) || normRole.includes(normalize(mappedRole))) return true;
+      }
+    }
+
+    // 5. Dealer Admin Override
+    const entityDealerId = workflow?.dealerId || workflow?.dealer_id;
+    if (normRole.includes("dealeradmin") && entityDealerId && String(entityDealerId) === String(user?.dealerId)) {
+      return true;
+    }
+
+    return false;
   };
 
   const userCanApprove = canApprove();
@@ -95,7 +123,8 @@ export default function ApprovalActions({
 
   // Format stage name
   const formatStageName = (stage) => {
-    return stage
+    if (!stage) return "Unknown Stage";
+    return String(stage)
       .split("_")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
@@ -206,7 +235,7 @@ export default function ApprovalActions({
           onClick={() => setRejectDialogOpen(true)}
           disabled={loading || !userCanApprove}
         >
-          Reject
+          Block
         </Button>
         <Button
           variant="contained"
@@ -240,7 +269,7 @@ export default function ApprovalActions({
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             You are approving this {entityType} at the {formatStageName(currentStage)} stage.
           </Typography>
-          
+
           {/* What happens after approve - Backend Intelligence */}
           {workflow && (
             <Alert severity="info" sx={{ mb: 2 }}>
@@ -262,7 +291,7 @@ export default function ApprovalActions({
               )}
             </Alert>
           )}
-          
+
           {validationError && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {validationError}
@@ -318,24 +347,24 @@ export default function ApprovalActions({
         <DialogTitle>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
             <XCircle size={24} color="#ef4444" />
-            <Typography variant="h6">Reject {formatStageName(currentStage)}</Typography>
+            <Typography variant="h6">Block {formatStageName(currentStage)}</Typography>
           </Box>
         </DialogTitle>
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Please provide a reason for rejection. This will be visible to the requester.
           </Typography>
-          
+
           {/* What happens after reject - Backend Intelligence */}
           <Alert severity="warning" sx={{ mb: 2 }}>
             <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-              What happens after rejection:
+              What happens after blocking:
             </Typography>
             <Typography variant="caption" component="div">
-              Rejecting this {entityType} will <strong>stop the approval workflow</strong>. The requester will be notified with your rejection reason, and they may need to resubmit with corrections.
+              Blocking this {entityType} will <strong>stop the approval workflow</strong>. The requester will be notified with your reason, and they may need to resubmit with corrections.
             </Typography>
           </Alert>
-          
+
           {validationError && (
             <Alert severity="error" sx={{ mb: 2 }}>
               {validationError}
@@ -345,8 +374,8 @@ export default function ApprovalActions({
             fullWidth
             multiline
             rows={4}
-            label="Rejection Reason *"
-            placeholder="Enter reason for rejection..."
+            label="Block Reason *"
+            placeholder="Enter reason for blocking..."
             value={rejectionReason}
             onChange={(e) => {
               setRejectionReason(e.target.value);
@@ -384,7 +413,7 @@ export default function ApprovalActions({
             onClick={handleReject}
             disabled={loading || !rejectionReason.trim()}
           >
-            {loading ? "Rejecting..." : "Reject"}
+            {loading ? "Blocking..." : "Block"}
           </Button>
         </DialogActions>
       </Dialog>

@@ -26,6 +26,7 @@ import { useNavigate } from "react-router-dom";
 import { paymentAPI } from "../../services/api";
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
+import { useAuth } from "../../context/AuthContext";
 
 export default function RegionalPayments() {
   const navigate = useNavigate();
@@ -36,18 +37,18 @@ export default function RegionalPayments() {
   const [page, setPage] = useState(1);
   const [pageSize] = useState(25);
   const [totalPages, setTotalPages] = useState(1);
+  const { user } = useAuth();
+  const role = user?.role?.toLowerCase();
 
   const fetchPayments = async () => {
     try {
       setLoading(true);
-      // Payments are workflow-driven - no generic /api/payments endpoint
-      // Regional managers should use finance pending or dealer pending endpoints
-      // If those don't work, show empty state gracefully
+      let res;
       try {
-        const data = await paymentAPI.getFinancePending();
-        const paymentsList = Array.isArray(data) ? data : data.payments || data.data || [];
-        setPayments(paymentsList);
-        setTotalPages(Math.ceil(paymentsList.length / pageSize));
+        // Payments are workflow-driven - no generic /api/payments endpoint
+        // Regional managers should use finance pending or dealer pending endpoints
+        // If those don't work, show empty state gracefully
+        res = await paymentAPI.getFinancePending();
       } catch (e) {
         // 404 = endpoint doesn't exist - show empty
         // 403 = role restriction - show empty
@@ -58,6 +59,39 @@ export default function RegionalPayments() {
         }
         throw e;
       }
+
+      let list = Array.isArray(res) ? res : res.pending || res.payments || res.data || res || [];
+
+      // Filter by workflow stage for regional manager
+      if (role === "regional_manager") {
+        const filtered = [];
+        for (const payment of list) {
+          try {
+            const workflowRes = await paymentAPI.getWorkflowStatus(payment.id);
+            const workflow = workflowRes.workflow || workflowRes.data || workflowRes;
+            const currentStage = workflow?.currentStage;
+            const normalize = (str) => String(str || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+            const normStage = normalize(currentStage);
+
+            // Workflow pipeline: dealer_admin (1), sales_exe (2), territory_manager (3), area_manager (4), regional_manager (5)...
+            let isUserTurn = normStage === "regionalmanager";
+            if (!isUserTurn && normStage.startsWith("stage")) {
+              const stageNum = parseInt(normStage.replace(/\D/g, ''), 10);
+              isUserTurn = stageNum === 5; // Regional Manager is Stage 5
+            }
+
+            if (isUserTurn) {
+              filtered.push(payment);
+            }
+          } catch (err) {
+            if ((payment.status || "").toLowerCase() === "pending") filtered.push(payment);
+          }
+        }
+        list = filtered;
+      }
+
+      setPayments(list);
+      setTotalPages(Math.ceil(list.length / pageSize));
     } catch (error) {
       // Only log non-permission errors
       if (error?.response?.status !== 403 && error?.response?.status !== 404) {

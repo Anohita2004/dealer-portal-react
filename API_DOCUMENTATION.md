@@ -941,7 +941,7 @@ socket.on('typing', (data) => {
 
 ### Order Workflow
 ```
-Pending → territory_manager (pending) → area_manager (pending) → regional_manager (pending) → Approved
+Pending → dealer_admin (pending) → sales_executive (pending) → territory_manager (pending) → area_manager (pending) → regional_manager (pending) → Approved
 ```
 
 ### Invoice Workflow

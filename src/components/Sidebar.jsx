@@ -31,16 +31,16 @@ import {
 // Helper function to format username for display
 function formatUsername(username) {
   if (!username) return "User";
-  
+
   // Replace underscores and hyphens with spaces
   let formatted = username.replace(/[_-]/g, " ");
-  
+
   // Capitalize first letter of each word
   formatted = formatted
     .split(" ")
     .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
     .join(" ");
-  
+
   return formatted;
 }
 
@@ -65,24 +65,25 @@ export default function Sidebar() {
     super_admin: [
       // Dashboard Section
       { label: "Overview Dashboard", path: "/dashboard/super", icon: <FaHome />, section: "Dashboard" },
-      
+
       // Governance Section
       { label: "Users", path: "/superadmin/users", icon: <FaUsers />, section: "Governance" },
       { label: "Roles & Permissions", path: "/superadmin/roles", icon: <FaCogs />, section: "Governance" },
       { label: "Audit Logs", path: "/superadmin/activity", icon: <FaBell />, section: "Governance" },
       { label: "Dealer Management", path: "/dealers", icon: <FaUsers />, section: "Governance" },
-      
+      { label: "Pending Approvals", path: "/approvals", icon: <FaClipboardList />, section: "Governance" },
+
       // Global Visibility Section
       { label: "All Orders", path: "/superadmin/orders", icon: <FaFileAlt />, section: "Global Visibility" },
       { label: "All Invoices", path: "/superadmin/invoices", icon: <FaFileInvoice />, section: "Global Visibility" },
       { label: "All Payments", path: "/superadmin/payments", icon: <FaMoneyCheckAlt />, section: "Global Visibility" },
       { label: "All Dealers", path: "/superadmin/dealers", icon: <FaUsers />, section: "Global Visibility" },
-      
+
       // Analytics & Reports Section
       { label: "Global Reports", path: "/superadmin/reports", icon: <FaChartBar />, section: "Analytics & Reports" },
       { label: "Region Performance", path: "/superadmin/region-reports", icon: <FaChartBar />, section: "Analytics & Reports" },
       { label: "Global Maps", path: "/map-view", icon: <FaFire />, section: "Analytics & Reports" },
-      
+
       // System Configuration Section
       { label: "System Admin", path: "/superadmin/system-admin", icon: <FaCogs />, section: "System Configuration" },
       { label: "Feature Toggles", path: "/superadmin/feature-toggles", icon: <FaCogs />, section: "System Configuration" },
@@ -102,12 +103,12 @@ export default function Sidebar() {
       // Dashboard Section
       { label: "Regional Dashboard", path: "/dashboard/regional", icon: <FaHome />, section: "Dashboard" },
       { label: "Regional Heatmap", path: "/regional/heatmap", icon: <FaFire />, section: "Dashboard" },
-      
+
       // Hierarchy Section
       { label: "Users", path: "/regional/users", icon: <FaUsers />, section: "Hierarchy" },
       { label: "Managers", path: "/regional/managers", icon: <FaSitemap />, section: "Hierarchy" },
       { label: "Dealers", path: "/dealers", icon: <FaUsers />, section: "Hierarchy" },
-      
+
       // Workflows Section
       { label: "Orders", path: "/regional/orders", icon: <FaFileAlt />, section: "Workflows" },
       { label: "Invoices", path: "/regional/invoices", icon: <FaFileInvoice />, section: "Workflows" },
@@ -115,17 +116,17 @@ export default function Sidebar() {
       { label: "Documents", path: "/regional/documents", icon: <FaFileAlt />, section: "Workflows" },
       { label: "Pricing Requests", path: "/regional/pricing", icon: <FaFileContract />, section: "Workflows" },
       { label: "Campaign Approvals", path: "/regional/campaign-approvals", icon: <FaClipboardList />, section: "Workflows" },
-      
+
       // Campaigns Section
       { label: "Regional Campaigns", path: "/regional/campaigns", icon: <FaBullhorn />, section: "Campaigns" },
       { label: "Campaign Analytics", path: "/regional/campaigns/analytics", icon: <FaChartBar />, section: "Campaigns" },
-      
+
       // Reports Section
       { label: "Regional Reports", path: "/regional/reports", icon: <FaChartBar />, section: "Reports" },
       { label: "Territory Performance", path: "/regional/reports/territory", icon: <FaChartBar />, section: "Reports" },
       { label: "Dealer Performance", path: "/regional/reports/dealer", icon: <FaChartBar />, section: "Reports" },
       { label: "Outstanding Region Payments", path: "/regional/reports/payments", icon: <FaMoneyCheckAlt />, section: "Reports" },
-      
+
       // Inventory Section
       { label: "Regional Inventory", path: "/regional/inventory", icon: <FaWarehouse />, section: "Inventory" },
       { label: "Stock Alerts", path: "/regional/inventory/alerts", icon: <FaExclamationTriangle />, section: "Inventory" },
@@ -135,65 +136,65 @@ export default function Sidebar() {
       // Dashboard Section
       { label: "Area Dashboard", path: "/dashboard/area-manager", icon: <FaHome />, section: "Dashboard" },
       { label: "Area Heatmap", path: "/area/heatmap", icon: <FaFire />, section: "Dashboard" },
-      
+
       // Hierarchy Section
       { label: "Dealers", path: "/area/dealers", icon: <FaUsers />, section: "Hierarchy" },
       { label: "Staff", path: "/area/staff", icon: <FaUsers />, section: "Hierarchy" },
-      
+
       // Workflows Section
       { label: "Pending Approvals", path: "/area/approvals", icon: <FaClipboardList />, section: "Workflows" },
       { label: "Orders", path: "/area/orders", icon: <FaFileAlt />, section: "Workflows" },
       { label: "Documents", path: "/area/documents", icon: <FaFileAlt />, section: "Workflows" },
       { label: "Payments", path: "/area/payments", icon: <FaMoneyCheckAlt />, section: "Workflows" },
       { label: "Pricing Requests", path: "/area/pricing", icon: <FaFileContract />, section: "Workflows" },
-      
+
       // Reports Section
       { label: "Area Sales", path: "/area/reports/sales", icon: <FaChartBar />, section: "Reports" },
       { label: "Area Outstanding", path: "/area/reports/outstanding", icon: <FaMoneyCheckAlt />, section: "Reports" },
       { label: "Dealer Performance", path: "/area/reports/dealer-performance", icon: <FaChartBar />, section: "Reports" },
-      
+
       // Campaigns Section
       { label: "Campaigns Assigned to Area", path: "/area/campaigns", icon: <FaBullhorn />, section: "Campaigns" },
-      
+
       // Inventory Section
       { label: "Area Inventory Overview", path: "/area/inventory", icon: <FaWarehouse />, section: "Inventory" },
     ],
     regional_manager: [
       // Dashboard Section
       { label: "Regional Manager Dashboard", path: "/dashboard/regional-manager", icon: <FaHome />, section: "Dashboard" },
-      
+
       // Hierarchy Section
       { label: "Dealers", path: "/dealers", icon: <FaUsers />, section: "Hierarchy" },
-      
+
       // Workflows Section
       { label: "Approvals", path: "/approvals", icon: <FaClipboardList />, section: "Workflows" },
       { label: "Invoice Approvals", path: "/invoices", icon: <FaFileInvoice />, section: "Workflows" },
-      
+
       // Reports Section
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt />, section: "Reports" },
     ],
     territory_manager: [
       // Dashboard Section
       { label: "Territory Dashboard", path: "/dashboard/territory-manager", icon: <FaHome />, section: "Dashboard" },
-      
+
       // Hierarchy Section
       { label: "Dealers in Territory", path: "/territory/dealers", icon: <FaUsers />, section: "Hierarchy" },
-      
+
       // Workflows Section
       { label: "Approvals", path: "/approvals", icon: <FaClipboardList />, section: "Workflows" },
       { label: "Invoice Approvals", path: "/invoices", icon: <FaFileInvoice />, section: "Workflows" },
       { label: "Orders", path: "/territory/orders", icon: <FaFileAlt />, section: "Workflows" },
       { label: "Payments", path: "/territory/payments", icon: <FaMoneyCheckAlt />, section: "Workflows" },
       { label: "Documents", path: "/territory/documents", icon: <FaFileAlt />, section: "Workflows" },
-      
+
       // Reports Section
       { label: "Territory Sales", path: "/territory/reports/sales", icon: <FaChartBar />, section: "Reports" },
       { label: "Dealer Performance", path: "/territory/reports/dealer-performance", icon: <FaChartBar />, section: "Reports" },
       { label: "Outstanding", path: "/territory/reports/outstanding", icon: <FaMoneyCheckAlt />, section: "Reports" },
-      
+
       // Campaigns Section
       { label: "Territory Campaigns", path: "/campaigns", icon: <FaBullhorn />, section: "Campaigns" },
-      
+
       // Inventory Section
       { label: "Territory Inventory", path: "/territory/inventory", icon: <FaWarehouse />, section: "Inventory" },
     ],
@@ -202,6 +203,7 @@ export default function Sidebar() {
       { label: "My Documents", path: "/documents", icon: <FaFileAlt /> },
       { label: "Campaigns", path: "/campaigns", icon: <FaChartBar /> },
       { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
+      { label: "Pending Approvals", path: "/approvals", icon: <FaClipboardList /> },
       { label: "Payment Approvals", path: "/payments/dealer/pending", icon: <FaMoneyCheckAlt /> },
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
@@ -209,46 +211,46 @@ export default function Sidebar() {
       // Dashboard Section
       { label: "My Dashboard", path: "/dashboard", icon: <FaHome />, section: "Dashboard" },
       { label: "My Company", path: "/dealer/profile", icon: <FaBuilding />, section: "Dashboard" },
-      
+
       // Orders Section
       { label: "My Orders", path: "/orders/my", icon: <FaFileAlt />, section: "Orders" },
       { label: "Create Order", path: "/orders/create", icon: <FaFileAlt />, section: "Orders" },
-      
+
       // Payments Section
       { label: "My Payment Requests", path: "/payments/my", icon: <FaMoneyCheckAlt />, section: "Payments" },
       { label: "Create Payment Request", path: "/payments/create", icon: <FaMoneyCheckAlt />, section: "Payments" },
-      
+
       // Invoices Section
       { label: "My Invoices", path: "/invoices", icon: <FaFileInvoice />, section: "Invoices" },
-      
+
       // Documents Section
       { label: "My Documents", path: "/documents", icon: <FaFileAlt />, section: "Documents" },
       { label: "Upload Document", path: "/documents", icon: <FaUpload />, section: "Documents" },
-      
+
       // Campaigns Section
       { label: "Campaigns Assigned to My Dealer", path: "/campaigns", icon: <FaBullhorn />, section: "Campaigns" },
     ],
     finance_admin: [
       // Dashboard Section
       { label: "Accounts Dashboard", path: "/dashboard/accounts", icon: <FaHome />, section: "Dashboard" },
-      
+
       // Financial Operations Section
       { label: "Payment Approvals", path: "/payments/finance/pending", icon: <FaMoneyCheckAlt />, section: "Financial Operations" },
       { label: "All Payments", path: "/payments/my", icon: <FaMoneyCheckAlt />, section: "Financial Operations" },
       { label: "Invoices", path: "/accounts/invoices", icon: <FaFileInvoice />, section: "Financial Operations" },
-      
+
       // Reports Section
       { label: "Financial Reports", path: "/accounts/reports", icon: <FaChartBar />, section: "Reports" },
     ],
     accounts_user: [
       // Dashboard Section
       { label: "Accounts Dashboard", path: "/accounts", icon: <FaHome />, section: "Dashboard" },
-      
+
       // Financial Operations Section
       { label: "Payment Approvals", path: "/payments/finance/pending", icon: <FaMoneyCheckAlt />, section: "Financial Operations" },
       { label: "All Payments", path: "/payments/my", icon: <FaMoneyCheckAlt />, section: "Financial Operations" },
       { label: "Invoices", path: "/accounts/invoices", icon: <FaFileInvoice />, section: "Financial Operations" },
-      
+
       // Reports Section
       { label: "Financial Reports", path: "/accounts/reports", icon: <FaChartBar />, section: "Reports" },
     ],
@@ -261,6 +263,7 @@ export default function Sidebar() {
       // Dealers & Sales Workflows
       { label: "My Dealers", path: "/sales/my-dealers", icon: <FaUsers />, section: "Sales" },
       { label: "Create Order", path: "/sales/orders/new", icon: <FaFileAlt />, section: "Sales" },
+      { label: "Pending Approvals", path: "/approvals", icon: <FaClipboardList />, section: "Sales" },
       { label: "Create Payment Request", path: "/sales/payments/new", icon: <FaMoneyCheckAlt />, section: "Sales" },
     ],
   };
@@ -328,8 +331,8 @@ export default function Sidebar() {
         }}>
           {user?.name || (user?.username ? formatUsername(user.username) : "User")}
         </h3>}
-        <button 
-          onClick={() => setCollapsed(!collapsed)} 
+        <button
+          onClick={() => setCollapsed(!collapsed)}
           style={{
             padding: "var(--spacing-2)",
             borderRadius: "var(--radius-sm)",
@@ -374,7 +377,7 @@ export default function Sidebar() {
                 {l.section}
               </div>
             )}
-            <Link 
+            <Link
               to={l.path}
               style={{
                 display: "flex",

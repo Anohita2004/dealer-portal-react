@@ -325,7 +325,7 @@ export default function App() {
               <Route
                 path="approvals"
                 element={
-                  <ProtectedRoute allowed={["territory_manager", "area_manager", "regional_manager", "regional_admin", "super_admin"]}>
+                  <ProtectedRoute allowed={["territory_manager", "area_manager", "regional_manager", "regional_admin", "super_admin", "dealer_admin", "sales_executive"]}>
                     <Approvals />
                   </ProtectedRoute>
                 }

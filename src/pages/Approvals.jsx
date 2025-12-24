@@ -4,6 +4,8 @@ import { FileText, Receipt, CreditCard, File, DollarSign } from "lucide-react";
 import PageHeader from "../components/PageHeader";
 import AdminOrders from "./orders/AdminOrders";
 import PricingApprovals from "./PricingApprovals";
+import PendingDocuments from "../components/approvals/PendingDocuments";
+import PendingPayments from "../components/approvals/PendingPayments";
 import { useNavigate } from "react-router-dom";
 import { AuthContext } from "../context/AuthContext";
 
@@ -28,19 +30,13 @@ export default function Approvals() {
       label: "Payments",
       value: "payments",
       icon: <CreditCard size={18} />,
-      component: () => {
-        navigate("/payments/finance/pending");
-        return null;
-      },
+      component: PendingPayments,
     },
     {
       label: "Documents",
       value: "documents",
       icon: <File size={18} />,
-      component: () => {
-        navigate("/documents");
-        return null;
-      },
+      component: PendingDocuments,
     },
     {
       label: "Pricing",
@@ -54,7 +50,7 @@ export default function Approvals() {
   // Regional Manager: execution-focused tracking only (orders, read-only)
   const tabs =
     role === "regional_manager"
-      ? baseTabs.filter((tab) => tab.value === "orders")
+      ? baseTabs.filter((tab) => ["orders", "payments"].includes(tab.value))
       : baseTabs;
 
   const CurrentComponent = tabs[selectedTab].component;
