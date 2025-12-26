@@ -78,6 +78,7 @@ export default function Sidebar() {
       { label: "All Invoices", path: "/superadmin/invoices", icon: <FaFileInvoice />, section: "Global Visibility" },
       { label: "All Payments", path: "/superadmin/payments", icon: <FaMoneyCheckAlt />, section: "Global Visibility" },
       { label: "All Dealers", path: "/superadmin/dealers", icon: <FaUsers />, section: "Global Visibility" },
+      { label: "Campaign Management", path: "/campaigns", icon: <FaBullhorn />, section: "Global Visibility" },
 
       // Analytics & Reports Section
       { label: "Global Reports", path: "/superadmin/reports", icon: <FaChartBar />, section: "Analytics & Reports" },

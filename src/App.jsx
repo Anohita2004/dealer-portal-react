@@ -1101,7 +1101,7 @@ export default function App() {
               <Route
                 path="campaigns"
                 element={
-                  <ProtectedRoute allowed={["super_admin", "key_user", "dealer_admin", "regional_admin", "area_manager", "territory_manager"]}>
+                  <ProtectedRoute allowed={["super_admin", "key_user", "dealer_admin", "dealer_staff", "regional_admin", "area_manager", "territory_manager"]}>
                     <Campaigns />
                   </ProtectedRoute>
                 }
