@@ -87,6 +87,8 @@ export default function Sidebar() {
       // System Configuration Section
       { label: "System Admin", path: "/superadmin/system-admin", icon: <FaCogs />, section: "System Configuration" },
       { label: "Feature Toggles", path: "/superadmin/feature-toggles", icon: <FaCogs />, section: "System Configuration" },
+      { label: "Geography Management", path: "/superadmin/geography", icon: <FaMapMarkedAlt />, section: "System Configuration" },
+      { label: "Inventory Management", path: "/superadmin/inventory-management", icon: <FaWarehouse />, section: "System Configuration" },
       { label: "Dealer Material Assignment", path: "/materials/dealers", icon: <FaBoxes />, section: "System Configuration" },
       { label: "Region Material Availability", path: "/materials/regions", icon: <FaSitemap />, section: "System Configuration" },
     ],

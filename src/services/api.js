@@ -64,10 +64,10 @@ api.interceptors.response.use(
         "/managers/recent-activity",
         "/managers/dealers"
       ];
-      const isOptional = optionalEndpoints.some((path) => 
+      const isOptional = optionalEndpoints.some((path) =>
         originalUrl.includes(path)
       );
-      
+
       if (isOptional) {
         // Silently handle - these are expected validation/permission errors or optional endpoints
         // The error will still be available in catch blocks for handling
@@ -581,10 +581,6 @@ export const materialAPI = {
 };
 
 // =======================================================================
-// ======================== GEOGRAPHIC MANAGEMENT APIs ===================
-// =======================================================================
-
-// =======================================================================
 // ======================== GEOGRAPHY APIs ==============================
 // =======================================================================
 
@@ -806,7 +802,7 @@ export const reportAPI = {
   // Regional Sales Summary
   getRegionalSales: (params) =>
     api.get("/reports/regional-sales-summary", { params }).then((r) => r.data),
-  
+
   // Territory Report
   getTerritoryReport: (params) =>
     api.get("/reports/territory", { params }).then((r) => r.data),
@@ -1013,8 +1009,8 @@ export const inventoryAPI = {
     api.get("/inventory/summary").then((r) => r.data),
 
   // Get inventory details
-  getDetails: () =>
-    api.get("/inventory/details").then((r) => r.data),
+  getDetails: (params) =>
+    api.get("/inventory/details", { params }).then((r) => r.data),
 
   // Create inventory item
   createItem: (payload) =>
@@ -1027,6 +1023,18 @@ export const inventoryAPI = {
   // Delete inventory item
   deleteItem: (id) =>
     api.delete(`/inventory/${id}`).then((r) => r.data),
+
+  // Adjust stock level
+  adjustStock: (id, adjustment, reason) =>
+    api.patch(`/inventory/${id}/adjust`, { adjustment, reason }).then((r) => r.data),
+
+  // Get low stock alerts
+  getLowStockAlerts: () =>
+    api.get("/inventory/alerts/low-stock").then((r) => r.data),
+
+  // Get inventory by plant
+  getByPlant: (plantCode) =>
+    api.get(`/inventory/plant/${plantCode}`).then((r) => r.data),
 
   // Export inventory
   exportInventory: (format) =>

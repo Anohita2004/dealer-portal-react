@@ -37,6 +37,7 @@ import CampaignTargeting from "../components/CampaignTargeting";
 import { toast } from "react-toastify";
 import PageHeader from "../components/PageHeader";
 import { explainCampaignVisibility, getCampaignLifecycleState, formatTargetAudience } from "../utils/campaignTargeting";
+import { isAccountsUser } from "../utils/accountsPermissions";
 
 export default function Campaigns() {
   const { user } = useContext(AuthContext);
@@ -51,7 +52,7 @@ export default function Campaigns() {
   // Check if user can manage campaigns - handle different role formats
   const userRole = user?.role || user?.roleDetails?.name || user?.roleName || "";
   const canManage = !isAccountsUser(user) && (userRole === "super_admin" || userRole === "key_user");
-  
+
   // Debug: Log user role to verify (can be removed in production)
   useEffect(() => {
     if (user) {

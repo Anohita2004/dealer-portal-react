@@ -88,6 +88,8 @@ const AllDealers = React.lazy(() => import("./pages/superadmin/AllDealers"));
 const UserActivity = React.lazy(() => import("./pages/superadmin/UserActivity"));
 const TeamPerformance = React.lazy(() => import("./pages/superadmin/TeamPerformance"));
 const RegionWiseReports = React.lazy(() => import("./pages/superadmin/RegionWiseReports"));
+const GeographyManagement = React.lazy(() => import("./pages/superadmin/GeographyManagement"));
+const InventoryManagementPage = React.lazy(() => import("./pages/superadmin/InventoryManagement"));
 const DealerProfile = React.lazy(() => import("./pages/DealerProfile"));
 const DealerDetail = React.lazy(() => import("./pages/DealerDetail"));
 
@@ -532,6 +534,24 @@ export default function App() {
                   element={
                     <ProtectedRoute allowed={["super_admin"]}>
                       <RegionWiseReports />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="geography"
+                  element={
+                    <ProtectedRoute allowed={["super_admin"]}>
+                      <GeographyManagement />
+                    </ProtectedRoute>
+                  }
+                />
+
+                <Route
+                  path="inventory-management"
+                  element={
+                    <ProtectedRoute allowed={["super_admin"]}>
+                      <InventoryManagementPage />
                     </ProtectedRoute>
                   }
                 />
