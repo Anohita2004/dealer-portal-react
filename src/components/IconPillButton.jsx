@@ -18,10 +18,14 @@ export default function IconPillButton({ icon, label, onClick, tone = "primary" 
       background: "var(--color-error)",
       hover: "#B91C1C",
     },
+    info: {
+      background: "var(--color-info, #3B82F6)",
+      hover: "#2563EB",
+    },
   };
-  
+
   const toneStyle = tones[tone] || tones.primary;
-  
+
   return (
     <button
       onClick={onClick}
