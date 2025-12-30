@@ -56,12 +56,23 @@ const TruckDetail = () => {
       setLoading(true);
       const response = await truckAPI.getById(id);
       setTruck(response);
+      
+      // Wait for regions to load before setting regionId
+      const regionsResponse = await geoAPI.getRegions();
+      const regionsList = Array.isArray(regionsResponse) ? regionsResponse : (regionsResponse?.regions || regionsResponse?.data || []);
+      setRegions(regionsList);
+      
+      // Only set regionId if it exists in the regions list
+      const validRegionId = response.regionId && regionsList.find(r => r.id === response.regionId) 
+        ? response.regionId 
+        : '';
+      
       setFormData({
         truckName: response.truckName || '',
         licenseNumber: response.licenseNumber || '',
         truckType: response.truckType || 'medium',
         capacity: response.capacity?.toString() || '',
-        regionId: response.regionId || '',
+        regionId: validRegionId,
         isActive: response.isActive !== undefined ? response.isActive : true
       });
     } catch (error) {
@@ -239,7 +250,7 @@ const TruckDetail = () => {
       />
 
       <Grid container spacing={3}>
-        <Grid item xs={12} md={6}>
+        <Grid size={{ xs: 12, md: 6 }}>
           <Card>
             <Box sx={{ p: 3 }}>
               <Typography variant="h6" gutterBottom>
@@ -248,7 +259,7 @@ const TruckDetail = () => {
               <Divider sx={{ mb: 3 }} />
 
               <Grid container spacing={2}>
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <TextField
                     label="Truck Name"
                     required
@@ -261,7 +272,7 @@ const TruckDetail = () => {
                   />
                 </Grid>
 
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <TextField
                     label="License Number"
                     required
@@ -274,7 +285,7 @@ const TruckDetail = () => {
                   />
                 </Grid>
 
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <FormControl fullWidth required error={!!errors.truckType} disabled={!editing}>
                     <InputLabel>Truck Type</InputLabel>
                     <Select
@@ -292,7 +303,7 @@ const TruckDetail = () => {
                   </FormControl>
                 </Grid>
 
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <TextField
                     label="Capacity (tons)"
                     type="number"
@@ -307,11 +318,11 @@ const TruckDetail = () => {
                   />
                 </Grid>
 
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <FormControl fullWidth disabled={!editing}>
                     <InputLabel>Region (Optional)</InputLabel>
                     <Select
-                      value={formData.regionId}
+                      value={formData.regionId && regions.find(r => r.id === formData.regionId) ? formData.regionId : ''}
                       onChange={handleChange('regionId')}
                       label="Region (Optional)"
                     >
@@ -325,7 +336,7 @@ const TruckDetail = () => {
                   </FormControl>
                 </Grid>
 
-                <Grid item xs={12} md={6}>
+                <Grid size={{ xs: 12, md: 6 }}>
                   <FormControl fullWidth disabled={!editing}>
                     <InputLabel>Status</InputLabel>
                     <Select
@@ -341,7 +352,7 @@ const TruckDetail = () => {
 
                 {!editing && (
                   <>
-                    <Grid item xs={12}>
+                    <Grid size={{ xs: 12 }}>
                       <Box sx={{ mt: 2 }}>
                         <Typography variant="subtitle2" gutterBottom>
                           Current Status:
@@ -363,7 +374,7 @@ const TruckDetail = () => {
                     </Grid>
 
                     {truck.currentLat && truck.currentLng && (
-                      <Grid item xs={12}>
+                      <Grid size={{ xs: 12 }}>
                         <Typography variant="subtitle2" gutterBottom>
                           Current Location:
                         </Typography>

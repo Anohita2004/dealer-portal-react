@@ -97,6 +97,7 @@ export default function Sidebar() {
 
       // Fleet Management Section
       { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
+      { label: "Driver Management", path: "/fleet/drivers", icon: <FaUsers />, section: "Fleet Management" },
       { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
     ],
     technical_admin: [
@@ -143,6 +144,7 @@ export default function Sidebar() {
 
       // Fleet Management Section
       { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
+      { label: "Driver Management", path: "/fleet/drivers", icon: <FaUsers />, section: "Fleet Management" },
       { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
     ],
     area_manager: [
@@ -174,6 +176,7 @@ export default function Sidebar() {
 
       // Fleet Management Section
       { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
+      { label: "Driver Management", path: "/fleet/drivers", icon: <FaUsers />, section: "Fleet Management" },
       { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
     ],
     regional_manager: [
@@ -192,6 +195,7 @@ export default function Sidebar() {
 
       // Fleet Management Section
       { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
+      { label: "Driver Management", path: "/fleet/drivers", icon: <FaUsers />, section: "Fleet Management" },
       { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
     ],
     territory_manager: [
@@ -221,6 +225,7 @@ export default function Sidebar() {
 
       // Fleet Management Section
       { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
+      { label: "Driver Management", path: "/fleet/drivers", icon: <FaUsers />, section: "Fleet Management" },
       { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
     ],
     dealer_admin: [

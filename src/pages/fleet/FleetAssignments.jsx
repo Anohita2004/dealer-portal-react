@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { fleetAPI, truckAPI, warehouseAPI, orderAPI } from '../../services/api';
+import { useNavigate } from 'react-router-dom';
+import { fleetAPI, truckAPI, warehouseAPI, orderAPI, userAPI } from '../../services/api';
 import DataTable from '../../components/DataTable';
 import PageHeader from '../../components/PageHeader';
 import Card from '../../components/Card';
 import { toast } from 'react-toastify';
-import { FaTruck, FaPlus, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
+import { FaTruck, FaPlus, FaCheckCircle, FaTimesCircle, FaEdit, FaEye } from 'react-icons/fa';
 import { 
   Button, 
   Dialog, 
@@ -22,13 +23,16 @@ import {
 } from '@mui/material';
 
 const FleetAssignments = () => {
+  const navigate = useNavigate();
   const [assignments, setAssignments] = useState([]);
   const [loading, setLoading] = useState(true);
   const [openModal, setOpenModal] = useState(false);
+  const [editingAssignment, setEditingAssignment] = useState(null);
   const [formData, setFormData] = useState({
     orderId: '',
     truckId: '',
     warehouseId: '',
+    driverId: '',
     driverName: '',
     driverPhone: '',
     estimatedDeliveryAt: '',
@@ -36,6 +40,7 @@ const FleetAssignments = () => {
   });
   const [trucks, setTrucks] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
+  const [drivers, setDrivers] = useState([]);
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
@@ -51,6 +56,7 @@ const FleetAssignments = () => {
     fetchAssignments();
     fetchTrucks();
     fetchWarehouses();
+    fetchDrivers();
   }, [filters]);
 
   const fetchAssignments = async () => {
@@ -81,6 +87,20 @@ const FleetAssignments = () => {
       setWarehouses(response.warehouses || []);
     } catch (error) {
       console.error('Error fetching warehouses:', error);
+    }
+  };
+
+  const fetchDrivers = async () => {
+    try {
+      const response = await userAPI.getAll({ 
+        role: 'driver,fleet_driver',
+        isActive: true,
+        limit: 100 
+      });
+      const driversList = response.users || response.data || response || [];
+      setDrivers(Array.isArray(driversList) ? driversList : []);
+    } catch (error) {
+      console.error('Error fetching drivers:', error);
     }
   };
 
@@ -209,10 +229,12 @@ const FleetAssignments = () => {
   };
 
   const handleCreate = () => {
+    setEditingAssignment(null);
     setFormData({
       orderId: '',
       truckId: '',
       warehouseId: '',
+      driverId: '',
       driverName: '',
       driverPhone: '',
       estimatedDeliveryAt: '',
@@ -225,21 +247,97 @@ const FleetAssignments = () => {
     fetchApprovedOrders();
   };
 
+  const handleEdit = async (assignment) => {
+    setEditingAssignment(assignment);
+    
+    // Try to find driver by matching username or phone
+    const selectedDriver = drivers.find(d => 
+      d.username === assignment.driverName || 
+      d.phoneNumber === assignment.driverPhone ||
+      d.id === assignment.driverId
+    );
+    
+    // Load order data if available
+    let orderData = null;
+    if (assignment.orderId) {
+      try {
+        const orderResponse = await orderAPI.getOrderById(assignment.orderId);
+        orderData = orderResponse;
+        // Add to orders list so Autocomplete can display it
+        if (orderData && !orders.find(o => o.id === orderData.id)) {
+          setOrders([orderData]);
+        }
+      } catch (error) {
+        console.error('Error loading order:', error);
+        // Still allow editing even if order load fails
+      }
+    }
+    
+    setFormData({
+      orderId: assignment.orderId || '',
+      truckId: assignment.truckId || '',
+      warehouseId: assignment.warehouseId || '',
+      driverId: selectedDriver?.id || '',
+      driverName: assignment.driverName || '',
+      driverPhone: assignment.driverPhone || '',
+      estimatedDeliveryAt: assignment.estimatedDeliveryAt 
+        ? new Date(assignment.estimatedDeliveryAt).toISOString().slice(0, 16)
+        : '',
+      notes: assignment.notes || ''
+    });
+    
+    setOrderSearchTerm(orderData?.orderNumber || assignment.orderId || '');
+    setOpenModal(true);
+  };
+
+  const handleViewOrder = (orderId) => {
+    if (orderId) {
+      navigate(`/orders/${orderId}`);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
+      // If driver is selected from dropdown, use driver data
+      let finalDriverName = formData.driverName;
+      let finalDriverPhone = formData.driverPhone;
+      
+      if (formData.driverId) {
+        const selectedDriver = drivers.find(d => d.id === formData.driverId);
+        if (selectedDriver) {
+          finalDriverName = selectedDriver.username || selectedDriver.name || finalDriverName;
+          finalDriverPhone = selectedDriver.phoneNumber || finalDriverPhone;
+        }
+      }
+
       const payload = {
-        ...formData,
-        estimatedDeliveryAt: formData.estimatedDeliveryAt || undefined
+        orderId: formData.orderId,
+        truckId: formData.truckId,
+        warehouseId: formData.warehouseId,
+        driverName: finalDriverName,
+        driverPhone: finalDriverPhone,
+        estimatedDeliveryAt: formData.estimatedDeliveryAt || undefined,
+        notes: formData.notes || undefined
       };
-      await fleetAPI.assign(payload);
-      toast.success('Truck assigned successfully');
+
+      if (editingAssignment) {
+        // Update existing assignment
+        await fleetAPI.updateAssignment(editingAssignment.id, payload);
+        toast.success('Assignment updated successfully');
+      } else {
+        // Create new assignment
+        await fleetAPI.assign(payload);
+        toast.success('Truck assigned successfully');
+      }
+      
       setOpenModal(false);
+      setEditingAssignment(null);
       fetchAssignments();
       fetchTrucks(); // Refresh to update truck status
     } catch (error) {
-      console.error('Error assigning truck:', error);
-      toast.error(error.response?.data?.error || 'Failed to assign truck');
+      console.error('Error saving assignment:', error);
+      toast.error(error.response?.data?.error || `Failed to ${editingAssignment ? 'update' : 'assign'} truck`);
     }
   };
 
@@ -330,12 +428,31 @@ const FleetAssignments = () => {
       render: (_, row) => {
         const status = row.status;
         return (
-          <div style={{ display: 'flex', gap: '8px' }}>
+          <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+            <Button
+              size="small"
+              variant="outlined"
+              startIcon={<FaEye />}
+              onClick={() => handleViewOrder(row.orderId)}
+              title="View Order"
+            >
+              View Order
+            </Button>
+            <Button
+              size="small"
+              variant="outlined"
+              color="primary"
+              startIcon={<FaEdit />}
+              onClick={() => handleEdit(row)}
+              title="Edit Assignment"
+            >
+              Edit
+            </Button>
             {status === 'assigned' && (
               <Button
                 size="small"
                 variant="outlined"
-                color="primary"
+                color="info"
                 startIcon={<FaCheckCircle />}
                 onClick={() => handlePickup(row.id)}
               >
@@ -418,9 +535,9 @@ const FleetAssignments = () => {
         )}
       </Card>
 
-      {/* Assign Truck Modal */}
-      <Dialog open={openModal} onClose={() => setOpenModal(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>Assign Truck to Order</DialogTitle>
+      {/* Assign/Edit Truck Modal */}
+      <Dialog open={openModal} onClose={() => { setOpenModal(false); setEditingAssignment(null); }} maxWidth="sm" fullWidth>
+        <DialogTitle>{editingAssignment ? 'Edit Assignment' : 'Assign Truck to Order'}</DialogTitle>
         <form onSubmit={handleSubmit}>
           <DialogContent>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '8px' }}>
@@ -430,11 +547,13 @@ const FleetAssignments = () => {
               <Autocomplete
                 options={orders}
                 loading={ordersLoading}
+                disabled={!!editingAssignment}
                 value={orders.find(o => o.id === formData.orderId) || null}
                 onChange={(event, newValue) => {
                   setFormData({ ...formData, orderId: newValue?.id || '' });
                 }}
                 onInputChange={(event, newInputValue) => {
+                  if (editingAssignment) return; // Don't search when editing
                   setOrderSearchTerm(newInputValue);
                   if (newInputValue.length >= 2) {
                     fetchApprovedOrders(newInputValue);
@@ -501,9 +620,22 @@ const FleetAssignments = () => {
               />
               {formData.orderId && (
                 <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
-                  <Typography variant="caption" color="text.secondary" display="block">
+                  <Typography variant="body2" fontWeight="bold" display="block" mb={1}>
                     Selected Order: {orders.find(o => o.id === formData.orderId)?.orderNumber || formData.orderId}
                   </Typography>
+                  {orders.find(o => o.id === formData.orderId)?.dealer?.businessName && (
+                    <Typography variant="caption" color="text.secondary" display="block" mb={1}>
+                      Dealer: {orders.find(o => o.id === formData.orderId)?.dealer?.businessName}
+                    </Typography>
+                  )}
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<FaEye />}
+                    onClick={() => handleViewOrder(formData.orderId)}
+                  >
+                    View Order Details
+                  </Button>
                 </Box>
               )}
               <TextField
@@ -536,19 +668,64 @@ const FleetAssignments = () => {
                   </MenuItem>
                 ))}
               </TextField>
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mt: 2, mb: 1 }}>
+                Select Driver
+              </Typography>
               <TextField
-                label="Driver Name"
+                label="Driver"
+                select
                 required
-                value={formData.driverName}
-                onChange={(e) => setFormData({ ...formData, driverName: e.target.value })}
+                value={formData.driverId}
+                onChange={(e) => {
+                  const selectedDriver = drivers.find(d => d.id === e.target.value);
+                  setFormData({ 
+                    ...formData, 
+                    driverId: e.target.value,
+                    driverName: selectedDriver?.username || selectedDriver?.name || '',
+                    driverPhone: selectedDriver?.phoneNumber || ''
+                  });
+                }}
                 fullWidth
-              />
-              <TextField
-                label="Driver Phone"
-                value={formData.driverPhone}
-                onChange={(e) => setFormData({ ...formData, driverPhone: e.target.value })}
-                fullWidth
-              />
+              >
+                <MenuItem value="">Select a driver</MenuItem>
+                {drivers.map(driver => (
+                  <MenuItem key={driver.id} value={driver.id}>
+                    {driver.username || driver.name} 
+                    {driver.phoneNumber && ` - ${driver.phoneNumber}`}
+                    {driver.email && ` (${driver.email})`}
+                  </MenuItem>
+                ))}
+              </TextField>
+              {formData.driverId && (
+                <Box sx={{ p: 1.5, bgcolor: 'info.light', borderRadius: 1, mb: 1 }}>
+                  <Typography variant="caption" display="block">
+                    <strong>Driver:</strong> {formData.driverName}
+                  </Typography>
+                  {formData.driverPhone && (
+                    <Typography variant="caption" display="block">
+                      <strong>Phone:</strong> {formData.driverPhone}
+                    </Typography>
+                  )}
+                </Box>
+              )}
+              {!formData.driverId && (
+                <>
+                  <TextField
+                    label="Driver Name (Manual Entry)"
+                    value={formData.driverName}
+                    onChange={(e) => setFormData({ ...formData, driverName: e.target.value })}
+                    fullWidth
+                    helperText="Or enter driver name manually if not in list"
+                    required={!formData.driverId}
+                  />
+                  <TextField
+                    label="Driver Phone (Manual Entry)"
+                    value={formData.driverPhone}
+                    onChange={(e) => setFormData({ ...formData, driverPhone: e.target.value })}
+                    fullWidth
+                  />
+                </>
+              )}
               <TextField
                 label="Estimated Delivery"
                 type="datetime-local"
@@ -568,9 +745,9 @@ const FleetAssignments = () => {
             </div>
           </DialogContent>
           <DialogActions>
-            <Button onClick={() => setOpenModal(false)}>Cancel</Button>
+            <Button onClick={() => { setOpenModal(false); setEditingAssignment(null); }}>Cancel</Button>
             <Button type="submit" variant="contained">
-              Assign
+              {editingAssignment ? 'Update' : 'Assign'}
             </Button>
           </DialogActions>
         </form>

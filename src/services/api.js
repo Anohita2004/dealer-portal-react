@@ -181,20 +181,45 @@ export const dashboardAPI = {
 
 export const userAPI = {
   // Super Admin User Management
+  getAll: (params) =>
+    api.get("/admin/users", { params }).then((r) => r.data),
+  
   getUsers: (params) =>
     api.get("/admin/users", { params }).then((r) => r.data),
 
   getUserById: (id) =>
     api.get(`/admin/users/${id}`).then((r) => r.data),
 
+  create: (payload) =>
+    api.post("/admin/users", payload).then((r) => r.data),
+  
   createUser: (payload) =>
     api.post("/admin/users", payload).then((r) => r.data),
 
+  update: (id, payload) =>
+    api.put(`/admin/users/${id}`, payload).then((r) => r.data),
+  
   updateUser: (id, payload) =>
     api.put(`/admin/users/${id}`, payload).then((r) => r.data),
 
+  delete: (id) =>
+    api.delete(`/admin/users/${id}`).then((r) => r.data),
+  
   deleteUser: (id) =>
     api.delete(`/admin/users/${id}`).then((r) => r.data),
+  
+  // Helper methods for dropdowns
+  getRoles: () =>
+    api.get("/roles").then((r) => r.data),
+  
+  getRegions: () =>
+    api.get("/regions").then((r) => r.data),
+  
+  getAreas: (regionId) =>
+    api.get("/areas", { params: { regionId } }).then((r) => r.data),
+  
+  getTerritories: (areaId) =>
+    api.get("/territories", { params: { areaId } }).then((r) => r.data),
 
   // Bulk operations
   bulkCreateUsers: (users) =>
@@ -1184,6 +1209,10 @@ export const fleetAPI = {
   // Get assignment by ID
   getAssignment: (id) =>
     api.get(`/fleet/assignments/${id}`).then((r) => r.data),
+
+  // Update assignment
+  updateAssignment: (id, payload) =>
+    api.put(`/fleet/assignments/${id}`, payload).then((r) => r.data),
 
   // Mark pickup
   markPickup: (id) =>
