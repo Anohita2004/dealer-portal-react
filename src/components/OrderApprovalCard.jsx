@@ -12,7 +12,7 @@ import {
 } from "@mui/material";
 import { CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
 import ApprovalWorkflow from "./ApprovalWorkflow";
-import { orderAPI } from "../services/api";
+import { orderAPI, workflowAPI } from "../services/api";
 import { toast } from "react-toastify";
 import { useWorkflow } from "../hooks/useWorkflow";
 import { getOrderLifecycleStatus, getApprovalProgress } from "../utils/orderLifecycle";
@@ -34,9 +34,12 @@ export default function OrderApprovalCard({ order, onUpdate }) {
         const response = await orderAPI.getWorkflowStatus(order.id);
         const workflowData = response.workflow || response.data || response;
         setWorkflow(workflowData);
+        console.log("Workflow data fetched for order:", order.id, workflowData);
       } catch (err) {
-        // Silently fail - workflow data is optional for list view
-        console.debug("Could not fetch workflow for order:", order.id);
+        // Log error for debugging
+        console.error("Could not fetch workflow for order:", order.id, err.response?.data || err.message);
+        // Still set workflow to null so component can work with order data
+        setWorkflow(null);
       } finally {
         setWorkflowLoading(false);
       }
@@ -44,10 +47,34 @@ export default function OrderApprovalCard({ order, onUpdate }) {
     fetchWorkflow();
   }, [order?.id]);
 
-  const handleApprove = async () => {
+  const handleApprove = async (remarks, stage) => {
     try {
-      await orderAPI.approveOrder(order.id, { action: "approve" });
-      toast.success("Order approved successfully");
+      // Get current stage from workflow, order data, or passed parameter
+      let currentStage = stage || workflow?.currentStage || order.approvalStage || order.currentStage;
+      
+      // If stage is empty/null, determine it from the workflow stages
+      // For dealer_admin at initial stage, set it to dealer_admin
+      if (!currentStage || currentStage === "") {
+        const stages = ["dealer_admin", "sales_executive", "territory_manager", "area_manager", "regional_manager"];
+        currentStage = stages[0]; // Set to first stage (dealer_admin)
+      }
+      
+      // Try using the unified workflow API first, which might handle null stages better
+      // If that fails, fall back to the order-specific API with stage information
+      try {
+        await workflowAPI.approveEntity("order", order.id, remarks || "");
+        toast.success("Order approved successfully");
+      } catch (workflowError) {
+        // If workflow API fails, try order API with stage information
+        const payload = { 
+          action: "approve",
+          ...(remarks && { remarks }),
+          ...(currentStage && { stage: currentStage })
+        };
+        await orderAPI.approveOrder(order.id, payload);
+        toast.success("Order approved successfully");
+      }
+      
       if (onUpdate) onUpdate();
       // Refresh workflow data
       const response = await orderAPI.getWorkflowStatus(order.id);
@@ -55,7 +82,8 @@ export default function OrderApprovalCard({ order, onUpdate }) {
       setWorkflow(workflowData);
     } catch (error) {
       console.error("Failed to approve order:", error);
-      toast.error(error.response?.data?.error || "Failed to approve order");
+      const errorMessage = error.response?.data?.error || error.response?.data?.details || error.message || "Failed to approve order";
+      toast.error(errorMessage);
     }
   };
 
@@ -272,7 +300,7 @@ export default function OrderApprovalCard({ order, onUpdate }) {
           entity={{ type: "order", ...order }}
           currentStage={workflow?.currentStage || order.approvalStage || order.currentStage}
           approvalStatus={workflow?.approvalStatus || order.approvalStatus || order.status}
-          onApprove={handleApprove}
+          onApprove={(remarks, stage) => handleApprove(remarks, stage)}
           onReject={handleReject}
           approvalHistory={workflow?.timeline || order.approvalHistory || order.history || []}
           showHistory={true}

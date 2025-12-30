@@ -1,12 +1,12 @@
 import React, { useState, useEffect } from 'react';
-import { trackingAPI } from '../../services/api';
+import { trackingAPI, warehouseAPI } from '../../services/api';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import Card from '../../components/Card';
 import PageHeader from '../../components/PageHeader';
 import { toast } from 'react-toastify';
-import { FaMapMarkerAlt, FaTruck } from 'react-icons/fa';
-import { Chip, TextField, MenuItem, Grid } from '@mui/material';
+import { FaMapMarkerAlt, FaTruck, FaWarehouse } from 'react-icons/fa';
+import { Chip, TextField, MenuItem, Grid, FormControlLabel, Switch } from '@mui/material';
 import { onTruckLocationUpdate, offTruckLocationUpdate } from '../../services/socket';
 import 'leaflet/dist/leaflet.css';
 
@@ -48,13 +48,39 @@ const createTruckIcon = (status) => {
   });
 };
 
+// Custom warehouse icon
+const createWarehouseIcon = () => {
+  return L.divIcon({
+    className: 'warehouse-marker',
+    html: `<div style="
+      width: 30px;
+      height: 30px;
+      background-color: #6c757d;
+      border-radius: 4px;
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 16px;
+    ">🏭</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15]
+  });
+};
+
 const LiveTracking = () => {
   const [locations, setLocations] = useState([]);
+  const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
+  const [showWarehouses, setShowWarehouses] = useState(true);
 
   useEffect(() => {
     fetchLiveLocations();
+    fetchWarehouses();
 
     // Setup Socket.IO listener for real-time updates
     const handleLocationUpdate = (data) => {
@@ -101,22 +127,55 @@ const LiveTracking = () => {
     }
   };
 
+  const fetchWarehouses = async () => {
+    try {
+      const response = await warehouseAPI.getAll();
+      const warehousesList = Array.isArray(response) 
+        ? response 
+        : response?.warehouses || response?.data || [];
+      
+      // Filter warehouses with valid coordinates
+      const validWarehouses = warehousesList.filter(
+        w => w.lat && w.lng && 
+        !isNaN(Number(w.lat)) && !isNaN(Number(w.lng))
+      );
+      setWarehouses(validWarehouses);
+    } catch (error) {
+      console.error('Error fetching warehouses:', error);
+      // Don't show error toast - warehouses are optional
+    }
+  };
+
   const filteredLocations = filterStatus
     ? locations.filter(loc => loc.status === filterStatus)
     : locations;
 
   // Calculate map bounds
   const getMapBounds = () => {
-    if (filteredLocations.length === 0) {
+    const allPoints = [];
+    
+    // Add truck locations
+    filteredLocations.forEach(loc => {
+      if (loc.truck?.lat && loc.truck?.lng) {
+        allPoints.push([loc.truck.lat, loc.truck.lng]);
+      }
+    });
+    
+    // Add warehouse locations if showing warehouses
+    if (showWarehouses) {
+      warehouses.forEach(warehouse => {
+        if (warehouse.lat && warehouse.lng) {
+          allPoints.push([Number(warehouse.lat), Number(warehouse.lng)]);
+        }
+      });
+    }
+
+    if (allPoints.length === 0) {
       return [[19.0760, 72.8777], [19.0760, 72.8777]]; // Default to Mumbai
     }
 
-    const lats = filteredLocations.map(loc => loc.truck?.lat).filter(Boolean);
-    const lngs = filteredLocations.map(loc => loc.truck?.lng).filter(Boolean);
-
-    if (lats.length === 0) {
-      return [[19.0760, 72.8777], [19.0760, 72.8777]];
-    }
+    const lats = allPoints.map(p => p[0]);
+    const lngs = allPoints.map(p => p[1]);
 
     const minLat = Math.min(...lats);
     const maxLat = Math.max(...lats);
@@ -173,16 +232,31 @@ const LiveTracking = () => {
             <MenuItem value="in_transit">In Transit</MenuItem>
             <MenuItem value="delivered">Delivered</MenuItem>
           </TextField>
+          
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showWarehouses}
+                onChange={(e) => setShowWarehouses(e.target.checked)}
+                color="primary"
+              />
+            }
+            label="Show Warehouses"
+          />
+          
           <div>
             <strong>Total Trucks:</strong> {filteredLocations.length}
+            {showWarehouses && warehouses.length > 0 && (
+              <> | <strong>Warehouses:</strong> {warehouses.length}</>
+            )}
           </div>
         </div>
       </Card>
 
-      {filteredLocations.length === 0 ? (
+      {filteredLocations.length === 0 && (!showWarehouses || warehouses.length === 0) ? (
         <Card>
           <div style={{ padding: '40px', textAlign: 'center' }}>
-            No trucks are currently being tracked.
+            No trucks or warehouses are currently being tracked.
           </div>
         </Card>
       ) : (
@@ -199,6 +273,46 @@ const LiveTracking = () => {
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
               />
 
+              {/* Warehouse Markers */}
+              {showWarehouses && warehouses.map((warehouse, index) => (
+                <Marker
+                  key={warehouse.id || index}
+                  position={[Number(warehouse.lat), Number(warehouse.lng)]}
+                  icon={createWarehouseIcon()}
+                >
+                  <Popup>
+                    <div>
+                      <strong><FaWarehouse /> Warehouse: {warehouse.name}</strong>
+                      <br />
+                      {warehouse.address && (
+                        <>
+                          {warehouse.address}
+                          <br />
+                        </>
+                      )}
+                      {warehouse.city && warehouse.state && (
+                        <>
+                          {warehouse.city}, {warehouse.state}
+                          <br />
+                        </>
+                      )}
+                      {warehouse.region?.name && (
+                        <>
+                          Region: {warehouse.region.name}
+                          <br />
+                        </>
+                      )}
+                      {warehouse.area?.name && (
+                        <>
+                          Area: {warehouse.area.name}
+                        </>
+                      )}
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+
+              {/* Truck Markers */}
               {filteredLocations.map((location, index) => {
                 const truck = location.truck;
                 if (!truck || !truck.lat || !truck.lng) return null;
@@ -230,7 +344,13 @@ const LiveTracking = () => {
                         {location.warehouse && (
                           <>
                             <br />
-                            Warehouse: {location.warehouse.name}
+                            <strong>Warehouse:</strong> {location.warehouse.name}
+                            {location.warehouse.address && (
+                              <>
+                                <br />
+                                {location.warehouse.address}
+                              </>
+                            )}
                           </>
                         )}
                       </div>

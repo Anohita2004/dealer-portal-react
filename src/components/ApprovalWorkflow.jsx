@@ -68,21 +68,45 @@ const ApprovalWorkflow = ({
       currentIndex = stageNum - 1;
     }
   }
+  
+  // If currentStage is empty/undefined and currentIndex is -1, 
+  // it likely means the order is at the initial stage (stage 0)
+  // This is especially important for dealer_admin who is the first approver
+  if ((!currentStage || currentStage === "") && currentIndex === -1 && stages.length > 0) {
+    // Check if order is pending and hasn't started workflow yet
+    // Also handle empty string approvalStatus
+    const normApprovalStatus = (approvalStatus || "").toLowerCase().trim();
+    if (normApprovalStatus === "pending" || normApprovalStatus === "" || !approvalStatus) {
+      currentIndex = 0; // Start at first stage
+    }
+  }
   const isApproved = approvalStatus === "approved";
   const isRejected = approvalStatus === "rejected";
   // Check if order is fully approved (at final stage and approved)
   const isFullyApproved = isApproved && (currentIndex === stages.length - 1 || currentIndex === -1);
 
   const getStageLabel = (stage) => {
+    // Handle null/undefined
+    if (!stage) return "Unknown Stage";
+    
+    // Convert to string to be safe
+    const stageStr = String(stage);
+    
     // If it's a generic "StageX", try to get the name from the stages array
-    if (stage?.toLowerCase().startsWith("stage")) {
-      const stageNum = parseInt(stage.replace(/\D/g, ''), 10);
+    if (stageStr.toLowerCase().startsWith("stage")) {
+      const stageNum = parseInt(stageStr.replace(/\D/g, ''), 10);
       if (!isNaN(stageNum) && stageNum > 0 && stageNum <= stages.length) {
-        stage = stages[stageNum - 1];
+        const mappedStage = stages[stageNum - 1];
+        if (mappedStage) {
+          stage = mappedStage;
+        }
       }
     }
 
-    return stage
+    // Ensure stage is still valid before processing
+    if (!stage) return "Unknown Stage";
+    
+    return String(stage)
       .split("_")
       .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
       .join(" ");
@@ -105,19 +129,102 @@ const ApprovalWorkflow = ({
   };
 
   const canApproveAtCurrentStage = () => {
-    if (role === "super_admin") return true;
-    if (!currentStage) return false;
+    // Normalize function for string comparison
+    const normalize = (str) => String(str || "").replace(/[^a-z0-9]/gi, "").toLowerCase();
+    
+    // Super admin can always approve
+    if (role === "super_admin" || role.includes("superadmin")) return true;
+    
+    const normRole = normalize(role);
+    
+    // If currentStage is empty/undefined and currentIndex is 0 (or was set to 0 above),
+    // this means the order is at the initial stage (not yet started workflow)
+    // Dealer_admin is the first stage, so they should be able to approve
+    if ((!currentStage || currentStage === "") && currentIndex === 0 && stages.length > 0) {
+      const firstStage = stages[0];
+      const normFirstStage = normalize(firstStage);
+      
+      // If dealer_admin matches first stage, they can approve
+      if (normRole === normFirstStage || normRole.includes("dealeradmin") || normFirstStage.includes("dealeradmin")) {
+        // For dealer_admin at initial stage, allow approval
+        // Since they're viewing orders in AdminOrders page, all orders shown are from their dealer
+        if (normRole.includes("dealeradmin")) {
+          return true; // Dealer admin can approve at initial stage
+        } else if (normRole === normFirstStage) {
+          // For other roles matching first stage
+          return true;
+        }
+      }
+    }
+    
+    // Also handle case where currentIndex is still -1 but we have stages
+    // This is a fallback for when the above logic didn't set currentIndex
+    if ((!currentStage || currentStage === "") && currentIndex === -1 && stages.length > 0) {
+      const firstStage = stages[0];
+      const normFirstStage = normalize(firstStage);
+      const normApprovalStatus = (approvalStatus || "").toLowerCase().trim();
+      
+      // If dealer_admin matches first stage and order is pending
+      if ((normRole === normFirstStage || normRole.includes("dealeradmin") || normFirstStage.includes("dealeradmin")) 
+          && (normApprovalStatus === "pending" || normApprovalStatus === "" || !approvalStatus)) {
+        if (normRole.includes("dealeradmin")) {
+          return true; // Dealer admin can approve pending orders at initial stage
+        } else if (normRole === normFirstStage) {
+          return true;
+        }
+      }
+    }
+    
+    // If no current stage and we didn't match above, we can't determine approval
+    if (!currentStage || currentStage === "") {
+      return false;
+    }
 
-    // Basic role match
-    if (role === currentStage) return true;
+    const normStage = normalize(currentStage);
 
-    // Handle generic Stage1 mapping for dealer_admin
-    if (role === "dealer_admin" && (currentStage === "Stage1" || currentIndex === 0)) return true;
+    // 1. Exact normalized match
+    if (normRole === normStage) return true;
 
-    // Dealer Admin privilege: Can always approve/block items for their own dealer
+    // 2. Handle generic Stage1, Stage2, etc. mapping
+    if (normStage.startsWith("stage")) {
+      const stageNum = parseInt(normStage.replace(/\D/g, ""), 10);
+      if (!isNaN(stageNum) && stageNum > 0 && stageNum <= stages.length) {
+        const expectedRole = stages[stageNum - 1];
+        const normExpectedRole = normalize(expectedRole);
+        if (normRole === normExpectedRole || normRole.includes(normExpectedRole) || normExpectedRole.includes(normRole)) {
+          return true;
+        }
+      }
+    }
+
+    // 3. Check if current stage matches any stage in the pipeline at current index
+    if (currentIndex >= 0 && currentIndex < stages.length) {
+      const expectedRole = stages[currentIndex];
+      const normExpectedRole = normalize(expectedRole);
+      if (normRole === normExpectedRole || normRole.includes(normExpectedRole) || normExpectedRole.includes(normRole)) {
+        return true;
+      }
+    }
+
+    // 4. Keyword-based matching (e.g., "territory" in both "territory_manager" and "Territory Manager")
+    const keywords = ["territory", "area", "regional", "finance", "dealer", "sales"];
+    for (const kw of keywords) {
+      if (normRole.includes(kw) && normStage.includes(kw)) {
+        return true;
+      }
+    }
+
+    // 5. Dealer Admin privilege: Can always approve/block items for their own dealer
     // (This overrides the stage-gate for the dealer's own hierarchy)
     const entityDealerId = entity?.dealerId || entity?.dealer_id || (entity?.dealer && (entity.dealer.id || entity.dealer._id));
-    if (role === "dealer_admin" && entityDealerId && String(entityDealerId) === String(user?.dealerId)) return true;
+    if ((role === "dealer_admin" || normRole.includes("dealeradmin")) && entityDealerId && String(entityDealerId) === String(user?.dealerId)) {
+      return true;
+    }
+
+    // 6. Regional Admin can approve at regional_manager stage
+    if ((normRole.includes("regionaladmin") || normRole === "regional_admin") && (normStage.includes("regional") || normStage.includes("manager"))) {
+      return true;
+    }
 
     return false;
   };
@@ -139,16 +246,17 @@ const ApprovalWorkflow = ({
         />
         {!isApproved && !isRejected && currentStage && !userCanApprove && (
           <Typography variant="caption" color="text.secondary">
-            (Awaiting {getStageLabel(currentStage)})
+            (Awaiting {getStageLabel(currentStage) || "Approval"})
           </Typography>
         )}
       </Box>
 
       <Stepper activeStep={isApproved ? stages.length : currentIndex} orientation="horizontal">
         {stages.map((stage, index) => {
+          if (!stage) return null; // Skip invalid stages
           const status = getStepStatus(index);
           return (
-            <Step key={stage} completed={status === "completed"} active={status === "active"}>
+            <Step key={stage || index} completed={status === "completed"} active={status === "active"}>
               <StepLabel
                 StepIconComponent={
                   status === "completed"
@@ -158,7 +266,7 @@ const ApprovalWorkflow = ({
                       : RadioButtonUncheckedIcon
                 }
               >
-                {getStageLabel(stage)}
+                {getStageLabel(stage) || `Stage ${index + 1}`}
               </StepLabel>
             </Step>
           );
@@ -181,25 +289,51 @@ const ApprovalWorkflow = ({
         </Alert>
       )}
 
-      {showActions && !isApproved && !isRejected && userCanApprove && (
-        <Box sx={{ mt: 3, display: "flex", gap: 2, justifyContent: "flex-end" }}>
-          <Button
-            variant="outlined"
-            color="error"
-            startIcon={<XCircle size={18} />}
-            onClick={() => setRejectDialogOpen(true)}
-          >
-            Block
-          </Button>
-          <Button
-            variant="contained"
-            color="success"
-            startIcon={<CheckCircle size={18} />}
-            onClick={() => onApprove && onApprove()}
-          >
-            Approve
-          </Button>
-        </Box>
+      {showActions && !isApproved && !isRejected && (
+        <>
+          {userCanApprove ? (
+            <Box sx={{ mt: 3, display: "flex", gap: 2, justifyContent: "flex-end" }}>
+              <Button
+                variant="outlined"
+                color="error"
+                startIcon={<XCircle size={18} />}
+                onClick={() => setRejectDialogOpen(true)}
+              >
+                Block
+              </Button>
+              <Button
+                variant="contained"
+                color="success"
+                startIcon={<CheckCircle size={18} />}
+                onClick={() => {
+                  // Pass current stage information to onApprove
+                  const stageToApprove = currentStage || (stages.length > 0 ? stages[0] : null);
+                  onApprove && onApprove("", stageToApprove);
+                }}
+              >
+                Approve
+              </Button>
+            </Box>
+          ) : (
+            <Alert severity="info" sx={{ mt: 3 }}>
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                Approval Not Available
+              </Typography>
+              <Typography variant="caption" component="div">
+                Your role ({user?.role || "Unknown"}) does not match the current approval stage ({getStageLabel(currentStage) || "Unknown"}).
+                {currentIndex >= 0 && currentIndex < stages.length && stages[currentIndex] && (
+                  <> This order requires approval from a <strong>{getStageLabel(stages[currentIndex])}</strong>.</>
+                )}
+              </Typography>
+              {process.env.NODE_ENV === "development" && (
+                <Typography variant="caption" component="div" sx={{ mt: 1, fontFamily: "monospace", fontSize: "0.7rem" }}>
+                  Debug: role="{role}", currentStage="{currentStage}", currentIndex={currentIndex}, 
+                  expectedStage="{currentIndex >= 0 && currentIndex < stages.length ? stages[currentIndex] : "N/A"}"
+                </Typography>
+              )}
+            </Alert>
+          )}
+        </>
       )}
 
       {/* Approval History Timeline */}
