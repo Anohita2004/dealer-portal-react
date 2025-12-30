@@ -77,6 +77,7 @@ const CreateTruck = React.lazy(() => import("./pages/fleet/CreateTruck"));
 const TruckDetail = React.lazy(() => import("./pages/fleet/TruckDetail"));
 const FleetAssignments = React.lazy(() => import("./pages/fleet/FleetAssignments"));
 const LiveTracking = React.lazy(() => import("./pages/fleet/LiveTracking"));
+const FleetTrackingDashboard = React.lazy(() => import("./pages/fleet/FleetTrackingDashboard"));
 const OrderTracking = React.lazy(() => import("./pages/fleet/OrderTracking"));
 const DriverManagement = React.lazy(() => import("./pages/fleet/DriverManagement"));
 const CreateDriver = React.lazy(() => import("./pages/fleet/CreateDriver"));
@@ -524,6 +525,21 @@ export default function App() {
                     "dealer_admin"
                   ]}>
                     <LiveTracking />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="fleet/tracking-dashboard"
+                element={
+                  <ProtectedRoute allowed={[
+                    "super_admin",
+                    "regional_admin",
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager",
+                    "dealer_admin"
+                  ]}>
+                    <FleetTrackingDashboard />
                   </ProtectedRoute>
                 }
               />

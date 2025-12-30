@@ -6,6 +6,7 @@ import TrendLineChart from "../../components/dashboard/TrendLineChart";
 import ComparisonWidget from "../../components/dashboard/ComparisonWidget";
 import PerformanceRanking from "../../components/dashboard/PerformanceRanking";
 import Card from "../../components/Card";
+import DriverStatusUpdates from "../../components/fleet/DriverStatusUpdates";
 import { MapPin, TrendingUp, BarChart3 } from "lucide-react";
 
 export default function SuperAdminDashboard() {
@@ -702,6 +703,11 @@ export default function SuperAdminDashboard() {
             showArea={true}
           />
         </Card>
+      </div>
+
+      {/* DRIVER STATUS UPDATES */}
+      <div style={{ marginBottom: "2rem" }}>
+        <DriverStatusUpdates />
       </div>
 
       {/* RECENT ACTIVITY */}

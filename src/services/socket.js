@@ -133,6 +133,20 @@ export const offTruckStatusChange = () => getSocket()?.off("truck:status:change"
 export const onOrderTrackingUpdate = (cb) => getSocket()?.on("order:tracking:update", cb);
 export const offOrderTrackingUpdate = () => getSocket()?.off("order:tracking:update");
 
+// Join order tracking room
+export const joinOrderRoom = (orderId) => getSocket()?.emit("join_order_tracking", { orderId });
+
+// Leave order tracking room
+export const leaveOrderRoom = (orderId) => getSocket()?.emit("leave_order_tracking", { orderId });
+
+// Listen to tracking started events
+export const onTrackingStarted = (cb) => getSocket()?.on("order:tracking:started", cb);
+export const offTrackingStarted = () => getSocket()?.off("order:tracking:started");
+
+// Listen to notifications (for fleet tracking notifications)
+export const onNotification = (cb) => getSocket()?.on("notification", cb);
+export const offNotification = () => getSocket()?.off("notification");
+
 // 🚨 REMOVED THIS ↓
 // export default socket;
 

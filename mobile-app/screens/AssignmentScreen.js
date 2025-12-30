@@ -7,6 +7,7 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Platform,
 } from 'react-native';
 import { fleetAPI } from '../services/api';
 import LocationTracker from '../services/locationTracker';
@@ -139,6 +140,68 @@ const AssignmentScreen = ({ route, navigation }) => {
     );
   };
 
+  const handleStatusUpdate = async () => {
+    // Define available statuses based on current status
+    let statusOptions = [];
+    const statusLabels = {
+      picked_up: 'Picked Up',
+      in_transit: 'In Transit',
+      delayed: 'Delayed',
+      on_hold: 'On Hold',
+    };
+
+    if (assignment.status === 'assigned') {
+      // From assigned, can only update to delayed or on_hold
+      statusOptions = ['delayed', 'on_hold'];
+    } else if (assignment.status === 'picked_up') {
+      // From picked_up, can update to in_transit, delayed, or on_hold
+      statusOptions = ['in_transit', 'delayed', 'on_hold'];
+    } else if (assignment.status === 'in_transit') {
+      // From in_transit, can update to delayed or on_hold (can't go back to picked_up)
+      statusOptions = ['delayed', 'on_hold'];
+    } else {
+      // For other statuses, show all available options
+      statusOptions = ['picked_up', 'in_transit', 'delayed', 'on_hold'];
+    }
+
+    // Filter out current status
+    const availableStatuses = statusOptions.filter(status => status !== assignment.status);
+
+    if (availableStatuses.length === 0) {
+      Alert.alert('Info', 'No status updates available');
+      return;
+    }
+
+    Alert.alert(
+      'Update Status',
+      'Select new status:',
+      [
+        ...availableStatuses.map(status => ({
+          text: statusLabels[status] || status.replace('_', ' ').toUpperCase(),
+          onPress: async () => {
+            try {
+              setActionLoading(true);
+              const { fleetAPI } = await import('../services/api');
+              await fleetAPI.updateStatus(assignmentId, status, `Status changed to ${statusLabels[status]} by driver`);
+              await fetchAssignment();
+              Alert.alert('Success', 'Status updated successfully!');
+            } catch (error) {
+              console.error('Status update error:', error);
+              Alert.alert(
+                'Error',
+                error.response?.data?.error || 'Failed to update status'
+              );
+            } finally {
+              setActionLoading(false);
+            }
+          },
+        })),
+        { text: 'Cancel', style: 'cancel' },
+      ],
+      { cancelable: true }
+    );
+  };
+
   const getStatusColor = (status) => {
     const colors = {
       assigned: '#ffc107',
@@ -167,7 +230,11 @@ const AssignmentScreen = ({ route, navigation }) => {
   }
 
   return (
-    <ScrollView style={styles.container}>
+    <ScrollView 
+      style={styles.container}
+      contentContainerStyle={styles.scrollContent}
+      showsVerticalScrollIndicator={true}
+    >
       <View style={styles.header}>
         <Text style={styles.orderNumber}>
           {assignment.order?.orderNumber || `Order #${assignment.orderId}`}
@@ -198,8 +265,7 @@ const AssignmentScreen = ({ route, navigation }) => {
         <View style={styles.detailRow}>
           <Text style={styles.label}>Truck:</Text>
           <Text style={styles.value}>
-            {assignment.truck?.truckName || 'N/A'} (
-            {assignment.truck?.licenseNumber || 'N/A'})
+            {`${assignment.truck?.truckName || 'N/A'} (${assignment.truck?.licenseNumber || 'N/A'})`}
           </Text>
         </View>
 
@@ -233,7 +299,7 @@ const AssignmentScreen = ({ route, navigation }) => {
         )}
         {assignment.warehouse?.city && (
           <Text style={styles.subValue}>
-            {assignment.warehouse.city}, {assignment.warehouse.state}
+            {`${assignment.warehouse.city}, ${assignment.warehouse.state}`}
           </Text>
         )}
       </View>
@@ -250,7 +316,7 @@ const AssignmentScreen = ({ route, navigation }) => {
         )}
         {assignment.order?.dealer?.city && (
           <Text style={styles.subValue}>
-            {assignment.order.dealer.city}, {assignment.order.dealer.state}
+            {`${assignment.order.dealer.city}, ${assignment.order.dealer.state}`}
           </Text>
         )}
       </View>
@@ -299,33 +365,63 @@ const AssignmentScreen = ({ route, navigation }) => {
       )}
 
       <View style={styles.actions}>
-        {assignment.status === 'assigned' && (
-          <TouchableOpacity
-            style={[styles.button, styles.pickupButton]}
-            onPress={handlePickup}
-            disabled={actionLoading || !tracker}
-          >
-            {actionLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Confirm Pickup</Text>
-            )}
-          </TouchableOpacity>
+        {assignment?.status === 'assigned' && (
+          <View>
+            <TouchableOpacity
+              style={[styles.button, styles.pickupButton]}
+              onPress={handlePickup}
+              disabled={actionLoading || !tracker}
+            >
+              {actionLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Confirm Pickup</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Status Update Button */}
+            <TouchableOpacity
+              style={[styles.button, styles.statusUpdateButton]}
+              onPress={handleStatusUpdate}
+              disabled={actionLoading}
+            >
+              {actionLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Update Status</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         )}
 
         {(assignment.status === 'picked_up' ||
           assignment.status === 'in_transit') && (
-          <TouchableOpacity
-            style={[styles.button, styles.deliverButton]}
-            onPress={handleDeliver}
-            disabled={actionLoading || !tracker}
-          >
-            {actionLoading ? (
-              <ActivityIndicator color="#fff" />
-            ) : (
-              <Text style={styles.buttonText}>Mark as Delivered</Text>
-            )}
-          </TouchableOpacity>
+          <View>
+            <TouchableOpacity
+              style={[styles.button, styles.deliverButton]}
+              onPress={handleDeliver}
+              disabled={actionLoading || !tracker}
+            >
+              {actionLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Mark as Delivered</Text>
+              )}
+            </TouchableOpacity>
+
+            {/* Status Update Button */}
+            <TouchableOpacity
+              style={[styles.button, styles.statusUpdateButton]}
+              onPress={handleStatusUpdate}
+              disabled={actionLoading}
+            >
+              {actionLoading ? (
+                <ActivityIndicator color="#fff" />
+              ) : (
+                <Text style={styles.buttonText}>Update Status</Text>
+              )}
+            </TouchableOpacity>
+          </View>
         )}
       </View>
     </ScrollView>
@@ -336,6 +432,17 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f5f5f5',
+    ...(Platform.OS === 'web' && {
+      overflowY: 'auto',
+      overflowX: 'hidden',
+      WebkitOverflowScrolling: 'touch',
+    }),
+  },
+  scrollContent: {
+    paddingBottom: 20,
+    ...(Platform.OS === 'web' && {
+      minHeight: '100%',
+    }),
   },
   centerContainer: {
     flex: 1,
@@ -438,6 +545,9 @@ const styles = StyleSheet.create({
   },
   deliverButton: {
     backgroundColor: '#28a745',
+  },
+  statusUpdateButton: {
+    backgroundColor: '#007bff',
   },
   buttonText: {
     color: '#fff',
