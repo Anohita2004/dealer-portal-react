@@ -1112,5 +1112,109 @@ export const managerAPI = {
     api.post("/managers/assign-dealer", payload).then((r) => r.data),
 };
 
+// =======================================================================
+// ======================== FLEET MANAGEMENT APIs ======================
+// =======================================================================
+
+export const warehouseAPI = {
+  // Get all warehouses
+  getAll: (params) =>
+    api.get("/warehouses", { params }).then((r) => r.data),
+
+  // Get warehouse by ID
+  getById: (id) =>
+    api.get(`/warehouses/${id}`).then((r) => r.data),
+
+  // Get nearest warehouse
+  getNearest: (params) =>
+    api.get("/warehouses/nearest", { params }).then((r) => r.data),
+
+  // Create warehouse
+  create: (payload) =>
+    api.post("/warehouses", payload).then((r) => r.data),
+
+  // Update warehouse
+  update: (id, payload) =>
+    api.put(`/warehouses/${id}`, payload).then((r) => r.data),
+
+  // Delete warehouse (soft delete)
+  delete: (id) =>
+    api.delete(`/warehouses/${id}`).then((r) => r.data),
+};
+
+export const truckAPI = {
+  // Get all trucks
+  getAll: (params) =>
+    api.get("/trucks", { params }).then((r) => r.data),
+
+  // Get truck by ID
+  getById: (id) =>
+    api.get(`/trucks/${id}`).then((r) => r.data),
+
+  // Create truck
+  create: (payload) =>
+    api.post("/trucks", payload).then((r) => r.data),
+
+  // Update truck
+  update: (id, payload) =>
+    api.put(`/trucks/${id}`, payload).then((r) => r.data),
+
+  // Delete truck (soft delete)
+  delete: (id) =>
+    api.delete(`/trucks/${id}`).then((r) => r.data),
+
+  // Get truck location
+  getLocation: (id) =>
+    api.get(`/trucks/${id}/location`).then((r) => r.data),
+
+  // Get truck location history
+  getLocationHistory: (id, params) =>
+    api.get(`/trucks/${id}/history`, { params }).then((r) => r.data),
+};
+
+export const fleetAPI = {
+  // Assign truck to order
+  assign: (payload) =>
+    api.post("/fleet/assign", payload).then((r) => r.data),
+
+  // Get all assignments
+  getAssignments: (params) =>
+    api.get("/fleet/assignments", { params }).then((r) => r.data),
+
+  // Get assignment by ID
+  getAssignment: (id) =>
+    api.get(`/fleet/assignments/${id}`).then((r) => r.data),
+
+  // Mark pickup
+  markPickup: (id) =>
+    api.post(`/fleet/assignments/${id}/pickup`).then((r) => r.data),
+
+  // Mark delivered
+  markDeliver: (id) =>
+    api.post(`/fleet/assignments/${id}/deliver`).then((r) => r.data),
+
+  // Update assignment status
+  updateStatus: (id, payload) =>
+    api.patch(`/fleet/assignments/${id}/status`, payload).then((r) => r.data),
+};
+
+export const trackingAPI = {
+  // Update truck location (mobile app)
+  updateLocation: (payload) =>
+    api.post("/tracking/location", payload).then((r) => r.data),
+
+  // Get live truck locations
+  getLiveLocations: () =>
+    api.get("/tracking/live").then((r) => r.data),
+
+  // Get order tracking
+  getOrderTracking: (orderId) =>
+    api.get(`/tracking/order/${orderId}`).then((r) => r.data),
+
+  // Get truck location history
+  getTruckHistory: (truckId, params) =>
+    api.get(`/tracking/truck/${truckId}/history`, { params }).then((r) => r.data),
+};
+
 // Default export
 export default api;

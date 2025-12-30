@@ -66,6 +66,16 @@ const CreateOrder = React.lazy(() => import("./pages/orders/CreateOrders"));
 const MyOrders = React.lazy(() => import("./pages/orders/MyOrders"));
 const OrderDetail = React.lazy(() => import("./pages/orders/OrderDetail"));
 const Materials = React.lazy(() => import("./pages/Materials"));
+
+// Fleet Management Pages
+const FleetDashboard = React.lazy(() => import("./pages/fleet/FleetDashboard"));
+const WarehouseManagement = React.lazy(() => import("./pages/fleet/WarehouseManagement"));
+const CreateWarehouse = React.lazy(() => import("./pages/fleet/CreateWarehouse"));
+const WarehouseDetail = React.lazy(() => import("./pages/fleet/WarehouseDetail"));
+const TruckManagement = React.lazy(() => import("./pages/fleet/TruckManagement"));
+const FleetAssignments = React.lazy(() => import("./pages/fleet/FleetAssignments"));
+const LiveTracking = React.lazy(() => import("./pages/fleet/LiveTracking"));
+const OrderTracking = React.lazy(() => import("./pages/fleet/OrderTracking"));
 const ChatUI = React.lazy(() => import("./pages/ChatUI"));
 const MaterialImport = React.lazy(() => import("./pages/Materials/MaterialImport"));
 const MaterialAnalytics = React.lazy(() => import("./pages/Materials/MaterialAnalytics"));
@@ -375,6 +385,116 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <OrderDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="orders/:orderId/tracking"
+                element={
+                  <ProtectedRoute allowed={[
+                    "super_admin",
+                    "regional_admin",
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager",
+                    "dealer_admin"
+                  ]}>
+                    <OrderTracking />
+                  </ProtectedRoute>
+                }
+              />
+              
+              {/* Fleet Management Routes */}
+              <Route
+                path="fleet"
+                element={
+                  <ProtectedRoute allowed={[
+                    "super_admin",
+                    "regional_admin",
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager"
+                  ]}>
+                    <FleetDashboard />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="fleet/warehouses"
+                element={
+                  <ProtectedRoute allowed={[
+                    "super_admin",
+                    "regional_admin",
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager"
+                  ]}>
+                    <WarehouseManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="fleet/warehouses/create"
+                element={
+                  <ProtectedRoute allowed={["super_admin"]}>
+                    <CreateWarehouse />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="fleet/warehouses/:id"
+                element={
+                  <ProtectedRoute allowed={[
+                    "super_admin",
+                    "regional_admin",
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager"
+                  ]}>
+                    <WarehouseDetail />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="fleet/trucks"
+                element={
+                  <ProtectedRoute allowed={[
+                    "super_admin",
+                    "regional_admin",
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager"
+                  ]}>
+                    <TruckManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="fleet/assignments"
+                element={
+                  <ProtectedRoute allowed={[
+                    "super_admin",
+                    "regional_admin",
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager"
+                  ]}>
+                    <FleetAssignments />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="fleet/tracking"
+                element={
+                  <ProtectedRoute allowed={[
+                    "super_admin",
+                    "regional_admin",
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager",
+                    "dealer_admin"
+                  ]}>
+                    <LiveTracking />
                   </ProtectedRoute>
                 }
               />
@@ -1084,7 +1204,7 @@ export default function App() {
               <Route
                 path="documents"
                 element={
-                  <ProtectedRoute allowed={["dealer_admin"]}>
+                  <ProtectedRoute allowed={["super_admin", "dealer_admin", "dealer_staff"]}>
                     <Documents />
                   </ProtectedRoute>
                 }
@@ -1165,14 +1285,7 @@ export default function App() {
               {/* ============================================================
                DEALER STAFF
             ============================================================ */}
-              <Route
-                path="documents"
-                element={
-                  <ProtectedRoute allowed={["dealer_staff"]}>
-                    <Documents />
-                  </ProtectedRoute>
-                }
-              />
+
               <Route
                 path="orders/create"
                 element={

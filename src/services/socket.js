@@ -110,6 +110,29 @@ export const emitEvent = (e, data) => getSocket()?.emit(e, data);
 export const isSocketConnected = () => getSocket()?.connected || false;
 export const getSocketId = () => getSocket()?.id;
 
+// =========================================================
+// FLEET TRACKING EVENTS
+// =========================================================
+
+// Join tracking rooms
+export const trackTruck = (truckId) => getSocket()?.emit("track_truck", { truckId });
+export const untrackTruck = (truckId) => getSocket()?.emit("untrack_truck", { truckId });
+
+export const trackOrder = (orderId) => getSocket()?.emit("track_order", { orderId });
+export const untrackOrder = (orderId) => getSocket()?.emit("untrack_order", { orderId });
+
+export const joinFleetScope = (data) => getSocket()?.emit("join_fleet_scope", data);
+
+// Listen to fleet events
+export const onTruckLocationUpdate = (cb) => getSocket()?.on("truck:location:update", cb);
+export const offTruckLocationUpdate = () => getSocket()?.off("truck:location:update");
+
+export const onTruckStatusChange = (cb) => getSocket()?.on("truck:status:change", cb);
+export const offTruckStatusChange = () => getSocket()?.off("truck:status:change");
+
+export const onOrderTrackingUpdate = (cb) => getSocket()?.on("order:tracking:update", cb);
+export const offOrderTrackingUpdate = () => getSocket()?.off("order:tracking:update");
+
 // 🚨 REMOVED THIS ↓
 // export default socket;
 

@@ -26,6 +26,7 @@ import {
   FaExclamationTriangle,
   FaBoxes,
   FaBuilding,
+  FaTruck,
 } from "react-icons/fa";
 
 // Helper function to format username for display
@@ -78,6 +79,7 @@ export default function Sidebar() {
       { label: "All Invoices", path: "/superadmin/invoices", icon: <FaFileInvoice />, section: "Global Visibility" },
       { label: "All Payments", path: "/superadmin/payments", icon: <FaMoneyCheckAlt />, section: "Global Visibility" },
       { label: "All Dealers", path: "/superadmin/dealers", icon: <FaUsers />, section: "Global Visibility" },
+      { label: "Documents", path: "/documents", icon: <FaFileAlt />, section: "Global Visibility" },
       { label: "Campaign Management", path: "/campaigns", icon: <FaBullhorn />, section: "Global Visibility" },
 
       // Analytics & Reports Section
@@ -92,6 +94,10 @@ export default function Sidebar() {
       { label: "Inventory Management", path: "/superadmin/inventory-management", icon: <FaWarehouse />, section: "System Configuration" },
       { label: "Dealer Material Assignment", path: "/materials/dealers", icon: <FaBoxes />, section: "System Configuration" },
       { label: "Region Material Availability", path: "/materials/regions", icon: <FaSitemap />, section: "System Configuration" },
+
+      // Fleet Management Section
+      { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
+      { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
     ],
     technical_admin: [
       { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
@@ -134,6 +140,10 @@ export default function Sidebar() {
       { label: "Regional Inventory", path: "/regional/inventory", icon: <FaWarehouse />, section: "Inventory" },
       { label: "Stock Alerts", path: "/regional/inventory/alerts", icon: <FaExclamationTriangle />, section: "Inventory" },
       { label: "Material Summary", path: "/regional/inventory/materials", icon: <FaBoxes />, section: "Inventory" },
+
+      // Fleet Management Section
+      { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
+      { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
     ],
     area_manager: [
       // Dashboard Section
@@ -161,6 +171,10 @@ export default function Sidebar() {
 
       // Inventory Section
       { label: "Area Inventory Overview", path: "/area/inventory", icon: <FaWarehouse />, section: "Inventory" },
+
+      // Fleet Management Section
+      { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
+      { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
     ],
     regional_manager: [
       // Dashboard Section
@@ -175,6 +189,10 @@ export default function Sidebar() {
 
       // Reports Section
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt />, section: "Reports" },
+
+      // Fleet Management Section
+      { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
+      { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
     ],
     territory_manager: [
       // Dashboard Section
@@ -200,6 +218,10 @@ export default function Sidebar() {
 
       // Inventory Section
       { label: "Territory Inventory", path: "/territory/inventory", icon: <FaWarehouse />, section: "Inventory" },
+
+      // Fleet Management Section
+      { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
+      { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
     ],
     dealer_admin: [
       { label: "My Company", path: "/dealer/profile", icon: <FaBuilding /> },
