@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { trackingAPI, warehouseAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import Card from '../../components/Card';
 import PageHeader from '../../components/PageHeader';
@@ -9,6 +9,7 @@ import { toast } from 'react-toastify';
 import { FaMapMarkerAlt, FaTruck, FaWarehouse } from 'react-icons/fa';
 import { Chip, TextField, MenuItem, Grid, FormControlLabel, Switch } from '@mui/material';
 import { onTruckLocationUpdate, offTruckLocationUpdate } from '../../services/socket';
+import { getCachedRoute } from '../../services/routing';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default marker icon
@@ -79,6 +80,9 @@ const LiveTracking = () => {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
   const [showWarehouses, setShowWarehouses] = useState(true);
+  const [routes, setRoutes] = useState({}); // Store routes by assignmentId
+  const routeLoadingRef = useRef({}); // Track loading state per route (using ref to avoid dependency issues)
+  const [lastTruckPositions, setLastTruckPositions] = useState({}); // Track last known truck positions
 
   // Check if user is dealer admin/staff - filter to their orders only
   const isDealerUser = user?.role === 'dealer_admin' || user?.role === 'dealer_staff';
@@ -268,6 +272,114 @@ const LiveTracking = () => {
     : locations;
   
   console.log('Filtered locations for map:', filteredLocations.length, filteredLocations);
+
+  // Helper function to check if truck has moved significantly
+  const hasSignificantMovement = (lat1, lng1, lat2, lng2) => {
+    if (!lat1 || !lng1 || !lat2 || !lng2) return true;
+    // Check if movement is more than ~0.01 degrees (roughly 1km)
+    const latDiff = Math.abs(lat1 - lat2);
+    const lngDiff = Math.abs(lng1 - lng2);
+    return latDiff > 0.01 || lngDiff > 0.01;
+  };
+
+  // Fetch routes for all locations
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      const routesToFetch = filteredLocations.filter(loc => {
+        const truck = loc.truck || {};
+        const warehouse = loc.warehouse || {};
+        const key = loc.assignmentId || loc.id;
+        
+        if (!warehouse.lat || !warehouse.lng || !truck.lat || !truck.lng) {
+          return false;
+        }
+        
+        // Check if route doesn't exist or truck has moved significantly
+        const lastPosition = lastTruckPositions[key];
+        const hasMoved = !lastPosition || hasSignificantMovement(
+          lastPosition.lat,
+          lastPosition.lng,
+          truck.lat,
+          truck.lng
+        );
+        
+        // Check if route already exists or is currently loading
+        const routeExists = routes[key];
+        const isLoading = routeLoadingRef.current[key];
+        
+        return hasMoved && !isLoading && !routeExists;
+      });
+
+      if (routesToFetch.length === 0) return;
+
+      // Mark routes as loading
+      routesToFetch.forEach(loc => {
+        const key = loc.assignmentId || loc.id;
+        routeLoadingRef.current[key] = true;
+      });
+
+      // Fetch routes in parallel
+      const routePromises = routesToFetch.map(async (location) => {
+        try {
+          const truck = location.truck || {};
+          const warehouse = location.warehouse || {};
+          const route = await getCachedRoute(
+            truck.lat,
+            truck.lng,
+            warehouse.lat,
+            warehouse.lng
+          );
+          return { 
+            assignmentId: location.assignmentId || location.id, 
+            route,
+            truckLat: truck.lat,
+            truckLng: truck.lng
+          };
+        } catch (error) {
+          console.error(`Error fetching route for assignment ${location.assignmentId || location.id}:`, error);
+          // Fallback to straight line
+          const truck = location.truck || {};
+          const warehouse = location.warehouse || {};
+          return {
+            assignmentId: location.assignmentId || location.id,
+            route: [
+              [truck.lat, truck.lng],
+              [warehouse.lat, warehouse.lng]
+            ],
+            truckLat: truck.lat,
+            truckLng: truck.lng
+          };
+        }
+      });
+
+      const fetchedRoutes = await Promise.all(routePromises);
+
+      // Update routes state
+      setRoutes(prev => {
+        const newRoutes = { ...prev };
+        fetchedRoutes.forEach(({ assignmentId, route }) => {
+          newRoutes[assignmentId] = route;
+        });
+        return newRoutes;
+      });
+
+      // Update last known positions
+      setLastTruckPositions(prev => {
+        const newPositions = { ...prev };
+        fetchedRoutes.forEach(({ assignmentId, truckLat, truckLng }) => {
+          newPositions[assignmentId] = { lat: truckLat, lng: truckLng };
+        });
+        return newPositions;
+      });
+
+      // Clear loading state
+      fetchedRoutes.forEach(({ assignmentId }) => {
+        delete routeLoadingRef.current[assignmentId];
+      });
+    };
+
+    fetchRoutes();
+  }, [filteredLocations, lastTruckPositions, routes]);
 
   // Calculate map bounds
   const getMapBounds = () => {
@@ -520,6 +632,28 @@ const LiveTracking = () => {
                   </Marker>
                 );
               })}
+
+              {/* Route lines from truck to warehouse via roads */}
+              {filteredLocations
+                .filter(loc => {
+                  const truck = loc.truck || {};
+                  const warehouse = loc.warehouse || {};
+                  const key = loc.assignmentId || loc.id;
+                  return warehouse.lat && warehouse.lng && truck.lat && truck.lng && routes[key];
+                })
+                .map(location => {
+                  const key = location.assignmentId || location.id;
+                  return (
+                    <Polyline
+                      key={`route-${key}`}
+                      positions={routes[key]}
+                      color="#007bff"
+                      weight={4}
+                      opacity={0.7}
+                      dashArray="10, 5"
+                    />
+                  );
+                })}
             </MapContainer>
           </div>
         </Card>

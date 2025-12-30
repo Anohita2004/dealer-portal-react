@@ -1,8 +1,9 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
 import L from 'leaflet';
 import { useLiveLocations } from '../../hooks/useLiveLocations';
 import { Box, Typography, CircularProgress, Alert } from '@mui/material';
+import { getCachedRoute } from '../../services/routing';
 import 'leaflet/dist/leaflet.css';
 
 // Fix for default marker icons
@@ -101,11 +102,113 @@ const createWarehouseIcon = () => {
 const TruckLocationMap = ({ driverPhone = null, center = [20.5937, 78.9629], zoom = 5 }) => {
   const { locations, loading, error } = useLiveLocations(driverPhone);
   const mapRef = useRef(null);
+  const [routes, setRoutes] = useState({}); // Store routes by assignmentId
+  const routeLoadingRef = useRef({}); // Track loading state per route (using ref to avoid dependency issues)
+  const [lastTruckPositions, setLastTruckPositions] = useState({}); // Track last known truck positions
 
   // Filter locations by phone number if provided
   const filteredLocations = driverPhone
     ? locations.filter(loc => loc.driverPhone === driverPhone)
     : locations;
+
+  // Helper function to calculate distance between two points (Haversine formula approximation)
+  const hasSignificantMovement = (lat1, lng1, lat2, lng2) => {
+    if (!lat1 || !lng1 || !lat2 || !lng2) return true;
+    // Check if movement is more than ~0.01 degrees (roughly 1km)
+    const latDiff = Math.abs(lat1 - lat2);
+    const lngDiff = Math.abs(lng1 - lng2);
+    return latDiff > 0.01 || lngDiff > 0.01;
+  };
+
+  // Fetch routes for all locations
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      const routesToFetch = filteredLocations.filter(loc => {
+        if (!loc.warehouse?.lat || !loc.warehouse?.lng || !loc.truck?.lat || !loc.truck?.lng) {
+          return false;
+        }
+        
+        // Check if route doesn't exist or truck has moved significantly
+        const lastPosition = lastTruckPositions[loc.assignmentId];
+        const hasMoved = !lastPosition || hasSignificantMovement(
+          lastPosition.lat,
+          lastPosition.lng,
+          loc.truck.lat,
+          loc.truck.lng
+        );
+        
+        // Check if route already exists or is currently loading
+        const routeExists = routes[loc.assignmentId];
+        const isLoading = routeLoadingRef.current[loc.assignmentId];
+        
+        return hasMoved && !isLoading && !routeExists;
+      });
+
+      if (routesToFetch.length === 0) return;
+
+      // Mark routes as loading
+      routesToFetch.forEach(loc => {
+        routeLoadingRef.current[loc.assignmentId] = true;
+      });
+
+      // Fetch routes in parallel
+      const routePromises = routesToFetch.map(async (location) => {
+        try {
+          const route = await getCachedRoute(
+            location.truck.lat,
+            location.truck.lng,
+            location.warehouse.lat,
+            location.warehouse.lng
+          );
+          return { 
+            assignmentId: location.assignmentId, 
+            route,
+            truckLat: location.truck.lat,
+            truckLng: location.truck.lng
+          };
+        } catch (error) {
+          console.error(`Error fetching route for assignment ${location.assignmentId}:`, error);
+          // Fallback to straight line
+          return {
+            assignmentId: location.assignmentId,
+            route: [
+              [location.truck.lat, location.truck.lng],
+              [location.warehouse.lat, location.warehouse.lng]
+            ],
+            truckLat: location.truck.lat,
+            truckLng: location.truck.lng
+          };
+        }
+      });
+
+      const fetchedRoutes = await Promise.all(routePromises);
+
+      // Update routes state
+      setRoutes(prev => {
+        const newRoutes = { ...prev };
+        fetchedRoutes.forEach(({ assignmentId, route }) => {
+          newRoutes[assignmentId] = route;
+        });
+        return newRoutes;
+      });
+
+      // Update last known positions
+      setLastTruckPositions(prev => {
+        const newPositions = { ...prev };
+        fetchedRoutes.forEach(({ assignmentId, truckLat, truckLng }) => {
+          newPositions[assignmentId] = { lat: truckLat, lng: truckLng };
+        });
+        return newPositions;
+      });
+
+      // Clear loading state
+      fetchedRoutes.forEach(({ assignmentId }) => {
+        delete routeLoadingRef.current[assignmentId];
+      });
+    };
+
+    fetchRoutes();
+  }, [filteredLocations, lastTruckPositions, routes]);
 
   // Update map bounds when locations change
   useEffect(() => {
@@ -265,24 +368,24 @@ const TruckLocationMap = ({ driverPhone = null, center = [20.5937, 78.9629], zoo
             </Marker>
           ))}
 
-        {/* Route line from warehouse to truck */}
+        {/* Route line from truck to warehouse via roads */}
         {filteredLocations
           .filter(
             loc =>
               loc.warehouse?.lat &&
               loc.warehouse?.lng &&
               loc.truck?.lat &&
-              loc.truck?.lng
+              loc.truck?.lng &&
+              routes[loc.assignmentId]
           )
           .map(location => (
             <Polyline
               key={`route-${location.assignmentId}`}
-              positions={[
-                [location.warehouse.lat, location.warehouse.lng],
-                [location.truck.lat, location.truck.lng]
-              ]}
-              color="blue"
-              dashArray="5, 10"
+              positions={routes[location.assignmentId]}
+              color="#007bff"
+              weight={4}
+              opacity={0.7}
+              dashArray="10, 5"
             />
           ))}
       </MapContainer>
