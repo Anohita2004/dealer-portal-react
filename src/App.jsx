@@ -65,6 +65,8 @@ const AdminOrders = React.lazy(() => import("./pages/orders/AdminOrders"));
 const CreateOrder = React.lazy(() => import("./pages/orders/CreateOrders"));
 const MyOrders = React.lazy(() => import("./pages/orders/MyOrders"));
 const OrderDetail = React.lazy(() => import("./pages/orders/OrderDetail"));
+const DealerOrderTracking = React.lazy(() => import("./pages/orders/DealerOrderTracking"));
+const DealerOrdersTrackingMap = React.lazy(() => import("./pages/orders/DealerOrdersTrackingMap"));
 const Materials = React.lazy(() => import("./pages/Materials"));
 
 // Fleet Management Pages
@@ -522,7 +524,8 @@ export default function App() {
                     "regional_manager",
                     "area_manager",
                     "territory_manager",
-                    "dealer_admin"
+                    "dealer_admin",
+                    "dealer_staff"
                   ]}>
                     <LiveTracking />
                   </ProtectedRoute>
@@ -1341,6 +1344,22 @@ export default function App() {
                 }
               />
               <Route
+                path="orders/my"
+                element={
+                  <ProtectedRoute allowed={["dealer_admin"]}>
+                    <MyOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="orders/:orderId/track"
+                element={
+                  <ProtectedRoute allowed={["dealer_admin"]}>
+                    <DealerOrderTracking />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
                 path="payments/dealer/pending"
                 element={
                   <ProtectedRoute allowed={["dealer_admin"]}>
@@ -1366,11 +1385,35 @@ export default function App() {
               <Route
                 path="orders/my"
                 element={
-                  <ProtectedRoute allowed={["dealer_staff"]}>
+                  <ProtectedRoute allowed={["dealer_staff", "dealer_admin"]}>
                     <MyOrders />
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="orders/:orderId/track"
+                element={
+                  <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
+                    <DealerOrderTracking />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="orders/tracking-map"
+                element={
+                  <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
+                    <DealerOrdersTrackingMap />
+                  </ProtectedRoute>
+                }
+              />
+                  <Route
+                    path="orders/tracking-map"
+                    element={
+                      <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
+                        <DealerOrdersTrackingMap />
+                      </ProtectedRoute>
+                    }
+                  />
               <Route
                 path="payments/create/:invoiceId"
                 element={

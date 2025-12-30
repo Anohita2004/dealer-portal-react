@@ -1232,9 +1232,9 @@ export const trackingAPI = {
   updateLocation: (payload) =>
     api.post("/tracking/location", payload).then((r) => r.data),
 
-  // Get live truck locations
-  getLiveLocations: () =>
-    api.get("/tracking/live").then((r) => r.data),
+  // Get live truck locations (optionally filtered by dealerId)
+  getLiveLocations: (params) =>
+    api.get("/tracking/live", { params }).then((r) => r.data),
 
   // Get order tracking
   getOrderTracking: (orderId) =>

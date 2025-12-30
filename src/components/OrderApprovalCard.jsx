@@ -10,7 +10,8 @@ import {
   Alert,
   Tooltip,
 } from "@mui/material";
-import { CheckCircle, XCircle, Clock, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, Clock, AlertCircle, MapPin } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 import ApprovalWorkflow from "./ApprovalWorkflow";
 import { orderAPI, workflowAPI } from "../services/api";
 import { toast } from "react-toastify";
@@ -22,6 +23,7 @@ import { getOrderLifecycleStatus, getApprovalProgress } from "../utils/orderLife
  * Enhanced to display backend workflow intelligence: stages, SLA urgency, and permissions
  */
 export default function OrderApprovalCard({ order, onUpdate }) {
+  const navigate = useNavigate();
   const [workflow, setWorkflow] = useState(null);
   const [workflowLoading, setWorkflowLoading] = useState(false);
 
@@ -305,6 +307,37 @@ export default function OrderApprovalCard({ order, onUpdate }) {
           approvalHistory={workflow?.timeline || order.approvalHistory || order.history || []}
           showHistory={true}
         />
+
+        {/* Track Order Button - Show for approved orders */}
+        {(() => {
+          // Check if order is approved (not pending or rejected)
+          const orderStatus = (order.status || '').toLowerCase();
+          const approvalStatus = (order.approvalStatus || '').toLowerCase();
+          const workflowApproved = workflow?.approvalStatus === 'approved';
+          
+          const isPending = approvalStatus === 'pending' || orderStatus === 'pending' || orderStatus === 'draft';
+          const isRejected = approvalStatus === 'rejected' || orderStatus === 'rejected';
+          const isApproved = approvalStatus === 'approved' || orderStatus === 'approved' || workflowApproved;
+          
+          // Show button for approved orders - tracking page will validate availability
+          if (!isPending && !isRejected && isApproved) {
+            return (
+              <Box sx={{ mt: 2 }}>
+                <Button
+                  variant="contained"
+                  color="info"
+                  startIcon={<MapPin size={16} />}
+                  onClick={() => navigate(`/orders/${order.id}/track`)}
+                  fullWidth
+                  sx={{ textTransform: 'none' }}
+                >
+                  Track Order on Map
+                </Button>
+              </Box>
+            );
+          }
+          return null;
+        })()}
 
         {order.items && order.items.length > 0 && (
           <Box sx={{ mt: 2 }}>

@@ -46,17 +46,47 @@ const createTruckIcon = (status) => {
   });
 };
 
-const LiveTrackingMap = ({ orderId, assignmentId }) => {
-  const [trackingData, setTrackingData] = useState(null);
-  const [truckLocation, setTruckLocation] = useState(null);
-  const [loading, setLoading] = useState(true);
+const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOrder }) => {
+  const [trackingData, setTrackingData] = useState(initialTrackingData || null);
+  // Get initial truck location from tracking data or order assignment
+  const initialTruckLoc = initialTrackingData?.currentLocation || 
+                          initialOrder?.truckAssignment?.currentLocation ||
+                          (initialOrder?.truckAssignment?.lat && initialOrder?.truckAssignment?.lng ? {
+                            lat: initialOrder.truckAssignment.lat,
+                            lng: initialOrder.truckAssignment.lng,
+                            lastUpdate: new Date().toISOString()
+                          } : null);
+  const [truckLocation, setTruckLocation] = useState(initialTruckLoc);
+  const [loading, setLoading] = useState(!initialTrackingData && !initialOrder?.truckAssignment);
   const mapRef = useRef(null);
+
+  // Update truck location when tracking data changes
+  useEffect(() => {
+    if (initialTrackingData?.currentLocation) {
+      setTruckLocation(initialTrackingData.currentLocation);
+    }
+  }, [initialTrackingData?.currentLocation]);
+
+  useEffect(() => {
+    if (initialTrackingData) {
+      setTrackingData(initialTrackingData);
+      if (initialTrackingData.currentLocation) {
+        setTruckLocation(initialTrackingData.currentLocation);
+      }
+      setLoading(false);
+    } else if (initialOrder?.truckAssignment) {
+      // If we have order data with assignment, use it
+      setLoading(false);
+    }
+  }, [initialTrackingData, initialOrder]);
 
   useEffect(() => {
     if (!orderId) return;
 
-    // Fetch initial tracking data
-    fetchTrackingData();
+    // Fetch initial tracking data if not provided
+    if (!initialTrackingData) {
+      fetchTrackingData();
+    }
 
     // Setup Socket.IO listeners
     const handleOrderUpdate = (data) => {
@@ -85,7 +115,11 @@ const LiveTrackingMap = ({ orderId, assignmentId }) => {
     onTruckLocationUpdate(handleTruckUpdate);
 
     // Refresh data every 30 seconds
-    const interval = setInterval(fetchTrackingData, 30000);
+    const interval = setInterval(() => {
+      if (!initialTrackingData) {
+        fetchTrackingData();
+      }
+    }, 30000);
 
     return () => {
       clearInterval(interval);
@@ -93,7 +127,7 @@ const LiveTrackingMap = ({ orderId, assignmentId }) => {
       offOrderTrackingUpdate();
       offTruckLocationUpdate();
     };
-  }, [orderId]);
+  }, [orderId, initialTrackingData]);
 
   const fetchTrackingData = async () => {
     try {
@@ -124,51 +158,110 @@ const LiveTrackingMap = ({ orderId, assignmentId }) => {
     );
   }
 
-  if (!trackingData || !trackingData.hasAssignment) {
+  // Use initialOrder if provided, otherwise use trackingData.order
+  const orderData = initialOrder || trackingData?.order;
+  const assignment = trackingData?.assignment || initialOrder?.truckAssignment;
+  // Check if we have assignment data - be more lenient
+  const hasAssignment = trackingData?.hasAssignment !== false && !!assignment;
+
+  if (!hasAssignment || !assignment) {
     return (
       <Card>
         <div style={{ padding: '40px', textAlign: 'center' }}>
-          No truck assigned to this order yet.
+          <Typography variant="h6" gutterBottom>
+            No truck assigned to this order yet.
+          </Typography>
+          <Typography variant="body2" color="text.secondary">
+            Tracking will be available once a truck is assigned and location data is received.
+          </Typography>
         </div>
       </Card>
     );
   }
 
-  const { assignment, locationHistory, order } = trackingData;
+  const { locationHistory } = trackingData || {};
   const warehouse = assignment?.warehouse;
-  const dealer = order?.dealer;
+  const dealer = orderData?.dealer;
 
   // Build route path
   const routePath = [];
-  if (warehouse) {
+  const boundsPoints = [];
+  
+  if (warehouse && warehouse.lat && warehouse.lng) {
     routePath.push([warehouse.lat, warehouse.lng]);
+    boundsPoints.push([warehouse.lat, warehouse.lng]);
   }
   if (locationHistory && locationHistory.length > 0) {
     // Add historical points
     [...locationHistory].reverse().forEach(point => {
-      routePath.push([point.lat, point.lng]);
+      if (point.lat && point.lng) {
+        routePath.push([point.lat, point.lng]);
+        boundsPoints.push([point.lat, point.lng]);
+      }
     });
   }
-  if (truckLocation) {
-    routePath.push([truckLocation.lat, truckLocation.lng]);
+  if (activeTruckLocation && activeTruckLocation.lat && activeTruckLocation.lng) {
+    routePath.push([activeTruckLocation.lat, activeTruckLocation.lng]);
+    boundsPoints.push([activeTruckLocation.lat, activeTruckLocation.lng]);
   }
   if (dealer && dealer.lat && dealer.lng) {
     routePath.push([dealer.lat, dealer.lng]);
+    boundsPoints.push([dealer.lat, dealer.lng]);
   }
 
-  // Determine map center
-  const center = truckLocation
-    ? [truckLocation.lat, truckLocation.lng]
-    : warehouse
-    ? [warehouse.lat, warehouse.lng]
-    : [19.0760, 72.8777]; // Default to Mumbai
+  // Determine map center and bounds
+  let center = [19.0760, 72.8777]; // Default to Mumbai
+  let bounds = null;
+  
+  if (boundsPoints.length > 0) {
+    try {
+      bounds = L.latLngBounds(boundsPoints);
+      const centerLatLng = bounds.getCenter();
+      // Safely get center coordinates
+      if (centerLatLng && typeof centerLatLng.lat === 'number' && typeof centerLatLng.lng === 'number') {
+        center = [centerLatLng.lat, centerLatLng.lng];
+      } else if (centerLatLng && Array.isArray(centerLatLng)) {
+        center = centerLatLng;
+      } else if (typeof centerLatLng?.toArray === 'function') {
+        center = centerLatLng.toArray();
+      } else {
+        // Fallback: calculate center manually
+        const lats = boundsPoints.map(p => p[0]);
+        const lngs = boundsPoints.map(p => p[1]);
+        center = [
+          (Math.min(...lats) + Math.max(...lats)) / 2,
+          (Math.min(...lngs) + Math.max(...lngs)) / 2
+        ];
+      }
+    } catch (error) {
+      console.error('Error calculating bounds center:', error);
+      // Fallback: calculate center manually
+      const lats = boundsPoints.map(p => p[0]);
+      const lngs = boundsPoints.map(p => p[1]);
+      center = [
+        (Math.min(...lats) + Math.max(...lats)) / 2,
+        (Math.min(...lngs) + Math.max(...lngs)) / 2
+      ];
+    }
+  } else {
+    // Fallback to individual locations
+    center = activeTruckLocation && activeTruckLocation.lat && activeTruckLocation.lng
+      ? [activeTruckLocation.lat, activeTruckLocation.lng]
+      : warehouse && warehouse.lat && warehouse.lng
+      ? [warehouse.lat, warehouse.lng]
+      : dealer && dealer.lat && dealer.lng
+      ? [dealer.lat, dealer.lng]
+      : [19.0760, 72.8777];
+  }
 
   return (
     <Card>
       <div style={{ height: '600px', width: '100%', position: 'relative' }}>
         <MapContainer
           center={center}
-          zoom={10}
+          zoom={bounds ? undefined : 10}
+          bounds={bounds || undefined}
+          boundsOptions={bounds ? { padding: [50, 50] } : undefined}
           style={{ height: '100%', width: '100%' }}
           ref={mapRef}
         >
@@ -178,47 +271,71 @@ const LiveTrackingMap = ({ orderId, assignmentId }) => {
           />
 
           {/* Warehouse Marker */}
-          {warehouse && (
+          {warehouse && warehouse.lat && warehouse.lng && (
             <Marker position={[warehouse.lat, warehouse.lng]}>
               <Popup>
                 <div>
-                  <strong><FaWarehouse /> Warehouse: {warehouse.name}</strong>
-                  <br />
-                  {warehouse.address}
-                  <br />
-                  {warehouse.city}, {warehouse.state}
+                  <strong><FaWarehouse /> Warehouse: {warehouse.name || 'Warehouse'}</strong>
+                  {warehouse.address && (
+                    <>
+                      <br />
+                      {warehouse.address}
+                    </>
+                  )}
+                  {(warehouse.city || warehouse.state) && (
+                    <>
+                      <br />
+                      {warehouse.city}{warehouse.city && warehouse.state ? ', ' : ''}{warehouse.state}
+                    </>
+                  )}
                 </div>
               </Popup>
             </Marker>
           )}
 
           {/* Truck Current Location */}
-          {truckLocation && assignment?.truck && (
+          {activeTruckLocation && activeTruckLocation.lat && activeTruckLocation.lng && assignment?.truck && (
             <Marker
-              position={[truckLocation.lat, truckLocation.lng]}
+              position={[activeTruckLocation.lat, activeTruckLocation.lng]}
               icon={createTruckIcon(assignment.status)}
             >
               <Popup>
                 <div>
-                  <strong><FaTruck /> Truck: {assignment.truck.truckName}</strong>
-                  <br />
-                  License: {assignment.truck.licenseNumber}
-                  <br />
-                  Driver: {assignment.driverName}
+                  <strong><FaTruck /> Truck: {assignment.truck.truckName || 'Truck'}</strong>
+                  {assignment.truck.licenseNumber && (
+                    <>
+                      <br />
+                      License: {assignment.truck.licenseNumber}
+                    </>
+                  )}
+                  {assignment.driverName && (
+                    <>
+                      <br />
+                      Driver: {assignment.driverName}
+                    </>
+                  )}
                   {assignment.driverPhone && (
                     <>
                       <br />
                       Phone: {assignment.driverPhone}
                     </>
                   )}
-                  <br />
-                  Status: <strong>{assignment.status.replace('_', ' ')}</strong>
-                  <br />
-                  Last Update: {new Date(truckLocation.lastUpdate).toLocaleString()}
-                  {truckLocation.speed && (
+                  {assignment.status && (
                     <>
                       <br />
-                      Speed: {truckLocation.speed} km/h
+                      Status: <strong>{assignment.status.replace('_', ' ')}</strong>
+                    </>
+                  )}
+                  {activeTruckLocation.lastUpdate && (
+                    <>
+                      <br />
+                      Last Update: {new Date(activeTruckLocation.lastUpdate).toLocaleString()}
+                    </>
+                  )}
+                  {activeTruckLocation.speed && (
+                    <>
+                      <br />
+                      Speed: {activeTruckLocation.speed} km/h
                     </>
                   )}
                 </div>

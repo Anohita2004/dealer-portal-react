@@ -367,6 +367,19 @@ export default function DealerDashboard() {
           style={{ cursor: "pointer" }}
         />
         <StatCard
+          title="Orders in Transit"
+          value={Array.isArray(orders) ? orders.filter((o) => {
+            const orderStatus = (o.status || "").toLowerCase();
+            const assignmentStatus = (o.truckAssignment?.status || o.assignment?.status || "").toLowerCase();
+            return orderStatus === 'shipped' || assignmentStatus === 'in_transit' || assignmentStatus === 'picked_up' || assignmentStatus === 'assigned';
+          }).length : 0}
+          icon={<Box />}
+          scope="Tracking"
+          accent="var(--color-primary)"
+          onClick={() => navigate("/fleet/tracking")}
+          style={{ cursor: "pointer" }}
+        />
+        <StatCard
           title="Promotions"
           value={promotions?.length || 0}
           icon={<Tag />}
@@ -433,26 +446,50 @@ export default function DealerDashboard() {
                     <th>Date</th>
                     <th>₹</th>
                     <th>Status</th>
+                    <th>Action</th>
                   </tr>
                 </thead>
                 <tbody>
-                  {orders.slice(0, 6).map((o) => (
-                    <tr key={o.id}>
-                      <td>{o.orderNumber || o.id}</td>
-                      <td>{o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "-"}</td>
-                      <td>{Number(o.totalAmount || 0).toLocaleString()}</td>
-                      <td className={
-                        (o.status || o.approvalStatus || "").toLowerCase() === "approved" 
-                          ? "status-approved" 
-                          : (o.status || o.approvalStatus || "").toLowerCase() === "rejected"
-                          ? "status-rejected"
-                          : "status-pending"
-                      }>
-                        {/* Backend enum: pending, approved, rejected */}
-                        {(o.status || o.approvalStatus || "pending").toLowerCase()}
-                      </td>
-                    </tr>
-                  ))}
+                  {orders.slice(0, 6).map((o) => {
+                    const orderStatus = o.status;
+                    const assignmentStatus = o.truckAssignment?.status;
+                    const canTrackOrder = 
+                      orderStatus === 'Shipped' || 
+                      assignmentStatus === 'in_transit' || 
+                      assignmentStatus === 'picked_up' ||
+                      assignmentStatus === 'assigned';
+                    
+                    return (
+                      <tr key={o.id}>
+                        <td>{o.orderNumber || o.id}</td>
+                        <td>{o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "-"}</td>
+                        <td>{Number(o.totalAmount || 0).toLocaleString()}</td>
+                        <td className={
+                          (o.status || o.approvalStatus || "").toLowerCase() === "approved" 
+                            ? "status-approved" 
+                            : (o.status || o.approvalStatus || "").toLowerCase() === "rejected"
+                            ? "status-rejected"
+                            : "status-pending"
+                        }>
+                          {/* Backend enum: pending, approved, rejected */}
+                          {(o.status || o.approvalStatus || "pending").toLowerCase()}
+                        </td>
+                        <td>
+                          {canTrackOrder ? (
+                            <button
+                              className="btn btn-sm btn-primary"
+                              onClick={() => navigate(`/orders/${o.id}/track`)}
+                              style={{ padding: '4px 8px', fontSize: '12px' }}
+                            >
+                              Track
+                            </button>
+                          ) : (
+                            <span style={{ color: '#999', fontSize: '12px' }}>-</span>
+                          )}
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             ) : (

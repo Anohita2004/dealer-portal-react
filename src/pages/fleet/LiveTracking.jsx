@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { trackingAPI, warehouseAPI } from '../../services/api';
+import { useAuth } from '../../context/AuthContext';
 import { MapContainer, TileLayer, Marker, Popup } from 'react-leaflet';
 import L from 'leaflet';
 import Card from '../../components/Card';
@@ -72,11 +73,16 @@ const createWarehouseIcon = () => {
 };
 
 const LiveTracking = () => {
+  const { user } = useAuth();
   const [locations, setLocations] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
   const [showWarehouses, setShowWarehouses] = useState(true);
+
+  // Check if user is dealer admin/staff - filter to their orders only
+  const isDealerUser = user?.role === 'dealer_admin' || user?.role === 'dealer_staff';
+  const dealerId = user?.dealerId || user?.dealer?.id;
 
   useEffect(() => {
     fetchLiveLocations();
@@ -117,11 +123,119 @@ const LiveTracking = () => {
   const fetchLiveLocations = async () => {
     try {
       setLoading(true);
-      const response = await trackingAPI.getLiveLocations();
-      setLocations(response.locations || []);
+      // For dealer users, filter by dealerId
+      const params = isDealerUser && dealerId ? { dealerId } : {};
+      const response = await trackingAPI.getLiveLocations(params);
+      console.log('API Response:', response);
+      
+      // Handle different response structures
+      let locationsList = [];
+      if (Array.isArray(response)) {
+        locationsList = response;
+        console.log('Response is array, locations:', locationsList.length);
+      } else if (response.locations && Array.isArray(response.locations)) {
+        locationsList = response.locations;
+        console.log('Response.locations found, locations:', locationsList.length);
+      } else if (response.data && Array.isArray(response.data)) {
+        locationsList = response.data;
+        console.log('Response.data found, locations:', locationsList.length);
+      } else {
+        console.warn('Unexpected response structure:', response);
+      }
+      
+      console.log('Raw locations from API:', locationsList.length, locationsList);
+      
+      // Additional client-side filtering for dealer users (in case API doesn't filter)
+      // Since we pass dealerId param to API, backend should already filter
+      // Only do client-side filtering if dealerId is present in response
+      if (isDealerUser && dealerId) {
+        const beforeFilter = locationsList.length;
+        locationsList = locationsList.filter(loc => {
+          // Check multiple possible dealer ID fields
+          const locDealerId = loc.dealerId || 
+                             loc.order?.dealerId || 
+                             loc.assignment?.order?.dealerId || 
+                             loc.order?.dealer?.id ||
+                             loc.assignment?.order?.dealer?.id;
+          
+          // If dealerId is not in response, assume API already filtered correctly
+          // (since we passed dealerId param) and include the location
+          if (!locDealerId) {
+            console.log('Location has no dealerId - assuming API filtered correctly:', loc.orderNumber || loc.orderId);
+            return true;
+          }
+          
+          // If dealerId exists, verify it matches
+          const matches = locDealerId === dealerId || String(locDealerId) === String(dealerId);
+          if (!matches) {
+            console.log('Filtered out location - dealer mismatch:', { 
+              locDealerId, 
+              dealerId, 
+              orderId: loc.orderId,
+              orderNumber: loc.orderNumber 
+            });
+          }
+          return matches;
+        });
+        console.log(`Dealer filter: ${beforeFilter} -> ${locationsList.length} locations`);
+      }
+      
+      // Ensure truck locations have valid coordinates
+      // The API returns: { locations: [{ truck: { lat, lng, ... }, ... }] }
+      locationsList = locationsList.map(loc => {
+        // The truck object already has lat/lng from the API
+        const truck = loc.truck || {};
+        const lat = truck.lat;
+        const lng = truck.lng;
+        
+        // Normalize coordinates to numbers
+        const normalizedLat = lat != null ? Number(lat) : null;
+        const normalizedLng = lng != null ? Number(lng) : null;
+        
+        // Return location with normalized truck coordinates
+        return {
+          ...loc,
+          truck: {
+            ...truck,
+            lat: normalizedLat,
+            lng: normalizedLng,
+            truckName: truck.truckName || 'Unknown',
+            licenseNumber: truck.licenseNumber || 'N/A',
+            lastUpdate: truck.lastUpdate || new Date().toISOString()
+          }
+        };
+      });
+      
+      // Filter out locations without valid coordinates AFTER normalization
+      const beforeCoordFilter = locationsList.length;
+      locationsList = locationsList.filter(loc => {
+        const truck = loc.truck || {};
+        const lat = truck.lat;
+        const lng = truck.lng;
+        const hasValidCoords = lat != null && 
+                              lng != null && 
+                              !isNaN(Number(lat)) && 
+                              !isNaN(Number(lng));
+        if (!hasValidCoords) {
+          console.log('Filtered out location - invalid coordinates:', { 
+            location: loc, 
+            truck: truck,
+            lat: lat,
+            lng: lng,
+            latType: typeof lat,
+            lngType: typeof lng
+          });
+        }
+        return hasValidCoords;
+      });
+      
+      console.log(`Coordinate filter: ${beforeCoordFilter} -> ${locationsList.length} locations`);
+      console.log('Final normalized locations:', locationsList.length, locationsList);
+      setLocations(locationsList);
     } catch (error) {
       console.error('Error fetching live locations:', error);
       toast.error('Failed to load live truck locations');
+      setLocations([]);
     } finally {
       setLoading(false);
     }
@@ -147,8 +261,13 @@ const LiveTracking = () => {
   };
 
   const filteredLocations = filterStatus
-    ? locations.filter(loc => loc.status === filterStatus)
+    ? locations.filter(loc => {
+        const status = loc.status || loc.assignment?.status;
+        return status === filterStatus;
+      })
     : locations;
+  
+  console.log('Filtered locations for map:', filteredLocations.length, filteredLocations);
 
   // Calculate map bounds
   const getMapBounds = () => {
@@ -214,7 +333,11 @@ const LiveTracking = () => {
 
   return (
     <div>
-      <PageHeader title="Live Truck Tracking" icon={<FaMapMarkerAlt />} />
+      <PageHeader 
+        title={isDealerUser ? "My Orders - Live Tracking" : "Live Truck Tracking"} 
+        icon={<FaMapMarkerAlt />}
+        subtitle={isDealerUser ? `Tracking orders for your dealer` : undefined}
+      />
 
       <Card style={{ marginBottom: '16px' }}>
         <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
@@ -314,33 +437,72 @@ const LiveTracking = () => {
 
               {/* Truck Markers */}
               {filteredLocations.map((location, index) => {
-                const truck = location.truck;
-                if (!truck || !truck.lat || !truck.lng) return null;
+                const truck = location.truck || {};
+                const lat = truck.lat;
+                const lng = truck.lng;
+                
+                // Skip if no valid coordinates (check for null/undefined and NaN)
+                if (lat == null || lng == null || isNaN(Number(lat)) || isNaN(Number(lng))) {
+                  console.log('Skipping location - invalid coordinates:', { location, truck, lat, lng });
+                  return null;
+                }
+
+                const numLat = Number(lat);
+                const numLng = Number(lng);
+                const status = location.status || location.assignment?.status || 'unknown';
+
+                console.log('Rendering truck marker:', { 
+                  truckName: truck.truckName, 
+                  lat: numLat, 
+                  lng: numLng, 
+                  status,
+                  assignmentId: location.assignmentId 
+                });
 
                 return (
                   <Marker
-                    key={location.assignmentId || index}
-                    position={[truck.lat, truck.lng]}
-                    icon={createTruckIcon(location.status)}
+                    key={location.assignmentId || location.id || `truck-${index}`}
+                    position={[numLat, numLng]}
+                    icon={createTruckIcon(status)}
                   >
                     <Popup>
                       <div>
-                        <strong><FaTruck /> Truck: {truck.truckName}</strong>
-                        <br />
-                        License: {truck.licenseNumber}
-                        <br />
-                        Order: {location.orderNumber || location.orderId}
-                        <br />
-                        Driver: {location.driverName}
-                        <br />
-                        Status:{' '}
-                        <Chip
-                          label={location.status?.replace('_', ' ')}
-                          color={getStatusColor(location.status)}
-                          size="small"
-                        />
-                        <br />
-                        Last Update: {new Date(truck.lastUpdate).toLocaleString()}
+                        <strong><FaTruck /> Truck: {truck.truckName || truck.name || 'Unknown'}</strong>
+                        {truck.licenseNumber && (
+                          <>
+                            <br />
+                            License: {truck.licenseNumber}
+                          </>
+                        )}
+                        {(location.orderNumber || location.orderId) && (
+                          <>
+                            <br />
+                            Order: {location.orderNumber || location.orderId}
+                          </>
+                        )}
+                        {location.driverName && (
+                          <>
+                            <br />
+                            Driver: {location.driverName}
+                          </>
+                        )}
+                        {status && status !== 'unknown' && (
+                          <>
+                            <br />
+                            Status:{' '}
+                            <Chip
+                              label={status.replace('_', ' ')}
+                              color={getStatusColor(status)}
+                              size="small"
+                            />
+                          </>
+                        )}
+                        {truck.lastUpdate && (
+                          <>
+                            <br />
+                            Last Update: {new Date(truck.lastUpdate).toLocaleString()}
+                          </>
+                        )}
                         {location.warehouse && (
                           <>
                             <br />

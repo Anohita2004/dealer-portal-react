@@ -235,6 +235,7 @@ export default function Sidebar() {
       { label: "Invoices", path: "/invoices", icon: <FaFileInvoice /> },
       { label: "Pending Approvals", path: "/approvals", icon: <FaClipboardList /> },
       { label: "Payment Approvals", path: "/payments/dealer/pending", icon: <FaMoneyCheckAlt /> },
+      { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt /> },
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
     ],
     dealer_staff: [
@@ -245,6 +246,7 @@ export default function Sidebar() {
       // Orders Section
       { label: "My Orders", path: "/orders/my", icon: <FaFileAlt />, section: "Orders" },
       { label: "Create Order", path: "/orders/create", icon: <FaFileAlt />, section: "Orders" },
+      { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Orders" },
 
       // Payments Section
       { label: "My Payment Requests", path: "/payments/my", icon: <FaMoneyCheckAlt />, section: "Payments" },

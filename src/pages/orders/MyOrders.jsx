@@ -25,9 +25,11 @@ import { orderAPI, materialAPI, invoiceAPI, userAPI, dealerAPI } from "../../ser
 import { useAuth } from "../../context/AuthContext";
 import { getRoleName } from "../../utils/authUtils";
 import { getOrderLifecycleStatus, getInventoryImpact, getApprovalProgress } from "../../utils/orderLifecycle";
-import { Clock, AlertCircle, CheckCircle, XCircle } from "lucide-react";
+import { Clock, AlertCircle, CheckCircle, XCircle, MapPin } from "lucide-react";
+import { useNavigate } from "react-router-dom";
 
 export default function MyOrders() {
+  const navigate = useNavigate();
   const [orders, setOrders] = useState([]);
   const [materials, setMaterials] = useState({});
   const [openOrder, setOpenOrder] = useState(null); // order object for modal
@@ -333,6 +335,15 @@ export default function MyOrders() {
 
                 const canRaiseInvoice = isDealerStaff && isLifecycleApproved && isWorkflowApproved;
 
+                // Check if order can be tracked (Shipped status or assignment in transit)
+                const orderStatus = order.status;
+                const assignmentStatus = order.truckAssignment?.status;
+                const canTrackOrder = 
+                  orderStatus === 'Shipped' || 
+                  assignmentStatus === 'in_transit' || 
+                  assignmentStatus === 'picked_up' ||
+                  assignmentStatus === 'assigned';
+
                 return (
                   <TableRow key={order.id}>
                     <TableCell>
@@ -403,28 +414,41 @@ export default function MyOrders() {
                       )}
                     </TableCell>
                     <TableCell>
-                      {canRaiseInvoice ? (
-                        <Button
-                          variant="contained"
-                          color="primary"
-                          size="small"
-                          onClick={() => handleOpenRaise(order)}
-                        >
-                          Raise Invoice
-                        </Button>
-                      ) : (
-                        <Tooltip title={lifecycleStatus.isBlocked ? lifecycleStatus.blockingReason : "Insufficient role"}>
-                          <span>
-                            <Button
-                              variant="outlined"
-                              size="small"
-                              disabled
-                            >
-                              Raise Invoice
-                            </Button>
-                          </span>
-                        </Tooltip>
-                      )}
+                      <Box sx={{ display: 'flex', gap: 1, flexWrap: 'wrap' }}>
+                        {canTrackOrder && (
+                          <Button
+                            variant="contained"
+                            color="info"
+                            size="small"
+                            startIcon={<MapPin size={16} />}
+                            onClick={() => navigate(`/orders/${order.id}/track`)}
+                          >
+                            Track Order
+                          </Button>
+                        )}
+                        {canRaiseInvoice ? (
+                          <Button
+                            variant="contained"
+                            color="primary"
+                            size="small"
+                            onClick={() => handleOpenRaise(order)}
+                          >
+                            Raise Invoice
+                          </Button>
+                        ) : (
+                          <Tooltip title={lifecycleStatus.isBlocked ? lifecycleStatus.blockingReason : "Insufficient role"}>
+                            <span>
+                              <Button
+                                variant="outlined"
+                                size="small"
+                                disabled
+                              >
+                                Raise Invoice
+                              </Button>
+                            </span>
+                          </Tooltip>
+                        )}
+                      </Box>
                     </TableCell>
                   </TableRow>
                 );
