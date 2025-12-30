@@ -50,32 +50,30 @@ const WarehouseManagement = () => {
   };
 
   const columns = [
-    { field: 'warehouseCode', headerName: 'Code', width: 120 },
-    { field: 'name', headerName: 'Name', width: 200 },
-    { field: 'city', headerName: 'City', width: 150 },
-    { field: 'state', headerName: 'State', width: 150 },
-    { field: 'contactPerson', headerName: 'Contact Person', width: 150 },
-    { field: 'phoneNumber', headerName: 'Phone', width: 130 },
+    { key: 'warehouseCode', label: 'Code' },
+    { key: 'name', label: 'Name' },
+    { key: 'city', label: 'City' },
+    { key: 'state', label: 'State' },
+    { key: 'contactPerson', label: 'Contact Person' },
+    { key: 'phoneNumber', label: 'Phone' },
     {
-      field: 'isActive',
-      headerName: 'Status',
-      width: 100,
-      renderCell: (params) => (
-        <span style={{ color: params.value ? 'green' : 'red' }}>
-          {params.value ? 'Active' : 'Inactive'}
+      key: 'isActive',
+      label: 'Status',
+      render: (value) => (
+        <span style={{ color: value ? 'green' : 'red' }}>
+          {value ? 'Active' : 'Inactive'}
         </span>
       )
     },
     {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 120,
-      renderCell: (params) => (
+      key: 'actions',
+      label: 'Actions',
+      render: (_, row) => (
         <Button
           size="small"
           variant="outlined"
           startIcon={<FaEdit />}
-          onClick={() => handleEdit(params.row)}
+          onClick={() => handleEdit(row)}
         >
           View/Edit
         </Button>
@@ -123,15 +121,15 @@ const WarehouseManagement = () => {
           </TextField>
         </div>
 
-        <DataTable
-          rows={warehouses}
-          columns={columns}
-          loading={loading}
-          page={filters.page - 1}
-          pageSize={filters.limit}
-          onPageChange={(newPage) => setFilters({ ...filters, page: newPage + 1 })}
-          onPageSizeChange={(newPageSize) => setFilters({ ...filters, limit: newPageSize, page: 1 })}
-        />
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading warehouses...</div>
+        ) : (
+          <DataTable
+            rows={warehouses}
+            columns={columns}
+            emptyMessage="No warehouses found"
+          />
+        )}
       </Card>
 
     </div>

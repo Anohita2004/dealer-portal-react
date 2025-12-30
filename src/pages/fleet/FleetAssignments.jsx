@@ -5,7 +5,21 @@ import PageHeader from '../../components/PageHeader';
 import Card from '../../components/Card';
 import { toast } from 'react-toastify';
 import { FaTruck, FaPlus, FaCheckCircle, FaTimesCircle } from 'react-icons/fa';
-import { Button, Dialog, DialogTitle, DialogContent, DialogActions, TextField, MenuItem, Chip } from '@mui/material';
+import { 
+  Button, 
+  Dialog, 
+  DialogTitle, 
+  DialogContent, 
+  DialogActions, 
+  TextField, 
+  MenuItem, 
+  Chip,
+  Autocomplete,
+  Box,
+  Typography,
+  Divider,
+  CircularProgress
+} from '@mui/material';
 
 const FleetAssignments = () => {
   const [assignments, setAssignments] = useState([]);
@@ -23,6 +37,8 @@ const FleetAssignments = () => {
   const [trucks, setTrucks] = useState([]);
   const [warehouses, setWarehouses] = useState([]);
   const [orders, setOrders] = useState([]);
+  const [ordersLoading, setOrdersLoading] = useState(false);
+  const [orderSearchTerm, setOrderSearchTerm] = useState('');
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
@@ -68,16 +84,127 @@ const FleetAssignments = () => {
     }
   };
 
-  const fetchOrders = async (searchTerm) => {
-    if (!searchTerm || searchTerm.length < 2) {
-      setOrders([]);
-      return;
-    }
+  const fetchApprovedOrders = async (searchTerm = '') => {
     try {
-      const response = await orderAPI.getAll({ search: searchTerm, limit: 20 });
-      setOrders(response.orders || []);
+      setOrdersLoading(true);
+      
+      // Get list of orders that already have assignments
+      let assignedOrderIds = new Set();
+      try {
+        const assignmentsResponse = await fleetAPI.getAssignments({ limit: 1000 });
+        const allAssignments = assignmentsResponse.assignments || [];
+        assignedOrderIds = new Set(allAssignments.map(a => a.orderId).filter(Boolean));
+      } catch (error) {
+        console.error('Error fetching assignments:', error);
+      }
+      
+      // Fetch approved orders - try with status filter first, then fallback
+      let allOrders = [];
+      let response;
+      
+      // Try fetching with status filter (try both capitalized and lowercase)
+      const statusValues = ['Approved', 'approved'];
+      let fetchSuccess = false;
+      
+      for (const statusValue of statusValues) {
+        if (fetchSuccess) break;
+        
+        try {
+          const params = {
+            status: statusValue,
+            limit: 500,
+            ...(searchTerm && searchTerm.length >= 2 && { search: searchTerm })
+          };
+          
+          response = await orderAPI.getAllOrders(params);
+          
+          // Handle different response formats
+          if (Array.isArray(response)) {
+            allOrders = response;
+          } else if (response?.orders && Array.isArray(response.orders)) {
+            allOrders = response.orders;
+          } else if (response?.data && Array.isArray(response.data)) {
+            allOrders = response.data;
+          }
+          
+          if (allOrders.length > 0) {
+            fetchSuccess = true;
+            console.log(`Successfully fetched ${allOrders.length} orders with status: ${statusValue}`);
+          }
+        } catch (error) {
+          console.warn(`Failed to fetch with status "${statusValue}":`, error.response?.data || error.message);
+        }
+      }
+      
+      // If status filter didn't work, fetch all orders and filter client-side
+      if (!fetchSuccess || allOrders.length === 0) {
+        try {
+          const params = {
+            limit: 500,
+            ...(searchTerm && searchTerm.length >= 2 && { search: searchTerm })
+          };
+          
+          response = await orderAPI.getAllOrders(params);
+          
+          // Handle different response formats
+          if (Array.isArray(response)) {
+            allOrders = response;
+          } else if (response?.orders && Array.isArray(response.orders)) {
+            allOrders = response.orders;
+          } else if (response?.data && Array.isArray(response.data)) {
+            allOrders = response.data;
+          }
+          
+          console.log(`Fetched ${allOrders.length} orders without status filter (will filter client-side)`);
+        } catch (error) {
+          console.error('Failed to fetch orders:', error.response?.data || error.message);
+          throw error;
+        }
+      }
+      
+      console.log('Total orders fetched:', allOrders.length);
+      
+      // Filter to only approved orders that are ready for assignment
+      const approvedOrders = allOrders.filter(order => {
+        if (!order || !order.id) return false;
+        
+        // Exclude if already assigned
+        if (assignedOrderIds.has(order.id)) {
+          return false;
+        }
+        
+        const status = (order.status || '').toLowerCase().trim();
+        const approvalStatus = (order.approvalStatus || '').toLowerCase().trim();
+        const workflowStatus = (order.workflow?.approvalStatus || '').toLowerCase().trim();
+        
+        // Check if order is approved (check multiple possible fields)
+        const isApproved = 
+          status === 'approved' || 
+          approvalStatus === 'approved' || 
+          workflowStatus === 'approved' ||
+          status === 'processing'; // Processing orders are also ready for assignment
+        
+        // Exclude orders that are delivered, cancelled, or shipped
+        const isExcluded = 
+          status === 'delivered' || 
+          status === 'cancelled' || 
+          status === 'shipped' ||
+          status === 'rejected';
+        
+        return isApproved && !isExcluded;
+      });
+      
+      console.log('Filtered approved orders:', approvedOrders.length, 'orders');
+      console.log('Sample approved orders:', approvedOrders.slice(0, 3));
+      
+      setOrders(approvedOrders);
     } catch (error) {
-      console.error('Error fetching orders:', error);
+      console.error('Error fetching approved orders:', error);
+      console.error('Error details:', error.response?.data);
+      toast.error(error.response?.data?.error || 'Failed to load approved orders');
+      setOrders([]);
+    } finally {
+      setOrdersLoading(false);
     }
   };
 
@@ -91,7 +218,11 @@ const FleetAssignments = () => {
       estimatedDeliveryAt: '',
       notes: ''
     });
+    setOrderSearchTerm('');
+    setOrders([]);
     setOpenModal(true);
+    // Fetch approved orders when modal opens
+    fetchApprovedOrders();
   };
 
   const handleSubmit = async (e) => {
@@ -147,72 +278,57 @@ const FleetAssignments = () => {
 
   const columns = [
     {
-      field: 'order',
-      headerName: 'Order',
-      width: 150,
-      renderCell: (params) => params.row.order?.orderNumber || params.row.orderId
+      key: 'order',
+      label: 'Order',
+      render: (_, row) => row.order?.orderNumber || row.orderId
     },
     {
-      field: 'truck',
-      headerName: 'Truck',
-      width: 180,
-      renderCell: (params) => {
-        const truck = params.row.truck;
+      key: 'truck',
+      label: 'Truck',
+      render: (_, row) => {
+        const truck = row.truck;
         return truck ? `${truck.truckName} (${truck.licenseNumber})` : 'N/A';
       }
     },
     {
-      field: 'warehouse',
-      headerName: 'Warehouse',
-      width: 200,
-      renderCell: (params) => params.row.warehouse?.name || 'N/A'
+      key: 'warehouse',
+      label: 'Warehouse',
+      render: (_, row) => row.warehouse?.name || 'N/A'
     },
+    { key: 'driverName', label: 'Driver' },
+    { key: 'driverPhone', label: 'Driver Phone' },
     {
-      field: 'driverName',
-      headerName: 'Driver',
-      width: 150
-    },
-    {
-      field: 'driverPhone',
-      headerName: 'Driver Phone',
-      width: 130
-    },
-    {
-      field: 'status',
-      headerName: 'Status',
-      width: 130,
-      renderCell: (params) => (
+      key: 'status',
+      label: 'Status',
+      render: (value) => (
         <Chip
-          label={params.value?.replace('_', ' ') || 'N/A'}
-          color={getStatusColor(params.value)}
+          label={value?.replace('_', ' ') || 'N/A'}
+          color={getStatusColor(value)}
           size="small"
         />
       )
     },
     {
-      field: 'assignedAt',
-      headerName: 'Assigned At',
-      width: 180,
-      renderCell: (params) => {
-        if (!params.value) return 'N/A';
-        return new Date(params.value).toLocaleString();
+      key: 'assignedAt',
+      label: 'Assigned At',
+      render: (value) => {
+        if (!value) return 'N/A';
+        return new Date(value).toLocaleString();
       }
     },
     {
-      field: 'estimatedDeliveryAt',
-      headerName: 'Est. Delivery',
-      width: 180,
-      renderCell: (params) => {
-        if (!params.value) return 'N/A';
-        return new Date(params.value).toLocaleString();
+      key: 'estimatedDeliveryAt',
+      label: 'Est. Delivery',
+      render: (value) => {
+        if (!value) return 'N/A';
+        return new Date(value).toLocaleString();
       }
     },
     {
-      field: 'actions',
-      headerName: 'Actions',
-      width: 200,
-      renderCell: (params) => {
-        const status = params.row.status;
+      key: 'actions',
+      label: 'Actions',
+      render: (_, row) => {
+        const status = row.status;
         return (
           <div style={{ display: 'flex', gap: '8px' }}>
             {status === 'assigned' && (
@@ -221,7 +337,7 @@ const FleetAssignments = () => {
                 variant="outlined"
                 color="primary"
                 startIcon={<FaCheckCircle />}
-                onClick={() => handlePickup(params.row.id)}
+                onClick={() => handlePickup(row.id)}
               >
                 Mark Pickup
               </Button>
@@ -232,7 +348,7 @@ const FleetAssignments = () => {
                 variant="outlined"
                 color="success"
                 startIcon={<FaCheckCircle />}
-                onClick={() => handleDeliver(params.row.id)}
+                onClick={() => handleDeliver(row.id)}
               >
                 Mark Delivered
               </Button>
@@ -247,8 +363,7 @@ const FleetAssignments = () => {
     <div>
       <PageHeader
         title="Fleet Assignments"
-        icon={<FaTruck />}
-        action={
+        actions={
           <Button
             variant="contained"
             startIcon={<FaPlus />}
@@ -292,15 +407,15 @@ const FleetAssignments = () => {
           />
         </div>
 
-        <DataTable
-          rows={assignments}
-          columns={columns}
-          loading={loading}
-          page={filters.page - 1}
-          pageSize={filters.limit}
-          onPageChange={(newPage) => setFilters({ ...filters, page: newPage + 1 })}
-          onPageSizeChange={(newPageSize) => setFilters({ ...filters, limit: newPageSize, page: 1 })}
-        />
+        {loading ? (
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading assignments...</div>
+        ) : (
+          <DataTable
+            rows={assignments}
+            columns={columns}
+            emptyMessage="No assignments found"
+          />
+        )}
       </Card>
 
       {/* Assign Truck Modal */}
@@ -309,32 +424,87 @@ const FleetAssignments = () => {
         <form onSubmit={handleSubmit}>
           <DialogContent>
             <div style={{ display: 'flex', flexDirection: 'column', gap: '16px', marginTop: '8px' }}>
-              <TextField
-                label="Order ID"
-                required
-                value={formData.orderId}
-                onChange={(e) => {
-                  setFormData({ ...formData, orderId: e.target.value });
-                  fetchOrders(e.target.value);
+              <Typography variant="subtitle2" sx={{ fontWeight: 'bold', mb: 1 }}>
+                Select Order
+              </Typography>
+              <Autocomplete
+                options={orders}
+                loading={ordersLoading}
+                value={orders.find(o => o.id === formData.orderId) || null}
+                onChange={(event, newValue) => {
+                  setFormData({ ...formData, orderId: newValue?.id || '' });
                 }}
+                onInputChange={(event, newInputValue) => {
+                  setOrderSearchTerm(newInputValue);
+                  if (newInputValue.length >= 2) {
+                    fetchApprovedOrders(newInputValue);
+                  } else if (newInputValue.length === 0) {
+                    fetchApprovedOrders();
+                  }
+                }}
+                getOptionLabel={(option) => {
+                  if (typeof option === 'string') return option;
+                  return `${option.orderNumber || option.id} - ${option.dealer?.businessName || 'Unknown Dealer'}`;
+                }}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props} key={option.id}>
+                    <Box sx={{ display: 'flex', flexDirection: 'column', width: '100%' }}>
+                      <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <Typography variant="body1" sx={{ fontWeight: 'bold' }}>
+                          {option.orderNumber || `Order #${option.id}`}
+                        </Typography>
+                        {option.totalAmount && (
+                          <Chip 
+                            label={`₹${Number(option.totalAmount).toLocaleString()}`}
+                            size="small"
+                            color="primary"
+                            variant="outlined"
+                          />
+                        )}
+                      </Box>
+                      <Typography variant="body2" color="text.secondary">
+                        Dealer: {option.dealer?.businessName || 'Unknown'}
+                      </Typography>
+                      {option.dealer?.city && (
+                        <Typography variant="caption" color="text.secondary">
+                          {option.dealer.city}, {option.dealer.state}
+                        </Typography>
+                      )}
+                      {option.createdAt && (
+                        <Typography variant="caption" color="text.secondary">
+                          Created: {new Date(option.createdAt).toLocaleDateString()}
+                        </Typography>
+                      )}
+                    </Box>
+                  </Box>
+                )}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Search Approved Orders"
+                    required
+                    placeholder="Type to search orders by number or dealer name..."
+                    helperText={orders.length > 0 ? `${orders.length} approved orders available` : 'No approved orders found'}
+                    InputProps={{
+                      ...params.InputProps,
+                      endAdornment: (
+                        <>
+                          {ordersLoading ? <CircularProgress color="inherit" size={20} /> : null}
+                          {params.InputProps.endAdornment}
+                        </>
+                      ),
+                    }}
+                  />
+                )}
+                noOptionsText={ordersLoading ? "Loading orders..." : "No approved orders found"}
                 fullWidth
-                helperText="Enter order ID or search for orders"
               />
-              {orders.length > 0 && (
-                <div style={{ maxHeight: '200px', overflowY: 'auto', border: '1px solid #ddd', borderRadius: '4px' }}>
-                  {orders.map(order => (
-                    <div
-                      key={order.id}
-                      onClick={() => {
-                        setFormData({ ...formData, orderId: order.id });
-                        setOrders([]);
-                      }}
-                      style={{ padding: '8px', cursor: 'pointer', borderBottom: '1px solid #eee' }}
-                    >
-                      {order.orderNumber} - {order.dealer?.businessName || 'N/A'}
-                    </div>
-                  ))}
-                </div>
+              {formData.orderId && (
+                <Box sx={{ p: 2, bgcolor: 'background.default', borderRadius: 1, border: '1px solid', borderColor: 'divider' }}>
+                  <Typography variant="caption" color="text.secondary" display="block">
+                    Selected Order: {orders.find(o => o.id === formData.orderId)?.orderNumber || formData.orderId}
+                  </Typography>
+                </Box>
               )}
               <TextField
                 label="Select Truck"

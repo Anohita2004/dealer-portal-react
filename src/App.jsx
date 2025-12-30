@@ -73,6 +73,8 @@ const WarehouseManagement = React.lazy(() => import("./pages/fleet/WarehouseMana
 const CreateWarehouse = React.lazy(() => import("./pages/fleet/CreateWarehouse"));
 const WarehouseDetail = React.lazy(() => import("./pages/fleet/WarehouseDetail"));
 const TruckManagement = React.lazy(() => import("./pages/fleet/TruckManagement"));
+const CreateTruck = React.lazy(() => import("./pages/fleet/CreateTruck"));
+const TruckDetail = React.lazy(() => import("./pages/fleet/TruckDetail"));
 const FleetAssignments = React.lazy(() => import("./pages/fleet/FleetAssignments"));
 const LiveTracking = React.lazy(() => import("./pages/fleet/LiveTracking"));
 const OrderTracking = React.lazy(() => import("./pages/fleet/OrderTracking"));
@@ -466,6 +468,31 @@ export default function App() {
                     "territory_manager"
                   ]}>
                     <TruckManagement />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="fleet/trucks/create"
+                element={
+                  <ProtectedRoute allowed={[
+                    "super_admin",
+                    "regional_admin"
+                  ]}>
+                    <CreateTruck />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="fleet/trucks/:id"
+                element={
+                  <ProtectedRoute allowed={[
+                    "super_admin",
+                    "regional_admin",
+                    "regional_manager",
+                    "area_manager",
+                    "territory_manager"
+                  ]}>
+                    <TruckDetail />
                   </ProtectedRoute>
                 }
               />
