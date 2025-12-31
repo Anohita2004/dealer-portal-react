@@ -220,9 +220,8 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
     boundsPoints.push([truckLocation.lat, truckLocation.lng]);
   }
   
-  // End point: Dealer location (only show after pickup)
-  if (dealer && dealer.lat && dealer.lng && 
-      (status === 'picked_up' || status === 'in_transit' || status === 'delivered')) {
+  // End point: Dealer location (always show if coordinates available)
+  if (dealer && dealer.lat && dealer.lng) {
     routePath.push([dealer.lat, dealer.lng]);
     boundsPoints.push([dealer.lat, dealer.lng]);
   }
@@ -361,9 +360,8 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
             </Marker>
           )}
 
-          {/* Dealer/Destination Marker - Show only after pickup */}
-          {dealer && dealer.lat && dealer.lng && 
-           (status === 'picked_up' || status === 'in_transit' || status === 'delivered') && (
+          {/* Dealer/Destination Marker - Always show if coordinates available */}
+          {dealer && dealer.lat && dealer.lng && (
             <Marker position={[dealer.lat, dealer.lng]}>
               <Popup>
                 <div>
@@ -386,10 +384,16 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
                       {dealer.city}{dealer.city && dealer.state ? ', ' : ''}{dealer.state}
                     </>
                   )}
+                  {dealer.phoneNumber && (
+                    <>
+                      <br />
+                      Phone: {dealer.phoneNumber}
+                    </>
+                  )}
                   {status && (
                     <>
                       <br />
-                      Status: {status.replace('_', ' ')}
+                      Status: <strong>{status.replace('_', ' ')}</strong>
                     </>
                   )}
                 </div>
@@ -397,15 +401,15 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
             </Marker>
           )}
 
-          {/* Route Path: Start → Warehouse → Dealer (show only after pickup) */}
-          {routePath.length > 1 && 
-           (status === 'picked_up' || status === 'in_transit' || status === 'delivered') && (
+          {/* Route Path: Start → Warehouse → Dealer */}
+          {/* Show planned route (warehouse to dealer) even before pickup */}
+          {routePath.length > 1 && (
             <Polyline
               positions={routePath}
-              color="blue"
+              color={status === 'assigned' ? '#ffc107' : 'blue'}
               weight={4}
-              opacity={0.7}
-              dashArray="10, 5"
+              opacity={status === 'assigned' ? 0.5 : 0.7}
+              dashArray={status === 'assigned' ? '20, 10' : '10, 5'}
             />
           )}
         </MapContainer>

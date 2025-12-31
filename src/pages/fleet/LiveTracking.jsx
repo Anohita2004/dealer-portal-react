@@ -103,6 +103,7 @@ const LiveTracking = () => {
   const [loading, setLoading] = useState(true);
   const [filterStatus, setFilterStatus] = useState('');
   const [showWarehouses, setShowWarehouses] = useState(true);
+  const [showDealers, setShowDealers] = useState(true);
   const [routes, setRoutes] = useState({}); // Store routes by assignmentId
   const routeLoadingRef = useRef({}); // Track loading state per route (using ref to avoid dependency issues)
   const [lastTruckPositions, setLastTruckPositions] = useState({}); // Track last known truck positions
@@ -513,10 +514,9 @@ const LiveTracking = () => {
         allPoints.push([Number(loc.startLocation.lat), Number(loc.startLocation.lng)]);
       }
       
-      // Dealer locations (only after pickup)
+      // Dealer locations (always show if coordinates available)
       const dealer = loc.dealer;
-      if (dealer?.lat && dealer?.lng && 
-          (status === 'picked_up' || status === 'in_transit' || status === 'delivered')) {
+      if (dealer?.lat && dealer?.lng) {
         allPoints.push([Number(dealer.lat), Number(dealer.lng)]);
       }
     });
@@ -608,10 +608,24 @@ const LiveTracking = () => {
             label="Show Warehouses"
           />
           
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showDealers}
+                onChange={(e) => setShowDealers(e.target.checked)}
+                color="primary"
+              />
+            }
+            label="Show Dealers"
+          />
+          
           <div>
             <strong>Total Trucks:</strong> {filteredLocations.length}
             {showWarehouses && warehouses.length > 0 && (
               <> | <strong>Warehouses:</strong> {warehouses.length}</>
+            )}
+            {showDealers && filteredLocations.filter(loc => loc.dealer?.lat && loc.dealer?.lng).length > 0 && (
+              <> | <strong>Dealers:</strong> {filteredLocations.filter(loc => loc.dealer?.lat && loc.dealer?.lng).length}</>
             )}
           </div>
         </div>
@@ -762,14 +776,11 @@ const LiveTracking = () => {
                 );
               })}
 
-              {/* Dealer Markers - Show only after pickup (picked_up, in_transit, delivered) */}
-              {filteredLocations
+              {/* Dealer Markers - Always show if coordinates available and toggle is on */}
+              {showDealers && filteredLocations
                 .filter(loc => {
-                  const status = loc.status || loc.assignment?.status || '';
                   const dealer = loc.dealer;
-                  // Only show dealer after order is picked up from warehouse
-                  return dealer?.lat && dealer?.lng && 
-                         (status === 'picked_up' || status === 'in_transit' || status === 'delivered');
+                  return dealer?.lat && dealer?.lng;
                 })
                 .map((location, index) => {
                   const dealer = location.dealer;
@@ -801,6 +812,12 @@ const LiveTracking = () => {
                               {dealer.city}{dealer.city && dealer.state ? ', ' : ''}{dealer.state}
                             </>
                           )}
+                          {dealer.phoneNumber && (
+                            <>
+                              <br />
+                              Phone: {dealer.phoneNumber}
+                            </>
+                          )}
                           {(location.orderNumber || location.orderId) && (
                             <>
                               <br />
@@ -810,7 +827,7 @@ const LiveTracking = () => {
                           {status && (
                             <>
                               <br />
-                              Status: {status.replace('_', ' ')}
+                              Status: <strong>{status.replace('_', ' ')}</strong>
                             </>
                           )}
                         </div>
@@ -819,31 +836,30 @@ const LiveTracking = () => {
                   );
                 })}
 
-              {/* Route lines: Start → Warehouse → Dealer (show only after pickup) */}
+              {/* Route lines: Start → Warehouse → Dealer */}
+              {/* Show planned route (warehouse to dealer) even before pickup */}
               {filteredLocations
                 .filter(loc => {
-                  const status = loc.status || loc.assignment?.status || '';
                   const warehouse = loc.warehouse || {};
                   const dealer = loc.dealer || {};
                   const key = loc.assignmentId || loc.id;
-                  // Show route only if we have warehouse, dealer, and route data
-                  // Route shows after pickup (when dealer becomes visible)
+                  // Show route if we have warehouse, dealer, and route data
                   return warehouse.lat && warehouse.lng && 
                          dealer.lat && dealer.lng && 
                          routes[key] && 
-                         routes[key].length > 0 &&
-                         (status === 'picked_up' || status === 'in_transit' || status === 'delivered');
+                         routes[key].length > 0;
                 })
                 .map(location => {
                   const key = location.assignmentId || location.id;
+                  const status = location.status || location.assignment?.status || '';
                   return (
                     <Polyline
                       key={`route-${key}`}
                       positions={routes[key]}
-                      color="#007bff"
+                      color={status === 'assigned' ? '#ffc107' : '#007bff'}
                       weight={4}
-                      opacity={0.7}
-                      dashArray="10, 5"
+                      opacity={status === 'assigned' ? 0.5 : 0.7}
+                      dashArray={status === 'assigned' ? '20, 10' : '10, 5'}
                     />
                   );
                 })}

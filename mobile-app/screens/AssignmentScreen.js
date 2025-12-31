@@ -8,10 +8,24 @@ import {
   Alert,
   ActivityIndicator,
   Platform,
+  Linking,
+  Dimensions,
 } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { fleetAPI } from '../services/api';
 import LocationTracker from '../services/locationTracker';
+
+// Conditionally import MapView for better Expo compatibility
+let MapView, Marker;
+try {
+  const maps = require('react-native-maps');
+  MapView = maps.default || maps.MapView;
+  Marker = maps.Marker;
+} catch (e) {
+  console.warn('react-native-maps not available, using fallback');
+  MapView = null;
+  Marker = null;
+}
 
 const AssignmentScreen = ({ route, navigation }) => {
   const { assignmentId } = route.params;
@@ -39,6 +53,16 @@ const AssignmentScreen = ({ route, navigation }) => {
       const response = await fleetAPI.getAssignmentById(assignmentId);
       const assignmentData = response.assignment || response;
       setAssignment(assignmentData);
+
+      // Debug: Log dealer location data
+      if (assignmentData.order?.dealer) {
+        console.log('Dealer data:', {
+          businessName: assignmentData.order.dealer.businessName,
+          lat: assignmentData.order.dealer.lat,
+          lng: assignmentData.order.dealer.lng,
+          address: assignmentData.order.dealer.address,
+        });
+      }
 
       // Check if tracking is active
       if (
@@ -348,6 +372,92 @@ const AssignmentScreen = ({ route, navigation }) => {
             {`${assignment.order.dealer.city}, ${assignment.order.dealer.state}`}
           </Text>
         )}
+        
+        {/* Map showing dealer location */}
+        {(assignment.order?.dealer?.lat && assignment.order?.dealer?.lng) ? (
+          <View style={styles.mapSection}>
+            {MapView && Marker ? (
+              <View style={styles.mapContainer}>
+                <MapView
+                  style={styles.map}
+                  initialRegion={{
+                    latitude: parseFloat(assignment.order.dealer.lat),
+                    longitude: parseFloat(assignment.order.dealer.lng),
+                    latitudeDelta: 0.01,
+                    longitudeDelta: 0.01,
+                  }}
+                  scrollEnabled={true}
+                  zoomEnabled={true}
+                  showsUserLocation={false}
+                  showsMyLocationButton={false}
+                >
+                  <Marker
+                    coordinate={{
+                      latitude: parseFloat(assignment.order.dealer.lat),
+                      longitude: parseFloat(assignment.order.dealer.lng),
+                    }}
+                    title={assignment.order?.dealer?.businessName || 'Destination'}
+                    description={assignment.order?.dealer?.address || ''}
+                  >
+                    <View style={styles.markerContainer}>
+                      <Icon name="place" size={32} color="#dc3545" />
+                    </View>
+                  </Marker>
+                </MapView>
+              </View>
+            ) : (
+              <View style={styles.mapPlaceholder}>
+                <Icon name="map" size={48} color="#ccc" />
+                <Text style={styles.mapPlaceholderText}>Map Preview Unavailable</Text>
+                <Text style={styles.mapPlaceholderSubtext}>
+                  Use the button below to open in your maps app
+                </Text>
+              </View>
+            )}
+            <TouchableOpacity
+              style={styles.mapButton}
+              onPress={() => {
+                const lat = assignment.order.dealer.lat;
+                const lng = assignment.order.dealer.lng;
+                const url = Platform.select({
+                  ios: `maps://maps.apple.com/?q=${lat},${lng}`,
+                  android: `geo:${lat},${lng}?q=${lat},${lng}(${encodeURIComponent(assignment.order?.dealer?.businessName || 'Destination')})`,
+                  default: `https://www.google.com/maps?q=${lat},${lng}`,
+                });
+                Linking.openURL(url).catch(err => {
+                  console.error('Error opening maps:', err);
+                  Alert.alert('Error', 'Could not open maps application');
+                });
+              }}
+              activeOpacity={0.8}
+            >
+              <Icon name="open-in-new" size={18} color="#4A90E2" />
+              <Text style={styles.mapButtonText}>Open in Maps App</Text>
+            </TouchableOpacity>
+          </View>
+        ) : assignment.order?.dealer?.address ? (
+          <TouchableOpacity
+            style={styles.mapButton}
+            onPress={() => {
+              const address = encodeURIComponent(
+                `${assignment.order.dealer.address}, ${assignment.order.dealer.city || ''}, ${assignment.order.dealer.state || ''}`
+              );
+              const url = Platform.select({
+                ios: `maps://maps.apple.com/?q=${address}`,
+                android: `geo:0,0?q=${address}`,
+                default: `https://www.google.com/maps/search/?api=1&query=${address}`,
+              });
+              Linking.openURL(url).catch(err => {
+                console.error('Error opening maps:', err);
+                Alert.alert('Error', 'Could not open maps application');
+              });
+            }}
+            activeOpacity={0.8}
+          >
+            <Icon name="map" size={18} color="#4A90E2" />
+            <Text style={styles.mapButtonText}>Open Address in Maps</Text>
+          </TouchableOpacity>
+        ) : null}
       </View>
 
       <View style={styles.section}>
@@ -719,6 +829,71 @@ const styles = StyleSheet.create({
     fontSize: 17,
     fontWeight: '700',
     letterSpacing: 0.5,
+  },
+  mapSection: {
+    marginTop: 16,
+  },
+  mapContainer: {
+    borderRadius: 12,
+    overflow: 'hidden',
+    height: 250,
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    backgroundColor: '#f8f9fa',
+  },
+  map: {
+    width: '100%',
+    height: '100%',
+  },
+  markerContainer: {
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  mapPlaceholder: {
+    height: 250,
+    borderRadius: 12,
+    backgroundColor: '#f8f9fa',
+    borderWidth: 1,
+    borderColor: '#e9ecef',
+    borderStyle: 'dashed',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: 20,
+  },
+  mapPlaceholderText: {
+    marginTop: 12,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#6c757d',
+  },
+  mapPlaceholderSubtext: {
+    marginTop: 8,
+    fontSize: 14,
+    color: '#999',
+    textAlign: 'center',
+  },
+  mapButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#e8f4fd',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+    marginTop: 12,
+    borderWidth: 1,
+    borderColor: '#4A90E2',
+    shadowColor: '#4A90E2',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  mapButtonText: {
+    color: '#4A90E2',
+    fontSize: 15,
+    fontWeight: '600',
+    marginLeft: 8,
   },
 });
 

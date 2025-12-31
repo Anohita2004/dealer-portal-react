@@ -304,9 +304,8 @@ function TrackingMap({ driverPhone = null, center = [20, 77], zoom = 5 }) {
       if (loc.warehouse?.lat && loc.warehouse?.lng) {
         allPoints.push([loc.warehouse.lat, loc.warehouse.lng]);
       }
-      // Dealer only after pickup
-      if (loc.dealer?.lat && loc.dealer?.lng && 
-          (status === 'picked_up' || status === 'in_transit' || status === 'delivered')) {
+      // Dealer location (always show if coordinates available)
+      if (loc.dealer?.lat && loc.dealer?.lng) {
         allPoints.push([loc.dealer.lat, loc.dealer.lng]);
       }
       if (loc.startLocation?.lat && loc.startLocation?.lng) {
@@ -372,13 +371,9 @@ function TrackingMap({ driverPhone = null, center = [20, 77], zoom = 5 }) {
             </Marker>
           ))}
 
-        {/* Dealer markers - Show only after pickup (picked_up, in_transit, delivered) */}
+        {/* Dealer markers - Always show if coordinates available */}
         {filteredLocations
-          .filter(loc => {
-            const status = loc.status || '';
-            return loc.dealer?.lat && loc.dealer?.lng && 
-                   (status === 'picked_up' || status === 'in_transit' || status === 'delivered');
-          })
+          .filter(loc => loc.dealer?.lat && loc.dealer?.lng)
           .map(loc => (
             <Marker 
               key={`dealer-${loc.assignmentId}`}
@@ -506,24 +501,24 @@ function TrackingMap({ driverPhone = null, center = [20, 77], zoom = 5 }) {
             const warehouse = loc.warehouse || {};
             const dealer = loc.dealer || {};
             const key = loc.assignmentId || loc.id;
-            // Show route only if we have warehouse, dealer, and route data
-            // Route shows after pickup (when dealer becomes visible)
+            // Show route if we have warehouse, dealer, and route data
+            // Show planned route (warehouse to dealer) even before pickup
             return warehouse.lat && warehouse.lng && 
                    dealer.lat && dealer.lng && 
                    routes[key] && 
-                   routes[key].length > 0 &&
-                   (status === 'picked_up' || status === 'in_transit' || status === 'delivered');
+                   routes[key].length > 0;
           })
           .map(location => {
             const key = location.assignmentId || location.id;
+            const status = location.status || '';
             return (
               <Polyline
                 key={`route-${key}`}
                 positions={routes[key]}
-                color="#007bff"
+                color={status === 'assigned' ? '#ffc107' : '#007bff'}
                 weight={4}
-                opacity={0.7}
-                dashArray="10, 5"
+                opacity={status === 'assigned' ? 0.5 : 0.7}
+                dashArray={status === 'assigned' ? '20, 10' : '10, 5'}
               />
             );
           })}

@@ -35,6 +35,12 @@
         {
           "locationAlwaysAndWhenInUsePermission": "Allow Dealer Portal to use your location for truck tracking."
         }
+      ],
+      [
+        "react-native-maps",
+        {
+          "googleMapsApiKey": ""
+        }
       ]
     ],
     "sdkVersion": "54.0.0",
