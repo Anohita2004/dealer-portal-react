@@ -24,6 +24,7 @@ const InventoryDashboard = React.lazy(() => import("./pages/dashboards/Inventory
 const InventoryDetails = React.lazy(() => import("./pages/inventory/InventoryDetails"));
 const InventoryStockAlerts = React.lazy(() => import("./pages/inventory/StockAlerts"));
 const PlantInventory = React.lazy(() => import("./pages/inventory/PlantInventory"));
+const InventoryReports = React.lazy(() => import("./pages/inventory/InventoryReports"));
 const AccountsDashboard = React.lazy(() => import("./pages/dashboards/AccountsDashboard"));
 
 // 📄 Common Pages
@@ -1488,6 +1489,14 @@ export default function App() {
                 element={
                   <ProtectedRoute allowed={["inventory_user", "super_admin"]}>
                     <PlantInventory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="inventory/reports"
+                element={
+                  <ProtectedRoute allowed={["inventory_user", "super_admin"]}>
+                    <InventoryReports />
                   </ProtectedRoute>
                 }
               />
