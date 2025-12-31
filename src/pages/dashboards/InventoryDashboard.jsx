@@ -1,14 +1,25 @@
 import React, { useEffect, useState, useContext } from "react";
-import api from "../../services/api";
-import { AuthContext } from "../../context/AuthContext";
-
-import PageHeader from "../../components/PageHeader";
-import Toolbar from "../../components/Toolbar";
-import SearchInput from "../../components/SearchInput";
-import IconPillButton from "../../components/IconPillButton";
-import DataTable from "../../components/DataTable";
-import { toast } from "react-toastify";
-
+import {
+  Box,
+  Card,
+  CardContent,
+  Grid,
+  Typography,
+  Button,
+  Chip,
+  Alert,
+  CircularProgress,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Paper,
+  TextField,
+  InputAdornment,
+  IconButton,
+} from "@mui/material";
 import {
   BarChart,
   Bar,
@@ -20,352 +31,794 @@ import {
   Cell,
   ResponsiveContainer,
   Legend,
+  LineChart,
+  Line,
+  CartesianGrid,
 } from "recharts";
-
 import {
-  FileDown,
-  FileSpreadsheet,
-  Plus,
   Package,
   Factory,
   AlertTriangle,
-  ListChecks,
+  TrendingUp,
+  TrendingDown,
+  RefreshCw,
+  Search,
+  Download,
+  Plus,
+  FileSpreadsheet,
+  FileText,
+  Boxes,
+  Activity,
 } from "lucide-react";
+import { inventoryAPI, materialAPI } from "../../services/api";
+import { AuthContext } from "../../context/AuthContext";
+import PageHeader from "../../components/PageHeader";
+import { toast } from "react-toastify";
+import { useNavigate } from "react-router-dom";
+
+const COLORS = ["#10b981", "#3b82f6", "#f59e0b", "#ef4444", "#8b5cf6"];
 
 export default function InventoryDashboard() {
   const { user } = useContext(AuthContext);
-
-  const [inventory, setInventory] = useState([]);
-  const [summary, setSummary] = useState({});
-  const [search, setSearch] = useState("");
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
+  const [inventory, setInventory] = useState([]);
+  const [materials, setMaterials] = useState([]);
+  const [summary, setSummary] = useState({
+    totalItems: 0,
+    totalValue: 0,
+    lowStockCount: 0,
+    outOfStockCount: 0,
+    totalMaterials: 0,
+    plants: [],
+  });
+  const [searchTerm, setSearchTerm] = useState("");
+  const [lowStockItems, setLowStockItems] = useState([]);
 
-  // Themes per role
-  const roleTheme = {
-    dealer: { color: "var(--color-primary)", bg: "var(--color-primary-soft)" },
-    manager: { color: "var(--color-warning)", bg: "rgba(245, 158, 11, 0.1)" },
-    inventory: { color: "var(--color-success)", bg: "rgba(22, 163, 74, 0.1)" },
-    admin: { color: "var(--color-primary-dark)", bg: "rgba(37, 99, 235, 0.1)" },
-  };
+  useEffect(() => {
+    fetchDashboardData();
+  }, []);
 
-  const theme = roleTheme[user?.role] || { color: "var(--color-text-secondary)", bg: "var(--color-background)" };
-
-  const COLORS = ["var(--color-success)", "var(--color-primary)", "var(--color-warning)", "var(--color-error)", "var(--color-primary-dark)"];
-
-  // FETCH inventory
-  const fetchInventory = async () => {
+  const fetchDashboardData = async () => {
     try {
       setLoading(true);
-      const res = await api.get("/inventory/summary");
-      setInventory(res.data.inventory || []);
-      setSummary(res.data.summary || {});
+      
+      // Fetch inventory summary
+      const inventoryRes = await inventoryAPI.getSummary();
+      console.log("Inventory API Response:", inventoryRes);
+      
+      // Handle response structure: { inventory: [], total: 0, page: 1, pageSize: 25, totalPages: 0 }
+      let inventoryData = [];
+      if (Array.isArray(inventoryRes)) {
+        inventoryData = inventoryRes;
+      } else if (inventoryRes?.inventory && Array.isArray(inventoryRes.inventory)) {
+        inventoryData = inventoryRes.inventory;
+      } else if (inventoryRes?.data) {
+        if (Array.isArray(inventoryRes.data)) {
+          inventoryData = inventoryRes.data;
+        } else if (inventoryRes.data.inventory && Array.isArray(inventoryRes.data.inventory)) {
+          inventoryData = inventoryRes.data.inventory;
+        }
+      }
+      
+      console.log("Parsed Inventory Data:", inventoryData, "Count:", inventoryData.length);
+      setInventory(inventoryData);
+      
+      if (inventoryData.length === 0) {
+        console.warn("⚠️ Inventory array is empty. Response:", JSON.stringify(inventoryRes, null, 2));
+        console.info("💡 This is normal if no inventory items have been created yet.");
+      }
+
+      // Fetch materials
+      let materialsData = [];
+      try {
+        const materialsRes = await materialAPI.getMaterials();
+        console.log("Materials API Response:", materialsRes);
+        // Handle response structure: { materials: [...] }
+        materialsData = 
+          materialsRes?.materials || 
+          materialsRes?.data?.materials || 
+          materialsRes?.data || 
+          (Array.isArray(materialsRes) ? materialsRes : []);
+        console.log("Parsed Materials Data:", materialsData, "Count:", materialsData?.length);
+        setMaterials(Array.isArray(materialsData) ? materialsData : []);
+        
+        // If materials have stock data, we can also use them for inventory display
+        // Materials with stock can be treated as inventory items
+        if (materialsData.length > 0 && inventoryData.length === 0) {
+          const materialsWithStock = materialsData.filter(m => m.stock !== null && m.stock !== undefined);
+          if (materialsWithStock.length > 0) {
+            console.info("💡 Using materials with stock as inventory items:", materialsWithStock.length);
+            // Optionally merge materials with stock into inventory for display
+            // setInventory([...inventoryData, ...materialsWithStock.map(m => ({
+            //   ...m,
+            //   materialName: m.name,
+            //   materialCode: m.materialNumber,
+            //   availableStock: m.stock,
+            //   minStock: m.reorderLevel
+            // }))]);
+          }
+        }
+      } catch (materialsError) {
+        console.error("Error fetching materials:", materialsError);
+        toast.error("Failed to load materials: " + (materialsError?.response?.data?.error || materialsError?.message || "Unknown error"));
+        setMaterials([]);
+      }
+
+      // Fetch low stock alerts
+      try {
+        const alertsRes = await inventoryAPI.getLowStockAlerts();
+        const alerts = alertsRes?.alerts || alertsRes?.data || [];
+        setLowStockItems(Array.isArray(alerts) ? alerts : []);
+      } catch (err) {
+        console.warn("Low stock alerts not available:", err);
+        // Calculate low stock from inventory data
+        const lowStock = inventoryData.filter(
+          (item) => item.stock !== null && item.minStock && item.stock < item.minStock
+        );
+        setLowStockItems(lowStock);
+      }
+
+      // Calculate summary - use materials with stock if inventory is empty
+      const dataForSummary = inventoryData.length > 0 ? inventoryData : materialsData;
+      const totalItems = dataForSummary.length;
+      const totalValue = dataForSummary.reduce(
+        (sum, item) => sum + (item.stock || 0) * (item.price || 0),
+        0
+      );
+      const lowStockCount = dataForSummary.filter(
+        (item) => {
+          const stock = item.stock ?? item.availableStock ?? 0;
+          const minStock = item.minStock ?? item.reorderLevel ?? 0;
+          return stock !== null && minStock > 0 && stock < minStock && stock > 0;
+        }
+      ).length;
+      const outOfStockCount = dataForSummary.filter(
+        (item) => {
+          const stock = item.stock ?? item.availableStock ?? 0;
+          return stock === 0 || stock === null;
+        }
+      ).length;
+
+      // Get unique plants from both inventory and materials
+      const allPlants = [
+        ...inventoryData.map((item) => item.plant || item.warehouse),
+        ...materialsData.map((item) => item.plant)
+      ].filter(Boolean);
+      const plants = [...new Set(allPlants)];
+
+      setSummary({
+        totalItems,
+        totalValue,
+        lowStockCount,
+        outOfStockCount,
+        totalMaterials: Array.isArray(materialsData) ? materialsData.length : 0,
+        plants,
+      });
+      
+      console.log("Dashboard Summary:", {
+        totalItems,
+        totalValue,
+        lowStockCount,
+        outOfStockCount,
+        totalMaterials: Array.isArray(materialsData) ? materialsData.length : 0,
+        plants,
+        inventoryCount: inventoryData.length,
+        materialsCount: Array.isArray(materialsData) ? materialsData.length : 0,
+      });
+      
+      // Debug: Log if no data found
+      if (inventoryData.length === 0) {
+        console.warn("⚠️ No inventory items found. Check API response structure.");
+        console.log("Full inventory response:", JSON.stringify(inventoryRes, null, 2));
+      }
+      if (materialsData.length === 0) {
+        console.warn("⚠️ No materials found. Check API response structure.");
+      }
     } catch (err) {
-      toast.error("Failed to load inventory data");
+      console.error("❌ Failed to load dashboard data:", err);
+      console.error("Error details:", {
+        message: err?.message,
+        response: err?.response?.data,
+        status: err?.response?.status,
+      });
+      toast.error(
+        err?.response?.data?.error || 
+        err?.message || 
+        "Failed to load inventory data. Check console for details."
+      );
     } finally {
       setLoading(false);
     }
   };
 
-  useEffect(() => {
-    fetchInventory();
-  }, []);
-
-  // Export
   const handleExport = async (format) => {
     try {
-      const response = await api.get(`/inventory/export?format=${format}`, {
-        responseType: "blob",
-      });
-
-      const url = window.URL.createObjectURL(new Blob([response.data]));
+      const blob = await inventoryAPI.exportInventory(format);
+      const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
       link.setAttribute(
         "download",
-        `inventory_${new Date().toISOString().slice(0, 10)}.${
-          format === "pdf" ? "pdf" : "xlsx"
-        }`
+        `inventory_${new Date().toISOString().slice(0, 10)}.${format === "pdf" ? "pdf" : "xlsx"}`
       );
       document.body.appendChild(link);
       link.click();
+      link.remove();
+      toast.success(`Inventory exported as ${format.toUpperCase()}`);
     } catch (err) {
-      toast.error("Export failed");
+      toast.error("Failed to export inventory");
     }
   };
 
-  // Add item
-  const handleAddMockItem = async () => {
-    try {
-      const mock = {
-        product: "New Product",
-        available: Math.floor(Math.random() * 100),
-        plant: "Chennai",
-        reorderLevel: 10,
-      };
-
-      const res = await api.post("/inventory", mock);
-      toast.success("Item added");
-      setInventory((prev) => [...prev, res.data.item]);
-    } catch (err) {
-      toast.error("Failed to add item");
+  // Prepare chart data
+  const plantWiseData = inventory.reduce((acc, item) => {
+    if (!item.plant) return acc;
+    if (!acc[item.plant]) {
+      acc[item.plant] = { name: item.plant, stock: 0, items: 0 };
     }
-  };
+    acc[item.plant].stock += item.stock || 0;
+    acc[item.plant].items += 1;
+    return acc;
+  }, {});
 
-  // Delete item
-  const handleDelete = async (id) => {
-    try {
-      await api.delete(`/inventory/${id}`);
-      toast.success("Item deleted");
-      setInventory((prev) => prev.filter((i) => i.id !== id));
-    } catch (err) {
-      toast.error("Failed to delete item");
-    }
-  };
+  const plantChartData = Object.values(plantWiseData);
 
-  // Filter
-  const filtered = inventory.filter((item) =>
-    item.product.toLowerCase().includes(search.toLowerCase())
+  const stockStatusData = [
+    { name: "In Stock", value: summary.totalItems - summary.lowStockCount - summary.outOfStockCount },
+    { name: "Low Stock", value: summary.lowStockCount },
+    { name: "Out of Stock", value: summary.outOfStockCount },
+  ];
+
+  const filteredLowStock = lowStockItems.filter(
+    (item) =>
+      !searchTerm ||
+      item.name?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.materialName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      item.materialNumber?.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
-  // Table Columns
-  const columns = [
-    { key: "product", label: "Product" },
-    { key: "available", label: "Available" },
-
-    (["manager", "inventory", "admin"].includes(user?.role)) && {
-      key: "plant",
-      label: "Plant",
-    },
-
-    (["inventory", "admin"].includes(user?.role)) && {
-      key: "reorderLevel",
-      label: "Reorder Level",
-    },
-
-    (["inventory", "admin"].includes(user?.role)) && {
-      key: "updatedAt",
-      label: "Last Updated",
-    },
-
-    (["inventory", "admin"].includes(user?.role)) && {
-      key: "actions",
-      label: "Actions",
-      render: (_, row) => (
-        <button
-          onClick={() => handleDelete(row.id)}
-          style={{
-            border: "none",
-            padding: "6px 10px",
-            background: "var(--color-error)",
-            color: "white",
-            borderRadius: 6,
-            cursor: "pointer",
-          }}
-        >
-          Delete
-        </button>
-      ),
-    },
-  ].filter(Boolean);
-
-  // Derived Data
-  const lowStockCount = inventory.filter(
-    (i) => i.reorderLevel && i.available < i.reorderLevel
-  ).length;
-
-  const plantWiseData = Object.values(
-    inventory.reduce((acc, cur) => {
-      if (!cur.plant) return acc;
-      acc[cur.plant] = acc[cur.plant] || { name: cur.plant, total: 0 };
-      acc[cur.plant].total += cur.available;
-      return acc;
-    }, {})
-  );
+  if (loading) {
+    return (
+      <Box sx={{ display: "flex", justifyContent: "center", alignItems: "center", minHeight: "400px" }}>
+        <CircularProgress />
+      </Box>
+    );
+  }
 
   return (
-    <div style={{ padding: "1rem", background: theme.bg, minHeight: "100vh" }}>
+    <Box p={3}>
       <PageHeader
         title="Inventory Dashboard"
-        subtitle={`Live stock monitoring — role: ${user?.role?.toUpperCase()}`}
+        subtitle="Comprehensive inventory overview and management"
         actions={[
-          (user?.role !== "dealer") && (
-            <IconPillButton
-              key="pdf"
-              label="Export PDF"
-              icon={<FileDown size={16} />}
+          <Button
+            key="export-pdf"
+            variant="outlined"
+            startIcon={<FileText size={18} />}
               onClick={() => handleExport("pdf")}
-            />
-          ),
-          (user?.role !== "dealer") && (
-            <IconPillButton
-              key="excel"
-              label="Export Excel"
-              icon={<FileSpreadsheet size={16} />}
-              tone="success"
+            sx={{ mr: 1 }}
+          >
+            Export PDF
+          </Button>,
+          <Button
+            key="export-excel"
+            variant="outlined"
+            startIcon={<FileSpreadsheet size={18} />}
               onClick={() => handleExport("excel")}
-            />
-          ),
-          (["inventory", "admin"].includes(user?.role)) && (
-            <IconPillButton
-              key="add"
-              label="Add Item"
-              icon={<Plus size={16} />}
-              tone="warning"
-              onClick={handleAddMockItem}
-            />
-          ),
-        ].filter(Boolean)}
+            sx={{ mr: 1 }}
+          >
+            Export Excel
+          </Button>,
+          <Button
+            key="refresh"
+            variant="outlined"
+            startIcon={<RefreshCw size={18} />}
+            onClick={fetchDashboardData}
+          >
+            Refresh
+          </Button>,
+        ]}
       />
 
-      <div
-        style={{
-          background: theme.color,
-          color: "white",
-          padding: "0.6rem 1rem",
-          borderRadius: 10,
-          display: "inline-block",
-          marginBottom: "1rem",
-        }}
-      >
-        Logged in as <strong>{user?.role?.toUpperCase()}</strong>
-      </div>
+      {/* Debug Info - Remove in production */}
+      {(inventory.length === 0 || materials.length === 0) && (
+        <Alert severity="warning" sx={{ mt: 2 }}>
+          <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+            Debug Information:
+          </Typography>
+          <Typography variant="body2">
+            Inventory Items: {inventory.length} | Materials: {materials.length}
+          </Typography>
+          <Typography variant="caption" color="text.secondary">
+            Check browser console (F12) for detailed API response logs
+          </Typography>
+        </Alert>
+      )}
 
-      <Toolbar>
-        <SearchInput
-          placeholder="Search product..."
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
-        />
-      </Toolbar>
+      {/* Summary Cards */}
+      <Grid container spacing={3} sx={{ mt: 2 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Box>
+                  <Typography color="text.secondary" variant="body2">
+                    Total Items
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 600, mt: 1 }}>
+                    {summary.totalItems}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    bgcolor: "primary.light",
+                    borderRadius: "50%",
+                    p: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Package size={24} color="#1976d2" />
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Box>
+                  <Typography color="text.secondary" variant="body2">
+                    Total Materials
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 600, mt: 1 }}>
+                    {summary.totalMaterials}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    bgcolor: "success.light",
+                    borderRadius: "50%",
+                    p: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <Boxes size={24} color="#2e7d32" />
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Box>
+                  <Typography color="text.secondary" variant="body2">
+                    Low Stock Items
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 600, mt: 1, color: "warning.main" }}>
+                    {summary.lowStockCount}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    bgcolor: "warning.light",
+                    borderRadius: "50%",
+                    p: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <AlertTriangle size={24} color="#ed6c02" />
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card>
+            <CardContent>
+              <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+                <Box>
+                  <Typography color="text.secondary" variant="body2">
+                    Out of Stock
+                  </Typography>
+                  <Typography variant="h4" sx={{ fontWeight: 600, mt: 1, color: "error.main" }}>
+                    {summary.outOfStockCount}
+                  </Typography>
+                </Box>
+                <Box
+                  sx={{
+                    bgcolor: "error.light",
+                    borderRadius: "50%",
+                    p: 2,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                  }}
+                >
+                  <TrendingDown size={24} color="#d32f2f" />
+                </Box>
+              </Box>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
 
       {/* Charts Section */}
-      {!loading && inventory.length > 0 && (
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "2fr 1fr",
-            gap: "1.5rem",
-            marginTop: "2rem",
-          }}
-        >
-          {/* Product Stock Levels */}
-          <div
-            style={{
-              background: "white",
-              padding: "1rem",
-              borderRadius: "12px",
-              boxShadow: "var(--shadow-sm)",
-            }}
-          >
-            <h4 style={{ marginBottom: "var(--spacing-4)", color: "var(--color-text-primary)" }}>
-              <Package size={18} style={{ marginRight: 6 }} />
-              Stock Levels by Product
-            </h4>
-
-            <ResponsiveContainer width="100%" height={300}>
-              <BarChart data={inventory}>
-                <XAxis dataKey="product" />
-                <YAxis />
-                <Tooltip />
-                <Legend />
-                <Bar dataKey="available" fill={theme.color} name="Available" />
-                {(["inventory", "admin"].includes(user?.role)) && (
-                  <Bar dataKey="reorderLevel" fill="var(--color-warning)" name="Reorder Level" />
-                )}
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-
-          {/* Plant Distribution */}
-          {user?.role !== "dealer" && (
-            <div
-              style={{
-                background: "white",
-                padding: "1rem",
-                borderRadius: "12px",
-                boxShadow: "var(--shadow-sm)",
-              }}
-            >
-              <h4 style={{ marginBottom: "var(--spacing-4)", color: "var(--color-text-primary)" }}>
-                <Factory size={18} style={{ marginRight: 6 }} />
-                Stock by Plant
-              </h4>
-
+      <Grid container spacing={3} sx={{ mt: 2 }}>
+        {/* Stock Status Pie Chart */}
+        <Grid item xs={12} md={4}>
+          <Card>
+            <CardContent>
+              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                Stock Status Distribution
+              </Typography>
               <ResponsiveContainer width="100%" height={300}>
                 <PieChart>
                   <Pie
-                    data={plantWiseData}
-                    dataKey="total"
+                    data={stockStatusData}
+                    dataKey="value"
                     nameKey="name"
+                    cx="50%"
+                    cy="50%"
                     outerRadius={100}
                     label
                   >
-                    {plantWiseData.map((_, i) => (
-                      <Cell key={i} fill={COLORS[i % COLORS.length]} />
+                    {stockStatusData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />
                     ))}
                   </Pie>
                   <Tooltip />
+                  <Legend />
                 </PieChart>
               </ResponsiveContainer>
-            </div>
-          )}
-        </div>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        {/* Plant Distribution */}
+        {plantChartData.length > 0 && (
+          <Grid item xs={12} md={8}>
+            <Card>
+              <CardContent>
+                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}>
+                  <Factory size={20} />
+                  Stock by Plant
+                </Typography>
+                <ResponsiveContainer width="100%" height={300}>
+                  <BarChart data={plantChartData}>
+                    <CartesianGrid strokeDasharray="3 3" />
+                    <XAxis dataKey="name" />
+                    <YAxis />
+                    <Tooltip />
+                    <Legend />
+                    <Bar dataKey="stock" fill="#3b82f6" name="Total Stock" />
+                    <Bar dataKey="items" fill="#10b981" name="Items Count" />
+                  </BarChart>
+                </ResponsiveContainer>
+              </CardContent>
+            </Card>
+          </Grid>
+        )}
+      </Grid>
+
+      {/* Materials List - Show even if no inventory */}
+      {materials.length > 0 && (
+        <Card sx={{ mt: 3 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}>
+              <Boxes size={20} />
+              Materials Master Data ({materials.length})
+            </Typography>
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600 }}>Material Name</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Material Number</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>UOM</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">Stock</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">Reorder Level</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Plant</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Group</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {materials.slice(0, 10).map((material, index) => {
+                    const stock = material.stock ?? 0;
+                    const reorderLevel = material.reorderLevel ?? 0;
+                    const isOutOfStock = stock === 0;
+                    const isLowStock = reorderLevel > 0 && stock < reorderLevel && stock > 0;
+                    const status = isOutOfStock ? { label: "Out of Stock", color: "error" } : 
+                                  isLowStock ? { label: "Low Stock", color: "warning" } : 
+                                  { label: "In Stock", color: "success" };
+
+                    return (
+                      <TableRow key={material.id || index} hover>
+                        <TableCell>{material.name || "N/A"}</TableCell>
+                        <TableCell>{material.materialNumber || "N/A"}</TableCell>
+                        <TableCell>{material.uom || "EA"}</TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {stock}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">{reorderLevel || "—"}</TableCell>
+                        <TableCell>{material.plant || "—"}</TableCell>
+                        <TableCell>
+                          {material.group?.name || "—"}
+                        </TableCell>
+                        <TableCell>
+                          <Chip label={status.label} size="small" color={status.color} />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            {materials.length > 10 && (
+              <Box sx={{ mt: 2, textAlign: "center" }}>
+                <Button variant="outlined" onClick={() => navigate("/materials")}>
+                  View All Materials ({materials.length})
+                </Button>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
       )}
 
-      {/* Table */}
-      <div style={{ marginTop: "2rem" }}>
-        {loading ? (
-          <p style={{ color: "var(--color-text-secondary)" }}>Loading inventory...</p>
-        ) : (
-          <DataTable columns={columns} rows={filtered} />
-        )}
-      </div>
+      {/* Inventory Items Table */}
+      {inventory.length > 0 && (
+        <Card sx={{ mt: 3 }}>
+          <CardContent>
+            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}>
+              <Package size={20} />
+              Inventory Items ({inventory.length})
+            </Typography>
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600 }}>Material</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Material Number</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Plant</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">Stock</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">Min Stock</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>UOM</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {inventory.slice(0, 10).map((item, index) => {
+                    const stock = item.stock ?? item.availableStock ?? 0;
+                    const minStock = item.minStock ?? item.reorderLevel ?? 0;
+                    const isOutOfStock = stock === 0;
+                    const isLowStock = minStock && stock < minStock && stock > 0;
+                    const status = isOutOfStock ? { label: "Out of Stock", color: "error" } : 
+                                  isLowStock ? { label: "Low Stock", color: "warning" } : 
+                                  { label: "In Stock", color: "success" };
 
-      {/* Summary Cards */}
-      <div
-        style={{
-          marginTop: "2rem",
-          display: "flex",
-          flexWrap: "wrap",
-          gap: "1rem",
-        }}
-      >
-        <div
-          style={{
-            background: "white",
-            padding: "1rem",
-            borderRadius: "12px",
-            flex: 1,
-            minWidth: "220px",
-          }}
-        >
-          <h4 style={{ color: theme.color, display: "flex", alignItems: "center", gap: 8 }}>
-            <ListChecks size={18} /> Summary
-          </h4>
-          <p>Total Dealers: {summary.totalDealers}</p>
-          <p>Active Campaigns: {summary.activeCampaigns}</p>
-          <p>Total Invoices: {summary.totalInvoices}</p>
-        </div>
+                    return (
+                      <TableRow key={item.id || index} hover>
+                        <TableCell>{item.name || item.materialName || "N/A"}</TableCell>
+                        <TableCell>{item.materialNumber || item.materialCode || "N/A"}</TableCell>
+                        <TableCell>{item.plant || item.warehouse || "N/A"}</TableCell>
+                        <TableCell align="right">
+                          <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                            {stock}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">{minStock || "N/A"}</TableCell>
+                        <TableCell>{item.uom || "EA"}</TableCell>
+                        <TableCell>
+                          <Chip label={status.label} size="small" color={status.color} />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+            {inventory.length > 10 && (
+              <Box sx={{ mt: 2, textAlign: "center" }}>
+                <Button variant="outlined" onClick={() => navigate("/inventory/details")}>
+                  View All Inventory Items ({inventory.length})
+                </Button>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
-        <div
-          style={{
-            background: lowStockCount > 0 ? "rgba(220, 38, 38, 0.1)" : "rgba(22, 163, 74, 0.1)",
-            padding: "1rem",
-            borderRadius: "12px",
-            flex: 1,
-            minWidth: "220px",
-          }}
-        >
-          <h4 style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <AlertTriangle size={18} /> Low Stock Items
-          </h4>
-          <p>
-            {lowStockCount > 0
-              ? `${lowStockCount} product(s) below reorder level`
-              : "All stocks are healthy"}
-          </p>
-        </div>
-      </div>
-    </div>
+      {/* Low Stock Alerts */}
+      <Card sx={{ mt: 3 }}>
+        <CardContent>
+          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "center", mb: 2 }}>
+            <Typography variant="h6" sx={{ fontWeight: 600, display: "flex", alignItems: "center", gap: 1 }}>
+              <AlertTriangle size={20} color="#ed6c02" />
+              Low Stock Alerts
+            </Typography>
+            <TextField
+              size="small"
+              placeholder="Search alerts..."
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              InputProps={{
+                startAdornment: (
+                  <InputAdornment position="start">
+                    <Search size={18} />
+                  </InputAdornment>
+                ),
+              }}
+              sx={{ width: 300 }}
+            />
+          </Box>
+
+          {filteredLowStock.length === 0 && inventory.length > 0 ? (
+            <Alert severity="success">No low stock items - All inventory levels are healthy!</Alert>
+          ) : filteredLowStock.length === 0 && inventory.length === 0 ? (
+            <Alert severity="info">
+              <Typography variant="body2" sx={{ fontWeight: 600, mb: 1 }}>
+                No inventory items found
+              </Typography>
+              <Typography variant="body2">
+                {materials.length > 0 
+                  ? `${materials.length} materials are defined but no inventory stock has been added yet. Use "Inventory Details" to add stock levels.`
+                  : "No materials or inventory items found. Create materials first, then add inventory stock."}
+              </Typography>
+            </Alert>
+          ) : (
+            <TableContainer component={Paper} variant="outlined">
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell sx={{ fontWeight: 600 }}>Material</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Material Number</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">Current Stock</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }} align="right">Min Stock</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>UOM</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Plant</TableCell>
+                    <TableCell sx={{ fontWeight: 600 }}>Status</TableCell>
+                  </TableRow>
+                </TableHead>
+                <TableBody>
+                  {filteredLowStock.slice(0, 10).map((item, index) => {
+                    const stock = item.stock ?? item.availableStock ?? 0;
+                    const minStock = item.minStock ?? item.reorderLevel ?? 0;
+                    const isOutOfStock = stock === 0;
+                    const isLowStock = stock < minStock && stock > 0;
+
+                    return (
+                      <TableRow key={item.id || index} hover>
+                        <TableCell>{item.name || item.materialName || "N/A"}</TableCell>
+                        <TableCell>{item.materialNumber || item.materialCode || "N/A"}</TableCell>
+                        <TableCell align="right">
+                          <Typography
+                            variant="body2"
+                            sx={{ fontWeight: 600, color: isOutOfStock ? "error.main" : "warning.main" }}
+                          >
+                            {stock}
+                          </Typography>
+                        </TableCell>
+                        <TableCell align="right">{minStock}</TableCell>
+                        <TableCell>{item.uom || "EA"}</TableCell>
+                        <TableCell>{item.plant || "N/A"}</TableCell>
+                        <TableCell>
+                          <Chip
+                            label={isOutOfStock ? "Out of Stock" : "Low Stock"}
+                            size="small"
+                            color={isOutOfStock ? "error" : "warning"}
+                          />
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          )}
+
+          {filteredLowStock.length > 10 && (
+            <Box sx={{ mt: 2, textAlign: "center" }}>
+              <Button variant="outlined" onClick={() => navigate("/inventory/alerts")}>
+                View All Alerts ({filteredLowStock.length})
+              </Button>
+            </Box>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Quick Actions */}
+      <Grid container spacing={2} sx={{ mt: 2 }}>
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            sx={{
+              cursor: "pointer",
+              "&:hover": { boxShadow: 4 },
+              transition: "all 0.3s",
+            }}
+            onClick={() => navigate("/inventory/details")}
+          >
+            <CardContent sx={{ textAlign: "center" }}>
+              <Activity size={32} color="#3b82f6" style={{ marginBottom: 8 }} />
+              <Typography variant="h6">Inventory Details</Typography>
+              <Typography variant="body2" color="text.secondary">
+                View and manage all inventory items
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            sx={{
+              cursor: "pointer",
+              "&:hover": { boxShadow: 4 },
+              transition: "all 0.3s",
+            }}
+            onClick={() => navigate("/inventory/alerts")}
+          >
+            <CardContent sx={{ textAlign: "center" }}>
+              <AlertTriangle size={32} color="#ed6c02" style={{ marginBottom: 8 }} />
+              <Typography variant="h6">Stock Alerts</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Monitor low stock and alerts
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            sx={{
+              cursor: "pointer",
+              "&:hover": { boxShadow: 4 },
+              transition: "all 0.3s",
+            }}
+            onClick={() => navigate("/materials")}
+          >
+            <CardContent sx={{ textAlign: "center" }}>
+              <Boxes size={32} color="#10b981" style={{ marginBottom: 8 }} />
+              <Typography variant="h6">Materials</Typography>
+              <Typography variant="body2" color="text.secondary">
+                Manage material master data
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+
+        <Grid item xs={12} sm={6} md={3}>
+          <Card
+            sx={{
+              cursor: "pointer",
+              "&:hover": { boxShadow: 4 },
+              transition: "all 0.3s",
+            }}
+            onClick={() => navigate("/inventory/plants")}
+          >
+            <CardContent sx={{ textAlign: "center" }}>
+              <Factory size={32} color="#8b5cf6" style={{ marginBottom: 8 }} />
+              <Typography variant="h6">Warehouse Inventory</Typography>
+              <Typography variant="body2" color="text.secondary">
+                View inventory by warehouse (Plant = Warehouse)
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
+      </Grid>
+    </Box>
   );
 }

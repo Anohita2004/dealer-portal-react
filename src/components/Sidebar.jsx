@@ -287,6 +287,21 @@ export default function Sidebar() {
       { label: "Financial Reports", path: "/accounts/reports", icon: <FaChartBar />, section: "Reports" },
     ],
 
+    // ================= INVENTORY USER =================
+    inventory_user: [
+      // Dashboard Section
+      { label: "Inventory Dashboard", path: "/inventory", icon: <FaHome />, section: "Dashboard" },
+
+      // Inventory Management Section
+      { label: "Inventory Details", path: "/inventory/details", icon: <FaWarehouse />, section: "Inventory Management" },
+      { label: "Stock Alerts", path: "/inventory/alerts", icon: <FaExclamationTriangle />, section: "Inventory Management" },
+      { label: "Materials Management", path: "/materials", icon: <FaBoxes />, section: "Inventory Management" },
+      { label: "Warehouse Inventory", path: "/inventory/plants", icon: <FaWarehouse />, section: "Inventory Management" },
+
+      // Reports & Analytics Section
+      { label: "Inventory Reports", path: "/inventory/reports", icon: <FaChartBar />, section: "Reports & Analytics" },
+    ],
+
     // ================= SALES EXECUTIVE =================
     sales_executive: [
       // Dashboard Section

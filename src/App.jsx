@@ -21,6 +21,9 @@ const AreaManagerDashboard = React.lazy(() => import("./pages/dashboards/AreaMan
 const TerritoryManagerDashboard = React.lazy(() => import("./pages/dashboards/TerritoryManagerDashboard"));
 const DealerDashboard = React.lazy(() => import("./pages/dashboards/DealerDashboard"));
 const InventoryDashboard = React.lazy(() => import("./pages/dashboards/InventoryDashboard"));
+const InventoryDetails = React.lazy(() => import("./pages/inventory/InventoryDetails"));
+const InventoryStockAlerts = React.lazy(() => import("./pages/inventory/StockAlerts"));
+const PlantInventory = React.lazy(() => import("./pages/inventory/PlantInventory"));
 const AccountsDashboard = React.lazy(() => import("./pages/dashboards/AccountsDashboard"));
 
 // 📄 Common Pages
@@ -795,7 +798,7 @@ export default function App() {
               <Route
                 path="materials"
                 element={
-                  <ProtectedRoute allowed={["technical_admin", "super_admin"]}>
+                  <ProtectedRoute allowed={["technical_admin", "super_admin", "inventory_user"]}>
                     <Materials />
                   </ProtectedRoute>
                 }
@@ -1344,17 +1347,9 @@ export default function App() {
                 }
               />
               <Route
-                path="orders/my"
-                element={
-                  <ProtectedRoute allowed={["dealer_admin"]}>
-                    <MyOrders />
-                  </ProtectedRoute>
-                }
-              />
-              <Route
                 path="orders/:orderId/track"
                 element={
-                  <ProtectedRoute allowed={["dealer_admin"]}>
+                  <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
                     <DealerOrderTracking />
                   </ProtectedRoute>
                 }
@@ -1467,12 +1462,35 @@ export default function App() {
               <Route
                 path="inventory"
                 element={
-                  <ProtectedRoute allowed={["inventory_user"]}>
+                  <ProtectedRoute allowed={["inventory_user", "super_admin"]}>
                     <InventoryDashboard />
                   </ProtectedRoute>
                 }
               />
-
+              <Route
+                path="inventory/details"
+                element={
+                  <ProtectedRoute allowed={["inventory_user", "super_admin"]}>
+                    <InventoryDetails />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="inventory/alerts"
+                element={
+                  <ProtectedRoute allowed={["inventory_user", "super_admin"]}>
+                    <InventoryStockAlerts />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="inventory/plants"
+                element={
+                  <ProtectedRoute allowed={["inventory_user", "super_admin"]}>
+                    <PlantInventory />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="pricing"
                 element={

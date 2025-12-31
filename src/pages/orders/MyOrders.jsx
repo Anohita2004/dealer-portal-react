@@ -163,7 +163,13 @@ export default function MyOrders() {
         });
         setApprovers(approverMap);
       } catch (err) {
-        console.error(err);
+        console.error("Error loading orders:", err);
+        // Show error message to user
+        setSnack({
+          open: true,
+          severity: "error",
+          message: err?.response?.data?.error || err?.message || "Failed to load orders",
+        });
       }
     }
 
