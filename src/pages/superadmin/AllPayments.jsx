@@ -8,42 +8,77 @@ import {
   Alert,
   Typography,
 } from "@mui/material";
-import { Search, Download } from "lucide-react";
+import { Search, Download, Filter } from "lucide-react";
 import { paymentAPI } from "../../services/api";
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
 import ScopedDataTable from "../../components/ScopedDataTable";
-import { useAuth } from "../../context/AuthContext";
+import AdvancedFilterSidebar from "../../components/AdvancedFilterSidebar";
+import FilterChips from "../../components/FilterChips";
+import { useDebounce } from "../../hooks/useDebounce";
 
 export default function AllPayments() {
-  const { user } = useAuth();
   const [searchTerm, setSearchTerm] = useState("");
 
-  // Fetch function for ScopedDataTable - uses workflow-based endpoint
-  // Super Admin should use finance pending endpoint to see all payments in workflow
-  const fetchPaymentsFn = async ({ page, limit }) => {
-    try {
-      // For Super Admin, use finance pending endpoint which shows all payments in workflow
-      const data = await paymentAPI.getFinancePending();
-      const paymentsList = Array.isArray(data) ? data : data.payments || data.data || [];
-      
-      // Apply client-side pagination if needed
-      const start = (page - 1) * limit;
-      const end = start + limit;
-      const paginated = paymentsList.slice(start, end);
-      
-      return {
-        data: paginated,
-        total: paymentsList.length,
-      };
-    } catch (error) {
-      // 404 = endpoint doesn't exist - return empty
-      // 403 = role restriction - return empty
-      if (error?.response?.status === 404 || error?.response?.status === 403) {
-        return { data: [], total: 0 };
-      }
-      throw error;
-    }
+  // Advanced Filters
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    paymentMode: "",
+    createdAt_from: "",
+    createdAt_to: "",
+    amount_min: "",
+    amount_max: "",
+  });
+
+  const debouncedSearch = useDebounce(searchTerm, 500);
+
+  const filterConfig = [
+    {
+      category: "Payment Details",
+      fields: [
+        {
+          id: "paymentMode",
+          label: "Payment Mode",
+          type: "select",
+          options: [
+            { label: "NEFT", value: "NEFT" },
+            { label: "RTGS", value: "RTGS" },
+            { label: "UPI", value: "UPI" },
+            { label: "Bank Transfer", value: "BANK_TRANSFER" },
+            { label: "Cheque", value: "CHEQUE" },
+            { label: "Cash", value: "CASH" },
+          ]
+        },
+      ],
+    },
+    {
+      category: "Amount Range",
+      fields: [
+        { id: "amount_min", label: "Min Amount", type: "number" },
+        { id: "amount_max", label: "Max Amount", type: "number" },
+      ],
+    },
+    {
+      category: "Timeline",
+      fields: [
+        { id: "createdAt_from", label: "From Date", type: "date" },
+        { id: "createdAt_to", label: "To Date", type: "date" },
+      ],
+    },
+  ];
+
+  const handleRemoveFilter = (key) => {
+    setFilters((prev) => ({ ...prev, [key]: "" }));
+  };
+
+  const handleClearAllFilters = () => {
+    setFilters({
+      paymentMode: "",
+      createdAt_from: "",
+      createdAt_to: "",
+      amount_min: "",
+      amount_max: "",
+    });
   };
 
   const columns = [
@@ -79,47 +114,78 @@ export default function AllPayments() {
     },
   ];
 
+  const handleExport = () => {
+    toast.info("Exporting data...");
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="All Payments"
         subtitle="View and manage all payment requests across the system"
         action={
-          <Button variant="outlined" startIcon={<Download size={18} />}>
+          <Button variant="outlined" startIcon={<Download size={18} />} onClick={handleExport}>
             Export
           </Button>
         }
       />
 
-      <Box sx={{ mt: 3, mb: 2 }}>
-        <TextField
-          fullWidth
-          placeholder="Search by invoice number or dealer..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search size={20} />
-              </InputAdornment>
-            ),
-          }}
+      <Box sx={{ mt: 3 }}>
+        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search by invoice number, dealer or UTR..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={20} />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button
+            variant="outlined"
+            onClick={() => setFilterDrawerOpen(true)}
+            startIcon={<Filter size={18} />}
+            sx={{ minWidth: 160 }}
+          >
+            Filters
+          </Button>
+        </Box>
+
+        <FilterChips
+          filters={filters}
+          config={filterConfig}
+          onRemove={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
+        />
+
+        <Alert severity="info" sx={{ mb: 2 }}>
+          <Typography variant="body2">
+            This view shows all payments in the system. Use filters to narrow down by status, amount, or date.
+          </Typography>
+        </Alert>
+
+        <ScopedDataTable
+          fetchFn={paymentAPI.getFinancePending} // Finance pending shows all payments in scope for admin
+          columns={columns}
+          title="All Payments"
+          filters={filters}
+          search={debouncedSearch}
         />
       </Box>
 
-      {/* Note: Payments are workflow-driven. Super Admin sees all payments via finance pending endpoint */}
-      <Alert severity="info" sx={{ mb: 2 }}>
-        <Typography variant="body2">
-          Payments are workflow-driven and role-scoped. This view shows all payments currently in the finance approval workflow.
-        </Typography>
-      </Alert>
-
-      <ScopedDataTable
-        fetchFn={fetchPaymentsFn}
-        columns={columns}
-        title="All Payments (Workflow View)"
+      <AdvancedFilterSidebar
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        onClear={handleClearAllFilters}
+        config={filterConfig}
       />
     </Box>
   );
 }
-

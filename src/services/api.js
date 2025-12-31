@@ -183,7 +183,7 @@ export const userAPI = {
   // Super Admin User Management
   getAll: (params) =>
     api.get("/admin/users", { params }).then((r) => r.data),
-  
+
   getUsers: (params) =>
     api.get("/admin/users", { params }).then((r) => r.data),
 
@@ -192,32 +192,32 @@ export const userAPI = {
 
   create: (payload) =>
     api.post("/admin/users", payload).then((r) => r.data),
-  
+
   createUser: (payload) =>
     api.post("/admin/users", payload).then((r) => r.data),
 
   update: (id, payload) =>
     api.put(`/admin/users/${id}`, payload).then((r) => r.data),
-  
+
   updateUser: (id, payload) =>
     api.put(`/admin/users/${id}`, payload).then((r) => r.data),
 
   delete: (id) =>
     api.delete(`/admin/users/${id}`).then((r) => r.data),
-  
+
   deleteUser: (id) =>
     api.delete(`/admin/users/${id}`).then((r) => r.data),
-  
+
   // Helper methods for dropdowns
   getRoles: () =>
     api.get("/roles").then((r) => r.data),
-  
+
   getRegions: () =>
     api.get("/regions").then((r) => r.data),
-  
+
   getAreas: (regionId) =>
     api.get("/areas", { params: { regionId } }).then((r) => r.data),
-  
+
   getTerritories: (areaId) =>
     api.get("/territories", { params: { areaId } }).then((r) => r.data),
 
@@ -363,8 +363,8 @@ export const paymentAPI = {
     api.get(`/payments/${id}`).then((r) => r.data),
 
   // ================= DEALER ADMIN APPROVAL =================
-  getDealerPending: () =>
-    api.get("/payments/dealer/pending").then((r) => r.data),
+  getDealerPending: (params) =>
+    api.get("/payments/dealer/pending", { params }).then((r) => r.data),
 
   approveByDealer: (id, payload) =>
     api.post(`/payments/${id}/approve`, payload).then((r) => r.data),
@@ -373,8 +373,8 @@ export const paymentAPI = {
     api.post(`/payments/${id}/reject`, payload).then((r) => r.data),
 
   // ================= FINANCE ADMIN APPROVAL =================
-  getFinancePending: () =>
-    api.get("/payments/pending").then((r) => r.data),
+  getFinancePending: (params) =>
+    api.get("/payments/pending", { params }).then((r) => r.data),
 
   approveByFinance: (id, payload) =>
     api.post(`/payments/${id}/approve`, payload).then((r) => r.data),
@@ -393,6 +393,13 @@ export const paymentAPI = {
 
   triggerReconcile: () =>
     api.post("/payments/reconcile/trigger").then((r) => r.data),
+
+  // ================== BULK ACTIONS ==================
+  bulkApprove: (paymentIds, remarks) =>
+    api.post("/payments/bulk/approve", { paymentIds, remarks }).then((r) => r.data),
+
+  bulkReject: (paymentIds, reason, remarks) =>
+    api.post("/payments/bulk/reject", { paymentIds, reason, remarks }).then((r) => r.data),
 };
 
 // =======================================================================
@@ -507,8 +514,8 @@ export const invoiceAPI = {
     api.get("/invoices/summary", { params }).then((r) => r.data),
 
   // Get pending approvals
-  getPendingApprovals: () =>
-    api.get("/invoices/pending/approvals").then((r) => r.data),
+  getPendingApprovals: (params) =>
+    api.get("/invoices/pending/approvals", { params }).then((r) => r.data),
 
   // Approve/reject invoice
   approveInvoice: (id, payload) =>
@@ -517,6 +524,13 @@ export const invoiceAPI = {
   // Get workflow status
   getWorkflowStatus: (id) =>
     api.get(`/invoices/${id}/workflow`).then((r) => r.data),
+
+  // ================== BULK ACTIONS ==================
+  bulkApprove: (invoiceIds, notes) =>
+    api.post("/invoices/bulk/approve", { invoiceIds, notes }).then((r) => r.data),
+
+  bulkReject: (invoiceIds, reason, remarks) =>
+    api.post("/invoices/bulk/reject", { invoiceIds, reason, remarks }).then((r) => r.data),
 };
 
 // =======================================================================

@@ -1,203 +1,200 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Box,
-  Card,
-  CardContent,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
-  InputAdornment,
   Chip,
   Button,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Pagination,
-  Stack,
-  IconButton,
+  TextField,
+  InputAdornment,
 } from "@mui/material";
-import { Search, RefreshCw, Eye } from "lucide-react";
+import { Search, Filter, Eye } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { orderAPI } from "../../services/api";
-import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
+import ScopedDataTable from "../../components/ScopedDataTable";
+import AdvancedFilterSidebar from "../../components/AdvancedFilterSidebar";
+import FilterChips from "../../components/FilterChips";
+import { useDebounce } from "../../hooks/useDebounce";
 
 export default function AreaOrders() {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(25);
-  const [totalPages, setTotalPages] = useState(1);
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    status: [],
+    totalAmount_min: "",
+    totalAmount_max: "",
+    createdAt_from: "",
+    createdAt_to: "",
+  });
 
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const params = {
-        page,
-        pageSize,
-        search: searchTerm || undefined,
-        status: statusFilter !== "all" ? statusFilter : undefined,
-        areaId: user.areaId,
-      };
+  const debouncedSearch = useDebounce(searchTerm, 500);
 
-      const data = await orderAPI.getAllOrders(params);
-      setOrders(data.data || data.orders || data || []);
-      setTotalPages(data.totalPages || Math.ceil((data.total || 0) / pageSize));
-    } catch (error) {
-      console.error("Failed to fetch orders:", error);
-      toast.error("Failed to load orders");
-      setOrders([]);
-    } finally {
-      setLoading(false);
-    }
+  const filterConfig = [
+    {
+      category: "Status",
+      fields: [
+        {
+          id: "status",
+          label: "Order Status",
+          type: "multi-select",
+          options: [
+            { label: "Pending", value: "pending" },
+            { label: "Approved", value: "approved" },
+            { label: "Rejected", value: "rejected" },
+            { label: "Shipped", value: "Shipped" },
+            { label: "Delivered", value: "Delivered" },
+          ],
+        },
+      ],
+    },
+    {
+      category: "Amount Range",
+      fields: [
+        { id: "totalAmount_min", label: "Min Amount", type: "number" },
+        { id: "totalAmount_max", label: "Max Amount", type: "number" },
+      ],
+    },
+    {
+      category: "Timeline",
+      fields: [
+        { id: "createdAt_from", label: "From Date", type: "date" },
+        { id: "createdAt_to", label: "To Date", type: "date" },
+      ],
+    },
+  ];
+
+  const handleRemoveFilter = (key, value) => {
+    setFilters((prev) => {
+      if (Array.isArray(prev[key])) {
+        return { ...prev, [key]: prev[key].filter((v) => v !== value) };
+      }
+      return { ...prev, [key]: "" };
+    });
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, [page, searchTerm, statusFilter]);
-
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: "warning",
-      approved: "success",
-      rejected: "error",
-      draft: "default",
-    };
-    return colors[status] || "default";
+  const handleClearAllFilters = () => {
+    setFilters({
+      status: [],
+      totalAmount_min: "",
+      totalAmount_max: "",
+      createdAt_from: "",
+      createdAt_to: "",
+    });
   };
+
+  const columns = [
+    { field: "orderNumber", headerName: "Order #", flex: 1 },
+    {
+      field: "dealerName",
+      headerName: "Dealer",
+      flex: 1.5,
+      renderCell: (params) => params.row.dealer?.businessName || params.row.dealerName || "N/A"
+    },
+    {
+      field: "totalAmount",
+      headerName: "Amount",
+      flex: 1,
+      renderCell: (params) => `₹${Number(params.value || 0).toLocaleString()}`
+    },
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 1,
+      renderCell: (params) => {
+        const val = params.value || params.row.approvalStatus || "pending";
+        return (
+          <Chip
+            label={val.toUpperCase()}
+            size="small"
+            color={
+              val === "approved" || val === "Shipped" || val === "Delivered"
+                ? "success"
+                : val === "rejected"
+                  ? "error"
+                  : "warning"
+            }
+          />
+        );
+      }
+    },
+    {
+      field: "createdAt",
+      headerName: "Date",
+      flex: 1,
+      renderCell: (params) => params.value ? new Date(params.value).toLocaleDateString() : "N/A"
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      flex: 0.6,
+      sortable: false,
+      renderCell: (params) => (
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={() => navigate(`/orders/${params.row.id}`)}
+        >
+          <Eye size={16} />
+        </Button>
+      ),
+    },
+  ];
 
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Area Orders"
-        subtitle="View and manage orders in your area"
+        subtitle="Monitor and manage orders within your specific area"
       />
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-            <TextField
-              size="small"
-              placeholder="Search orders..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search size={18} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{ flexGrow: 1, minWidth: 200 }}
-            />
+      <Box sx={{ mt: 3, display: "flex", gap: 2, mb: 2 }}>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Search by order # or dealer..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search size={20} />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <Button
+          variant="outlined"
+          onClick={() => setFilterDrawerOpen(true)}
+          startIcon={<Filter size={18} />}
+          sx={{ minWidth: 160 }}
+        >
+          Filters
+        </Button>
+      </Box>
 
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Status</InputLabel>
-              <Select
-                value={statusFilter}
-                label="Status"
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <MenuItem value="all">All Status</MenuItem>
-                <MenuItem value="pending">Pending</MenuItem>
-                <MenuItem value="approved">Approved</MenuItem>
-                <MenuItem value="rejected">Rejected</MenuItem>
-              </Select>
-            </FormControl>
+      <FilterChips
+        filters={filters}
+        config={filterConfig}
+        onRemove={handleRemoveFilter}
+        onClearAll={handleClearAllFilters}
+      />
 
-            <IconButton onClick={() => fetchOrders()}>
-              <RefreshCw size={18} />
-            </IconButton>
-          </Stack>
-        </CardContent>
-      </Card>
+      <ScopedDataTable
+        fetchFn={orderAPI.getAllOrders}
+        columns={columns}
+        title="Area Orders"
+        filters={filters}
+        search={debouncedSearch}
+      />
 
-      <Card>
-        <CardContent>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Order #</TableCell>
-                  <TableCell>Dealer</TableCell>
-                  <TableCell>Amount</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      Loading...
-                    </TableCell>
-                  </TableRow>
-                ) : orders.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      No orders found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  orders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell>{order.orderNumber || order.id}</TableCell>
-                      <TableCell>
-                        {order.dealer?.businessName || order.dealerName || "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        ₹{Number(order.totalAmount || 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={order.status || order.approvalStatus || "pending"}
-                          size="small"
-                          color={getStatusColor(order.status || order.approvalStatus)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {order.createdAt
-                          ? new Date(order.createdAt).toLocaleDateString()
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        <IconButton
-                          size="small"
-                          onClick={() => navigate(`/orders/${order.id}`)}
-                        >
-                          <Eye size={16} />
-                        </IconButton>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          {totalPages > 1 && (
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-              <Pagination
-                count={totalPages}
-                page={page}
-                onChange={(e, value) => setPage(value)}
-                color="primary"
-              />
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+      <AdvancedFilterSidebar
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        onClear={handleClearAllFilters}
+        config={filterConfig}
+      />
     </Box>
   );
 }
-

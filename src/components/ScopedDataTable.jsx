@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useMemo, useRef } from "react";
 import { Box, Typography } from "@mui/material";
 import { useAuth } from "../context/AuthContext";
 import DataTable from "./DataTable";
@@ -18,6 +18,8 @@ const ScopedDataTable = ({
   title,
   onRowClick,
   refreshTrigger,
+  filters = {},
+  search = "",
   ...props
 }) => {
   const { user } = useAuth();
@@ -30,28 +32,47 @@ const ScopedDataTable = ({
     total: 0,
   });
 
+  // Use refs to track function references without causing dependency issues
+  const fetchFnRef = useRef(fetchFn);
+  const endpointRef = useRef(endpoint);
+
+  // Update refs when props change
+  useEffect(() => {
+    fetchFnRef.current = fetchFn;
+    endpointRef.current = endpoint;
+  }, [fetchFn, endpoint]);
+
+  // Memoize filters string to avoid unnecessary re-renders
+  const filtersString = useMemo(() => JSON.stringify(filters), [filters]);
+
   useEffect(() => {
     fetchData();
-  }, [pagination.page, pagination.limit, refreshTrigger, endpoint]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pagination.page, pagination.limit, refreshTrigger, filtersString, search]);
 
   const fetchData = async () => {
-    // Prefer fetchFn over endpoint
-    if (fetchFn && typeof fetchFn === "function") {
+    // Prefer fetchFn over endpoint - use refs to get current values
+    const currentFetchFn = fetchFnRef.current;
+    const currentEndpoint = endpointRef.current;
+
+    if (currentFetchFn && typeof currentFetchFn === "function") {
       try {
         setLoading(true);
         setError(null);
-        
-        const result = await fetchFn({
+
+        const result = await currentFetchFn({
           page: pagination.page,
           limit: pagination.limit,
+          search: search,
+          ...filters
         });
-        
+
         // Handle different response formats
         if (result && result.data) {
           setData(Array.isArray(result.data) ? result.data : []);
           setPagination((prev) => ({
             ...prev,
-            total: result.total || result.data.length || 0,
+            total: result.total || result.totalCount || result.data.length || 0,
           }));
         } else if (Array.isArray(result)) {
           setData(result);
@@ -59,13 +80,21 @@ const ScopedDataTable = ({
             ...prev,
             total: result.length,
           }));
-        } else if (result && result.payments) {
-          // Handle payment-specific format
-          setData(Array.isArray(result.payments) ? result.payments : []);
-          setPagination((prev) => ({
-            ...prev,
-            total: result.total || result.payments.length || 0,
-          }));
+        } else if (result && typeof result === "object") {
+          // Flexible key detection for common resources
+          const dataKey = ["orders", "invoices", "payments", "dealers", "users", "items"].find(
+            (key) => Array.isArray(result[key])
+          );
+
+          if (dataKey) {
+            setData(result[dataKey]);
+            setPagination((prev) => ({
+              ...prev,
+              total: result.total || result.totalCount || result[dataKey].length || 0,
+            }));
+          } else {
+            setData([]);
+          }
         } else {
           setData([]);
         }
@@ -91,7 +120,7 @@ const ScopedDataTable = ({
     }
 
     // DEPRECATED: Legacy endpoint-based fetching (for backward compatibility)
-    if (!endpoint) {
+    if (!currentEndpoint) {
       setError("No fetch function or endpoint provided");
       setLoading(false);
       return;
@@ -100,8 +129,24 @@ const ScopedDataTable = ({
     try {
       setLoading(true);
       setError(null);
+      const filterParams = new URLSearchParams({
+        page: pagination.page,
+        limit: pagination.limit,
+        search: search,
+      });
+
+      Object.entries(filters).forEach(([key, value]) => {
+        if (value !== undefined && value !== null && value !== '') {
+          if (Array.isArray(value)) {
+            filterParams.append(key, value.join(','));
+          } else {
+            filterParams.append(key, value);
+          }
+        }
+      });
+
       const response = await fetch(
-        `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}${endpoint}?page=${pagination.page}&limit=${pagination.limit}`,
+        `${import.meta.env.VITE_API_URL || "http://localhost:3000/api"}${currentEndpoint}?${filterParams.toString()}`,
         {
           headers: {
             Authorization: `Bearer ${localStorage.getItem("token")}`,
@@ -125,7 +170,7 @@ const ScopedDataTable = ({
       }
 
       const result = await response.json();
-      
+
       // Handle different response formats
       if (result.data) {
         setData(Array.isArray(result.data) ? result.data : []);
@@ -212,7 +257,7 @@ const ScopedDataTable = ({
         </Box>
       )}
       <DataTable
-        data={data}
+        rows={data}
         columns={columns}
         loading={loading}
         title={title}

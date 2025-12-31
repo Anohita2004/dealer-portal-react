@@ -1,300 +1,222 @@
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import {
   Box,
-  Card,
-  CardContent,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  TextField,
-  InputAdornment,
   Chip,
   Button,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
-  Pagination,
-  Stack,
-  IconButton,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
+  TextField,
+  InputAdornment,
 } from "@mui/material";
-import { Search, RefreshCw, CheckCircle, XCircle, Eye } from "lucide-react";
+import { Search, Filter, Eye, CheckCircle, XCircle } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { orderAPI } from "../../services/api";
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
+import ScopedDataTable from "../../components/ScopedDataTable";
+import AdvancedFilterSidebar from "../../components/AdvancedFilterSidebar";
+import FilterChips from "../../components/FilterChips";
+import { useDebounce } from "../../hooks/useDebounce";
 
 export default function RegionalOrders() {
   const navigate = useNavigate();
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [page, setPage] = useState(1);
-  const [pageSize] = useState(25);
-  const [totalPages, setTotalPages] = useState(1);
-  const [selectedOrder, setSelectedOrder] = useState(null);
-  const [rejectDialogOpen, setRejectDialogOpen] = useState(false);
-  const [rejectReason, setRejectReason] = useState("");
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    status: [],
+    totalAmount_min: "",
+    totalAmount_max: "",
+    createdAt_from: "",
+    createdAt_to: "",
+  });
 
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const user = JSON.parse(localStorage.getItem("user") || "{}");
-      const params = {
-        page,
-        pageSize,
-        search: searchTerm || undefined,
-        status: statusFilter !== "all" ? statusFilter : undefined,
-        regionId: user.regionId,
-      };
+  const debouncedSearch = useDebounce(searchTerm, 500);
 
-      const data = await orderAPI.getAllOrders(params);
-      setOrders(data.data || data.orders || data || []);
-      setTotalPages(data.totalPages || Math.ceil((data.total || 0) / pageSize));
-    } catch (error) {
-      console.error("Failed to fetch orders:", error);
-      toast.error("Failed to load orders");
-      setOrders([]);
-    } finally {
-      setLoading(false);
-    }
+  const filterConfig = [
+    {
+      category: "Status",
+      fields: [
+        {
+          id: "status",
+          label: "Order Status",
+          type: "multi-select",
+          options: [
+            { label: "Pending", value: "pending" },
+            { label: "Approved", value: "approved" },
+            { label: "Rejected", value: "rejected" },
+            { label: "Shipped", value: "Shipped" },
+            { label: "Delivered", value: "Delivered" },
+          ],
+        },
+      ],
+    },
+    {
+      category: "Amount Range",
+      fields: [
+        { id: "totalAmount_min", label: "Min Amount", type: "number" },
+        { id: "totalAmount_max", label: "Max Amount", type: "number" },
+      ],
+    },
+    {
+      category: "Timeline",
+      fields: [
+        { id: "createdAt_from", label: "From Date", type: "date" },
+        { id: "createdAt_to", label: "To Date", type: "date" },
+      ],
+    },
+  ];
+
+  const handleRemoveFilter = (key, value) => {
+    setFilters((prev) => {
+      if (Array.isArray(prev[key])) {
+        return { ...prev, [key]: prev[key].filter((v) => v !== value) };
+      }
+      return { ...prev, [key]: "" };
+    });
   };
 
-  useEffect(() => {
-    fetchOrders();
-  }, [page, searchTerm, statusFilter]);
-
-  const handleApprove = async (orderId) => {
-    try {
-      await orderAPI.approveOrder(orderId, { action: "approve" });
-      toast.success("Order approved successfully");
-      fetchOrders();
-    } catch (error) {
-      console.error("Failed to approve order:", error);
-      toast.error(error.response?.data?.error || "Failed to approve order");
-    }
+  const handleClearAllFilters = () => {
+    setFilters({
+      status: [],
+      totalAmount_min: "",
+      totalAmount_max: "",
+      createdAt_from: "",
+      createdAt_to: "",
+    });
   };
 
-  const handleReject = async () => {
-    if (!rejectReason.trim()) {
-      toast.error("Please provide a rejection reason");
-      return;
-    }
-
-    try {
-      await orderAPI.rejectOrder(selectedOrder.id, {
-        action: "reject",
-        reason: rejectReason,
-        remarks: rejectReason,
-      });
-      toast.success("Order rejected");
-      setRejectDialogOpen(false);
-      setRejectReason("");
-      setSelectedOrder(null);
-      fetchOrders();
-    } catch (error) {
-      console.error("Failed to reject order:", error);
-      toast.error(error.response?.data?.error || "Failed to reject order");
-    }
-  };
-
-  const openRejectDialog = (order) => {
-    setSelectedOrder(order);
-    setRejectDialogOpen(true);
-  };
-
-  const getStatusColor = (status) => {
-    const colors = {
-      pending: "warning",
-      approved: "success",
-      rejected: "error",
-      draft: "default",
-    };
-    return colors[status] || "default";
-  };
+  const columns = [
+    { field: "orderNumber", headerName: "Order #", flex: 1 },
+    {
+      field: "dealerName",
+      headerName: "Dealer",
+      flex: 1.5,
+      renderCell: (params) => params.row.dealer?.businessName || params.row.dealerName || "N/A"
+    },
+    {
+      field: "totalAmount",
+      headerName: "Amount",
+      flex: 1,
+      renderCell: (params) => `₹${Number(params.value || 0).toLocaleString()}`
+    },
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 1,
+      renderCell: (params) => {
+        const val = params.value || params.row.approvalStatus || "pending";
+        return (
+          <Chip
+            label={val.toUpperCase()}
+            size="small"
+            color={
+              val === "approved" || val === "Shipped" || val === "Delivered"
+                ? "success"
+                : val === "rejected"
+                  ? "error"
+                  : "warning"
+            }
+          />
+        );
+      }
+    },
+    {
+      field: "createdAt",
+      headerName: "Date",
+      flex: 1,
+      renderCell: (params) => params.value ? new Date(params.value).toLocaleDateString() : "N/A"
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      flex: 1.5,
+      sortable: false,
+      renderCell: (params) => (
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<Eye size={16} />}
+            onClick={() => navigate(`/orders/${params.row.id}`)}
+          >
+            View
+          </Button>
+          {(params.row.status === "pending" || params.row.approvalStatus === "pending") && (
+            <Button
+              size="small"
+              variant="contained"
+              color="success"
+              onClick={async (e) => {
+                e.stopPropagation();
+                try {
+                  await orderAPI.approveOrder(params.row.id, { action: "approve" });
+                  toast.success("Order approved");
+                } catch (err) {
+                  toast.error("Failed to approve");
+                }
+              }}
+            >
+              Approve
+            </Button>
+          )}
+        </Box>
+      ),
+    },
+  ];
 
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Regional Orders"
-        subtitle="View and manage orders in your region"
+        subtitle="Manage and monitor orders within your region"
       />
 
-      <Card sx={{ mb: 3 }}>
-        <CardContent>
-          <Stack direction="row" spacing={2} alignItems="center" flexWrap="wrap">
-            <TextField
-              size="small"
-              placeholder="Search orders..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              InputProps={{
-                startAdornment: (
-                  <InputAdornment position="start">
-                    <Search size={18} />
-                  </InputAdornment>
-                ),
-              }}
-              sx={{ flexGrow: 1, minWidth: 200 }}
-            />
+      <Box sx={{ mt: 3, display: "flex", gap: 2, mb: 2 }}>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder="Search by order # or dealer..."
+          value={searchTerm}
+          onChange={(e) => setSearchTerm(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                <Search size={20} />
+              </InputAdornment>
+            ),
+          }}
+        />
+        <Button
+          variant="outlined"
+          onClick={() => setFilterDrawerOpen(true)}
+          startIcon={<Filter size={18} />}
+          sx={{ minWidth: 160 }}
+        >
+          Filters
+        </Button>
+      </Box>
 
-            <FormControl size="small" sx={{ minWidth: 150 }}>
-              <InputLabel>Status</InputLabel>
-              <Select
-                value={statusFilter}
-                label="Status"
-                onChange={(e) => setStatusFilter(e.target.value)}
-              >
-                <MenuItem value="all">All Status</MenuItem>
-                <MenuItem value="pending">Pending</MenuItem>
-                <MenuItem value="approved">Approved</MenuItem>
-                <MenuItem value="rejected">Rejected</MenuItem>
-                <MenuItem value="draft">Draft</MenuItem>
-              </Select>
-            </FormControl>
+      <FilterChips
+        filters={filters}
+        config={filterConfig}
+        onRemove={handleRemoveFilter}
+        onClearAll={handleClearAllFilters}
+      />
 
-            <IconButton onClick={() => fetchOrders()}>
-              <RefreshCw size={18} />
-            </IconButton>
-          </Stack>
-        </CardContent>
-      </Card>
+      <ScopedDataTable
+        fetchFn={orderAPI.getAllOrders}
+        columns={columns}
+        title="Region Orders"
+        filters={filters}
+        search={debouncedSearch}
+      />
 
-      <Card>
-        <CardContent>
-          <TableContainer>
-            <Table>
-              <TableHead>
-                <TableRow>
-                  <TableCell>Order #</TableCell>
-                  <TableCell>Dealer</TableCell>
-                  <TableCell>Amount</TableCell>
-                  <TableCell>Status</TableCell>
-                  <TableCell>Date</TableCell>
-                  <TableCell>Actions</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {loading ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      Loading...
-                    </TableCell>
-                  </TableRow>
-                ) : orders.length === 0 ? (
-                  <TableRow>
-                    <TableCell colSpan={6} align="center">
-                      No orders found
-                    </TableCell>
-                  </TableRow>
-                ) : (
-                  orders.map((order) => (
-                    <TableRow key={order.id}>
-                      <TableCell>{order.orderNumber || order.id}</TableCell>
-                      <TableCell>
-                        {order.dealer?.businessName || order.dealerName || "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        ₹{Number(order.totalAmount || 0).toLocaleString()}
-                      </TableCell>
-                      <TableCell>
-                        <Chip
-                          label={order.status || order.approvalStatus || "pending"}
-                          size="small"
-                          color={getStatusColor(order.status || order.approvalStatus)}
-                        />
-                      </TableCell>
-                      <TableCell>
-                        {order.createdAt
-                          ? new Date(order.createdAt).toLocaleDateString()
-                          : "N/A"}
-                      </TableCell>
-                      <TableCell>
-                        <Stack direction="row" spacing={1}>
-                          <IconButton
-                            size="small"
-                            onClick={() => navigate(`/orders/${order.id}`)}
-                          >
-                            <Eye size={16} />
-                          </IconButton>
-                          {(order.status === "pending" ||
-                            order.approvalStatus === "pending") && (
-                            <>
-                              <Button
-                                size="small"
-                                variant="contained"
-                                color="success"
-                                startIcon={<CheckCircle size={14} />}
-                                onClick={() => handleApprove(order.id)}
-                              >
-                                Approve
-                              </Button>
-                              <Button
-                                size="small"
-                                variant="outlined"
-                                color="error"
-                                startIcon={<XCircle size={14} />}
-                                onClick={() => openRejectDialog(order)}
-                              >
-                                Reject
-                              </Button>
-                            </>
-                          )}
-                        </Stack>
-                      </TableCell>
-                    </TableRow>
-                  ))
-                )}
-              </TableBody>
-            </Table>
-          </TableContainer>
-
-          {totalPages > 1 && (
-            <Box sx={{ display: "flex", justifyContent: "center", mt: 3 }}>
-              <Pagination
-                count={totalPages}
-                page={page}
-                onChange={(e, value) => setPage(value)}
-                color="primary"
-              />
-            </Box>
-          )}
-        </CardContent>
-      </Card>
-
-      {/* Reject Dialog */}
-      <Dialog open={rejectDialogOpen} onClose={() => setRejectDialogOpen(false)}>
-        <DialogTitle>Reject Order</DialogTitle>
-        <DialogContent>
-          <TextField
-            fullWidth
-            multiline
-            rows={4}
-            label="Rejection Reason"
-            value={rejectReason}
-            onChange={(e) => setRejectReason(e.target.value)}
-            placeholder="Please provide a reason for rejection..."
-            sx={{ mt: 2, minWidth: 400 }}
-          />
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={() => setRejectDialogOpen(false)}>Cancel</Button>
-          <Button onClick={handleReject} color="error" variant="contained">
-            Reject
-          </Button>
-        </DialogActions>
-      </Dialog>
+      <AdvancedFilterSidebar
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        onClear={handleClearAllFilters}
+        config={filterConfig}
+      />
     </Box>
   );
 }
-

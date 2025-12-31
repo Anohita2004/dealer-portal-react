@@ -18,11 +18,14 @@ import {
   Select,
   MenuItem,
 } from "@mui/material";
-import { Search, TrendingUp, DollarSign, Package } from "lucide-react";
+import { Search, TrendingUp, DollarSign, Package, Filter } from "lucide-react";
 import { dealerAPI, managerAPI, userAPI } from "../services/api";
 import { toast } from "react-toastify";
 import PageHeader from "../components/PageHeader";
 import ScopedDataTable from "../components/ScopedDataTable";
+import AdvancedFilterSidebar from "../components/AdvancedFilterSidebar";
+import FilterChips from "../components/FilterChips";
+import { useDebounce } from "../hooks/useDebounce";
 
 export default function DealerManagement() {
   const [dealers, setDealers] = useState([]);
@@ -33,6 +36,65 @@ export default function DealerManagement() {
   const [assignManagerId, setAssignManagerId] = useState("");
   const [managerOptions, setManagerOptions] = useState([]);
   const [loadingManagers, setLoadingManagers] = useState(false);
+
+  // Advanced Filters
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    isActive: "",
+    isBlocked: "",
+    state: "",
+    createdAt_from: "",
+    createdAt_to: "",
+  });
+
+  const debouncedSearch = useDebounce(searchTerm, 500);
+
+  const filterConfig = [
+    {
+      category: "Status",
+      fields: [
+        {
+          id: "isActive",
+          label: "Active Status",
+          type: "select",
+          options: [{ label: "Active", value: "true" }, { label: "Inactive", value: "false" }]
+        },
+        {
+          id: "isBlocked",
+          label: "Blocked Status",
+          type: "select",
+          options: [{ label: "Blocked", value: "true" }, { label: "Unblocked", value: "false" }]
+        },
+      ],
+    },
+    {
+      category: "Location",
+      fields: [
+        { id: "state", label: "State", type: "text" },
+      ],
+    },
+    {
+      category: "Timeline",
+      fields: [
+        { id: "createdAt_from", label: "Registered From", type: "date" },
+        { id: "createdAt_to", label: "Registered To", type: "date" },
+      ],
+    },
+  ];
+
+  const handleRemoveFilter = (key) => {
+    setFilters((prev) => ({ ...prev, [key]: "" }));
+  };
+
+  const handleClearAllFilters = () => {
+    setFilters({
+      isActive: "",
+      isBlocked: "",
+      state: "",
+      createdAt_from: "",
+      createdAt_to: "",
+    });
+  };
 
   useEffect(() => {
     fetchDealers();
@@ -56,7 +118,6 @@ export default function DealerManagement() {
   const loadManagers = async () => {
     try {
       setLoadingManagers(true);
-      // Backend scopes managers automatically; we only filter by manager-like roles
       const params = {
         role: [
           "regional_manager",
@@ -107,11 +168,6 @@ export default function DealerManagement() {
       toast.error(error.response?.data?.error || "Failed to assign dealer to manager");
     }
   };
-
-  const filteredDealers = dealers.filter((dealer) =>
-    dealer.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dealer.code?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const columns = [
     { field: "businessName", headerName: "Business Name", flex: 1 },
@@ -203,29 +259,58 @@ export default function DealerManagement() {
             Assign Dealer to Manager
           </Button>
         </Box>
-        <TextField
-          fullWidth
-          placeholder="Search dealers by name or code..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search size={20} />
-              </InputAdornment>
-            ),
-          }}
-          sx={{ mb: 2 }}
+
+        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search dealers by name, code or city..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={20} />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button
+            variant="outlined"
+            onClick={() => setFilterDrawerOpen(true)}
+            startIcon={<Filter size={18} />}
+            sx={{ minWidth: 160 }}
+          >
+            Filters
+          </Button>
+        </Box>
+
+        <FilterChips
+          filters={filters}
+          config={filterConfig}
+          onRemove={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
         />
 
         <ScopedDataTable
           endpoint="/dealers"
           columns={columns}
           title="Dealers"
-          data={filteredDealers}
+          filters={filters}
+          search={debouncedSearch}
           loading={loading}
         />
       </Box>
+
+      <AdvancedFilterSidebar
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        onClear={handleClearAllFilters}
+        config={filterConfig}
+      />
+
       <Dialog
         open={assignDialogOpen}
         onClose={() => setAssignDialogOpen(false)}
@@ -283,4 +368,3 @@ export default function DealerManagement() {
     </Box>
   );
 }
-

@@ -22,6 +22,9 @@ import { useApiCall } from "../hooks/useApiCall";
 import PaymentApprovalCard from "../components/PaymentApprovalCard";
 import PageHeader from "../components/PageHeader";
 import { toast } from "react-toastify";
+import AdvancedFilterSidebar from "../components/AdvancedFilterSidebar";
+import FilterChips from "../components/FilterChips";
+import { useDebounce } from "../hooks/useDebounce";
 import { isAccountsUser, getDisabledActionExplanation } from "../utils/accountsPermissions";
 import { Alert, Typography } from "@mui/material";
 import { Lock } from "lucide-react";
@@ -35,7 +38,68 @@ export default function Payments() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [viewMode, setViewMode] = useState("list"); // list, approvals, create
   const [createDialogOpen, setCreateDialogOpen] = useState(false);
-  
+
+  // Advanced Filters
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    paymentMode: "",
+    createdAt_from: "",
+    createdAt_to: "",
+    amount_min: "",
+    amount_max: "",
+  });
+
+  const debouncedSearch = useDebounce(searchQuery, 500);
+
+  const filterConfig = [
+    {
+      category: "Payment Details",
+      fields: [
+        {
+          id: "paymentMode",
+          label: "Payment Mode",
+          type: "select",
+          options: [
+            { label: "NEFT", value: "NEFT" },
+            { label: "RTGS", value: "RTGS" },
+            { label: "UPI", value: "UPI" },
+            { label: "Bank Transfer", value: "BANK_TRANSFER" },
+            { label: "Cheque", value: "CHEQUE" },
+            { label: "Cash", value: "CASH" },
+          ]
+        },
+      ],
+    },
+    {
+      category: "Amount Range",
+      fields: [
+        { id: "amount_min", label: "Min Amount", type: "number" },
+        { id: "amount_max", label: "Max Amount", type: "number" },
+      ],
+    },
+    {
+      category: "Timeline",
+      fields: [
+        { id: "createdAt_from", label: "From Date", type: "date" },
+        { id: "createdAt_to", label: "To Date", type: "date" },
+      ],
+    },
+  ];
+
+  const handleRemoveFilter = (key) => {
+    setFilters((prev) => ({ ...prev, [key]: "" }));
+  };
+
+  const handleClearAllFilters = () => {
+    setFilters({
+      paymentMode: "",
+      createdAt_from: "",
+      createdAt_to: "",
+      amount_min: "",
+      amount_max: "",
+    });
+  };
+
   // Create payment form state
   const [selectedInvoice, setSelectedInvoice] = useState("");
   const [amount, setAmount] = useState("");
@@ -45,7 +109,12 @@ export default function Payments() {
 
   const fetchPayments = async () => {
     try {
-      const data = await paymentAPI.getMyRequests();
+      const params = {
+        search: debouncedSearch,
+        ...filters,
+        status: statusFilter !== 'all' ? statusFilter : undefined
+      };
+      const data = await paymentAPI.getMyRequests(params);
       const paymentsList = Array.isArray(data) ? data : data.payments || data.data || [];
       setPayments(paymentsList);
     } catch (err) {
@@ -57,21 +126,23 @@ export default function Payments() {
   const fetchPendingApprovals = async () => {
     try {
       let data;
+      const params = {
+        search: debouncedSearch,
+        ...filters,
+        status: statusFilter !== 'all' ? statusFilter : undefined
+      };
+
       if (user?.role === "dealer_admin") {
-        data = await paymentAPI.getDealerPending();
+        data = await paymentAPI.getDealerPending(params);
       } else if (user?.role === "finance_admin" || user?.role === "accounts_user") {
-        data = await paymentAPI.getFinancePending();
+        data = await paymentAPI.getFinancePending(params);
       } else {
-        // For other roles, try finance pending (most common) or dealer pending
-        // Do NOT use getAllPayments() as it calls non-existent /api/payments
         try {
-          data = await paymentAPI.getFinancePending();
+          data = await paymentAPI.getFinancePending(params);
         } catch (e) {
-          // If finance pending fails, try dealer pending
           try {
-            data = await paymentAPI.getDealerPending();
+            data = await paymentAPI.getDealerPending(params);
           } catch (e2) {
-            // If both fail, user doesn't have access - set empty
             data = { payments: [], data: [] };
           }
         }
@@ -79,7 +150,6 @@ export default function Payments() {
       const approvalsList = Array.isArray(data) ? data : data.payments || data.data || [];
       setPayments(approvalsList);
     } catch (err) {
-      // 404/403 = endpoint doesn't exist or role restriction - handle gracefully
       if (err?.response?.status === 404 || err?.response?.status === 403) {
         setPayments([]);
         return;
@@ -110,7 +180,7 @@ export default function Payments() {
     if (createDialogOpen) {
       fetchInvoices();
     }
-  }, [viewMode, createDialogOpen]);
+  }, [viewMode, createDialogOpen, statusFilter, debouncedSearch, JSON.stringify(filters)]);
 
   const canApprove = ["dealer_admin", "finance_admin", "accounts_user", "regional_admin", "super_admin"].includes(user?.role);
   const canCreate = !isAccountsUser(user) && ["dealer_staff", "dealer_admin"].includes(user?.role);
@@ -145,31 +215,7 @@ export default function Payments() {
   };
 
   // Filter payments
-  const filteredPayments = payments.filter((payment) => {
-    // Status filter
-    if (statusFilter === "pending" && payment.status !== "pending" && payment.approvalStatus !== "pending") {
-      return false;
-    }
-    if (statusFilter === "approved" && payment.status !== "approved" && payment.approvalStatus !== "approved") {
-      return false;
-    }
-    if (statusFilter === "rejected" && payment.status !== "rejected" && payment.approvalStatus !== "rejected") {
-      return false;
-    }
-
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        payment.id?.toString().includes(query) ||
-        payment.invoice?.invoiceNumber?.toLowerCase().includes(query) ||
-        payment.invoiceId?.toString().includes(query) ||
-        payment.utrNumber?.toLowerCase().includes(query)
-      );
-    }
-
-    return true;
-  });
+  const filteredPayments = payments; // Server-side filtering enabled
 
   return (
     <Box p={3}>
@@ -179,8 +225,8 @@ export default function Payments() {
           isAccountsUser(user)
             ? "View all payment requests in scope. Approve or reject payments with mandatory remarks."
             : viewMode === "approvals"
-            ? "Pending payment approvals"
-            : "View and manage payment requests"
+              ? "Pending payment approvals"
+              : "View and manage payment requests"
         }
       />
 
@@ -247,12 +293,20 @@ export default function Payments() {
         <Button
           variant="outlined"
           size="small"
-          onClick={viewMode === "approvals" ? fetchPendingApprovals : fetchPayments}
+          onClick={() => setFilterDrawerOpen(true)}
           startIcon={<Filter size={16} />}
         >
-          Refresh
+          Advanced Filters
         </Button>
       </Box>
+
+      {/* Filter Chips */}
+      <FilterChips
+        filters={filters}
+        config={filterConfig}
+        onRemove={handleRemoveFilter}
+        onClearAll={handleClearAllFilters}
+      />
 
       {/* Payments List */}
       {loading ? (
@@ -268,8 +322,8 @@ export default function Payments() {
               {searchQuery || statusFilter !== "all"
                 ? "No payments match your filters"
                 : viewMode === "approvals"
-                ? "No pending approvals"
-                : "No payments found"}
+                  ? "No pending approvals"
+                  : "No payments found"}
             </Typography>
           </CardContent>
         </Card>
@@ -319,8 +373,8 @@ export default function Payments() {
                             payment.approvalStatus === "approved" || payment.status === "approved"
                               ? "success"
                               : payment.approvalStatus === "rejected" || payment.status === "rejected"
-                              ? "error"
-                              : "warning"
+                                ? "error"
+                                : "warning"
                           }
                           size="small"
                         />
@@ -444,6 +498,14 @@ export default function Payments() {
           </Button>
         </DialogActions>
       </Dialog>
+      <AdvancedFilterSidebar
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        onClear={handleClearAllFilters}
+        config={filterConfig}
+      />
     </Box>
   );
 }

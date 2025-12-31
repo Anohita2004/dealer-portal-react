@@ -1,46 +1,88 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import {
   Box,
-  Card,
-  CardContent,
-  Typography,
   TextField,
   InputAdornment,
   Button,
   Chip,
 } from "@mui/material";
-import { Search, Download } from "lucide-react";
+import { Search, Download, Filter } from "lucide-react";
 import { invoiceAPI } from "../../services/api";
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
 import ScopedDataTable from "../../components/ScopedDataTable";
+import AdvancedFilterSidebar from "../../components/AdvancedFilterSidebar";
+import FilterChips from "../../components/FilterChips";
+import { useDebounce } from "../../hooks/useDebounce";
 
 export default function AllInvoices() {
-  const [invoices, setInvoices] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchInvoices();
-  }, []);
+  // Advanced Filters
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    status: [],
+    totalAmount_min: "",
+    totalAmount_max: "",
+    invoiceDate_from: "",
+    invoiceDate_to: "",
+  });
 
-  const fetchInvoices = async () => {
-    try {
-      setLoading(true);
-      const data = await invoiceAPI.getInvoices();
-      setInvoices(Array.isArray(data) ? data : data.invoices || data.data || []);
-    } catch (error) {
-      console.error("Failed to fetch invoices:", error);
-      toast.error("Failed to load invoices");
-    } finally {
-      setLoading(false);
-    }
+  const debouncedSearch = useDebounce(searchTerm, 500);
+
+  const filterConfig = [
+    {
+      category: "Status",
+      fields: [
+        {
+          id: "status",
+          label: "Invoice Status",
+          type: "multi-select",
+          options: [
+            { label: "Paid", value: "paid" },
+            { label: "Unpaid", value: "unpaid" },
+            { label: "Pending", value: "pending" },
+            { label: "Partial", value: "partial" },
+            { label: "Approved", value: "approved" },
+          ],
+        },
+      ],
+    },
+    {
+      category: "Amount Range",
+      fields: [
+        { id: "totalAmount_min", label: "Min Total Amount", type: "number" },
+        { id: "totalAmount_max", label: "Max Total Amount", type: "number" },
+      ],
+    },
+    {
+      category: "Timeline",
+      fields: [
+        { id: "invoiceDate_from", label: "From Date", type: "date" },
+        { id: "invoiceDate_to", label: "To Date", type: "date" },
+      ],
+    },
+  ];
+
+  const handleRemoveFilter = (key, value) => {
+    setFilters((prev) => {
+      if (Array.isArray(prev[key])) {
+        return { ...prev, [key]: prev[key].filter((v) => v !== value) };
+      }
+      return { ...prev, [key]: "" };
+    });
   };
 
-  const filteredInvoices = invoices.filter((invoice) =>
-    invoice.invoiceNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    invoice.dealer?.businessName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleClearAllFilters = () => {
+    setFilters({
+      status: [],
+      totalAmount_min: "",
+      totalAmount_max: "",
+      invoiceDate_from: "",
+      invoiceDate_to: "",
+    });
+  };
 
   const columns = [
     { field: "invoiceNumber", headerName: "Invoice #", flex: 0.8 },
@@ -75,42 +117,73 @@ export default function AllInvoices() {
     },
   ];
 
+  const handleExport = () => {
+    toast.info("Exporting data...");
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="All Invoices"
         subtitle="View and manage all invoices across the system"
         action={
-          <Button variant="outlined" startIcon={<Download size={18} />}>
+          <Button variant="outlined" startIcon={<Download size={18} />} onClick={handleExport}>
             Export
           </Button>
         }
       />
 
-      <Box sx={{ mt: 3, mb: 2 }}>
-        <TextField
-          fullWidth
-          placeholder="Search by invoice number or dealer..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search size={20} />
-              </InputAdornment>
-            ),
-          }}
+      <Box sx={{ mt: 3 }}>
+        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search by invoice number or dealer..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={20} />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button
+            variant="outlined"
+            onClick={() => setFilterDrawerOpen(true)}
+            startIcon={<Filter size={18} />}
+            sx={{ minWidth: 160 }}
+          >
+            Filters
+          </Button>
+        </Box>
+
+        <FilterChips
+          filters={filters}
+          config={filterConfig}
+          onRemove={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
+        />
+
+        <ScopedDataTable
+          fetchFn={invoiceAPI.getInvoices}
+          columns={columns}
+          title="Invoices"
+          filters={filters}
+          search={debouncedSearch}
+          loading={loading}
         />
       </Box>
 
-      <ScopedDataTable
-        endpoint="/invoices"
-        columns={columns}
-        title="Invoices"
-        data={filteredInvoices}
-        loading={loading}
+      <AdvancedFilterSidebar
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        onClear={handleClearAllFilters}
+        config={filterConfig}
       />
     </Box>
   );
 }
-

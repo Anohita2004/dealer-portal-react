@@ -1,63 +1,82 @@
 import React, { useState, useEffect } from "react";
 import {
   Box,
-  Card,
-  CardContent,
-  Typography,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Paper,
-  Chip,
   TextField,
   InputAdornment,
   Button,
-  Select,
-  MenuItem,
-  FormControl,
-  InputLabel,
 } from "@mui/material";
 import { Search, Download, Filter } from "lucide-react";
 import { orderAPI } from "../../services/api";
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
 import ScopedDataTable from "../../components/ScopedDataTable";
+import AdvancedFilterSidebar from "../../components/AdvancedFilterSidebar";
+import FilterChips from "../../components/FilterChips";
+import { useDebounce } from "../../hooks/useDebounce";
+import { Chip } from "@mui/material";
 
 export default function AllOrders() {
-  const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
-  const [regionFilter, setRegionFilter] = useState("all");
+  const [loading, setLoading] = useState(false);
 
-  useEffect(() => {
-    fetchOrders();
-  }, [statusFilter, regionFilter]);
+  // Advanced Filters
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    status: "",
+    totalAmount_min: "",
+    totalAmount_max: "",
+    createdAt_from: "",
+    createdAt_to: "",
+  });
 
-  const fetchOrders = async () => {
-    try {
-      setLoading(true);
-      const params = {};
-      if (statusFilter !== "all") params.status = statusFilter;
-      if (regionFilter !== "all") params.regionId = regionFilter;
-      
-      const data = await orderAPI.getAllOrders(params);
-      setOrders(Array.isArray(data) ? data : data.orders || data.data || []);
-    } catch (error) {
-      console.error("Failed to fetch orders:", error);
-      toast.error("Failed to load orders");
-    } finally {
-      setLoading(false);
-    }
+  const debouncedSearch = useDebounce(searchTerm, 500);
+
+  const filterConfig = [
+    {
+      category: "Status",
+      fields: [
+        {
+          id: "status",
+          label: "Order Status",
+          type: "select",
+          options: [
+            { label: "Pending", value: "pending" },
+            { label: "Approved", value: "approved" },
+            { label: "Rejected", value: "rejected" },
+            { label: "Draft", value: "draft" },
+          ]
+        },
+      ],
+    },
+    {
+      category: "Financials",
+      fields: [
+        { id: "totalAmount_min", label: "Min Amount", type: "number" },
+        { id: "totalAmount_max", label: "Max Amount", type: "number" },
+      ],
+    },
+    {
+      category: "Timeline",
+      fields: [
+        { id: "createdAt_from", label: "From Date", type: "date" },
+        { id: "createdAt_to", label: "To Date", type: "date" },
+      ],
+    },
+  ];
+
+  const handleRemoveFilter = (key) => {
+    setFilters((prev) => ({ ...prev, [key]: "" }));
   };
 
-  const filteredOrders = orders.filter((order) =>
-    order.orderNumber?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    order.dealer?.businessName?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
+  const handleClearAllFilters = () => {
+    setFilters({
+      status: "",
+      totalAmount_min: "",
+      totalAmount_max: "",
+      createdAt_from: "",
+      createdAt_to: "",
+    });
+  };
 
   const columns = [
     { field: "orderNumber", headerName: "Order #", flex: 0.8 },
@@ -93,52 +112,74 @@ export default function AllOrders() {
     },
   ];
 
+  const handleExport = () => {
+    toast.info("Exporting data...");
+    // Future implementation: call export API
+  };
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="All Orders"
         subtitle="View and manage all orders across the system"
         action={
-          <Button variant="outlined" startIcon={<Download size={18} />}>
+          <Button variant="outlined" startIcon={<Download size={18} />} onClick={handleExport}>
             Export
           </Button>
         }
       />
 
-      <Box sx={{ mt: 3, display: "flex", gap: 2, mb: 2 }}>
-        <TextField
-          fullWidth
-          placeholder="Search by order number or dealer..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search size={20} />
-              </InputAdornment>
-            ),
-          }}
+      <Box sx={{ mt: 3 }}>
+        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search by order number or dealer..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={20} />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button
+            variant="outlined"
+            onClick={() => setFilterDrawerOpen(true)}
+            startIcon={<Filter size={18} />}
+            sx={{ minWidth: 160 }}
+          >
+            Filters
+          </Button>
+        </Box>
+
+        <FilterChips
+          filters={filters}
+          config={filterConfig}
+          onRemove={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
         />
-        <FormControl sx={{ minWidth: 150 }}>
-          <InputLabel>Status</InputLabel>
-          <Select value={statusFilter} onChange={(e) => setStatusFilter(e.target.value)} label="Status">
-            <MenuItem value="all">All Status</MenuItem>
-            <MenuItem value="pending">Pending</MenuItem>
-            <MenuItem value="approved">Approved</MenuItem>
-            <MenuItem value="rejected">Rejected</MenuItem>
-            <MenuItem value="draft">Draft</MenuItem>
-          </Select>
-        </FormControl>
+
+        <ScopedDataTable
+          fetchFn={orderAPI.getAllOrders}
+          columns={columns}
+          title="Orders"
+          filters={filters}
+          search={debouncedSearch}
+          loading={loading}
+        />
       </Box>
 
-      <ScopedDataTable
-        endpoint="/orders"
-        columns={columns}
-        title="Orders"
-        data={filteredOrders}
-        loading={loading}
+      <AdvancedFilterSidebar
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        onClear={handleClearAllFilters}
+        config={filterConfig}
       />
     </Box>
   );
 }
-

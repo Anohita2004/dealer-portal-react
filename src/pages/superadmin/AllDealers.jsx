@@ -4,122 +4,119 @@ import {
   TextField,
   InputAdornment,
   Button,
-  Chip,
   Grid,
   Card,
   CardContent,
   Typography,
-  Stack,
-  Divider,
 } from "@mui/material";
-import { Search, Download, TrendingUp, DollarSign, Package } from "lucide-react";
+import { Search, Download, TrendingUp, DollarSign, Package, Filter } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { dealerAPI } from "../../services/api";
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
 import ScopedDataTable from "../../components/ScopedDataTable";
+import AdvancedFilterSidebar from "../../components/AdvancedFilterSidebar";
+import FilterChips from "../../components/FilterChips";
+import { useDebounce } from "../../hooks/useDebounce";
+import { Chip } from "@mui/material";
 
 export default function AllDealers() {
   const navigate = useNavigate();
   const [dealers, setDealers] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
 
+  // Advanced Filters
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    isActive: "",
+    isBlocked: "",
+    regionId: "",
+    state: "",
+  });
+
+  const debouncedSearch = useDebounce(searchTerm, 500);
+
+  const filterConfig = [
+    {
+      category: "Status",
+      fields: [
+        {
+          id: "isActive",
+          label: "Active Status",
+          type: "select",
+          options: [{ label: "Active", value: "true" }, { label: "Inactive", value: "false" }]
+        },
+        {
+          id: "isBlocked",
+          label: "Blocked Status",
+          type: "select",
+          options: [{ label: "Blocked", value: "true" }, { label: "Unblocked", value: "false" }]
+        },
+      ],
+    },
+    {
+      category: "Location",
+      fields: [
+        { id: "state", label: "State", type: "text" },
+      ],
+    },
+  ];
+
+  const handleRemoveFilter = (key) => {
+    setFilters((prev) => ({ ...prev, [key]: "" }));
+  };
+
+  const handleClearAllFilters = () => {
+    setFilters({
+      isActive: "",
+      isBlocked: "",
+      regionId: "",
+      state: "",
+    });
+  };
+
   useEffect(() => {
-    fetchDealers();
+    fetchStats();
   }, []);
 
-  const fetchDealers = async () => {
+  const fetchStats = async () => {
     try {
-      setLoading(true);
       const data = await dealerAPI.getDealers();
       setDealers(Array.isArray(data) ? data : data.dealers || data.data || []);
     } catch (error) {
-      console.error("Failed to fetch dealers:", error);
-      toast.error("Failed to load dealers");
-    } finally {
-      setLoading(false);
+      console.error("Failed to fetch dealer stats:", error);
     }
   };
-
-  const filteredDealers = dealers.filter((dealer) =>
-    dealer.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    dealer.code?.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   const totalSales = dealers.reduce((sum, d) => sum + Number(d.totalSales || 0), 0);
   const totalOutstanding = dealers.reduce((sum, d) => sum + Number(d.outstanding || 0), 0);
 
-  const handleToggleBlock = async (dealer) => {
-    const action = dealer.isBlocked ? "unblock" : "block";
-    const reason = window.prompt(
-      `Enter reason to ${action} this dealer:`
-    );
-    if (!reason) return;
-
-    try {
-      await dealerAPI.blockDealer(dealer.id, !dealer.isBlocked, reason);
-      toast.success(`Dealer ${action}ed successfully`);
-      fetchDealers();
-    } catch (error) {
-      console.error("Failed to update dealer status:", error);
-      toast.error("Failed to update dealer block status");
-    }
-  };
-
-  const handleVerify = async (dealer) => {
-    const licenseNumber = window.prompt("Enter License Number:");
-    if (!licenseNumber) return;
-    const licenseDocument =
-      window.prompt("Enter License Document URL (optional):") || null;
-
-    try {
-      await dealerAPI.verifyDealer(dealer.id, {
-        licenseNumber,
-        licenseDocument,
-      });
-      toast.success("Dealer verified successfully");
-      fetchDealers();
-    } catch (error) {
-      console.error("Failed to verify dealer:", error);
-      toast.error("Failed to verify dealer");
-    }
-  };
-
   const columns = [
-    { key: "businessName", label: "Business Name" },
+    { field: "businessName", headerName: "Business Name", flex: 1.2 },
+    { field: "dealerCode", headerName: "Code", flex: 0.6, renderCell: (params) => params.row.dealerCode || params.row.code || "N/A" },
+    { field: "region", headerName: "Region", flex: 0.8, renderCell: (params) => params.row.region?.name || "N/A" },
+    { field: "territory", headerName: "Territory", flex: 0.8, renderCell: (params) => params.row.territory?.name || "N/A" },
     {
-      key: "dealerCode",
-      label: "Code",
-      render: (_, row) => row.dealerCode || row.code || "N/A",
+      field: "totalSales",
+      headerName: "Total Sales",
+      flex: 0.8,
+      renderCell: (params) => `₹${Number(params.value || 0).toLocaleString()}`,
     },
     {
-      key: "region",
-      label: "Region",
-      render: (_, row) => row.region?.name || "N/A",
+      field: "outstanding",
+      headerName: "Outstanding",
+      flex: 0.8,
+      renderCell: (params) => `₹${Number(params.value || 0).toLocaleString()}`,
     },
     {
-      key: "territory",
-      label: "Territory",
-      render: (_, row) => row.territory?.name || "N/A",
-    },
-    {
-      key: "totalSales",
-      label: "Total Sales",
-      render: (value) => `₹${Number(value || 0).toLocaleString()}`,
-    },
-    {
-      key: "outstanding",
-      label: "Outstanding",
-      render: (value) => `₹${Number(value || 0).toLocaleString()}`,
-    },
-    {
-      key: "status",
-      label: "Status",
-      render: (_, row) => {
-        const status = row.isBlocked
+      field: "status",
+      headerName: "Status",
+      flex: 0.7,
+      renderCell: (params) => {
+        const status = params.row.isBlocked
           ? "blocked"
-          : row.isActive === false
+          : params.row.isActive === false
             ? "inactive"
             : "active";
         return (
@@ -138,35 +135,26 @@ export default function AllDealers() {
       },
     },
     {
-      key: "actions",
-      label: "Actions",
-      render: (_, row) => (
+      field: "actions",
+      headerName: "Actions",
+      flex: 1.2,
+      sortable: false,
+      renderCell: (params) => (
         <Box sx={{ display: "flex", gap: 1 }}>
           <Button
             size="small"
             variant="outlined"
-            onClick={() => navigate(`/superadmin/dealers/${row.id}`)}
+            onClick={() => navigate(`/superadmin/dealers/${params.row.id}`)}
           >
             Edit
           </Button>
           <Button
             size="small"
             variant="outlined"
-            color={row.isBlocked ? "success" : "error"}
-            onClick={() => handleToggleBlock(row)}
+            onClick={() => navigate(`/superadmin/dealers/${params.row.id}`)}
           >
-            {row.isBlocked ? "Unblock" : "Block"}
+            Details
           </Button>
-          {!row.isVerified && (
-            <Button
-              size="small"
-              variant="contained"
-              color="primary"
-              onClick={() => handleVerify(row)}
-            >
-              Verify
-            </Button>
-          )}
         </Box>
       ),
     },
@@ -176,23 +164,17 @@ export default function AllDealers() {
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="All Dealers"
-        subtitle="View and manage all dealers across the system"
-        actions={[
-          <Button
-            key="export"
-            variant="outlined"
-            startIcon={<Download size={18} />}
-          >
-            Export
-          </Button>,
-          <Button
-            key="create"
-            variant="contained"
-            onClick={() => navigate("/superadmin/dealers/new")}
-          >
-            Create Dealer
-          </Button>,
-        ]}
+        subtitle="Manage all dealers and view performance metrics"
+        action={
+          <Box sx={{ display: 'flex', gap: 1.5 }}>
+            <Button variant="outlined" startIcon={<Download size={18} />}>
+              Export
+            </Button>
+            <Button variant="contained" onClick={() => navigate("/superadmin/dealers/new")}>
+              Create Dealer
+            </Button>
+          </Box>
+        }
       />
 
       <Grid container spacing={3} sx={{ mt: 2, mb: 3 }}>
@@ -237,145 +219,57 @@ export default function AllDealers() {
         </Grid>
       </Grid>
 
-      <Box sx={{ mb: 4 }}>
-        <TextField
-          fullWidth
-          placeholder="Search dealers by name or code..."
-          value={searchTerm}
-          onChange={(e) => setSearchTerm(e.target.value)}
-          InputProps={{
-            startAdornment: (
-              <InputAdornment position="start">
-                <Search size={20} />
-              </InputAdornment>
-            ),
-          }}
-          sx={{
-            '& .MuiOutlinedInput-root': {
-              borderRadius: 2,
-              backgroundColor: 'background.paper',
-            }
-          }}
+      <Box sx={{ mt: 3 }}>
+        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search dealers by name, code or city..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={20} />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button
+            variant="outlined"
+            onClick={() => setFilterDrawerOpen(true)}
+            startIcon={<Filter size={18} />}
+            sx={{ minWidth: 160 }}
+          >
+            Filters
+          </Button>
+        </Box>
+
+        <FilterChips
+          filters={filters}
+          config={filterConfig}
+          onRemove={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
+        />
+
+        <ScopedDataTable
+          fetchFn={dealerAPI.getDealers}
+          columns={columns}
+          title="All Dealers"
+          filters={filters}
+          search={debouncedSearch}
+          loading={loading}
         />
       </Box>
 
-      {loading ? (
-        <Typography variant="body1" textAlign="center" py={4}>
-          Loading dealers...
-        </Typography>
-      ) : filteredDealers.length === 0 ? (
-        <Typography variant="body1" textAlign="center" py={4} color="text.secondary">
-          No dealers found matching your search.
-        </Typography>
-      ) : (
-        <Grid container spacing={3}>
-          {filteredDealers.map((dealer) => (
-            <Grid item xs={12} md={6} lg={4} key={dealer.id}>
-              <Card
-                sx={{
-                  height: '100%',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  transition: 'transform 0.2s, box-shadow 0.2s',
-                  '&:hover': {
-                    transform: 'translateY(-4px)',
-                    boxShadow: 4
-                  }
-                }}
-              >
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', mb: 2 }}>
-                    <Box>
-                      <Typography variant="h6" fontWeight="bold" gutterBottom>
-                        {dealer.businessName}
-                      </Typography>
-                      <Stack direction="row" spacing={1} alignItems="center">
-                        <Typography variant="body2" color="text.secondary" sx={{ fontFamily: 'monospace', bgcolor: 'action.hover', px: 0.5, borderRadius: 1 }}>
-                          {dealer.dealerCode || dealer.code || 'N/A'}
-                        </Typography>
-                      </Stack>
-                    </Box>
-                    <Chip
-                      label={(dealer.isBlocked ? 'BLOCKED' : dealer.isActive === false ? 'INACTIVE' : 'ACTIVE')}
-                      color={dealer.isBlocked ? 'error' : dealer.isActive === false ? 'default' : 'success'}
-                      size="small"
-                      sx={{ fontWeight: 'bold' }}
-                    />
-                  </Box>
-
-                  <Divider sx={{ my: 2 }} />
-
-                  <Grid container spacing={2}>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Region
-                      </Typography>
-                      <Typography variant="body2" fontWeight="medium">
-                        {dealer.region?.name || 'N/A'}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Territory
-                      </Typography>
-                      <Typography variant="body2" fontWeight="medium">
-                        {dealer.territory?.name || 'N/A'}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Total Sales
-                      </Typography>
-                      <Typography variant="body2" fontWeight="medium" color="success.main">
-                        ₹{Number(dealer.totalSales || 0).toLocaleString()}
-                      </Typography>
-                    </Grid>
-                    <Grid item xs={6}>
-                      <Typography variant="caption" color="text.secondary">
-                        Outstanding
-                      </Typography>
-                      <Typography variant="body2" fontWeight="medium" color={Number(dealer.outstanding) > 0 ? "warning.main" : "text.primary"}>
-                        ₹{Number(dealer.outstanding || 0).toLocaleString()}
-                      </Typography>
-                    </Grid>
-                  </Grid>
-                </CardContent>
-                <Box sx={{ p: 2, pt: 0, display: 'flex', gap: 1, flexWrap: 'wrap' }}>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    onClick={() => navigate(`/superadmin/dealers/${dealer.id}`)}
-                    sx={{ flex: 1 }}
-                  >
-                    Edit
-                  </Button>
-                  <Button
-                    size="small"
-                    variant="outlined"
-                    color={dealer.isBlocked ? "success" : "error"}
-                    onClick={() => handleToggleBlock(dealer)}
-                    sx={{ flex: 1 }}
-                  >
-                    {dealer.isBlocked ? "Unblock" : "Block"}
-                  </Button>
-                  {!dealer.isVerified && (
-                    <Button
-                      size="small"
-                      variant="contained"
-                      color="primary"
-                      onClick={() => handleVerify(dealer)}
-                      sx={{ flex: 1, minWidth: '100%' }}
-                    >
-                      Verify
-                    </Button>
-                  )}
-                </Box>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
+      <AdvancedFilterSidebar
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        onClear={handleClearAllFilters}
+        config={filterConfig}
+      />
     </Box>
   );
 }
-

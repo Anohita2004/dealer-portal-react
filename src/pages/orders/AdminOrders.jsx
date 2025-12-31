@@ -17,6 +17,9 @@ import { useAuth } from "../../context/AuthContext";
 import OrderApprovalCard from "../../components/OrderApprovalCard";
 import PageHeader from "../../components/PageHeader";
 import { toast } from "react-toastify";
+import AdvancedFilterSidebar from "../../components/AdvancedFilterSidebar";
+import FilterChips from "../../components/FilterChips";
+import { useDebounce } from "../../hooks/useDebounce";
 
 export default function AdminOrders() {
   const { user } = useAuth();
@@ -28,6 +31,47 @@ export default function AdminOrders() {
   const [statusFilter, setStatusFilter] = useState("pending"); // pending, all, approved, rejected
   const [selectedOrder, setSelectedOrder] = useState(null);
 
+  // Advanced Filters
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    totalAmount_min: "",
+    totalAmount_max: "",
+    createdAt_from: "",
+    createdAt_to: "",
+  });
+
+  const debouncedSearch = useDebounce(searchQuery, 500);
+
+  const filterConfig = [
+    {
+      category: "Financials",
+      fields: [
+        { id: "totalAmount_min", label: "Min Order Amount", type: "number" },
+        { id: "totalAmount_max", label: "Max Order Amount", type: "number" },
+      ],
+    },
+    {
+      category: "Timeline",
+      fields: [
+        { id: "createdAt_from", label: "From Date", type: "date" },
+        { id: "createdAt_to", label: "To Date", type: "date" },
+      ],
+    },
+  ];
+
+  const handleRemoveFilter = (key) => {
+    setFilters((prev) => ({ ...prev, [key]: "" }));
+  };
+
+  const handleClearAllFilters = () => {
+    setFilters({
+      totalAmount_min: "",
+      totalAmount_max: "",
+      createdAt_from: "",
+      createdAt_to: "",
+    });
+  };
+
   // ===== Fetch orders for this user =====
   const fetchOrders = async () => {
     if (!role) return;
@@ -35,13 +79,16 @@ export default function AdminOrders() {
     try {
       let res;
 
+      const params = {
+        search: debouncedSearch,
+        ...filters,
+        status: statusFilter !== "all" ? statusFilter : undefined,
+      };
+
       if (role === "dealer_admin") {
-        // Dealer admin: fetch all orders for their dealer to ensure visibility
-        // UI will handle the stage/status filtering
-        res = await orderAPI.getAllOrders({ dealerId: user.dealerId });
+        res = await orderAPI.getAllOrders({ ...params, dealerId: user.dealerId });
       } else {
-        // Managers / super_admin / regional_admin: use role-scoped pending approvals
-        res = await orderAPI.getPendingApprovals();
+        res = await orderAPI.getPendingApprovals(params);
       }
 
       const ordersList = res.orders || res.data || res || [];
@@ -60,7 +107,7 @@ export default function AdminOrders() {
 
   useEffect(() => {
     fetchOrders();
-  }, [role]);
+  }, [role, statusFilter, debouncedSearch, JSON.stringify(filters)]);
 
   // ===== Approve order =====
   const approve = async (orderId) => {
@@ -89,34 +136,7 @@ export default function AdminOrders() {
   };
 
   // Filter orders
-  const filteredOrders = orders.filter((order) => {
-    const status = (order.status || "").toLowerCase();
-    const approvalStatus = (order.approvalStatus || "").toLowerCase();
-
-    // Status filter (case-insensitive)
-    if (statusFilter === "pending" && status !== "pending" && approvalStatus !== "pending") {
-      return false;
-    }
-    if (statusFilter === "approved" && status !== "approved" && approvalStatus !== "approved") {
-      return false;
-    }
-    if (statusFilter === "rejected" && status !== "rejected" && approvalStatus !== "rejected") {
-      return false;
-    }
-
-    // Search filter
-    if (searchQuery) {
-      const query = searchQuery.toLowerCase();
-      return (
-        order.orderNumber?.toLowerCase().includes(query) ||
-        order.dealer?.businessName?.toLowerCase().includes(query) ||
-        order.dealerName?.toLowerCase().includes(query) ||
-        order.id?.toString().includes(query)
-      );
-    }
-
-    return true;
-  });
+  const filteredOrders = orders; // Server-side filtering enabled
 
   // Sort orders by SLA urgency (backend intelligence: prioritize overdue and due soon)
   // Note: This will be enhanced when workflow data is available in list view
@@ -206,12 +226,20 @@ export default function AdminOrders() {
         <Button
           variant="outlined"
           size="small"
-          onClick={fetchOrders}
+          onClick={() => setFilterDrawerOpen(true)}
           startIcon={<Filter size={16} />}
         >
-          Refresh
+          Advanced Filters
         </Button>
       </Box>
+
+      {/* Filter Chips */}
+      <FilterChips
+        filters={filters}
+        config={filterConfig}
+        onRemove={handleRemoveFilter}
+        onClearAll={handleClearAllFilters}
+      />
 
       {/* Orders List */}
       {filteredOrders.length === 0 ? (
@@ -235,6 +263,14 @@ export default function AdminOrders() {
           ))}
         </Box>
       )}
+      <AdvancedFilterSidebar
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        onClear={handleClearAllFilters}
+        config={filterConfig}
+      />
     </Box>
   );
 }

@@ -13,6 +13,8 @@ import {
   DialogActions,
   TextField,
   Alert,
+  Checkbox,
+  alpha,
 } from "@mui/material";
 import { CheckCircle, XCircle, Download, FileText, Eye, Clock, AlertCircle } from "lucide-react";
 import { paymentAPI } from "../services/api";
@@ -31,7 +33,7 @@ import { useAuth } from "../context/AuthContext";
  * Payment Approval Card Component
  * Enhanced to display backend workflow intelligence: stages, SLA, next approver, timeline
  */
-export default function PaymentApprovalCard({ payment, onUpdate, userRole }) {
+export default function PaymentApprovalCard({ payment, onUpdate, userRole, selectable, selected, onSelect }) {
   const { user } = useAuth();
   const [previewOpen, setPreviewOpen] = useState(false);
   const [workflow, setWorkflow] = useState(null);
@@ -169,231 +171,259 @@ export default function PaymentApprovalCard({ payment, onUpdate, userRole }) {
 
   return (
     <>
-      <Card sx={{ mb: 2, "&:hover": { boxShadow: 4 } }}>
-        <CardContent>
-          <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "start", mb: 2 }}>
-            <Box>
-              <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <FileText size={20} />
-                Payment Request #{payment.id?.slice(0, 8) || "N/A"}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Invoice: {payment.invoice?.invoiceNumber || payment.invoiceId || "N/A"}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Dealer: {payment.dealer?.businessName || payment.dealerName || "N/A"}
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                Amount: ₹{Number(payment.amount || 0).toLocaleString()}
-              </Typography>
-              <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
-                <Chip
-                  label={payment.paymentMode || "N/A"}
-                  color={getPaymentModeColor(payment.paymentMode)}
-                  size="small"
-                />
-                {payment.utrNumber && (
+      <Box sx={{ display: "flex", alignItems: "flex-start", gap: 1 }}>
+        {selectable && (
+          <Box sx={{ pt: 2, pl: 1 }}>
+            <Checkbox
+              checked={selected}
+              onChange={() => onSelect(payment.id)}
+              sx={{
+                '&.Mui-checked': {
+                  color: 'primary.main',
+                },
+              }}
+            />
+          </Box>
+        )}
+        <Card
+          sx={{
+            mb: 2,
+            flexGrow: 1,
+            transition: 'all 0.2s',
+            border: selected ? '1px solid' : '1px solid transparent',
+            borderColor: 'primary.main',
+            backgroundColor: selected ? (theme) => alpha(theme.palette.primary.main, 0.02) : 'inherit',
+            "&:hover": {
+              boxShadow: 4,
+              borderColor: alpha(theme.palette.primary.main, 0.3)
+            }
+          }}
+        >
+          <CardContent>
+            <Box sx={{ display: "flex", justifyContent: "space-between", alignItems: "start", mb: 2 }}>
+              <Box>
+                <Typography variant="h6" gutterBottom sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <FileText size={20} />
+                  Payment Request #{payment.id?.slice(0, 8) || "N/A"}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Invoice: {payment.invoice?.invoiceNumber || payment.invoiceId || "N/A"}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Dealer: {payment.dealer?.businessName || payment.dealerName || "N/A"}
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  Amount: ₹{Number(payment.amount || 0).toLocaleString()}
+                </Typography>
+                <Box sx={{ display: "flex", gap: 1, mt: 1 }}>
                   <Chip
-                    label={`UTR: ${payment.utrNumber}`}
+                    label={payment.paymentMode || "N/A"}
+                    color={getPaymentModeColor(payment.paymentMode)}
+                    size="small"
+                  />
+                  {payment.utrNumber && (
+                    <Chip
+                      label={`UTR: ${payment.utrNumber}`}
+                      variant="outlined"
+                      size="small"
+                    />
+                  )}
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+                  Date: {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : "N/A"}
+                </Typography>
+              </Box>
+              <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
+                {(() => {
+                  const statusDisplay = getPaymentStatusDisplay(payment, workflow);
+                  return (
+                    <Chip
+                      label={statusDisplay.label}
+                      color={statusDisplay.color}
+                      size="small"
+                      icon={
+                        statusDisplay.icon === "success" ? (
+                          <CheckCircle size={14} />
+                        ) : statusDisplay.icon === "error" ? (
+                          <XCircle size={14} />
+                        ) : (
+                          <Clock size={14} />
+                        )
+                      }
+                    />
+                  );
+                })()}
+                {currentStage && (
+                  <Chip
+                    label={`Stage: ${formatStageName(currentStage)}`}
                     variant="outlined"
                     size="small"
+                    color="primary"
                   />
                 )}
-              </Box>
-              <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-                Date: {payment.createdAt ? new Date(payment.createdAt).toLocaleDateString() : "N/A"}
-              </Typography>
-            </Box>
-            <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
-              {(() => {
-                const statusDisplay = getPaymentStatusDisplay(payment, workflow);
-                return (
+                {/* SLA Urgency Badge - Backend Intelligence */}
+                {slaUrgency && workflow?.approvalStatus === "pending" && (
                   <Chip
-                    label={statusDisplay.label}
-                    color={statusDisplay.color}
-                    size="small"
-                    icon={
-                      statusDisplay.icon === "success" ? (
-                        <CheckCircle size={14} />
-                      ) : statusDisplay.icon === "error" ? (
-                        <XCircle size={14} />
-                      ) : (
-                        <Clock size={14} />
-                      )
+                    icon={slaUrgency.isOverdue ? <AlertCircle size={16} /> : <Clock size={16} />}
+                    label={
+                      slaUrgency.isOverdue
+                        ? `Overdue: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
+                        : slaUrgency.isDueSoon
+                          ? `Due in: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
+                          : `SLA: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
                     }
+                    color={slaUrgency.isOverdue ? "error" : slaUrgency.isDueSoon ? "warning" : "info"}
+                    size="small"
+                    sx={{ fontWeight: slaUrgency.isOverdue || slaUrgency.isDueSoon ? 600 : 400 }}
                   />
-                );
-              })()}
-              {currentStage && (
-                <Chip
-                  label={`Stage: ${formatStageName(currentStage)}`}
-                  variant="outlined"
-                  size="small"
-                  color="primary"
-                />
-              )}
-              {/* SLA Urgency Badge - Backend Intelligence */}
-              {slaUrgency && workflow?.approvalStatus === "pending" && (
-                <Chip
-                  icon={slaUrgency.isOverdue ? <AlertCircle size={16} /> : <Clock size={16} />}
-                  label={
-                    slaUrgency.isOverdue
-                      ? `Overdue: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
-                      : slaUrgency.isDueSoon
-                        ? `Due in: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
-                        : `SLA: ${slaUrgency.diffHours}h ${slaUrgency.diffMinutes}m`
-                  }
-                  color={slaUrgency.isOverdue ? "error" : slaUrgency.isDueSoon ? "warning" : "info"}
-                  size="small"
-                  sx={{ fontWeight: slaUrgency.isOverdue || slaUrgency.isDueSoon ? 600 : 400 }}
-                />
-              )}
-              {payment.proofFile && (
-                <Button
-                  size="small"
-                  startIcon={<Eye size={16} />}
-                  onClick={() => setPreviewOpen(true)}
-                >
-                  View Proof
-                </Button>
-              )}
-            </Box>
-          </Box>
-
-          {/* Why Payment is Pending - Backend Intelligence */}
-          {(() => {
-            const pendingReason = getPaymentPendingReason(payment, workflow);
-            if (pendingReason) {
-              return (
-                <Alert
-                  severity={pendingReason.blockingType === "missing_proof" || pendingReason.blockingType === "finance_discrepancy" || pendingReason.blockingType === "reconciliation_discrepancy" ? "warning" : "info"}
-                  sx={{ mb: 2 }}
-                  icon={<AlertCircle />}
-                >
-                  <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                    {pendingReason.reason}
-                  </Typography>
-                  <Typography variant="body2">
-                    {pendingReason.nextAction}
-                  </Typography>
-                  {pendingReason.details && (
-                    <Typography variant="caption" sx={{ display: "block", mt: 0.5 }}>
-                      {pendingReason.details}
-                    </Typography>
-                  )}
-                  {/* Accounts User Context */}
-                  {isAccountsUser(user) && workflow?.currentStage === "finance_approval" && (
-                    <Typography variant="caption" sx={{ display: "block", mt: 1, fontStyle: "italic" }}>
-                      This payment is at the finance approval stage. As an Accounts user, you verify amounts, proof documents, and UTR numbers before approval.
-                    </Typography>
-                  )}
-                </Alert>
-              );
-            }
-            return null;
-          })()}
-
-          {/* SLA Urgency Alert - Visual prominence for overdue items */}
-          {slaUrgency && slaUrgency.isOverdue && workflow?.approvalStatus === "pending" && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
-                <AlertCircle size={20} />
-                <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                  SLA Overdue: This payment has exceeded its approval deadline by {slaUrgency.diffHours}h {slaUrgency.diffMinutes}m
-                </Typography>
+                )}
+                {payment.proofFile && (
+                  <Button
+                    size="small"
+                    startIcon={<Eye size={16} />}
+                    onClick={() => setPreviewOpen(true)}
+                  >
+                    View Proof
+                  </Button>
+                )}
               </Box>
-            </Alert>
-          )}
-
-          {/* Finance Remarks - Backend Intelligence */}
-          {payment.financeRemarks && (
-            <Alert severity="info" sx={{ mb: 2 }}>
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                Finance Remarks:
-              </Typography>
-              <Typography variant="body2">
-                {payment.financeRemarks}
-              </Typography>
-            </Alert>
-          )}
-
-          {/* Reconciliation State - Backend Intelligence */}
-          {payment.reconciliationStatus && (
-            <Alert
-              severity={
-                payment.reconciliationStatus === "reconciled"
-                  ? "success"
-                  : payment.reconciliationStatus === "discrepancy"
-                    ? "error"
-                    : "warning"
-              }
-              sx={{ mb: 2 }}
-            >
-              <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
-                Reconciliation Status: {payment.reconciliationStatus.charAt(0).toUpperCase() + payment.reconciliationStatus.slice(1)}
-              </Typography>
-              {payment.reconciliationNotes && (
-                <Typography variant="body2">
-                  {payment.reconciliationNotes}
-                </Typography>
-              )}
-            </Alert>
-          )}
-
-          <Divider sx={{ my: 2 }} />
-
-          {/* Workflow Progress Bar */}
-          {workflow && <WorkflowProgressBar workflow={workflow} />}
-
-          {/* Workflow Status */}
-          {workflow && (
-            <Box sx={{ mt: 2 }}>
-              <WorkflowStatus workflow={workflow} entityType="payment" />
             </Box>
-          )}
 
-          {/* Approval Actions */}
-          {/* Show approval actions if it's pending at any stage */}
-          {(() => {
-            const status = (workflow?.approvalStatus || payment.approvalStatus || payment.status || "").toLowerCase();
-            const isFinalized = status === "approved" || status === "rejected" || status === "blocked";
-            return !isFinalized;
-          })() && (
+            {/* Why Payment is Pending - Backend Intelligence */}
+            {(() => {
+              const pendingReason = getPaymentPendingReason(payment, workflow);
+              if (pendingReason) {
+                return (
+                  <Alert
+                    severity={pendingReason.blockingType === "missing_proof" || pendingReason.blockingType === "finance_discrepancy" || pendingReason.blockingType === "reconciliation_discrepancy" ? "warning" : "info"}
+                    sx={{ mb: 2 }}
+                    icon={<AlertCircle />}
+                  >
+                    <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                      {pendingReason.reason}
+                    </Typography>
+                    <Typography variant="body2">
+                      {pendingReason.nextAction}
+                    </Typography>
+                    {pendingReason.details && (
+                      <Typography variant="caption" sx={{ display: "block", mt: 0.5 }}>
+                        {pendingReason.details}
+                      </Typography>
+                    )}
+                    {/* Accounts User Context */}
+                    {isAccountsUser(user) && workflow?.currentStage === "finance_approval" && (
+                      <Typography variant="caption" sx={{ display: "block", mt: 1, fontStyle: "italic" }}>
+                        This payment is at the finance approval stage. As an Accounts user, you verify amounts, proof documents, and UTR numbers before approval.
+                      </Typography>
+                    )}
+                  </Alert>
+                );
+              }
+              return null;
+            })()}
+
+            {/* SLA Urgency Alert - Visual prominence for overdue items */}
+            {slaUrgency && slaUrgency.isOverdue && workflow?.approvalStatus === "pending" && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
+                  <AlertCircle size={20} />
+                  <Typography variant="body2" sx={{ fontWeight: 600 }}>
+                    SLA Overdue: This payment has exceeded its approval deadline by {slaUrgency.diffHours}h {slaUrgency.diffMinutes}m
+                  </Typography>
+                </Box>
+              </Alert>
+            )}
+
+            {/* Finance Remarks - Backend Intelligence */}
+            {payment.financeRemarks && (
+              <Alert severity="info" sx={{ mb: 2 }}>
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Finance Remarks:
+                </Typography>
+                <Typography variant="body2">
+                  {payment.financeRemarks}
+                </Typography>
+              </Alert>
+            )}
+
+            {/* Reconciliation State - Backend Intelligence */}
+            {payment.reconciliationStatus && (
+              <Alert
+                severity={
+                  payment.reconciliationStatus === "reconciled"
+                    ? "success"
+                    : payment.reconciliationStatus === "discrepancy"
+                      ? "error"
+                      : "warning"
+                }
+                sx={{ mb: 2 }}
+              >
+                <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
+                  Reconciliation Status: {payment.reconciliationStatus.charAt(0).toUpperCase() + payment.reconciliationStatus.slice(1)}
+                </Typography>
+                {payment.reconciliationNotes && (
+                  <Typography variant="body2">
+                    {payment.reconciliationNotes}
+                  </Typography>
+                )}
+              </Alert>
+            )}
+
+            <Divider sx={{ my: 2 }} />
+
+            {/* Workflow Progress Bar */}
+            {workflow && <WorkflowProgressBar workflow={workflow} />}
+
+            {/* Workflow Status */}
+            {workflow && (
               <Box sx={{ mt: 2 }}>
-                <ApprovalActions
-                  workflow={workflow || {
-                    currentStage: payment.approvalStage || payment.currentStage || "dealer_admin",
-                    approvalStatus: "pending",
-                    pipeline: [payment.approvalStage || "dealer_admin"],
-                  }}
-                  entityType="payment"
-                  entityId={payment.id}
-                  onApprove={handleApprove}
-                  onReject={handleBlock}
-                  loading={workflowLoading}
-                />
+                <WorkflowStatus workflow={workflow} entityType="payment" />
               </Box>
             )}
 
-          {/* Workflow Timeline */}
-          {workflow && workflow.timeline && (
-            <Box sx={{ mt: 2 }}>
-              <WorkflowTimeline timeline={workflow.timeline} workflow={workflow} />
-            </Box>
-          )}
+            {/* Approval Actions */}
+            {/* Show approval actions if it's pending at any stage */}
+            {(() => {
+              const status = (workflow?.approvalStatus || payment.approvalStatus || payment.status || "").toLowerCase();
+              const isFinalized = status === "approved" || status === "rejected" || status === "blocked";
+              return !isFinalized;
+            })() && (
+                <Box sx={{ mt: 2 }}>
+                  <ApprovalActions
+                    workflow={workflow || {
+                      currentStage: payment.approvalStage || payment.currentStage || "dealer_admin",
+                      approvalStatus: "pending",
+                      pipeline: [payment.approvalStage || "dealer_admin"],
+                    }}
+                    entityType="payment"
+                    entityId={payment.id}
+                    onApprove={handleApprove}
+                    onReject={handleBlock}
+                    loading={workflowLoading}
+                  />
+                </Box>
+              )}
 
-          {payment.remarks && (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="subtitle2" gutterBottom>
-                Remarks:
-              </Typography>
-              <Typography variant="body2" color="text.secondary">
-                {payment.remarks}
-              </Typography>
-            </Box>
-          )}
-        </CardContent>
-      </Card>
+            {/* Workflow Timeline */}
+            {workflow && workflow.timeline && (
+              <Box sx={{ mt: 2 }}>
+                <WorkflowTimeline timeline={workflow.timeline} workflow={workflow} />
+              </Box>
+            )}
+
+            {payment.remarks && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle2" gutterBottom>
+                  Remarks:
+                </Typography>
+                <Typography variant="body2" color="text.secondary">
+                  {payment.remarks}
+                </Typography>
+              </Box>
+            )}
+          </CardContent>
+        </Card>
+      </Box>
 
       {/* Proof Preview Dialog */}
       <Dialog open={previewOpen} onClose={() => setPreviewOpen(false)} maxWidth="md" fullWidth>

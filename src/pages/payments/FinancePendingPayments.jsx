@@ -7,13 +7,20 @@ import PaymentApprovalCard from "../../components/PaymentApprovalCard";
 import PageHeader from "../../components/PageHeader";
 import { useAuth } from "../../context/AuthContext";
 import { isAccountsUser } from "../../utils/accountsPermissions";
-import { Info } from "lucide-react";
+import { Info, CheckSquare, Square } from "lucide-react";
+import BulkActionBar from "../../components/BulkActionBar";
+import { Dialog, DialogTitle, DialogContent, DialogActions, TextField, Checkbox, FormControlLabel } from "@mui/material";
 
 export default function FinancePendingPayments() {
   const { user } = useAuth();
   const [payments, setPayments] = useState([]);
   const [loading, setLoading] = useState(false);
   const [hasAccess, setHasAccess] = useState(true);
+  const [selectedIds, setSelectedIds] = useState([]);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkRejectOpen, setBulkRejectOpen] = useState(false);
+  const [bulkRejectReason, setBulkRejectReason] = useState("");
+  const [bulkRemarks, setBulkRemarks] = useState("");
 
   const load = async () => {
     setLoading(true);
@@ -93,23 +100,92 @@ export default function FinancePendingPayments() {
       console.log("[FinancePendingPayments] Final payments to display:", paymentsList.length);
 
       setPayments(Array.isArray(paymentsList) ? paymentsList : []);
+      setSelectedIds([]); // Clear selection on reload
       setHasAccess(true);
     } catch (e) {
       console.error("[FinancePendingPayments] API Error:", e);
       console.error("[FinancePendingPayments] Error response:", e?.response?.data);
-      // 403 = not permitted
-      // 404 = endpoint doesn't exist
       if (e?.response?.status === 403 || e?.response?.status === 404) {
         setHasAccess(false);
         setPayments([]);
-        // Don't show error toast for permission issues
         return;
       }
       console.error("Failed to load payments:", e);
       toast.error("Failed to load pending payments");
-      setHasAccess(true); // Assume access for other errors
+      setHasAccess(true);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSelectAll = (event) => {
+    if (event.target.checked) {
+      setSelectedIds(payments.map((p) => p.id));
+    } else {
+      setSelectedIds([]);
+    }
+  };
+
+  const handleSelectRow = (id) => {
+    setSelectedIds((prev) =>
+      prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]
+    );
+  };
+
+  const handleBulkApprove = async () => {
+    const remarks = window.prompt("Enter approval remarks (optional):", "Bulk approved from dashboard");
+    if (remarks === null) return;
+
+    setBulkLoading(true);
+    try {
+      const res = await paymentAPI.bulkApprove(selectedIds, remarks);
+      const { success, failed } = res.results || { success: selectedIds, failed: [] };
+
+      if (failed.length > 0) {
+        toast.warning(`Approved ${success.length} items, but ${failed.length} failed.`);
+      } else {
+        toast.success(`Successfully approved ${success.length} items.`);
+      }
+
+      load();
+    } catch (err) {
+      console.error("Bulk approval failed:", err);
+      toast.error(err.response?.data?.error || "Bulk approval failed");
+    } finally {
+      setBulkLoading(false);
+    }
+  };
+
+  const handleBulkReject = () => {
+    setBulkRejectOpen(true);
+  };
+
+  const submitBulkReject = async () => {
+    if (!bulkRejectReason) {
+      toast.error("Please provide a reason for rejection");
+      return;
+    }
+
+    setBulkLoading(true);
+    try {
+      const res = await paymentAPI.bulkReject(selectedIds, bulkRejectReason, bulkRemarks);
+      const { success, failed } = res.results || { success: selectedIds, failed: [] };
+
+      if (failed.length > 0) {
+        toast.warning(`Rejected ${success.length} items, but ${failed.length} failed.`);
+      } else {
+        toast.success(`Successfully rejected ${success.length} items.`);
+      }
+
+      setBulkRejectOpen(false);
+      setBulkRejectReason("");
+      setBulkRemarks("");
+      load();
+    } catch (err) {
+      console.error("Bulk rejection failed:", err);
+      toast.error(err.response?.data?.error || "Bulk rejection failed");
+    } finally {
+      setBulkLoading(false);
     }
   };
 
@@ -172,9 +248,27 @@ export default function FinancePendingPayments() {
       )}
 
       <Box sx={{ mb: 3, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-        <Typography variant="body2" color="text.secondary">
-          {payments.length} payment(s) pending {isAccountsUser(user) ? "your" : "finance"} approval
-        </Typography>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
+          {payments.length > 0 && (
+            <FormControlLabel
+              control={
+                <Checkbox
+                  indeterminate={selectedIds.length > 0 && selectedIds.length < payments.length}
+                  checked={payments.length > 0 && selectedIds.length === payments.length}
+                  onChange={handleSelectAll}
+                />
+              }
+              label={
+                <Typography variant="body2" color="text.secondary" sx={{ fontWeight: 600 }}>
+                  Select All ({payments.length})
+                </Typography>
+              }
+            />
+          )}
+          <Typography variant="body2" color="text.secondary">
+            {payments.length} payment(s) pending {isAccountsUser(user) ? "your" : "finance"} approval
+          </Typography>
+        </Box>
         {!isAccountsUser(user) && (
           <Button variant="outlined" onClick={reconcile}>
             Trigger Auto-Reconcile
@@ -191,17 +285,73 @@ export default function FinancePendingPayments() {
           </Typography>
         </Box>
       ) : (
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, pb: selectedIds.length > 0 ? 10 : 0 }}>
           {payments.map((payment) => (
             <PaymentApprovalCard
               key={payment.id}
               payment={payment}
               onUpdate={load}
               userRole={user?.role}
+              selectable={true}
+              selected={selectedIds.includes(payment.id)}
+              onSelect={handleSelectRow}
             />
           ))}
         </Box>
       )}
+
+      <BulkActionBar
+        count={selectedIds.length}
+        onApprove={handleBulkApprove}
+        onReject={handleBulkReject}
+        loading={bulkLoading}
+      />
+
+      {/* Bulk Reject Dialog */}
+      <Dialog open={bulkRejectOpen} onClose={() => !bulkLoading && setBulkRejectOpen(false)} maxWidth="sm" fullWidth>
+        <DialogTitle>Reject Selected Payments ({selectedIds.length})</DialogTitle>
+        <DialogContent>
+          <Box sx={{ mt: 1, display: 'flex', flexDirection: 'column', gap: 3 }}>
+            <TextField
+              select
+              label="Rejection Reason"
+              required
+              fullWidth
+              value={bulkRejectReason}
+              onChange={(e) => setBulkRejectReason(e.target.value)}
+              SelectProps={{ native: true }}
+            >
+              <option value=""></option>
+              <option value="Invalid Proof">Invalid Proof</option>
+              <option value="Amount Mismatch">Amount Mismatch</option>
+              <option value="Duplicate Request">Duplicate Request</option>
+              <option value="Incorrect UTR">Incorrect UTR</option>
+              <option value="Other">Other</option>
+            </TextField>
+            <TextField
+              label="Additional Remarks"
+              multiline
+              rows={3}
+              fullWidth
+              value={bulkRemarks}
+              onChange={(e) => setBulkRemarks(e.target.value)}
+              placeholder="Provide more details for the rejection..."
+            />
+          </Box>
+        </DialogContent>
+        <DialogActions sx={{ px: 3, pb: 2 }}>
+          <Button onClick={() => setBulkRejectOpen(false)} disabled={bulkLoading}>Cancel</Button>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={submitBulkReject}
+            loading={bulkLoading}
+            disabled={!bulkRejectReason || bulkLoading}
+          >
+            Reject All
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }

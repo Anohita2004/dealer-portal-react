@@ -1,38 +1,100 @@
-import React, { useEffect, useState } from "react";
-import { Box, Card, CardContent, Typography, Alert, Chip, Button, Dialog, DialogTitle, DialogContent, DialogActions, Divider } from "@mui/material";
-import { Eye, FileText, Download, Lock, AlertCircle, CheckCircle, XCircle, Clock } from "lucide-react";
-import api, { invoiceAPI } from "../../services/api";
+import React, { useState } from "react";
+import {
+  Box,
+  Card,
+  CardContent,
+  Typography,
+  Alert,
+  Chip,
+  Button,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  InputAdornment,
+} from "@mui/material";
+import { Eye, FileText, Download, Lock, Search, Filter } from "lucide-react";
+import { invoiceAPI } from "../../services/api";
 import { useAuth } from "../../context/AuthContext";
-import { useNavigate } from "react-router-dom";
 import { isAccountsUser, getDisabledActionExplanation } from "../../utils/accountsPermissions";
 import { useWorkflow } from "../../hooks/useWorkflow";
 import { WorkflowTimeline } from "../../components/workflow";
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
+import ScopedDataTable from "../../components/ScopedDataTable";
+import AdvancedFilterSidebar from "../../components/AdvancedFilterSidebar";
+import FilterChips from "../../components/FilterChips";
+import { useDebounce } from "../../hooks/useDebounce";
 
 export default function AccountsInvoices() {
   const { user } = useAuth();
-  const navigate = useNavigate();
-  const [invoices, setInvoices] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [searchTerm, setSearchTerm] = useState("");
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [detailOpen, setDetailOpen] = useState(false);
 
-  useEffect(() => {
-    loadInvoices();
-  }, []);
+  // Advanced Filters
+  const [filterDrawerOpen, setFilterDrawerOpen] = useState(false);
+  const [filters, setFilters] = useState({
+    status: [],
+    totalAmount_min: "",
+    totalAmount_max: "",
+    invoiceDate_from: "",
+    invoiceDate_to: "",
+  });
 
-  const loadInvoices = async () => {
-    try {
-      setLoading(true);
-      const res = await api.get("/accounts/invoices");
-      setInvoices(res.data.invoices || res.data || []);
-    } catch (err) {
-      console.error("Failed to load invoices:", err);
-      toast.error("Failed to load invoices");
-    } finally {
-      setLoading(false);
-    }
+  const debouncedSearch = useDebounce(searchTerm, 500);
+
+  const filterConfig = [
+    {
+      category: "Status",
+      fields: [
+        {
+          id: "status",
+          label: "Invoice Status",
+          type: "multi-select",
+          options: [
+            { label: "Paid", value: "paid" },
+            { label: "Unpaid", value: "unpaid" },
+            { label: "Pending", value: "pending" },
+            { label: "Partial", value: "partial" },
+          ],
+        },
+      ],
+    },
+    {
+      category: "Amount Range",
+      fields: [
+        { id: "totalAmount_min", label: "Min Total Amount", type: "number" },
+        { id: "totalAmount_max", label: "Max Total Amount", type: "number" },
+      ],
+    },
+    {
+      category: "Timeline",
+      fields: [
+        { id: "invoiceDate_from", label: "From Date", type: "date" },
+        { id: "invoiceDate_to", label: "To Date", type: "date" },
+      ],
+    },
+  ];
+
+  const handleRemoveFilter = (key, value) => {
+    setFilters((prev) => {
+      if (Array.isArray(prev[key])) {
+        return { ...prev, [key]: prev[key].filter((v) => v !== value) };
+      }
+      return { ...prev, [key]: "" };
+    });
+  };
+
+  const handleClearAllFilters = () => {
+    setFilters({
+      status: [],
+      totalAmount_min: "",
+      totalAmount_max: "",
+      invoiceDate_from: "",
+      invoiceDate_to: "",
+    });
   };
 
   const handleViewDetail = (invoice) => {
@@ -54,14 +116,78 @@ export default function AccountsInvoices() {
     }
   };
 
+  const columns = [
+    { field: "invoiceNumber", headerName: "Invoice #", flex: 0.8 },
+    {
+      field: "invoiceDate",
+      headerName: "Date",
+      flex: 0.8,
+      renderCell: (params) => (params.value ? new Date(params.value).toLocaleDateString() : "N/A"),
+    },
+    { field: "dealerName", headerName: "Dealer", flex: 1.2, renderCell: (params) => params.row.dealer?.businessName || params.row.dealerName || "N/A" },
+    {
+      field: "totalAmount",
+      headerName: "Total (₹)",
+      flex: 0.8,
+      renderCell: (params) => `₹${Number(params.value || 0).toLocaleString()}`,
+    },
+    {
+      field: "paidAmount",
+      headerName: "Paid (₹)",
+      flex: 0.8,
+      renderCell: (params) => `₹${Number(params.value || 0).toLocaleString()}`,
+    },
+    {
+      field: "status",
+      headerName: "Status",
+      flex: 0.7,
+      renderCell: (params) => {
+        const status = params.value || "pending";
+        const colorMap = {
+          approved: "success",
+          paid: "success",
+          rejected: "error",
+          pending: "warning",
+          partial: "info",
+        };
+        return <Chip label={status.toUpperCase()} color={colorMap[status] || "default"} size="small" />;
+      },
+    },
+    {
+      field: "actions",
+      headerName: "Actions",
+      flex: 1,
+      sortable: false,
+      renderCell: (params) => (
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<Eye size={16} />}
+            onClick={() => handleViewDetail(params.row)}
+          >
+            View
+          </Button>
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<Download size={16} />}
+            onClick={() => handleDownloadPDF(params.row)}
+          >
+            PDF
+          </Button>
+        </Box>
+      ),
+    },
+  ];
+
   return (
     <Box sx={{ p: 3 }}>
       <PageHeader
         title="Invoices"
-        subtitle="View all invoices in read-only mode. Invoices are system-generated and cannot be modified."
+        subtitle="View all invoices in read-only mode for reconciliation."
       />
 
-      {/* Read-Only Notice */}
       {isAccountsUser(user) && (
         <Alert severity="info" icon={<Lock size={20} />} sx={{ mb: 3 }}>
           <Typography variant="body2" sx={{ fontWeight: 600, mb: 0.5 }}>
@@ -73,104 +199,54 @@ export default function AccountsInvoices() {
         </Alert>
       )}
 
-      {loading ? (
-        <Card>
-          <CardContent>
-            <Typography align="center" sx={{ py: 4 }}>Loading invoices...</Typography>
-          </CardContent>
-        </Card>
-      ) : invoices.length === 0 ? (
-        <Card>
-          <CardContent>
-            <Typography variant="body1" color="text.secondary" align="center" sx={{ py: 4 }}>
-              No invoices found
-            </Typography>
-          </CardContent>
-        </Card>
-      ) : (
-        <Card>
-          <CardContent>
-            <Box sx={{ overflowX: "auto" }}>
-              <table style={{ width: "100%", borderCollapse: "collapse" }}>
-                <thead>
-                  <tr style={{ borderBottom: "2px solid #e5e7eb" }}>
-                    <th style={{ padding: "12px", textAlign: "left" }}>Invoice #</th>
-                    <th style={{ padding: "12px", textAlign: "left" }}>Date</th>
-                    <th style={{ padding: "12px", textAlign: "left" }}>Dealer</th>
-                    <th style={{ padding: "12px", textAlign: "right" }}>Total (₹)</th>
-                    <th style={{ padding: "12px", textAlign: "right" }}>Paid (₹)</th>
-                    <th style={{ padding: "12px", textAlign: "right" }}>Outstanding (₹)</th>
-                    <th style={{ padding: "12px", textAlign: "center" }}>Status</th>
-                    <th style={{ padding: "12px", textAlign: "center" }}>Actions</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {invoices.map((invoice) => {
-                    const outstanding = (invoice.totalAmount || 0) - (invoice.paidAmount || 0);
-                    return (
-                      <tr key={invoice.id} style={{ borderBottom: "1px solid #e5e7eb" }}>
-                        <td style={{ padding: "12px" }}>
-                          {invoice.invoiceNumber || `#${invoice.id?.slice(0, 8)}`}
-                        </td>
-                        <td style={{ padding: "12px" }}>
-                          {invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString() : "N/A"}
-                        </td>
-                        <td style={{ padding: "12px" }}>
-                          {invoice.dealer?.businessName || invoice.dealerName || "N/A"}
-                        </td>
-                        <td style={{ padding: "12px", textAlign: "right", fontWeight: 600 }}>
-                          ₹{Number(invoice.totalAmount || 0).toLocaleString()}
-                        </td>
-                        <td style={{ padding: "12px", textAlign: "right", color: "#16a34a" }}>
-                          ₹{Number(invoice.paidAmount || 0).toLocaleString()}
-                        </td>
-                        <td style={{ padding: "12px", textAlign: "right", color: outstanding > 0 ? "#dc2626" : "#16a34a", fontWeight: 600 }}>
-                          ₹{outstanding.toLocaleString()}
-                        </td>
-                        <td style={{ padding: "12px", textAlign: "center" }}>
-                          <Chip
-                            label={invoice.status?.toUpperCase() || "PENDING"}
-                            color={
-                              invoice.status === "approved" || invoice.status === "paid"
-                                ? "success"
-                                : invoice.status === "rejected"
-                                ? "error"
-                                : "warning"
-                            }
-                            size="small"
-                          />
-                        </td>
-                        <td style={{ padding: "12px", textAlign: "center" }}>
-                          <Box sx={{ display: "flex", gap: 1, justifyContent: "center" }}>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={<Eye size={16} />}
-                              onClick={() => handleViewDetail(invoice)}
-                            >
-                              View
-                            </Button>
-                            <Button
-                              size="small"
-                              variant="outlined"
-                              startIcon={<Download size={16} />}
-                              onClick={() => handleDownloadPDF(invoice)}
-                            >
-                              PDF
-                            </Button>
-                          </Box>
-                        </td>
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </Box>
-          </CardContent>
-        </Card>
-      )}
+      <Box sx={{ mt: 3 }}>
+        <Box sx={{ display: "flex", gap: 2, mb: 2 }}>
+          <TextField
+            fullWidth
+            size="small"
+            placeholder="Search by invoice number or dealer..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+            InputProps={{
+              startAdornment: (
+                <InputAdornment position="start">
+                  <Search size={20} />
+                </InputAdornment>
+              ),
+            }}
+          />
+          <Button
+            variant="outlined"
+            onClick={() => setFilterDrawerOpen(true)}
+            startIcon={<Filter size={18} />}
+            sx={{ minWidth: 160 }}
+          >
+            Filters
+          </Button>
+        </Box>
 
-      {/* Invoice Detail Dialog with Audit Trail */}
+        <FilterChips
+          filters={filters}
+          config={filterConfig}
+          onRemove={handleRemoveFilter}
+          onClearAll={handleClearAllFilters}
+        />
+
+        <ScopedDataTable
+          fetchFn={async (params) => {
+            const res = await api.get("/accounts/invoices", { params });
+            return {
+              data: res.data.invoices || res.data || [],
+              total: res.data.total || (res.data.invoices ? res.data.invoices.length : res.data.length) || 0,
+            };
+          }}
+          columns={columns}
+          title="Invoices"
+          filters={filters}
+          search={debouncedSearch}
+        />
+      </Box>
+
       <Dialog open={detailOpen} onClose={() => setDetailOpen(false)} maxWidth="md" fullWidth>
         <DialogTitle>
           <Box sx={{ display: "flex", alignItems: "center", gap: 1 }}>
@@ -185,13 +261,22 @@ export default function AccountsInvoices() {
             )}
           </Box>
         </DialogTitle>
-        <DialogContent>
+        <DialogContent dividers>
           {selectedInvoice && <InvoiceDetailView invoice={selectedInvoice} />}
         </DialogContent>
         <DialogActions>
           <Button onClick={() => setDetailOpen(false)}>Close</Button>
         </DialogActions>
       </Dialog>
+
+      <AdvancedFilterSidebar
+        open={filterDrawerOpen}
+        onClose={() => setFilterDrawerOpen(false)}
+        filters={filters}
+        onChange={setFilters}
+        onClear={handleClearAllFilters}
+        config={filterConfig}
+      />
     </Box>
   );
 }
@@ -202,152 +287,50 @@ function InvoiceDetailView({ invoice }) {
 
   return (
     <Box>
-      {/* Financial Summary */}
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-            Financial Summary
-          </Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 2 }}>
-            <Box>
-              <Typography variant="body2" color="text.secondary">Total Amount</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 600 }}>
-                ₹{Number(invoice.totalAmount || 0).toLocaleString()}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="body2" color="text.secondary">Paid Amount</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 600, color: "success.main" }}>
-                ₹{Number(invoice.paidAmount || 0).toLocaleString()}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="body2" color="text.secondary">Outstanding</Typography>
-              <Typography variant="h6" sx={{ fontWeight: 600, color: outstanding > 0 ? "error.main" : "success.main" }}>
-                ₹{outstanding.toLocaleString()}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="body2" color="text.secondary">Status</Typography>
-              <Chip
-                label={invoice.status?.toUpperCase() || "PENDING"}
-                color={
-                  invoice.status === "approved" || invoice.status === "paid"
-                    ? "success"
-                    : invoice.status === "rejected"
-                    ? "error"
-                    : "warning"
-                }
-                size="small"
-              />
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
-
-      {/* Invoice Details */}
-      <Card sx={{ mb: 2 }}>
-        <CardContent>
-          <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-            Invoice Details
-          </Typography>
-          <Box sx={{ display: "grid", gridTemplateColumns: "repeat(2, 1fr)", gap: 2 }}>
-            <Box>
-              <Typography variant="body2" color="text.secondary">Invoice Number</Typography>
-              <Typography variant="body1">{invoice.invoiceNumber || `#${invoice.id?.slice(0, 8)}`}</Typography>
-            </Box>
-            <Box>
-              <Typography variant="body2" color="text.secondary">Date</Typography>
-              <Typography variant="body1">
-                {invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString() : "N/A"}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="body2" color="text.secondary">Dealer</Typography>
-              <Typography variant="body1">
-                {invoice.dealer?.businessName || invoice.dealerName || "N/A"}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="body2" color="text.secondary">Order</Typography>
-              <Typography variant="body1">
-                {invoice.order?.orderNumber || invoice.orderId || "N/A"}
-              </Typography>
-            </Box>
-          </Box>
-        </CardContent>
-      </Card>
-
-      {/* Related Payments for Reconciliation Context */}
-      {invoice.payments && invoice.payments.length > 0 && (
-        <Card sx={{ mb: 2 }}>
+      <Box sx={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 3, mb: 3 }}>
+        <Card variant="outlined">
           <CardContent>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              Related Payments (for Reconciliation)
-            </Typography>
-            <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-              {invoice.payments.map((payment) => (
-                <Box
-                  key={payment.id}
-                  sx={{
-                    p: 1.5,
-                    border: "1px solid #e5e7eb",
-                    borderRadius: 1,
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                  }}
-                >
-                  <Box>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      Payment #{payment.id?.slice(0, 8)}
-                    </Typography>
-                    <Typography variant="caption" color="text.secondary">
-                      {payment.paymentMode || "N/A"} • {payment.utrNumber ? `UTR: ${payment.utrNumber}` : "No UTR"}
-                    </Typography>
-                  </Box>
-                  <Box sx={{ textAlign: "right" }}>
-                    <Typography variant="body2" sx={{ fontWeight: 600 }}>
-                      ₹{Number(payment.amount || 0).toLocaleString()}
-                    </Typography>
-                    <Chip
-                      label={payment.status || payment.approvalStatus || "Pending"}
-                      size="small"
-                      color={
-                        payment.status === "approved" || payment.approvalStatus === "approved"
-                          ? "success"
-                          : payment.status === "rejected" || payment.approvalStatus === "rejected"
-                          ? "error"
-                          : "warning"
-                      }
-                      sx={{ mt: 0.5 }}
-                    />
-                  </Box>
-                </Box>
-              ))}
+            <Typography variant="overline" color="text.secondary">Financials</Typography>
+            <Box sx={{ mt: 1 }}>
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                <Typography variant="body2">Total Amount</Typography>
+                <Typography variant="body2" fontWeight="bold">₹{Number(invoice.totalAmount || 0).toLocaleString()}</Typography>
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between", mb: 1 }}>
+                <Typography variant="body2">Paid Amount</Typography>
+                <Typography variant="body2" color="success.main" fontWeight="bold">₹{Number(invoice.paidAmount || 0).toLocaleString()}</Typography>
+              </Box>
+              <Box sx={{ display: "flex", justifyContent: "space-between" }}>
+                <Typography variant="body2">Outstanding</Typography>
+                <Typography variant="body2" color={outstanding > 0 ? "error.main" : "success.main"} fontWeight="bold">₹{outstanding.toLocaleString()}</Typography>
+              </Box>
             </Box>
           </CardContent>
         </Card>
-      )}
 
-      {/* Workflow Timeline / Audit Trail */}
+        <Card variant="outlined">
+          <CardContent>
+            <Typography variant="overline" color="text.secondary">Entity Details</Typography>
+            <Box sx={{ mt: 1 }}>
+              <Typography variant="body2" fontWeight="bold">{invoice.dealer?.businessName || invoice.dealerName || "N/A"}</Typography>
+              <Typography variant="caption" color="text.secondary" display="block">Dealer</Typography>
+              <Box sx={{ mt: 1.5 }}>
+                <Typography variant="body2">{invoice.invoiceDate ? new Date(invoice.invoiceDate).toLocaleDateString() : "N/A"}</Typography>
+                <Typography variant="caption" color="text.secondary">Invoice Date</Typography>
+              </Box>
+            </Box>
+          </CardContent>
+        </Card>
+      </Box>
+
       {workflow && workflow.timeline && (
-        <Card>
-          <CardContent>
-            <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-              Audit Trail
-            </Typography>
+        <Box sx={{ mt: 2 }}>
+          <Typography variant="subtitle2" sx={{ mb: 1.5, fontWeight: 600 }}>Audit Trail</Typography>
+          <Box sx={{ p: 2, bgcolor: "action.hover", borderRadius: 1 }}>
             <WorkflowTimeline timeline={workflow.timeline} workflow={workflow} />
-          </CardContent>
-        </Card>
+          </Box>
+        </Box>
       )}
-
-      {/* Read-Only Notice */}
-      <Alert severity="info" icon={<Lock size={20} />} sx={{ mt: 2 }}>
-        <Typography variant="body2">
-          This invoice is read-only. Invoices are system-generated from orders and cannot be modified.
-        </Typography>
-      </Alert>
     </Box>
   );
 }
