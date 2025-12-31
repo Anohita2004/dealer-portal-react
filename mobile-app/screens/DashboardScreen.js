@@ -8,6 +8,7 @@ import {
   RefreshControl,
   ActivityIndicator,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { fleetAPI } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
@@ -164,11 +165,18 @@ const DashboardScreen = ({ navigation }) => {
     <TouchableOpacity
       style={styles.card}
       onPress={() => navigation.navigate('Assignment', { assignmentId: item.id })}
+      activeOpacity={0.8}
     >
       <View style={styles.cardHeader}>
-        <Text style={styles.orderNumber}>
-          Order: {item.order?.orderNumber || item.orderId}
-        </Text>
+        <View style={styles.orderInfo}>
+          <Icon name="assignment" size={24} color="#4A90E2" style={styles.orderIcon} />
+          <View>
+            <Text style={styles.orderLabel}>Order Number</Text>
+            <Text style={styles.orderNumber}>
+              {item.order?.orderNumber || item.orderId}
+            </Text>
+          </View>
+        </View>
         <View
           style={[
             styles.statusBadge,
@@ -182,36 +190,60 @@ const DashboardScreen = ({ navigation }) => {
       </View>
 
       <View style={styles.cardBody}>
-        <Text style={styles.label}>Warehouse:</Text>
-        <Text style={styles.value}>
-          {item.warehouse?.name || 'N/A'}
-        </Text>
+        <View style={styles.infoRow}>
+          <Icon name="warehouse" size={18} color="#999" style={styles.infoIcon} />
+          <View style={styles.infoContent}>
+            <Text style={styles.label}>Warehouse</Text>
+            <Text style={styles.value}>
+              {item.warehouse?.name || 'N/A'}
+            </Text>
+          </View>
+        </View>
 
-        <Text style={styles.label}>Destination:</Text>
-        <Text style={styles.value}>
-          {item.order?.dealer?.businessName || 'N/A'}
-        </Text>
+        <View style={styles.divider} />
 
-        <Text style={styles.label}>Driver:</Text>
-        <Text style={styles.value}>{item.driverName || 'N/A'}</Text>
+        <View style={styles.infoRow}>
+          <Icon name="place" size={18} color="#999" style={styles.infoIcon} />
+          <View style={styles.infoContent}>
+            <Text style={styles.label}>Destination</Text>
+            <Text style={styles.value}>
+              {item.order?.dealer?.businessName || 'N/A'}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
 
         {item.assignedAt && (
           <>
-            <Text style={styles.label}>Assigned:</Text>
-            <Text style={styles.value}>
-              {new Date(item.assignedAt).toLocaleString()}
-            </Text>
+            <View style={styles.infoRow}>
+              <Icon name="schedule" size={18} color="#999" style={styles.infoIcon} />
+              <View style={styles.infoContent}>
+                <Text style={styles.label}>Assigned</Text>
+                <Text style={styles.value}>
+                  {new Date(item.assignedAt).toLocaleString()}
+                </Text>
+              </View>
+            </View>
+            {item.estimatedDeliveryAt && <View style={styles.divider} />}
           </>
         )}
 
         {item.estimatedDeliveryAt && (
-          <>
-            <Text style={styles.label}>Est. Delivery:</Text>
-            <Text style={styles.value}>
-              {new Date(item.estimatedDeliveryAt).toLocaleString()}
-            </Text>
-          </>
+          <View style={styles.infoRow}>
+            <Icon name="access-time" size={18} color="#999" style={styles.infoIcon} />
+            <View style={styles.infoContent}>
+              <Text style={styles.label}>Est. Delivery</Text>
+              <Text style={styles.value}>
+                {new Date(item.estimatedDeliveryAt).toLocaleString()}
+              </Text>
+            </View>
+          </View>
         )}
+      </View>
+
+      <View style={styles.cardFooter}>
+        <Icon name="chevron-right" size={24} color="#4A90E2" />
       </View>
     </TouchableOpacity>
   );
@@ -219,8 +251,10 @@ const DashboardScreen = ({ navigation }) => {
   if (loading && assignments.length === 0) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Loading assignments...</Text>
+        <View style={styles.loadingWrapper}>
+          <ActivityIndicator size="large" color="#4A90E2" />
+          <Text style={styles.loadingText}>Loading assignments...</Text>
+        </View>
       </View>
     );
   }
@@ -228,34 +262,49 @@ const DashboardScreen = ({ navigation }) => {
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>My Assignments</Text>
-        {user && (
-          <Text style={styles.headerSubtitle}>
-            {user.name || user.username}
-          </Text>
-        )}
+        <View style={styles.headerContent}>
+          <View>
+            <Text style={styles.headerTitle}>My Assignments</Text>
+            {user && (
+              <Text style={styles.headerSubtitle}>
+                Welcome back, {user.name || user.username}
+              </Text>
+            )}
+          </View>
+          <View style={styles.headerIcon}>
+            <Icon name="dashboard" size={32} color="#4A90E2" />
+          </View>
+        </View>
       </View>
 
       {error && !loading ? (
         <View style={styles.centerContainer}>
-          <Text style={styles.errorText}>Error Loading Assignments</Text>
-          <Text style={styles.errorSubtext}>{error}</Text>
-          <TouchableOpacity
-            style={styles.retryButton}
-            onPress={fetchAssignments}
-          >
-            <Text style={styles.retryButtonText}>Retry</Text>
-          </TouchableOpacity>
+          <View style={styles.emptyWrapper}>
+            <Icon name="error-outline" size={64} color="#ff6b6b" />
+            <Text style={styles.errorText}>Error Loading Assignments</Text>
+            <Text style={styles.errorSubtext}>{error}</Text>
+            <TouchableOpacity
+              style={styles.retryButton}
+              onPress={fetchAssignments}
+              activeOpacity={0.8}
+            >
+              <Icon name="refresh" size={20} color="#fff" style={styles.retryIcon} />
+              <Text style={styles.retryButtonText}>Retry</Text>
+            </TouchableOpacity>
+          </View>
         </View>
       ) : assignments.length === 0 && !loading ? (
         <View style={styles.centerContainer}>
-          <Text style={styles.emptyText}>No assignments found</Text>
-          <Text style={styles.emptySubtext}>
-            You don't have any active assignments at the moment.
-          </Text>
-          <Text style={styles.emptySubtext}>
-            Pull down to refresh or contact your manager if you expect assignments.
-          </Text>
+          <View style={styles.emptyWrapper}>
+            <Icon name="inbox" size={64} color="#ccc" />
+            <Text style={styles.emptyText}>No assignments found</Text>
+            <Text style={styles.emptySubtext}>
+              You don't have any active assignments at the moment.
+            </Text>
+            <Text style={styles.emptySubtext}>
+              Pull down to refresh or contact your manager if you expect assignments.
+            </Text>
+          </View>
         </View>
       ) : (
         <FlatList
@@ -275,71 +324,141 @@ const DashboardScreen = ({ navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
   },
   header: {
     backgroundColor: '#fff',
-    padding: 20,
+    paddingTop: 20,
+    paddingBottom: 20,
+    paddingHorizontal: 20,
     borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    borderBottomColor: '#e9ecef',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  headerContent: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
   },
   headerTitle: {
-    fontSize: 24,
+    fontSize: 28,
     fontWeight: 'bold',
-    color: '#333',
+    color: '#2c3e50',
+    marginBottom: 4,
   },
   headerSubtitle: {
-    fontSize: 14,
-    color: '#666',
-    marginTop: 4,
+    fontSize: 15,
+    color: '#6c757d',
+    fontWeight: '400',
+  },
+  headerIcon: {
+    width: 56,
+    height: 56,
+    borderRadius: 28,
+    backgroundColor: '#e8f4fd',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
   list: {
-    padding: 15,
+    padding: 16,
   },
   card: {
     backgroundColor: '#fff',
-    borderRadius: 8,
-    padding: 15,
-    marginBottom: 15,
+    borderRadius: 16,
+    padding: 20,
+    marginBottom: 16,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 4 },
     shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowRadius: 12,
+    elevation: 5,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
   },
   cardHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: 16,
+  },
+  orderInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
-    marginBottom: 12,
+    flex: 1,
+  },
+  orderIcon: {
+    marginRight: 12,
+  },
+  orderLabel: {
+    fontSize: 11,
+    color: '#6c757d',
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   orderNumber: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2c3e50',
   },
   statusBadge: {
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    borderRadius: 12,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   statusText: {
     color: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   cardBody: {
-    marginTop: 8,
+    marginTop: 4,
+  },
+  infoRow: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    marginBottom: 12,
+  },
+  infoIcon: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+  infoContent: {
+    flex: 1,
   },
   label: {
     fontSize: 12,
-    color: '#666',
-    marginTop: 8,
+    color: '#6c757d',
+    fontWeight: '500',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   value: {
-    fontSize: 14,
-    color: '#333',
-    marginTop: 2,
+    fontSize: 15,
+    color: '#2c3e50',
+    fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#f0f0f0',
+    marginVertical: 12,
+    marginLeft: 32,
+  },
+  cardFooter: {
+    marginTop: 12,
+    alignItems: 'flex-end',
   },
   centerContainer: {
     flex: 1,
@@ -347,44 +466,69 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  loadingWrapper: {
+    alignItems: 'center',
+  },
   loadingText: {
-    marginTop: 10,
-    color: '#666',
+    marginTop: 16,
+    color: '#6c757d',
+    fontSize: 16,
+    fontWeight: '500',
+  },
+  emptyWrapper: {
+    alignItems: 'center',
+    maxWidth: 300,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#333',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginTop: 16,
     marginBottom: 8,
+    textAlign: 'center',
   },
   emptySubtext: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 15,
+    color: '#6c757d',
     textAlign: 'center',
-  },
-  errorText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#dc3545',
+    lineHeight: 22,
     marginBottom: 8,
   },
-  errorSubtext: {
-    fontSize: 14,
-    color: '#666',
+  errorText: {
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#dc3545',
+    marginTop: 16,
+    marginBottom: 8,
     textAlign: 'center',
-    marginBottom: 16,
+  },
+  errorSubtext: {
+    fontSize: 15,
+    color: '#6c757d',
+    textAlign: 'center',
+    marginBottom: 24,
+    lineHeight: 22,
   },
   retryButton: {
-    backgroundColor: '#007bff',
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 8,
-    marginTop: 8,
+    backgroundColor: '#4A90E2',
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#4A90E2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  retryIcon: {
+    marginRight: 8,
   },
   retryButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
 });
 

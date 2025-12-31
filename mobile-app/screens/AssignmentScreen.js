@@ -9,6 +9,7 @@ import {
   ActivityIndicator,
   Platform,
 } from 'react-native';
+import Icon from 'react-native-vector-icons/MaterialIcons';
 import { fleetAPI } from '../services/api';
 import LocationTracker from '../services/locationTracker';
 
@@ -215,8 +216,10 @@ const AssignmentScreen = ({ route, navigation }) => {
   if (loading) {
     return (
       <View style={styles.centerContainer}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Loading assignment...</Text>
+        <View style={styles.loadingWrapper}>
+          <ActivityIndicator size="large" color="#4A90E2" />
+          <Text style={styles.loadingText}>Loading assignment...</Text>
+        </View>
       </View>
     );
   }
@@ -224,6 +227,7 @@ const AssignmentScreen = ({ route, navigation }) => {
   if (!assignment) {
     return (
       <View style={styles.centerContainer}>
+        <Icon name="error-outline" size={64} color="#ff6b6b" />
         <Text style={styles.errorText}>Assignment not found</Text>
       </View>
     );
@@ -233,65 +237,87 @@ const AssignmentScreen = ({ route, navigation }) => {
     <ScrollView 
       style={styles.container}
       contentContainerStyle={styles.scrollContent}
-      showsVerticalScrollIndicator={true}
+      showsVerticalScrollIndicator={false}
     >
       <View style={styles.header}>
-        <Text style={styles.orderNumber}>
-          {assignment.order?.orderNumber || `Order #${assignment.orderId}`}
-        </Text>
-        <View
-          style={[
-            styles.statusBadge,
-            { backgroundColor: getStatusColor(assignment.status) },
-          ]}
-        >
-          <Text style={styles.statusText}>
-            {assignment.status.replace('_', ' ').toUpperCase()}
-          </Text>
+        <View style={styles.headerContent}>
+          <View style={styles.orderInfo}>
+            <Icon name="assignment" size={28} color="#4A90E2" style={styles.headerIcon} />
+            <View>
+              <Text style={styles.orderLabel}>Order Number</Text>
+              <Text style={styles.orderNumber}>
+                {assignment.order?.orderNumber || `Order #${assignment.orderId}`}
+              </Text>
+            </View>
+          </View>
+          <View
+            style={[
+              styles.statusBadge,
+              { backgroundColor: getStatusColor(assignment.status) },
+            ]}
+          >
+            <Text style={styles.statusText}>
+              {assignment.status.replace('_', ' ').toUpperCase()}
+            </Text>
+          </View>
         </View>
       </View>
 
       {isTracking && (
         <View style={styles.trackingBanner}>
+          <Icon name="gps-fixed" size={20} color="#28a745" style={styles.trackingIcon} />
           <Text style={styles.trackingText}>
-            📍 GPS Tracking Active - Your location is being tracked
+            GPS Tracking Active - Your location is being tracked
           </Text>
         </View>
       )}
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Assignment Details</Text>
-
-        <View style={styles.detailRow}>
-          <Text style={styles.label}>Truck:</Text>
-          <Text style={styles.value}>
-            {`${assignment.truck?.truckName || 'N/A'} (${assignment.truck?.licenseNumber || 'N/A'})`}
-          </Text>
+        <View style={styles.sectionHeader}>
+          <Icon name="info" size={20} color="#4A90E2" />
+          <Text style={styles.sectionTitle}>Assignment Details</Text>
         </View>
 
         <View style={styles.detailRow}>
-          <Text style={styles.label}>Driver:</Text>
-          <Text style={styles.value}>{assignment.driverName || 'N/A'}</Text>
+          <Icon name="local-shipping" size={18} color="#999" style={styles.detailIcon} />
+          <View style={styles.detailContent}>
+            <Text style={styles.label}>Truck</Text>
+            <Text style={styles.value}>
+              {`${assignment.truck?.truckName || 'N/A'} (${assignment.truck?.licenseNumber || 'N/A'})`}
+            </Text>
+          </View>
+        </View>
+
+        <View style={styles.divider} />
+
+        <View style={styles.detailRow}>
+          <Icon name="person" size={18} color="#999" style={styles.detailIcon} />
+          <View style={styles.detailContent}>
+            <Text style={styles.label}>Driver</Text>
+            <Text style={styles.value}>{assignment.driverName || 'N/A'}</Text>
+          </View>
         </View>
 
         {assignment.driverPhone && (
-          <View style={styles.detailRow}>
-            <Text style={styles.label}>Driver Phone:</Text>
-            <Text style={styles.value}>{assignment.driverPhone}</Text>
-          </View>
+          <>
+            <View style={styles.divider} />
+            <View style={styles.detailRow}>
+              <Icon name="phone" size={18} color="#999" style={styles.detailIcon} />
+              <View style={styles.detailContent}>
+                <Text style={styles.label}>Driver Phone</Text>
+                <Text style={styles.value}>{assignment.driverPhone}</Text>
+              </View>
+            </View>
+          </>
         )}
-
-        <View style={styles.detailRow}>
-          <Text style={styles.label}>Status:</Text>
-          <Text style={styles.value}>
-            {assignment.status.replace('_', ' ').toUpperCase()}
-          </Text>
-        </View>
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Warehouse</Text>
-        <Text style={styles.value}>
+        <View style={styles.sectionHeader}>
+          <Icon name="warehouse" size={20} color="#4A90E2" />
+          <Text style={styles.sectionTitle}>Warehouse</Text>
+        </View>
+        <Text style={styles.sectionValue}>
           {assignment.warehouse?.name || 'N/A'}
         </Text>
         {assignment.warehouse?.address && (
@@ -305,8 +331,11 @@ const AssignmentScreen = ({ route, navigation }) => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Destination</Text>
-        <Text style={styles.value}>
+        <View style={styles.sectionHeader}>
+          <Icon name="place" size={20} color="#4A90E2" />
+          <Text style={styles.sectionTitle}>Destination</Text>
+        </View>
+        <Text style={styles.sectionValue}>
           {assignment.order?.dealer?.businessName || 'N/A'}
         </Text>
         {assignment.order?.dealer?.address && (
@@ -322,45 +351,76 @@ const AssignmentScreen = ({ route, navigation }) => {
       </View>
 
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Timeline</Text>
+        <View style={styles.sectionHeader}>
+          <Icon name="schedule" size={20} color="#4A90E2" />
+          <Text style={styles.sectionTitle}>Timeline</Text>
+        </View>
         {assignment.assignedAt && (
-          <View style={styles.detailRow}>
-            <Text style={styles.label}>Assigned:</Text>
-            <Text style={styles.value}>
-              {new Date(assignment.assignedAt).toLocaleString()}
-            </Text>
-          </View>
+          <>
+            <View style={styles.detailRow}>
+              <Icon name="assignment-turned-in" size={18} color="#999" style={styles.detailIcon} />
+              <View style={styles.detailContent}>
+                <Text style={styles.label}>Assigned</Text>
+                <Text style={styles.value}>
+                  {new Date(assignment.assignedAt).toLocaleString()}
+                </Text>
+              </View>
+            </View>
+            {(assignment.pickupAt || assignment.deliveredAt || assignment.estimatedDeliveryAt) && (
+              <View style={styles.divider} />
+            )}
+          </>
         )}
         {assignment.pickupAt && (
-          <View style={styles.detailRow}>
-            <Text style={styles.label}>Picked Up:</Text>
-            <Text style={styles.value}>
-              {new Date(assignment.pickupAt).toLocaleString()}
-            </Text>
-          </View>
+          <>
+            <View style={styles.detailRow}>
+              <Icon name="inventory" size={18} color="#999" style={styles.detailIcon} />
+              <View style={styles.detailContent}>
+                <Text style={styles.label}>Picked Up</Text>
+                <Text style={styles.value}>
+                  {new Date(assignment.pickupAt).toLocaleString()}
+                </Text>
+              </View>
+            </View>
+            {(assignment.deliveredAt || assignment.estimatedDeliveryAt) && (
+              <View style={styles.divider} />
+            )}
+          </>
         )}
         {assignment.deliveredAt && (
-          <View style={styles.detailRow}>
-            <Text style={styles.label}>Delivered:</Text>
-            <Text style={styles.value}>
-              {new Date(assignment.deliveredAt).toLocaleString()}
-            </Text>
-          </View>
+          <>
+            <View style={styles.detailRow}>
+              <Icon name="check-circle" size={18} color="#999" style={styles.detailIcon} />
+              <View style={styles.detailContent}>
+                <Text style={styles.label}>Delivered</Text>
+                <Text style={styles.value}>
+                  {new Date(assignment.deliveredAt).toLocaleString()}
+                </Text>
+              </View>
+            </View>
+            {assignment.estimatedDeliveryAt && <View style={styles.divider} />}
+          </>
         )}
         {assignment.estimatedDeliveryAt && (
           <View style={styles.detailRow}>
-            <Text style={styles.label}>Est. Delivery:</Text>
-            <Text style={styles.value}>
-              {new Date(assignment.estimatedDeliveryAt).toLocaleString()}
-            </Text>
+            <Icon name="access-time" size={18} color="#999" style={styles.detailIcon} />
+            <View style={styles.detailContent}>
+              <Text style={styles.label}>Est. Delivery</Text>
+              <Text style={styles.value}>
+                {new Date(assignment.estimatedDeliveryAt).toLocaleString()}
+              </Text>
+            </View>
           </View>
         )}
       </View>
 
       {assignment.notes && (
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Notes</Text>
-          <Text style={styles.value}>{assignment.notes}</Text>
+          <View style={styles.sectionHeader}>
+            <Icon name="notes" size={20} color="#4A90E2" />
+            <Text style={styles.sectionTitle}>Notes</Text>
+          </View>
+          <Text style={styles.sectionValue}>{assignment.notes}</Text>
         </View>
       )}
 
@@ -371,24 +431,31 @@ const AssignmentScreen = ({ route, navigation }) => {
               style={[styles.button, styles.pickupButton]}
               onPress={handlePickup}
               disabled={actionLoading || !tracker}
+              activeOpacity={0.8}
             >
               {actionLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Confirm Pickup</Text>
+                <>
+                  <Icon name="inventory" size={20} color="#fff" style={styles.buttonIcon} />
+                  <Text style={styles.buttonText}>Confirm Pickup</Text>
+                </>
               )}
             </TouchableOpacity>
 
-            {/* Status Update Button */}
             <TouchableOpacity
               style={[styles.button, styles.statusUpdateButton]}
               onPress={handleStatusUpdate}
               disabled={actionLoading}
+              activeOpacity={0.8}
             >
               {actionLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Update Status</Text>
+                <>
+                  <Icon name="update" size={20} color="#fff" style={styles.buttonIcon} />
+                  <Text style={styles.buttonText}>Update Status</Text>
+                </>
               )}
             </TouchableOpacity>
           </View>
@@ -401,24 +468,31 @@ const AssignmentScreen = ({ route, navigation }) => {
               style={[styles.button, styles.deliverButton]}
               onPress={handleDeliver}
               disabled={actionLoading || !tracker}
+              activeOpacity={0.8}
             >
               {actionLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Mark as Delivered</Text>
+                <>
+                  <Icon name="check-circle" size={20} color="#fff" style={styles.buttonIcon} />
+                  <Text style={styles.buttonText}>Mark as Delivered</Text>
+                </>
               )}
             </TouchableOpacity>
 
-            {/* Status Update Button */}
             <TouchableOpacity
               style={[styles.button, styles.statusUpdateButton]}
               onPress={handleStatusUpdate}
               disabled={actionLoading}
+              activeOpacity={0.8}
             >
               {actionLoading ? (
                 <ActivityIndicator color="#fff" />
               ) : (
-                <Text style={styles.buttonText}>Update Status</Text>
+                <>
+                  <Icon name="update" size={20} color="#fff" style={styles.buttonIcon} />
+                  <Text style={styles.buttonText}>Update Status</Text>
+                </>
               )}
             </TouchableOpacity>
           </View>
@@ -431,7 +505,7 @@ const AssignmentScreen = ({ route, navigation }) => {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f5f5f5',
+    backgroundColor: '#f8f9fa',
     ...(Platform.OS === 'web' && {
       overflowY: 'auto',
       overflowX: 'hidden',
@@ -439,7 +513,7 @@ const styles = StyleSheet.create({
     }),
   },
   scrollContent: {
-    paddingBottom: 20,
+    paddingBottom: 30,
     ...(Platform.OS === 'web' && {
       minHeight: '100%',
     }),
@@ -450,95 +524,183 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     padding: 20,
   },
+  loadingWrapper: {
+    alignItems: 'center',
+  },
   loadingText: {
-    marginTop: 10,
-    color: '#666',
+    marginTop: 16,
+    color: '#6c757d',
+    fontSize: 16,
+    fontWeight: '500',
   },
   errorText: {
-    fontSize: 16,
+    fontSize: 18,
     color: '#dc3545',
+    fontWeight: '600',
+    marginTop: 16,
   },
   header: {
     backgroundColor: '#fff',
     padding: 20,
+    borderBottomWidth: 1,
+    borderBottomColor: '#e9ecef',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  headerContent: {
     flexDirection: 'row',
     justifyContent: 'space-between',
+    alignItems: 'flex-start',
+  },
+  orderInfo: {
+    flexDirection: 'row',
     alignItems: 'center',
-    borderBottomWidth: 1,
-    borderBottomColor: '#ddd',
+    flex: 1,
+  },
+  headerIcon: {
+    marginRight: 12,
+  },
+  orderLabel: {
+    fontSize: 11,
+    color: '#6c757d',
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
   },
   orderNumber: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    color: '#333',
+    fontSize: 22,
+    fontWeight: '700',
+    color: '#2c3e50',
   },
   statusBadge: {
-    paddingHorizontal: 12,
-    paddingVertical: 6,
-    borderRadius: 12,
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+    borderRadius: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.2,
+    shadowRadius: 4,
+    elevation: 3,
   },
   statusText: {
     color: '#fff',
-    fontSize: 10,
-    fontWeight: '600',
+    fontSize: 11,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
   trackingBanner: {
     backgroundColor: '#d4edda',
-    padding: 12,
-    margin: 15,
-    borderRadius: 8,
+    padding: 16,
+    margin: 16,
+    borderRadius: 12,
     borderLeftWidth: 4,
     borderLeftColor: '#28a745',
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#28a745',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  trackingIcon: {
+    marginRight: 12,
   },
   trackingText: {
     color: '#155724',
-    fontSize: 14,
+    fontSize: 15,
     fontWeight: '600',
+    flex: 1,
   },
   section: {
     backgroundColor: '#fff',
-    padding: 15,
-    marginTop: 10,
-    marginHorizontal: 15,
-    borderRadius: 8,
+    padding: 20,
+    marginTop: 12,
+    marginHorizontal: 16,
+    borderRadius: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  sectionHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 16,
   },
   sectionTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#2c3e50',
+    marginLeft: 8,
+  },
+  sectionValue: {
     fontSize: 16,
+    color: '#2c3e50',
     fontWeight: '600',
-    color: '#333',
-    marginBottom: 12,
+    marginBottom: 8,
   },
   detailRow: {
     flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'flex-start',
+    marginBottom: 12,
   },
-  label: {
-    fontSize: 14,
-    color: '#666',
+  detailIcon: {
+    marginRight: 12,
+    marginTop: 2,
+  },
+  detailContent: {
     flex: 1,
   },
-  value: {
-    fontSize: 14,
-    color: '#333',
-    flex: 2,
+  label: {
+    fontSize: 12,
+    color: '#6c757d',
     fontWeight: '500',
+    marginBottom: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  value: {
+    fontSize: 15,
+    color: '#2c3e50',
+    fontWeight: '600',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#f0f0f0',
+    marginVertical: 12,
+    marginLeft: 32,
   },
   subValue: {
-    fontSize: 12,
-    color: '#666',
+    fontSize: 14,
+    color: '#6c757d',
     marginTop: 4,
+    lineHeight: 20,
   },
   actions: {
-    padding: 15,
+    padding: 16,
     marginTop: 20,
     marginBottom: 30,
   },
   button: {
-    borderRadius: 8,
-    padding: 15,
+    borderRadius: 12,
+    padding: 18,
     alignItems: 'center',
-    marginBottom: 10,
+    marginBottom: 12,
+    flexDirection: 'row',
+    justifyContent: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.2,
+    shadowRadius: 8,
+    elevation: 4,
   },
   pickupButton: {
     backgroundColor: '#17a2b8',
@@ -547,12 +709,16 @@ const styles = StyleSheet.create({
     backgroundColor: '#28a745',
   },
   statusUpdateButton: {
-    backgroundColor: '#007bff',
+    backgroundColor: '#4A90E2',
+  },
+  buttonIcon: {
+    marginRight: 8,
   },
   buttonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 17,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
 

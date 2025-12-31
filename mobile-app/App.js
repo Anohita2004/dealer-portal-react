@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Platform } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Platform, Alert } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { API_BASE_URL, SOCKET_URL } from './utils/config';
 
@@ -35,28 +35,62 @@ const ProfileScreen = ({ navigation }) => {
   };
 
   const handleLogout = async () => {
-    try {
-      const { authAPI } = await import('./services/api');
-      const { disconnectSocket } = await import('./services/socket');
-      
-      await authAPI.logout();
-      disconnectSocket();
-      navigation.reset({
-        index: 0,
-        routes: [{ name: 'Login' }],
-      });
-    } catch (error) {
-      console.error('Logout error:', error);
-    }
+    Alert.alert(
+      'Logout',
+      'Are you sure you want to logout?',
+      [
+        { text: 'Cancel', style: 'cancel' },
+        {
+          text: 'Logout',
+          style: 'destructive',
+          onPress: async () => {
+            try {
+              const { authAPI } = await import('./services/api');
+              const { disconnectSocket } = await import('./services/socket');
+              
+              await authAPI.logout();
+              disconnectSocket();
+              navigation.reset({
+                index: 0,
+                routes: [{ name: 'Login' }],
+              });
+            } catch (error) {
+              console.error('Logout error:', error);
+            }
+          },
+        },
+      ]
+    );
   };
 
   return (
     <View style={styles.profileContainer}>
-      <Text style={styles.profileName}>
-        {user?.name || user?.username || 'Driver'}
-      </Text>
-      <Text style={styles.profileEmail}>{user?.email || ''}</Text>
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
+      <View style={styles.profileHeader}>
+        <View style={styles.avatarContainer}>
+          <Icon name="person" size={48} color="#4A90E2" />
+        </View>
+        <Text style={styles.profileName}>
+          {user?.name || user?.username || 'Driver'}
+        </Text>
+        <Text style={styles.profileEmail}>{user?.email || ''}</Text>
+      </View>
+
+      <View style={styles.profileInfo}>
+        <View style={styles.infoCard}>
+          <Icon name="badge" size={24} color="#4A90E2" />
+          <View style={styles.infoContent}>
+            <Text style={styles.infoLabel}>Role</Text>
+            <Text style={styles.infoValue}>Driver</Text>
+          </View>
+        </View>
+      </View>
+
+      <TouchableOpacity 
+        style={styles.logoutButton} 
+        onPress={handleLogout}
+        activeOpacity={0.8}
+      >
+        <Icon name="logout" size={20} color="#fff" style={styles.logoutIcon} />
         <Text style={styles.logoutButtonText}>Logout</Text>
       </TouchableOpacity>
     </View>
@@ -79,9 +113,26 @@ const MainTabs = () => {
 
           return <Icon name={iconName} size={size} color={color} />;
         },
-        tabBarActiveTintColor: '#007bff',
-        tabBarInactiveTintColor: '#666',
+        tabBarActiveTintColor: '#4A90E2',
+        tabBarInactiveTintColor: '#999',
         headerShown: false,
+        tabBarStyle: {
+          backgroundColor: '#fff',
+          borderTopWidth: 1,
+          borderTopColor: '#e9ecef',
+          paddingTop: 8,
+          paddingBottom: Platform.OS === 'ios' ? 20 : 8,
+          height: Platform.OS === 'ios' ? 88 : 64,
+          shadowColor: '#000',
+          shadowOffset: { width: 0, height: -2 },
+          shadowOpacity: 0.1,
+          shadowRadius: 8,
+          elevation: 8,
+        },
+        tabBarLabelStyle: {
+          fontSize: 12,
+          fontWeight: '600',
+        },
       })}
     >
       <Tab.Screen name="Dashboard" component={DashboardScreen} />
@@ -173,11 +224,13 @@ export default function App() {
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#007bff" />
-        <Text style={styles.loadingText}>Loading...</Text>
-        <Text style={styles.loadingSubtext}>
-          {__DEV__ ? 'Checking authentication...' : ''}
-        </Text>
+        <View style={styles.loadingWrapper}>
+          <ActivityIndicator size="large" color="#4A90E2" />
+          <Text style={styles.loadingText}>Loading...</Text>
+          <Text style={styles.loadingSubtext}>
+            {__DEV__ ? 'Checking authentication...' : ''}
+          </Text>
+        </View>
       </View>
     );
   }
@@ -185,31 +238,36 @@ export default function App() {
   if (error) {
     return (
       <View style={styles.loadingContainer}>
-        <Text style={styles.errorText}>Error: {error}</Text>
-        <Text style={styles.errorSubtext}>
-          Please check your network connection and try again.
-        </Text>
-        {__DEV__ && Platform.OS !== 'web' && (
-          <View style={styles.debugContainer}>
-            <Text style={styles.debugTitle}>Debug Info:</Text>
-            <Text style={styles.debugText}>Platform: {Platform.OS}</Text>
-            <Text style={styles.debugText}>API URL: {API_BASE_URL}</Text>
-            <Text style={styles.debugText}>Socket URL: {SOCKET_URL}</Text>
-            <Text style={styles.debugHint}>
-              Make sure your phone and computer are on the same Wi-Fi network
-            </Text>
-          </View>
-        )}
-        <TouchableOpacity
-          style={styles.retryButton}
-          onPress={() => {
-            setError(null);
-            setIsLoading(true);
-            checkAuth();
-          }}
-        >
-          <Text style={styles.retryButtonText}>Retry</Text>
-        </TouchableOpacity>
+        <View style={styles.errorWrapper}>
+          <Icon name="error-outline" size={64} color="#ff6b6b" />
+          <Text style={styles.errorText}>Error: {error}</Text>
+          <Text style={styles.errorSubtext}>
+            Please check your network connection and try again.
+          </Text>
+          {__DEV__ && Platform.OS !== 'web' && (
+            <View style={styles.debugContainer}>
+              <Text style={styles.debugTitle}>Debug Info:</Text>
+              <Text style={styles.debugText}>Platform: {Platform.OS}</Text>
+              <Text style={styles.debugText}>API URL: {API_BASE_URL}</Text>
+              <Text style={styles.debugText}>Socket URL: {SOCKET_URL}</Text>
+              <Text style={styles.debugHint}>
+                Make sure your phone and computer are on the same Wi-Fi network
+              </Text>
+            </View>
+          )}
+          <TouchableOpacity
+            style={styles.retryButton}
+            onPress={() => {
+              setError(null);
+              setIsLoading(true);
+              checkAuth();
+            }}
+            activeOpacity={0.8}
+          >
+            <Icon name="refresh" size={20} color="#fff" style={styles.retryIcon} />
+            <Text style={styles.retryButtonText}>Retry</Text>
+          </TouchableOpacity>
+        </View>
       </View>
     );
   }
@@ -230,6 +288,20 @@ export default function App() {
                 headerShown: true,
                 title: 'Assignment Details',
                 headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: '#fff',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 4,
+                  elevation: 2,
+                },
+                headerTitleStyle: {
+                  fontWeight: '700',
+                  fontSize: 18,
+                  color: '#2c3e50',
+                },
+                headerTintColor: '#4A90E2',
               }}
             />
           </>
@@ -243,6 +315,20 @@ export default function App() {
                 headerShown: true,
                 title: 'Verify OTP',
                 headerBackTitle: 'Back',
+                headerStyle: {
+                  backgroundColor: '#fff',
+                  shadowColor: '#000',
+                  shadowOffset: { width: 0, height: 2 },
+                  shadowOpacity: 0.05,
+                  shadowRadius: 4,
+                  elevation: 2,
+                },
+                headerTitleStyle: {
+                  fontWeight: '700',
+                  fontSize: 18,
+                  color: '#2c3e50',
+                },
+                headerTintColor: '#4A90E2',
               }}
             />
           </>
@@ -257,51 +343,61 @@ const styles = StyleSheet.create({
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    backgroundColor: '#fff',
+    backgroundColor: '#f8f9fa',
     padding: 20,
   },
+  loadingWrapper: {
+    alignItems: 'center',
+  },
   loadingText: {
-    marginTop: 10,
-    fontSize: 16,
-    color: '#666',
+    marginTop: 16,
+    fontSize: 18,
+    color: '#2c3e50',
+    fontWeight: '600',
   },
   loadingSubtext: {
     marginTop: 8,
-    fontSize: 12,
-    color: '#999',
+    fontSize: 14,
+    color: '#6c757d',
     textAlign: 'center',
+  },
+  errorWrapper: {
+    alignItems: 'center',
+    maxWidth: 350,
   },
   errorText: {
-    fontSize: 16,
+    fontSize: 20,
     color: '#dc3545',
+    marginTop: 16,
     marginBottom: 10,
     textAlign: 'center',
-    fontWeight: '600',
+    fontWeight: '700',
   },
   errorSubtext: {
-    fontSize: 14,
-    color: '#666',
+    fontSize: 15,
+    color: '#6c757d',
     marginBottom: 20,
     textAlign: 'center',
     paddingHorizontal: 20,
+    lineHeight: 22,
   },
   debugContainer: {
     marginTop: 20,
     marginBottom: 20,
-    padding: 15,
+    padding: 16,
     backgroundColor: '#f0f0f0',
-    borderRadius: 8,
-    width: '90%',
+    borderRadius: 12,
+    width: '100%',
   },
   debugTitle: {
     fontSize: 14,
-    fontWeight: '600',
-    color: '#333',
+    fontWeight: '700',
+    color: '#2c3e50',
     marginBottom: 8,
   },
   debugText: {
     fontSize: 12,
-    color: '#666',
+    color: '#6c757d',
     marginBottom: 4,
     fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
   },
@@ -312,42 +408,114 @@ const styles = StyleSheet.create({
     fontStyle: 'italic',
   },
   retryButton: {
-    backgroundColor: '#007bff',
-    paddingHorizontal: 20,
-    paddingVertical: 10,
-    borderRadius: 8,
+    backgroundColor: '#4A90E2',
+    paddingHorizontal: 28,
+    paddingVertical: 14,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#4A90E2',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  retryIcon: {
+    marginRight: 8,
   },
   retryButtonText: {
     color: '#fff',
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
   },
   profileContainer: {
     flex: 1,
+    backgroundColor: '#f8f9fa',
+    padding: 20,
+  },
+  profileHeader: {
+    alignItems: 'center',
+    marginTop: 40,
+    marginBottom: 40,
+  },
+  avatarContainer: {
+    width: 120,
+    height: 120,
+    borderRadius: 60,
+    backgroundColor: '#e8f4fd',
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 20,
-    backgroundColor: '#f5f5f5',
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.1,
+    shadowRadius: 12,
+    elevation: 4,
   },
   profileName: {
-    fontSize: 24,
-    fontWeight: 'bold',
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#2c3e50',
     marginBottom: 8,
   },
   profileEmail: {
     fontSize: 16,
-    color: '#666',
-    marginBottom: 30,
+    color: '#6c757d',
+    fontWeight: '400',
+  },
+  profileInfo: {
+    marginBottom: 40,
+  },
+  infoCard: {
+    backgroundColor: '#fff',
+    borderRadius: 16,
+    padding: 20,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#f0f0f0',
+  },
+  infoContent: {
+    marginLeft: 16,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: '#6c757d',
+    fontWeight: '500',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  infoValue: {
+    fontSize: 16,
+    color: '#2c3e50',
+    fontWeight: '600',
   },
   logoutButton: {
     backgroundColor: '#dc3545',
     paddingHorizontal: 30,
-    paddingVertical: 12,
-    borderRadius: 8,
+    paddingVertical: 16,
+    borderRadius: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    shadowColor: '#dc3545',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  logoutIcon: {
+    marginRight: 8,
   },
   logoutButtonText: {
     color: '#fff',
-    fontSize: 16,
-    fontWeight: '600',
+    fontSize: 18,
+    fontWeight: '700',
   },
 });
