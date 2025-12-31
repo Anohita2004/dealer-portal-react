@@ -1,7 +1,7 @@
 {
   "expo": {
     "name": "Dealer Portal Mobile",
-    "slug": "dealer-portal-mobile",
+    "slug": "dealer-portal-react",
     "version": "1.0.0",
     "orientation": "portrait",
     "userInterfaceStyle": "light",
@@ -40,7 +40,7 @@
     "sdkVersion": "54.0.0",
     "extra": {
       "eas": {
-        "projectId": "your-project-id"
+        "projectId": "0c76468c-e3f6-4011-95d0-137df8344117"
       }
     }
   }

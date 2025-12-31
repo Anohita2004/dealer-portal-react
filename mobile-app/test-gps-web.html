@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GPS Location Test - Web Browser</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        h1 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            color: #666;
+            margin-bottom: 30px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 6px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-right: 10px;
+            margin-bottom: 10px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        .status {
+            margin: 20px 0;
+            padding: 15px;
+            border-radius: 6px;
+            font-weight: bold;
+        }
+        .status.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+        .status.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+        .status.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+        .location-info {
+            margin-top: 20px;
+            padding: 20px;
+            background: #f8f9fa;
+            border-radius: 6px;
+        }
+        .location-info h3 {
+            margin-top: 0;
+            color: #333;
+        }
+        .location-info p {
+            margin: 8px 0;
+            font-size: 14px;
+        }
+        .location-info strong {
+            color: #007bff;
+        }
+        .map-link {
+            margin-top: 15px;
+        }
+        .map-link a {
+            color: #007bff;
+            text-decoration: none;
+        }
+        .map-link a:hover {
+            text-decoration: underline;
+        }
+        .coordinates {
+            font-family: monospace;
+            background: #e9ecef;
+            padding: 2px 6px;
+            border-radius: 3px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📍 GPS Location Test</h1>
+        <p class="subtitle">Test GPS functionality in your web browser</p>
+
+        <div>
+            <button id="startBtn" onclick="startTracking()">Start GPS Tracking</button>
+            <button id="stopBtn" onclick="stopTracking()" disabled>Stop Tracking</button>
+            <button onclick="getCurrentLocation()">Get Current Location</button>
+        </div>
+
+        <div id="status"></div>
+        <div id="location"></div>
+    </div>
+
+    <script>
+        let watchId = null;
+        let updateCount = 0;
+
+        function updateStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        function startTracking() {
+            if (!navigator.geolocation) {
+                updateStatus('❌ Geolocation is not supported by your browser', 'error');
+                return;
+            }
+
+            updateStatus('🔄 Starting GPS tracking...', 'info');
+
+            const options = {
+                enableHighAccuracy: true,
+                timeout: 10000,
+                maximumAge: 0
+            };
+
+            watchId = navigator.geolocation.watchPosition(
+                (position) => {
+                    updateCount++;
+                    const { latitude, longitude, accuracy, altitude, speed, heading } = position.coords;
+                    
+                    const locationDiv = document.getElementById('location');
+                    locationDiv.innerHTML = `
+                        <div class="location-info">
+                            <h3>📍 Current Location (Update #${updateCount})</h3>
+                            <p><strong>Latitude:</strong> <span class="coordinates">${latitude.toFixed(6)}</span></p>
+                            <p><strong>Longitude:</strong> <span class="coordinates">${longitude.toFixed(6)}</span></p>
+                            <p><strong>Accuracy:</strong> ${accuracy ? accuracy.toFixed(2) + ' meters' : 'N/A'}</p>
+                            ${altitude ? `<p><strong>Altitude:</strong> ${altitude.toFixed(2)} meters</p>` : ''}
+                            ${speed ? `<p><strong>Speed:</strong> ${(speed * 3.6).toFixed(2)} km/h (${speed.toFixed(2)} m/s)</p>` : '<p><strong>Speed:</strong> N/A</p>'}
+                            ${heading !== null ? `<p><strong>Heading:</strong> ${heading.toFixed(2)}°</p>` : '<p><strong>Heading:</strong> N/A</p>'}
+                            <p><strong>Timestamp:</strong> ${new Date(position.timestamp).toLocaleString()}</p>
+                            
+                            <div class="map-link">
+                                <a href="https://www.google.com/maps?q=${latitude},${longitude}" target="_blank">
+                                    📍 View on Google Maps
+                                </a>
+                            </div>
+                        </div>
+                    `;
+
+                    updateStatus(`✅ GPS Tracking Active (${updateCount} updates)`, 'success');
+                    
+                    // Simulate sending to backend (like your app does)
+                    console.log('Location update:', {
+                        lat: latitude,
+                        lng: longitude,
+                        speed: speed ? speed * 3.6 : null,
+                        heading: heading,
+                        timestamp: new Date(position.timestamp).toISOString()
+                    });
+                },
+                (error) => {
+                    let errorMessage = '❌ GPS Error: ';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage += 'Permission denied. Please allow location access.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage += 'Position unavailable.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage += 'Request timeout.';
+                            break;
+                        default:
+                            errorMessage += error.message;
+                            break;
+                    }
+                    updateStatus(errorMessage, 'error');
+                },
+                options
+            );
+
+            document.getElementById('startBtn').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+        }
+
+        function stopTracking() {
+            if (watchId !== null) {
+                navigator.geolocation.clearWatch(watchId);
+                watchId = null;
+                updateStatus(`⏹️ GPS Tracking Stopped (Total updates: ${updateCount})`, 'info');
+                document.getElementById('startBtn').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        function getCurrentLocation() {
+            if (!navigator.geolocation) {
+                updateStatus('❌ Geolocation is not supported by your browser', 'error');
+                return;
+            }
+
+            updateStatus('🔄 Getting current location...', 'info');
+
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const { latitude, longitude, accuracy } = position.coords;
+                    const locationDiv = document.getElementById('location');
+                    locationDiv.innerHTML = `
+                        <div class="location-info">
+                            <h3>📍 Current Location</h3>
+                            <p><strong>Latitude:</strong> <span class="coordinates">${latitude.toFixed(6)}</span></p>
+                            <p><strong>Longitude:</strong> <span class="coordinates">${longitude.toFixed(6)}</span></p>
+                            <p><strong>Accuracy:</strong> ${accuracy ? accuracy.toFixed(2) + ' meters' : 'N/A'}</p>
+                            <p><strong>Timestamp:</strong> ${new Date(position.timestamp).toLocaleString()}</p>
+                            
+                            <div class="map-link">
+                                <a href="https://www.google.com/maps?q=${latitude},${longitude}" target="_blank">
+                                    📍 View on Google Maps
+                                </a>
+                            </div>
+                        </div>
+                    `;
+                    updateStatus('✅ Location retrieved successfully', 'success');
+                },
+                (error) => {
+                    let errorMessage = '❌ Error: ';
+                    switch(error.code) {
+                        case error.PERMISSION_DENIED:
+                            errorMessage += 'Permission denied. Please allow location access.';
+                            break;
+                        case error.POSITION_UNAVAILABLE:
+                            errorMessage += 'Position unavailable.';
+                            break;
+                        case error.TIMEOUT:
+                            errorMessage += 'Request timeout.';
+                            break;
+                        default:
+                            errorMessage += error.message;
+                            break;
+                    }
+                    updateStatus(errorMessage, 'error');
+                },
+                {
+                    enableHighAccuracy: true,
+                    timeout: 10000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        // Check if geolocation is supported on page load
+        window.onload = function() {
+            if (!navigator.geolocation) {
+                updateStatus('❌ Geolocation is not supported by your browser', 'error');
+            } else {
+                updateStatus('✅ GPS ready. Click "Start GPS Tracking" to begin.', 'info');
+            }
+        };
+    </script>
+</body>
+</html>
+

@@ -143,6 +143,22 @@ export const leaveOrderRoom = (orderId) => getSocket()?.emit("leave_order_tracki
 export const onTrackingStarted = (cb) => getSocket()?.on("order:tracking:started", cb);
 export const offTrackingStarted = () => getSocket()?.off("order:tracking:started");
 
+// Listen to truck tracking started (new event from guide)
+export const onTruckTrackingStarted = (cb) => getSocket()?.on("truck:tracking:started", cb);
+export const offTruckTrackingStarted = () => getSocket()?.off("truck:tracking:started");
+
+// Listen to warehouse arrival (geofencing detected)
+export const onTruckWarehouseArrived = (cb) => getSocket()?.on("truck:warehouse:arrived", cb);
+export const offTruckWarehouseArrived = () => getSocket()?.off("truck:warehouse:arrived");
+
+// Listen to warehouse approaching
+export const onTruckWarehouseApproaching = (cb) => getSocket()?.on("truck:warehouse:approaching", cb);
+export const offTruckWarehouseApproaching = () => getSocket()?.off("truck:warehouse:approaching");
+
+// Listen to ETA updates
+export const onTruckEtaUpdated = (cb) => getSocket()?.on("truck:eta:updated", cb);
+export const offTruckEtaUpdated = () => getSocket()?.off("truck:eta:updated");
+
 // Listen to notifications (for fleet tracking notifications)
 export const onNotification = (cb) => getSocket()?.on("notification", cb);
 export const offNotification = () => getSocket()?.off("notification");

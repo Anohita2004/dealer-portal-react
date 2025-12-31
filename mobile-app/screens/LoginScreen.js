@@ -14,6 +14,8 @@ import {
 import { authAPI } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { initSocket } from '../services/socket';
+import { getNetworkErrorMessage, isNetworkError } from '../utils/network';
+import { API_BASE_URL } from '../utils/config';
 
 const LoginScreen = ({ navigation }) => {
   const [username, setUsername] = useState('');
@@ -82,11 +84,15 @@ const LoginScreen = ({ navigation }) => {
     } catch (error) {
       console.error('Login error:', error);
       
-      // Better error messages
+      // Better error messages with platform-specific info
       let errorMessage = 'Login failed. Please try again.';
       
-      if (error.message === 'Network Error' || error.code === 'ECONNREFUSED') {
-        errorMessage = 'Cannot connect to server. Please check:\n\n1. Backend server is running\n2. API URL is correct (use your computer\'s IP, not localhost)\n3. Phone and computer are on same Wi-Fi network';
+      if (isNetworkError(error)) {
+        errorMessage = getNetworkErrorMessage(error);
+        // Add API URL info for mobile debugging
+        if (Platform.OS !== 'web') {
+          errorMessage += `\n\nCurrent API URL: ${API_BASE_URL}`;
+        }
       } else if (error.response?.status === 401) {
         // Check if backend provides a specific error message
         const backendError = error.response?.data?.error || error.response?.data?.message;

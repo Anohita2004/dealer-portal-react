@@ -3,8 +3,9 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Platform } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
+import { API_BASE_URL, SOCKET_URL } from './utils/config';
 
 // Screens
 import LoginScreen from './screens/LoginScreen';
@@ -97,51 +98,86 @@ export default function App() {
 
   const checkAuth = useCallback(async () => {
     try {
+      console.log('[App] Starting auth check...');
       const token = await AsyncStorage.getItem('token');
-      console.log('Auth check - token exists:', !!token);
+      console.log('[App] Token exists:', !!token);
+      
       if (token) {
-        // Initialize Socket.IO (don't wait for it - it's async and might fail)
-        initSocket().catch(err => {
-          console.warn('Socket initialization failed:', err);
-          // Continue anyway - socket is optional for initial load
-        });
+        console.log('[App] User authenticated, setting authenticated state');
         setIsAuthenticated(true);
+        setIsLoading(false);
+        console.log('[App] Auth check complete - authenticated');
+        
+        // Initialize Socket.IO in background (non-blocking)
+        // Use setTimeout to ensure it doesn't block the UI
+        setTimeout(() => {
+          console.log('[App] Initializing socket in background...');
+          initSocket().catch(err => {
+            console.warn('[App] Socket initialization failed:', err);
+            // Continue anyway - socket is optional for initial load
+          });
+        }, 100);
       } else {
+        console.log('[App] No token found, user not authenticated');
         setIsAuthenticated(false);
+        setIsLoading(false);
+        console.log('[App] Auth check complete - not authenticated');
       }
     } catch (error) {
-      console.error('Auth check error:', error);
+      console.error('[App] Auth check error:', error);
+      console.error('[App] Error details:', {
+        message: error.message,
+        stack: error.stack,
+      });
       setError(error.message);
       setIsAuthenticated(false);
-    } finally {
       setIsLoading(false);
     }
   }, []);
 
   useEffect(() => {
+    // Initial auth check
     checkAuth();
     
-    // Set up interval to periodically check auth state (helps catch OTP verification)
-    const interval = setInterval(() => {
-      checkAuth();
-    }, 2000); // Check every 2 seconds
+    // Safety timeout - if loading takes more than 5 seconds, stop loading
+    const loadingTimeout = setTimeout(() => {
+      if (isLoading) {
+        console.warn('Loading timeout - forcing stop');
+        setIsLoading(false);
+      }
+    }, 5000);
     
-    return () => clearInterval(interval);
-  }, [checkAuth]);
+    // Set up interval to periodically check auth state (helps catch OTP verification)
+    // Increased interval to 5 seconds to reduce performance impact
+    const interval = setInterval(() => {
+      // Only check if we're not authenticated yet (to catch OTP verification)
+      if (!isAuthenticated && !isLoading) {
+        checkAuth();
+      }
+    }, 5000); // Check every 5 seconds (reduced frequency)
+    
+    return () => {
+      clearInterval(interval);
+      clearTimeout(loadingTimeout);
+    };
+  }, [checkAuth, isAuthenticated, isLoading]);
 
   // Re-check auth when navigation state changes (e.g., after OTP verification)
   const handleNavigationStateChange = useCallback(async () => {
-    if (navigationReady) {
+    if (navigationReady && !isAuthenticated) {
       console.log('Navigation state changed - rechecking auth');
       await checkAuth();
     }
-  }, [navigationReady, checkAuth]);
+  }, [navigationReady, checkAuth, isAuthenticated]);
 
   if (isLoading) {
     return (
       <View style={styles.loadingContainer}>
         <ActivityIndicator size="large" color="#007bff" />
         <Text style={styles.loadingText}>Loading...</Text>
+        <Text style={styles.loadingSubtext}>
+          {__DEV__ ? 'Checking authentication...' : ''}
+        </Text>
       </View>
     );
   }
@@ -150,6 +186,20 @@ export default function App() {
     return (
       <View style={styles.loadingContainer}>
         <Text style={styles.errorText}>Error: {error}</Text>
+        <Text style={styles.errorSubtext}>
+          Please check your network connection and try again.
+        </Text>
+        {__DEV__ && Platform.OS !== 'web' && (
+          <View style={styles.debugContainer}>
+            <Text style={styles.debugTitle}>Debug Info:</Text>
+            <Text style={styles.debugText}>Platform: {Platform.OS}</Text>
+            <Text style={styles.debugText}>API URL: {API_BASE_URL}</Text>
+            <Text style={styles.debugText}>Socket URL: {SOCKET_URL}</Text>
+            <Text style={styles.debugHint}>
+              Make sure your phone and computer are on the same Wi-Fi network
+            </Text>
+          </View>
+        )}
         <TouchableOpacity
           style={styles.retryButton}
           onPress={() => {
@@ -215,11 +265,51 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#666',
   },
+  loadingSubtext: {
+    marginTop: 8,
+    fontSize: 12,
+    color: '#999',
+    textAlign: 'center',
+  },
   errorText: {
     fontSize: 16,
     color: '#dc3545',
+    marginBottom: 10,
+    textAlign: 'center',
+    fontWeight: '600',
+  },
+  errorSubtext: {
+    fontSize: 14,
+    color: '#666',
     marginBottom: 20,
     textAlign: 'center',
+    paddingHorizontal: 20,
+  },
+  debugContainer: {
+    marginTop: 20,
+    marginBottom: 20,
+    padding: 15,
+    backgroundColor: '#f0f0f0',
+    borderRadius: 8,
+    width: '90%',
+  },
+  debugTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#333',
+    marginBottom: 8,
+  },
+  debugText: {
+    fontSize: 12,
+    color: '#666',
+    marginBottom: 4,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+  },
+  debugHint: {
+    fontSize: 11,
+    color: '#999',
+    marginTop: 8,
+    fontStyle: 'italic',
   },
   retryButton: {
     backgroundColor: '#007bff',

@@ -182,16 +182,29 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
   const { locationHistory } = trackingData || {};
   const warehouse = assignment?.warehouse;
   const dealer = orderData?.dealer;
+  const startLocation = assignment?.startLocation || trackingData?.startLocation;
+  const status = assignment?.status || trackingData?.status || '';
 
-  // Build route path
+  // Build route path: Start → Warehouse → Dealer
+  // Dealer only shows after pickup status
   const routePath = [];
   const boundsPoints = [];
   
+  // Start point: Start Location (if exists)
+  if (startLocation && startLocation.lat && startLocation.lng) {
+    routePath.push([startLocation.lat, startLocation.lng]);
+    boundsPoints.push([startLocation.lat, startLocation.lng]);
+  }
+  
+  // Warehouse (pickup point)
   if (warehouse && warehouse.lat && warehouse.lng) {
     routePath.push([warehouse.lat, warehouse.lng]);
     boundsPoints.push([warehouse.lat, warehouse.lng]);
   }
-  if (locationHistory && locationHistory.length > 0) {
+  
+  // Historical route points (truck movement after pickup)
+  if (locationHistory && locationHistory.length > 0 && 
+      (status === 'picked_up' || status === 'in_transit' || status === 'delivered')) {
     // Add historical points
     [...locationHistory].reverse().forEach(point => {
       if (point.lat && point.lng) {
@@ -200,11 +213,16 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
       }
     });
   }
-  if (activeTruckLocation && activeTruckLocation.lat && activeTruckLocation.lng) {
-    routePath.push([activeTruckLocation.lat, activeTruckLocation.lng]);
-    boundsPoints.push([activeTruckLocation.lat, activeTruckLocation.lng]);
+  
+  // Current truck location
+  if (truckLocation && truckLocation.lat && truckLocation.lng) {
+    routePath.push([truckLocation.lat, truckLocation.lng]);
+    boundsPoints.push([truckLocation.lat, truckLocation.lng]);
   }
-  if (dealer && dealer.lat && dealer.lng) {
+  
+  // End point: Dealer location (only show after pickup)
+  if (dealer && dealer.lat && dealer.lng && 
+      (status === 'picked_up' || status === 'in_transit' || status === 'delivered')) {
     routePath.push([dealer.lat, dealer.lng]);
     boundsPoints.push([dealer.lat, dealer.lng]);
   }
@@ -245,8 +263,8 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
     }
   } else {
     // Fallback to individual locations
-    center = activeTruckLocation && activeTruckLocation.lat && activeTruckLocation.lng
-      ? [activeTruckLocation.lat, activeTruckLocation.lng]
+    center = truckLocation && truckLocation.lat && truckLocation.lng
+      ? [truckLocation.lat, truckLocation.lng]
       : warehouse && warehouse.lat && warehouse.lng
       ? [warehouse.lat, warehouse.lng]
       : dealer && dealer.lat && dealer.lng
@@ -294,9 +312,9 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
           )}
 
           {/* Truck Current Location */}
-          {activeTruckLocation && activeTruckLocation.lat && activeTruckLocation.lng && assignment?.truck && (
+          {truckLocation && truckLocation.lat && truckLocation.lng && assignment?.truck && (
             <Marker
-              position={[activeTruckLocation.lat, activeTruckLocation.lng]}
+              position={[truckLocation.lat, truckLocation.lng]}
               icon={createTruckIcon(assignment.status)}
             >
               <Popup>
@@ -326,16 +344,16 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
                       Status: <strong>{assignment.status.replace('_', ' ')}</strong>
                     </>
                   )}
-                  {activeTruckLocation.lastUpdate && (
+                  {truckLocation.lastUpdate && (
                     <>
                       <br />
-                      Last Update: {new Date(activeTruckLocation.lastUpdate).toLocaleString()}
+                      Last Update: {new Date(truckLocation.lastUpdate).toLocaleString()}
                     </>
                   )}
-                  {activeTruckLocation.speed && (
+                  {truckLocation.speed && (
                     <>
                       <br />
-                      Speed: {activeTruckLocation.speed} km/h
+                      Speed: {truckLocation.speed} km/h
                     </>
                   )}
                 </div>
@@ -343,18 +361,35 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
             </Marker>
           )}
 
-          {/* Dealer/Destination Marker */}
-          {dealer && dealer.lat && dealer.lng && (
+          {/* Dealer/Destination Marker - Show only after pickup */}
+          {dealer && dealer.lat && dealer.lng && 
+           (status === 'picked_up' || status === 'in_transit' || status === 'delivered') && (
             <Marker position={[dealer.lat, dealer.lng]}>
               <Popup>
                 <div>
-                  <strong><FaMapMarkerAlt /> Destination: {dealer.businessName}</strong>
-                  <br />
-                  {dealer.address}
-                  {dealer.city && (
+                  <strong><FaMapMarkerAlt /> Destination: {dealer.businessName || dealer.name || 'Dealer'}</strong>
+                  {dealer.dealerCode && (
                     <>
                       <br />
-                      {dealer.city}, {dealer.state}
+                      Code: {dealer.dealerCode}
+                    </>
+                  )}
+                  {dealer.address && (
+                    <>
+                      <br />
+                      {dealer.address}
+                    </>
+                  )}
+                  {(dealer.city || dealer.state) && (
+                    <>
+                      <br />
+                      {dealer.city}{dealer.city && dealer.state ? ', ' : ''}{dealer.state}
+                    </>
+                  )}
+                  {status && (
+                    <>
+                      <br />
+                      Status: {status.replace('_', ' ')}
                     </>
                   )}
                 </div>
@@ -362,8 +397,9 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
             </Marker>
           )}
 
-          {/* Route Path */}
-          {routePath.length > 1 && (
+          {/* Route Path: Start → Warehouse → Dealer (show only after pickup) */}
+          {routePath.length > 1 && 
+           (status === 'picked_up' || status === 'in_transit' || status === 'delivered') && (
             <Polyline
               positions={routePath}
               color="blue"

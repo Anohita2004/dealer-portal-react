@@ -73,6 +73,29 @@ const createWarehouseIcon = () => {
   });
 };
 
+// Custom dealer icon
+const createDealerIcon = () => {
+  return L.divIcon({
+    className: 'dealer-marker',
+    html: `<div style="
+      width: 30px;
+      height: 30px;
+      background-color: #28a745;
+      border-radius: 4px;
+      border: 3px solid white;
+      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      color: white;
+      font-weight: bold;
+      font-size: 16px;
+    ">🏪</div>`,
+    iconSize: [30, 30],
+    iconAnchor: [15, 15]
+  });
+};
+
 const LiveTracking = () => {
   const { user } = useAuth();
   const [locations, setLocations] = useState([]);
@@ -149,6 +172,20 @@ const LiveTracking = () => {
       
       console.log('Raw locations from API:', locationsList.length, locationsList);
       
+      // Debug: Log dealer information
+      locationsList.forEach((loc, idx) => {
+        const dealer = loc.dealer || loc.order?.dealer || loc.assignment?.order?.dealer;
+        if (dealer) {
+          console.log(`Location ${idx} dealer info:`, {
+            hasDealer: !!dealer,
+            dealerLat: dealer.lat,
+            dealerLng: dealer.lng,
+            dealerName: dealer.businessName || dealer.name,
+            status: loc.status || loc.assignment?.status
+          });
+        }
+      });
+      
       // Additional client-side filtering for dealer users (in case API doesn't filter)
       // Since we pass dealerId param to API, backend should already filter
       // Only do client-side filtering if dealerId is present in response
@@ -184,7 +221,7 @@ const LiveTracking = () => {
         console.log(`Dealer filter: ${beforeFilter} -> ${locationsList.length} locations`);
       }
       
-      // Ensure truck locations have valid coordinates
+      // Ensure truck locations have valid coordinates and extract dealer data
       // The API returns: { locations: [{ truck: { lat, lng, ... }, ... }] }
       locationsList = locationsList.map(loc => {
         // The truck object already has lat/lng from the API
@@ -196,7 +233,30 @@ const LiveTracking = () => {
         const normalizedLat = lat != null ? Number(lat) : null;
         const normalizedLng = lng != null ? Number(lng) : null;
         
-        // Return location with normalized truck coordinates
+        // Extract dealer information from multiple possible locations
+        const dealer = loc.dealer || 
+                      loc.order?.dealer || 
+                      loc.assignment?.order?.dealer ||
+                      loc.order?.dealerDetails ||
+                      loc.assignment?.order?.dealerDetails ||
+                      null;
+        
+        // Normalize dealer coordinates if dealer exists
+        let normalizedDealer = null;
+        if (dealer) {
+          const dealerLat = dealer.lat;
+          const dealerLng = dealer.lng;
+          if (dealerLat != null && dealerLng != null && 
+              !isNaN(Number(dealerLat)) && !isNaN(Number(dealerLng))) {
+            normalizedDealer = {
+              ...dealer,
+              lat: Number(dealerLat),
+              lng: Number(dealerLng)
+            };
+          }
+        }
+        
+        // Return location with normalized truck coordinates and dealer
         return {
           ...loc,
           truck: {
@@ -206,7 +266,8 @@ const LiveTracking = () => {
             truckName: truck.truckName || 'Unknown',
             licenseNumber: truck.licenseNumber || 'N/A',
             lastUpdate: truck.lastUpdate || new Date().toISOString()
-          }
+          },
+          dealer: normalizedDealer || dealer || null
         };
       });
       
@@ -282,15 +343,25 @@ const LiveTracking = () => {
     return latDiff > 0.01 || lngDiff > 0.01;
   };
 
-  // Fetch routes for all locations
+  // Fetch routes for all locations: Start → Warehouse → Dealer
   useEffect(() => {
     const fetchRoutes = async () => {
       const routesToFetch = filteredLocations.filter(loc => {
-        const truck = loc.truck || {};
+        const status = loc.status || loc.assignment?.status || '';
         const warehouse = loc.warehouse || {};
+        const dealer = loc.dealer || {};
+        const startLocation = loc.startLocation || {};
+        const truck = loc.truck || {};
         const key = loc.assignmentId || loc.id;
         
-        if (!warehouse.lat || !warehouse.lng || !truck.lat || !truck.lng) {
+        // Only build routes if we have warehouse and dealer (dealer shows after pickup)
+        // Route should be: Start → Warehouse → Dealer
+        const hasWarehouse = warehouse.lat && warehouse.lng;
+        const hasDealer = dealer.lat && dealer.lng;
+        const hasStart = startLocation.lat && startLocation.lng;
+        
+        // Need at least warehouse and dealer for route (dealer shows after pickup)
+        if (!hasWarehouse || !hasDealer) {
           return false;
         }
         
@@ -299,8 +370,8 @@ const LiveTracking = () => {
         const hasMoved = !lastPosition || hasSignificantMovement(
           lastPosition.lat,
           lastPosition.lng,
-          truck.lat,
-          truck.lng
+          truck.lat || warehouse.lat,
+          truck.lng || warehouse.lng
         );
         
         // Check if route already exists or is currently loading
@@ -318,36 +389,74 @@ const LiveTracking = () => {
         routeLoadingRef.current[key] = true;
       });
 
-      // Fetch routes in parallel
+      // Fetch routes in parallel - Build route: Start → Warehouse → Dealer
       const routePromises = routesToFetch.map(async (location) => {
         try {
-          const truck = location.truck || {};
           const warehouse = location.warehouse || {};
-          const route = await getCachedRoute(
-            truck.lat,
-            truck.lng,
-            warehouse.lat,
-            warehouse.lng
-          );
+          const dealer = location.dealer || {};
+          const startLocation = location.startLocation || {};
+          
+          // Build route segments
+          const routeSegments = [];
+          
+          // Segment 1: Start → Warehouse (if start location exists)
+          if (startLocation.lat && startLocation.lng && warehouse.lat && warehouse.lng) {
+            const startToWarehouse = await getCachedRoute(
+              startLocation.lat,
+              startLocation.lng,
+              warehouse.lat,
+              warehouse.lng
+            );
+            routeSegments.push(...startToWarehouse);
+          }
+          
+          // Segment 2: Warehouse → Dealer
+          if (warehouse.lat && warehouse.lng && dealer.lat && dealer.lng) {
+            const warehouseToDealer = await getCachedRoute(
+              warehouse.lat,
+              warehouse.lng,
+              dealer.lat,
+              dealer.lng
+            );
+            // If we already have start segment, skip first point of warehouseToDealer to avoid duplicate
+            if (routeSegments.length > 0 && warehouseToDealer.length > 0) {
+              routeSegments.push(...warehouseToDealer.slice(1));
+            } else {
+              routeSegments.push(...warehouseToDealer);
+            }
+          }
+          
           return { 
             assignmentId: location.assignmentId || location.id, 
-            route,
-            truckLat: truck.lat,
-            truckLng: truck.lng
+            route: routeSegments.length > 0 ? routeSegments : [
+              startLocation.lat && startLocation.lng ? [startLocation.lat, startLocation.lng] : null,
+              [warehouse.lat, warehouse.lng],
+              [dealer.lat, dealer.lng]
+            ].filter(Boolean),
+            truckLat: location.truck?.lat || warehouse.lat,
+            truckLng: location.truck?.lng || warehouse.lng
           };
         } catch (error) {
           console.error(`Error fetching route for assignment ${location.assignmentId || location.id}:`, error);
-          // Fallback to straight line
-          const truck = location.truck || {};
+          // Fallback to straight line: Start → Warehouse → Dealer
           const warehouse = location.warehouse || {};
+          const dealer = location.dealer || {};
+          const startLocation = location.startLocation || {};
+          const fallbackRoute = [];
+          if (startLocation.lat && startLocation.lng) {
+            fallbackRoute.push([startLocation.lat, startLocation.lng]);
+          }
+          if (warehouse.lat && warehouse.lng) {
+            fallbackRoute.push([warehouse.lat, warehouse.lng]);
+          }
+          if (dealer.lat && dealer.lng) {
+            fallbackRoute.push([dealer.lat, dealer.lng]);
+          }
           return {
             assignmentId: location.assignmentId || location.id,
-            route: [
-              [truck.lat, truck.lng],
-              [warehouse.lat, warehouse.lng]
-            ],
-            truckLat: truck.lat,
-            truckLng: truck.lng
+            route: fallbackRoute,
+            truckLat: location.truck?.lat || warehouse.lat,
+            truckLng: location.truck?.lng || warehouse.lng
           };
         }
       });
@@ -385,10 +494,30 @@ const LiveTracking = () => {
   const getMapBounds = () => {
     const allPoints = [];
     
-    // Add truck locations
+    // Add truck locations, warehouses, start locations, and dealers (after pickup)
     filteredLocations.forEach(loc => {
+      const status = loc.status || loc.assignment?.status || '';
+      
+      // Truck location
       if (loc.truck?.lat && loc.truck?.lng) {
         allPoints.push([loc.truck.lat, loc.truck.lng]);
+      }
+      
+      // Warehouse location
+      if (loc.warehouse?.lat && loc.warehouse?.lng) {
+        allPoints.push([Number(loc.warehouse.lat), Number(loc.warehouse.lng)]);
+      }
+      
+      // Start location
+      if (loc.startLocation?.lat && loc.startLocation?.lng) {
+        allPoints.push([Number(loc.startLocation.lat), Number(loc.startLocation.lng)]);
+      }
+      
+      // Dealer locations (only after pickup)
+      const dealer = loc.dealer;
+      if (dealer?.lat && dealer?.lng && 
+          (status === 'picked_up' || status === 'in_transit' || status === 'delivered')) {
+        allPoints.push([Number(dealer.lat), Number(dealer.lng)]);
       }
     });
     
@@ -633,13 +762,77 @@ const LiveTracking = () => {
                 );
               })}
 
-              {/* Route lines from truck to warehouse via roads */}
+              {/* Dealer Markers - Show only after pickup (picked_up, in_transit, delivered) */}
               {filteredLocations
                 .filter(loc => {
-                  const truck = loc.truck || {};
+                  const status = loc.status || loc.assignment?.status || '';
+                  const dealer = loc.dealer;
+                  // Only show dealer after order is picked up from warehouse
+                  return dealer?.lat && dealer?.lng && 
+                         (status === 'picked_up' || status === 'in_transit' || status === 'delivered');
+                })
+                .map((location, index) => {
+                  const dealer = location.dealer;
+                  const status = location.status || location.assignment?.status || '';
+                  return (
+                    <Marker
+                      key={`dealer-${location.assignmentId || location.id || index}`}
+                      position={[Number(dealer.lat), Number(dealer.lng)]}
+                      icon={createDealerIcon()}
+                    >
+                      <Popup>
+                        <div>
+                          <strong><FaMapMarkerAlt /> Destination: {dealer.businessName || dealer.name || 'Dealer'}</strong>
+                          {dealer.dealerCode && (
+                            <>
+                              <br />
+                              Code: {dealer.dealerCode}
+                            </>
+                          )}
+                          {dealer.address && (
+                            <>
+                              <br />
+                              {dealer.address}
+                            </>
+                          )}
+                          {(dealer.city || dealer.state) && (
+                            <>
+                              <br />
+                              {dealer.city}{dealer.city && dealer.state ? ', ' : ''}{dealer.state}
+                            </>
+                          )}
+                          {(location.orderNumber || location.orderId) && (
+                            <>
+                              <br />
+                              Order: {location.orderNumber || location.orderId}
+                            </>
+                          )}
+                          {status && (
+                            <>
+                              <br />
+                              Status: {status.replace('_', ' ')}
+                            </>
+                          )}
+                        </div>
+                      </Popup>
+                    </Marker>
+                  );
+                })}
+
+              {/* Route lines: Start → Warehouse → Dealer (show only after pickup) */}
+              {filteredLocations
+                .filter(loc => {
+                  const status = loc.status || loc.assignment?.status || '';
                   const warehouse = loc.warehouse || {};
+                  const dealer = loc.dealer || {};
                   const key = loc.assignmentId || loc.id;
-                  return warehouse.lat && warehouse.lng && truck.lat && truck.lng && routes[key];
+                  // Show route only if we have warehouse, dealer, and route data
+                  // Route shows after pickup (when dealer becomes visible)
+                  return warehouse.lat && warehouse.lng && 
+                         dealer.lat && dealer.lng && 
+                         routes[key] && 
+                         routes[key].length > 0 &&
+                         (status === 'picked_up' || status === 'in_transit' || status === 'delivered');
                 })
                 .map(location => {
                   const key = location.assignmentId || location.id;

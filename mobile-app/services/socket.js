@@ -1,10 +1,6 @@
 import io from 'socket.io-client';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Configure Socket.IO URL - change this to your backend URL
-// For local development, use your computer's IP address instead of localhost
-// Example: 'http://192.168.1.100:3000'
-const SOCKET_URL = process.env.EXPO_PUBLIC_SOCKET_URL ||'http://192.168.29.61:3000';
+import { SOCKET_URL } from '../utils/config';
 
 let socket = null;
 
@@ -12,6 +8,7 @@ let socket = null;
 export const initSocket = async () => {
   try {
     if (socket?.connected) {
+      console.log('Socket already connected');
       return socket;
     }
 
@@ -22,6 +19,9 @@ export const initSocket = async () => {
       return null;
     }
     
+    console.log('Initializing socket connection to:', SOCKET_URL);
+    
+    // Create socket with timeout and better error handling
     socket = io(SOCKET_URL, {
       auth: { token },
       transports: ['websocket', 'polling'], // Add polling as fallback
@@ -29,10 +29,13 @@ export const initSocket = async () => {
       reconnectionDelay: 1000,
       reconnectionAttempts: 5,
       timeout: 10000,
+      forceNew: false, // Reuse existing connection if available
+      autoConnect: true,
     });
 
+    // Set up event handlers before connecting
     socket.on('connect', async () => {
-      console.log('Socket connected');
+      console.log('✅ Socket connected:', socket.id);
       
       // Authenticate socket
       if (token) {
@@ -42,24 +45,38 @@ export const initSocket = async () => {
 
     socket.on('authenticated', ({ ok, user }) => {
       if (ok) {
-        console.log('Socket authenticated for user:', user);
+        console.log('✅ Socket authenticated for user:', user?.username || user?.id);
       } else {
-        console.error('Socket authentication failed');
+        console.error('❌ Socket authentication failed');
       }
     });
 
-    socket.on('disconnect', () => {
-      console.log('Socket disconnected');
+    socket.on('disconnect', (reason) => {
+      console.log('Socket disconnected:', reason);
     });
 
     socket.on('connect_error', (error) => {
-      console.error('Socket connection error:', error);
+      console.error('❌ Socket connection error:', error.message || error);
       // Don't throw - socket is optional
+      // The socket will automatically retry based on reconnection settings
     });
 
+    socket.on('reconnect', (attemptNumber) => {
+      console.log('✅ Socket reconnected after', attemptNumber, 'attempts');
+    });
+
+    socket.on('reconnect_error', (error) => {
+      console.warn('⚠️ Socket reconnection error:', error.message || error);
+    });
+
+    socket.on('reconnect_failed', () => {
+      console.error('❌ Socket reconnection failed - giving up');
+    });
+
+    // Return socket immediately (connection happens asynchronously)
     return socket;
   } catch (error) {
-    console.error('Error initializing socket:', error);
+    console.error('❌ Error initializing socket:', error);
     // Return null instead of throwing - socket is optional
     return null;
   }

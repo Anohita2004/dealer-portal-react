@@ -1228,6 +1228,10 @@ export const fleetAPI = {
 };
 
 export const trackingAPI = {
+  // Start GPS tracking from driver's current location
+  startTracking: (payload) =>
+    api.post("/tracking/start", payload).then((r) => r.data),
+
   // Update truck location (mobile app)
   updateLocation: (payload) =>
     api.post("/tracking/location", payload).then((r) => r.data),
@@ -1239,6 +1243,10 @@ export const trackingAPI = {
   // Get order tracking
   getOrderTracking: (orderId) =>
     api.get(`/tracking/order/${orderId}`).then((r) => r.data),
+
+  // Get current ETA for assignment
+  getAssignmentEta: (assignmentId) =>
+    api.get(`/tracking/assignment/${assignmentId}/eta`).then((r) => r.data),
 
   // Get truck location history
   getTruckHistory: (truckId, params) =>

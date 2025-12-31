@@ -1,15 +1,10 @@
 import axios from 'axios';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-
-// Configure base URL - change this to your backend URL
-// For local development, use your computer's IP address instead of localhost
-// Example: 'http://192.168.1.100:3000/api'
-// To find your IP: Windows: ipconfig | findstr IPv4 | Mac/Linux: ifconfig | grep inet
-const API_BASE_URL = process.env.EXPO_PUBLIC_API_URL ||'http://192.168.29.61:3000/api';
+import { API_BASE_URL } from '../utils/config';
 
 // Log API URL for debugging (remove in production)
 if (__DEV__) {
-  console.log('API Base URL:', API_BASE_URL);
+  console.log('[API] Base URL:', API_BASE_URL);
 }
 
 // Create axios instance
