@@ -21,7 +21,7 @@ import {
 } from "@mui/material";
 import { Search, Filter, FileText, Download, CheckSquare, Square } from "lucide-react";
 import BulkActionBar from "../components/BulkActionBar";
-import { invoiceAPI } from "../services/api";
+import { invoiceAPI, paymentAPI } from "../services/api";
 import { useAuth } from "../context/AuthContext";
 import { useApiCall } from "../hooks/useApiCall";
 import InvoiceApprovalCard from "../components/InvoiceApprovalCard";
@@ -33,6 +33,7 @@ import { toast } from "react-toastify";
 import AdvancedFilterSidebar from "../components/AdvancedFilterSidebar";
 import FilterChips from "../components/FilterChips";
 import { useDebounce } from "../hooks/useDebounce";
+import { onPaymentSuccess, offPaymentSuccess } from "../services/socket";
 
 // Helper component for workflow badge in table
 function InvoiceWorkflowBadge({ invoiceId }) {
@@ -165,6 +166,17 @@ export default function Invoices() {
     setSelectedIds([]); // Clear selection when view mode changes
   }, [viewMode, statusFilter, debouncedSearch, JSON.stringify(filters)]);
 
+  useEffect(() => {
+    onPaymentSuccess((data) => {
+      toast.success(`Payment Receipt: ₹${data.amount} for Order ${data.orderId || 'processed'}`);
+      fetchInvoices();
+    });
+
+    return () => {
+      offPaymentSuccess();
+    };
+  }, []);
+
   const handleSelectAll = (event) => {
     if (event.target.checked) {
       setSelectedIds(filteredInvoices.map((inv) => inv.id));
@@ -235,6 +247,57 @@ export default function Invoices() {
       toast.error(err.response?.data?.error || "Bulk rejection failed");
     } finally {
       setBulkLoading(false);
+    }
+  };
+
+  const handlePayment = async (invoice) => {
+    try {
+      // 1. Initiate Payment with Backend
+      const response = await paymentAPI.initiateGatewayPayment({
+        invoiceId: invoice.id,
+        amount: invoice.balanceAmount || invoice.totalAmount || invoice.baseAmount
+      });
+
+      const { orderId, amount, currency, keyId, paymentRequestId } = response;
+
+      // 2. Configure Razorpay Options
+      const options = {
+        key: keyId,
+        amount: amount, // in paise
+        currency: currency,
+        name: "Dealer Management Portal",
+        description: `Payment for Invoice ${invoice.invoiceNumber || invoice.id}`,
+        order_id: orderId,
+        handler: function (response) {
+          toast.success(`Payment Successful! ID: ${response.razorpay_payment_id}`);
+          fetchInvoices();
+        },
+        prefill: {
+          name: user.username || user.name,
+          email: user.email,
+          contact: user.phoneNumber || ""
+        },
+        theme: {
+          color: "#3b82f6"
+        },
+        modal: {
+          ondismiss: function () {
+            console.log("Checkout modal closed");
+          }
+        }
+      };
+
+      // 3. Open Razorpay Modal
+      if (window.Razorpay) {
+        const rzp = new window.Razorpay(options);
+        rzp.open();
+      } else {
+        toast.error("Razorpay SDK not loaded. Please refresh.");
+      }
+
+    } catch (error) {
+      console.error("Payment initiation failed", error);
+      toast.error(error.response?.data?.error || "Failed to start payment");
     }
   };
 
@@ -416,6 +479,16 @@ export default function Invoices() {
                           >
                             View
                           </Button>
+                          {(invoice.status === "approved" || invoice.status === "unpaid") && (user.role === "dealer_admin" || user.role === "dealer_staff") && (
+                            <Button
+                              size="small"
+                              variant="contained"
+                              color="primary"
+                              onClick={() => handlePayment(invoice)}
+                            >
+                              Pay Now
+                            </Button>
+                          )}
                           <IconButton
                             size="small"
                             onClick={async () => {

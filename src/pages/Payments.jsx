@@ -66,6 +66,7 @@ export default function Payments() {
             { label: "Bank Transfer", value: "BANK_TRANSFER" },
             { label: "Cheque", value: "CHEQUE" },
             { label: "Cash", value: "CASH" },
+            { label: "Razorpay (Gateway)", value: "GATEWAY" },
           ]
         },
       ],

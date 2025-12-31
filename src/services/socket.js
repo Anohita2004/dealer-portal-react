@@ -163,6 +163,12 @@ export const offTruckEtaUpdated = () => getSocket()?.off("truck:eta:updated");
 export const onNotification = (cb) => getSocket()?.on("notification", cb);
 export const offNotification = () => getSocket()?.off("notification");
 
+// =========================================================
+// PAYMENT GATEWAY EVENTS
+// =========================================================
+export const onPaymentSuccess = (cb) => getSocket()?.on("payment:success", cb);
+export const offPaymentSuccess = () => getSocket()?.off("payment:success");
+
 // 🚨 REMOVED THIS ↓
 // export default socket;
 
