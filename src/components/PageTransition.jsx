@@ -1,33 +1,35 @@
-
 import React from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 
 const pageVariants = {
   initial: {
     opacity: 0,
-    y: 10,
-    scale: 0.99
+    scale: 0.98,
+    filter: 'blur(4px)',
   },
   in: {
     opacity: 1,
-    y: 0,
-    scale: 1
+    scale: 1,
+    filter: 'blur(0px)',
   },
   out: {
     opacity: 0,
-    y: -10,
-    scale: 0.99
+    scale: 1.02,
+    filter: 'blur(4px)',
   }
 };
 
 const pageTransition = {
-  type: 'tween',
-  ease: 'anticipate',
-  duration: 0.4
+  type: 'spring',
+  stiffness: 100,
+  damping: 20,
+  mass: 1,
+  duration: 0.5
 };
 
 /**
- * Wrapper component to add smooth transitions between pages.
+ * Wrapper component to add premium transitions between pages.
+ * Uses spring physics for a more natural feel.
  * @param {React.ReactNode} children 
  */
 const PageTransition = ({ children }) => {
@@ -38,7 +40,11 @@ const PageTransition = ({ children }) => {
       exit="out"
       variants={pageVariants}
       transition={pageTransition}
-      style={{ width: '100%', height: '100%' }}
+      style={{
+        width: '100%',
+        height: '100%',
+        willChange: 'transform, opacity, filter'
+      }}
     >
       {children}
     </motion.div>
@@ -46,3 +52,4 @@ const PageTransition = ({ children }) => {
 };
 
 export default PageTransition;
+

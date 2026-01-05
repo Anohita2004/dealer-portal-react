@@ -4,22 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useThemeMode } from "../context/ThemeContext";
 import { useNotifications } from "../context/NotificationContext";
 import SearchInput from "./SearchInput";
-
-// Helper function to format username for display
-function formatUsername(username) {
-  if (!username) return "User";
-  
-  // Replace underscores and hyphens with spaces
-  let formatted = username.replace(/[_-]/g, " ");
-  
-  // Capitalize first letter of each word
-  formatted = formatted
-    .split(" ")
-    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
-    .join(" ");
-  
-  return formatted;
-}
+import { getRoleName } from "../utils/authUtils";
 
 import {
   IconButton,
@@ -30,6 +15,10 @@ import {
   MenuItem,
   Typography,
   Divider,
+  Box,
+  ListItemIcon,
+  Paper,
+  Button
 } from "@mui/material";
 
 // Lucide Icons
@@ -37,9 +26,23 @@ import {
   Sun,
   Moon,
   Bell,
-  PlusCircle,
   LogOut,
+  User as UserIcon,
+  Settings,
+  ChevronDown,
+  Mail
 } from "lucide-react";
+
+// Helper function to format username for display
+function formatUsername(username) {
+  if (!username) return "User";
+  let formatted = username.replace(/[_-]/g, " ");
+  formatted = formatted
+    .split(" ")
+    .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+    .join(" ");
+  return formatted;
+}
 
 export default function Navbar() {
   const { user, logout } = useContext(AuthContext);
@@ -48,29 +51,29 @@ export default function Navbar() {
   const { notifications, unread, markAllAsRead } = useNotifications();
 
   const [globalSearch, setGlobalSearch] = useState("");
-  const [anchorEl, setAnchorEl] = useState(null);
-  const open = Boolean(anchorEl);
+  const [notifAnchor, setNotifAnchor] = useState(null);
+  const [profileAnchor, setProfileAnchor] = useState(null);
 
   const handleLogout = () => {
     logout();
     navigate("/login");
   };
 
-  const handleNotifOpen = (e) => setAnchorEl(e.currentTarget);
-  const handleNotifClose = () => setAnchorEl(null);
-
+  const role = getRoleName(user);
   const isDark = mode === "dark";
 
   return (
-    <nav
-      style={{
+    <Box
+      component="nav"
+      sx={{
         display: "flex",
         alignItems: "center",
         justifyContent: "space-between",
-        padding: "var(--spacing-3) var(--spacing-6)",
-        backdropFilter: "blur(12px)",
-        background: "var(--color-surface)",
-        borderBottom: "1px solid var(--color-border)",
+        padding: "0.75rem 2rem",
+        backdropFilter: "blur(20px)",
+        background: (theme) => theme.palette.mode === 'dark' ? 'rgba(17, 24, 39, 0.7)' : 'rgba(255, 255, 255, 0.8)',
+        borderBottom: "1px solid",
+        borderColor: "divider",
         position: "sticky",
         top: 0,
         zIndex: 50,
@@ -78,172 +81,191 @@ export default function Navbar() {
       }}
     >
       {/* Search Bar */}
-      <div style={{ flex: 1, maxWidth: 500 }}>
+      <Box sx={{ flex: 1, display: 'flex' }}>
         <SearchInput
-          placeholder="Search modules, dealers..."
+          placeholder="Search portal (⌘K)"
           value={globalSearch}
           onChange={(e) => setGlobalSearch(e.target.value)}
         />
-      </div>
+      </Box>
 
-      <div style={{ display: "flex", alignItems: "center", gap: "1rem" }}>
-        {/* Create New */}
-        <Tooltip title="Create New">
+      <Box sx={{ display: "flex", alignItems: "center", gap: 1.5 }}>
+        {/* Theme Toggle */}
+        <Tooltip title={isDark ? "Light Mode" : "Dark Mode"}>
           <IconButton
+            onClick={toggle}
             sx={{
-              color: "var(--color-primary)",
-              "&:hover": { 
-                transform: "scale(1.05)", 
-                color: "var(--color-primary-dark)",
-                backgroundColor: "var(--color-primary-soft)"
-              },
-              transition: "all var(--transition-base)",
+              color: "text.secondary",
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+              "&:hover": { color: "primary.main", bgcolor: "primary.soft" },
+              transition: "all 0.2s",
             }}
-            onClick={() => navigate("/invoices")}
           >
-            <PlusCircle size={22} />
+            {isDark ? <Sun size={20} /> : <Moon size={20} />}
           </IconButton>
         </Tooltip>
 
         {/* Notifications */}
         <Tooltip title="Notifications">
           <IconButton
-            onClick={handleNotifOpen}
+            onClick={(e) => setNotifAnchor(e.currentTarget)}
             sx={{
-              color: "var(--color-text-primary)",
-              "&:hover": { 
-                color: "var(--color-primary)",
-                backgroundColor: "var(--color-primary-soft)"
-              },
-              transition: "all var(--transition-base)",
+              color: "text.secondary",
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+              "&:hover": { color: "primary.main", bgcolor: "primary.soft" },
+              transition: "all 0.2s",
             }}
           >
-            <Badge badgeContent={unread} color="error">
-              <Bell size={22} />
+            <Badge badgeContent={unread} color="error" sx={{ '& .MuiBadge-badge': { fontWeight: 700 } }}>
+              <Bell size={20} />
             </Badge>
           </IconButton>
         </Tooltip>
 
-        {/* Notifications Menu */}
-        <Menu
-          anchorEl={anchorEl}
-          open={open}
-          onClose={handleNotifClose}
-          PaperProps={{
-            elevation: 4,
-            sx: { mt: 1, minWidth: 300, borderRadius: 2, p: 0.5 },
-          }}
-        >
-          <MenuItem
-            onClick={() => {
-              markAllAsRead();
-              handleNotifClose();
-            }}
-            sx={{
-              fontWeight: "var(--font-weight-medium)",
-              color: "var(--color-primary)",
-              justifyContent: "center",
-              fontSize: "var(--font-size-sm)",
-            }}
-          >
-            Mark all as read
-          </MenuItem>
-
-          <Divider />
-
-          {notifications.length > 0 ? (
-            notifications.slice(0, 8).map((n, idx) => (
-              <MenuItem
-                key={idx}
-                onClick={handleNotifClose}
-                sx={{
-                  flexDirection: "column",
-                  alignItems: "flex-start",
-                  gap: 0.3,
-                  backgroundColor: n.isRead
-                    ? "transparent"
-                    : "var(--color-primary-soft)",
-                }}
-              >
-                <Typography
-                  variant="subtitle2"
-                  fontWeight={!n.isRead ? "var(--font-weight-semibold)" : "var(--font-weight-normal)"}
-                  sx={{ color: "var(--color-primary)" }}
-                >
-                  {n.title}
-                </Typography>
-                <Typography variant="body2" color="text.secondary">
-                  {n.message}
-                </Typography>
-              </MenuItem>
-            ))
-          ) : (
-            <MenuItem disabled>
-              <Typography variant="body2" color="text.secondary">
-                No notifications yet
-              </Typography>
-            </MenuItem>
-          )}
-        </Menu>
-
-        {/* Theme Toggle */}
-        <Tooltip title="Toggle Theme">
-          <IconButton
-            onClick={toggle}
-            sx={{
-              color: "var(--color-text-secondary)",
-              "&:hover": { 
-                color: "var(--color-primary)",
-                backgroundColor: "var(--color-primary-soft)"
-              },
-              transition: "all var(--transition-base)",
-            }}
-          >
-            {isDark ? <Sun size={22} /> : <Moon size={22} />}
-          </IconButton>
-        </Tooltip>
-
-        {/* User */}
+        {/* User Profile */}
         {user && (
-          <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-2)" }}>
-            <Avatar sx={{ 
-              width: 36, 
-              height: 36, 
-              bgcolor: "var(--color-primary)",
-              fontSize: "var(--font-size-sm)",
-              fontWeight: "var(--font-weight-semibold)"
-            }}>
-              {user.name 
-                ? user.name[0].toUpperCase() 
-                : (user.username ? user.username[0].toUpperCase() : "U")}
+          <Box
+            onClick={(e) => setProfileAnchor(e.currentTarget)}
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              ml: 1,
+              p: '4px 8px',
+              borderRadius: '999px',
+              cursor: 'pointer',
+              transition: 'all 0.2s',
+              border: '1px solid transparent',
+              "&:hover": {
+                bgcolor: 'action.hover',
+                borderColor: 'divider'
+              }
+            }}
+          >
+            <Avatar
+              sx={{
+                width: 32,
+                height: 32,
+                bgcolor: "primary.main",
+                fontSize: "0.875rem",
+                fontWeight: 700,
+                boxShadow: '0 0 0 2px var(--color-surface), 0 0 0 4px var(--color-primary-soft)'
+              }}
+            >
+              {user.name ? user.name[0] : (user.username ? user.username[0] : "U")}
             </Avatar>
-            <div style={{ 
-              fontSize: "var(--font-size-sm)", 
-              color: "var(--color-text-primary)",
-              fontWeight: "var(--font-weight-medium)"
-            }}>
-              {user.name || (user.username ? formatUsername(user.username) : "User")}
-            </div>
-          </div>
+            <Box sx={{ display: { xs: 'none', sm: 'block' } }}>
+              <Typography variant="body2" sx={{ fontWeight: 700, lineHeight: 1.2 }}>
+                {user.name || formatUsername(user.username)}
+              </Typography>
+              <Typography variant="caption" color="text.secondary" sx={{ textTransform: 'uppercase', fontSize: '0.6rem', fontWeight: 800, letterSpacing: '0.05em' }}>
+                {role?.replace('_', ' ')}
+              </Typography>
+            </Box>
+            <ChevronDown size={14} color="gray" />
+          </Box>
         )}
 
-        {/* Logout */}
-        <Tooltip title="Logout">
-          <IconButton
-            onClick={handleLogout}
-            sx={{ 
-              color: "var(--color-error)", 
-              "&:hover": { 
-                transform: "scale(1.05)",
-                backgroundColor: "rgba(220, 38, 38, 0.1)"
-              },
-              transition: "all var(--transition-base)",
-            }}
-          >
-            <LogOut size={22} />
-          </IconButton>
-        </Tooltip>
-      </div>
-    </nav>
+        {/* Notifications Menu */}
+        <Menu
+          anchorEl={notifAnchor}
+          open={Boolean(notifAnchor)}
+          onClose={() => setNotifAnchor(null)}
+          PaperProps={{
+            elevation: 8,
+            sx: {
+              mt: 1.5,
+              width: 360,
+              maxHeight: 480,
+              borderRadius: 'var(--radius-xl)',
+              overflow: 'hidden',
+              border: '1px solid',
+              borderColor: 'divider'
+            },
+          }}
+        >
+          <Box sx={{ p: 2, display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Typography variant="h6" sx={{ fontWeight: 800, fontSize: '1rem' }}>Notifications</Typography>
+            {unread > 0 && (
+              <Button size="small" onClick={markAllAsRead} sx={{ fontWeight: 700, textTransform: 'none' }}>
+                Mark all as read
+              </Button>
+            )}
+          </Box>
+          <Divider />
+          <Box sx={{ overflowY: 'auto', maxHeight: 380 }}>
+            {notifications.length > 0 ? (
+              notifications.map((n, idx) => (
+                <MenuItem
+                  key={idx}
+                  onClick={() => setNotifAnchor(null)}
+                  sx={{
+                    py: 1.5,
+                    px: 2,
+                    borderBottom: '1px solid',
+                    borderColor: 'divider',
+                    bgcolor: n.isRead ? 'transparent' : 'primary.soft',
+                    '&:hover': { bgcolor: 'action.hover' },
+                    display: 'flex',
+                    alignItems: 'flex-start',
+                    gap: 2
+                  }}
+                >
+                  <Box sx={{ mt: 0.5, p: 1, borderRadius: 'var(--radius-md)', bgcolor: 'background.paper' }}>
+                    <Mail size={16} color="var(--color-primary)" />
+                  </Box>
+                  <Box>
+                    <Typography variant="subtitle2" fontWeight={800} sx={{ lineHeight: 1.3 }}>{n.title}</Typography>
+                    <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>{n.message}</Typography>
+                  </Box>
+                </MenuItem>
+              ))
+            ) : (
+              <Box sx={{ p: 4, textAlign: 'center' }}>
+                <Typography variant="body2" color="text.secondary">No new notifications</Typography>
+              </Box>
+            )}
+          </Box>
+        </Menu>
+
+        {/* Profile Menu */}
+        <Menu
+          anchorEl={profileAnchor}
+          open={Boolean(profileAnchor)}
+          onClose={() => setProfileAnchor(null)}
+          PaperProps={{
+            elevation: 8,
+            sx: {
+              mt: 1.5,
+              width: 240,
+              borderRadius: 'var(--radius-xl)',
+              border: '1px solid',
+              borderColor: 'divider',
+              p: 1
+            },
+          }}
+        >
+          <Box sx={{ px: 2, py: 1.5 }}>
+            <Typography variant="subtitle2" sx={{ fontWeight: 800 }}>{user?.name || user?.username}</Typography>
+            <Typography variant="caption" color="text.secondary">{user?.email || 'Authenticated User'}</Typography>
+          </Box>
+          <Divider sx={{ my: 1 }} />
+          <MenuItem onClick={() => { setProfileAnchor(null); navigate('/profile'); }} sx={{ borderRadius: 'var(--radius-md)', py: 1 }}>
+            <ListItemIcon><UserIcon size={18} /></ListItemIcon>
+            <Typography variant="body2" fontWeight={600}>My Profile</Typography>
+          </MenuItem>
+          <MenuItem onClick={() => setProfileAnchor(null)} sx={{ borderRadius: 'var(--radius-md)', py: 1 }}>
+            <ListItemIcon><Settings size={18} /></ListItemIcon>
+            <Typography variant="body2" fontWeight={600}>Settings</Typography>
+          </MenuItem>
+          <Divider sx={{ my: 1 }} />
+          <MenuItem onClick={handleLogout} sx={{ borderRadius: 'var(--radius-md)', py: 1, color: 'error.main' }}>
+            <ListItemIcon><LogOut size={18} color="rgba(220, 38, 38, 0.8)" /></ListItemIcon>
+            <Typography variant="body2" fontWeight={700}>Logout</Typography>
+          </MenuItem>
+        </Menu>
+      </Box>
+    </Box>
   );
 }
+

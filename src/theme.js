@@ -35,6 +35,18 @@ export default function getTheme(mode = "light") {
         paper: isDark ? "#1F2937" : "#FFFFFF",
       },
       divider: isDark ? "#374151" : "#E5E7EB",
+
+      // Premium Accents (Khroma)
+      accent: {
+        opal: "#A1C2C7",
+        blueBell: "#9E96C6",
+        pink: "#FEC7BF",
+        corvette: "#FBDAA4",
+        opalSoft: "rgba(161, 194, 199, 0.15)",
+        blueBellSoft: "rgba(158, 150, 198, 0.15)",
+        pinkSoft: "rgba(254, 199, 191, 0.15)",
+        corvetteSoft: "rgba(251, 218, 164, 0.15)",
+      }
     },
 
     typography: {

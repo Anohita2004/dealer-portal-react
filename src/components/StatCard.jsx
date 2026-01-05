@@ -1,77 +1,125 @@
 import React from "react";
+import { Box, Typography } from "@mui/material";
+import { motion } from "framer-motion";
 
 /**
- * StatCard Component
- * Enhanced to show scope information from backend intelligence
- * @param {string} title - KPI title
- * @param {string|number} value - KPI value
- * @param {ReactNode} icon - Optional icon
- * @param {string} accent - Accent color
- * @param {string} scope - Scope indicator (e.g., "Region", "Area", "Dealer") - from backend
- * @param {boolean} urgent - Whether this KPI represents urgent/overdue items
- * @param {function} onClick - Optional click handler
- * @param {object} style - Additional inline styles
+ * Premium StatCard Component
+ * Enhanced with motion and better design system alignment
  */
 export default function StatCard({ title, value, icon, accent, scope, urgent = false, onClick, style = {} }) {
   const accentColor = accent || "var(--color-primary)";
   const isClickable = !!onClick;
 
   return (
-    <div
-      className="card"
+    <Box
+      component={motion.div}
+      whileHover={isClickable ? { y: -4, boxShadow: 'var(--shadow-lg)' } : {}}
+      whileTap={isClickable ? { scale: 0.98 } : {}}
       onClick={onClick}
-      style={{
+      className="card"
+      sx={{
         display: "flex",
         flexDirection: "column",
-        gap: "var(--spacing-1)",
-        border: urgent ? `2px solid ${accentColor}` : undefined,
-        boxShadow: urgent ? `0 0 0 3px ${accentColor}33` : undefined,
-        cursor: isClickable ? "pointer" : undefined,
-        transition: isClickable ? "transform 0.2s, box-shadow 0.2s" : undefined,
+        gap: "var(--spacing-3)",
+        position: 'relative',
+        overflow: 'hidden',
+        border: urgent ? `2px solid ${accentColor}` : '1px solid var(--color-border)',
+        cursor: isClickable ? "pointer" : "default",
+        background: (theme) => theme.palette.mode === 'dark' ? 'rgba(31, 41, 55, 0.4)' : '#FFFFFF',
         ...style,
       }}
-      onMouseEnter={isClickable ? (e) => {
-        e.currentTarget.style.transform = "translateY(-2px)";
-        e.currentTarget.style.boxShadow = urgent
-          ? `0 4px 12px rgba(0,0,0,0.1), 0 0 0 3px ${accentColor}33`
-          : "0 4px 12px rgba(0,0,0,0.1)";
-      } : undefined}
-      onMouseLeave={isClickable ? (e) => {
-        e.currentTarget.style.transform = "translateY(0)";
-        e.currentTarget.style.boxShadow = urgent ? `0 0 0 3px ${accentColor}33` : "none";
-      } : undefined}
     >
-      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "var(--spacing-2)", flex: 1 }}>
-          {icon && <span style={{ fontSize: "1.35rem", color: accentColor }}>{icon}</span>}
-          <div style={{ flex: 1 }}>
-            <h4 style={{ margin: 0, color: "var(--color-text-primary)", fontSize: "var(--font-size-sm)", fontWeight: "var(--font-weight-medium)" }}>{title}</h4>
+      {/* Accent Line */}
+      <Box sx={{
+        position: 'absolute',
+        top: 0,
+        left: 0,
+        width: '4px',
+        height: '100%',
+        bgcolor: accentColor,
+        opacity: 0.8
+      }} />
+
+      <Box sx={{ display: "flex", alignItems: "center", justifyContent: "space-between" }}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: "var(--spacing-3)", flex: 1 }}>
+          {icon && (
+            <Box sx={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              width: 40,
+              height: 40,
+              borderRadius: 'var(--radius-md)',
+              bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)',
+              color: accentColor,
+              fontSize: "1.2rem"
+            }}>
+              {icon}
+            </Box>
+          )}
+          <Box sx={{ flex: 1 }}>
+            <Typography
+              variant="caption"
+              sx={{
+                color: "text.secondary",
+                fontWeight: 600,
+                textTransform: 'uppercase',
+                letterSpacing: '0.05em',
+                fontSize: '0.65rem'
+              }}
+            >
+              {title}
+            </Typography>
             {scope && (
-              <span style={{
-                fontSize: "var(--font-size-xs)",
-                color: "var(--color-text-secondary)",
-                fontWeight: "var(--font-weight-medium)",
-                textTransform: "uppercase",
-                letterSpacing: "0.05em"
-              }}>
+              <Typography
+                sx={{
+                  display: 'block',
+                  fontSize: "0.6rem",
+                  color: accentColor,
+                  fontWeight: 700,
+                  textTransform: "uppercase",
+                  letterSpacing: "0.02em",
+                  mt: 0.5
+                }}
+              >
                 {scope}
-              </span>
+              </Typography>
             )}
-          </div>
-        </div>
-        <div style={{ width: 8, height: 8, borderRadius: "50%", background: accentColor }} />
-      </div>
-      <div style={{ fontSize: "var(--font-size-3xl)", fontWeight: "var(--font-weight-bold)", color: accentColor, lineHeight: "var(--line-height-tight)" }}>{value}</div>
+          </Box>
+        </Box>
+      </Box>
+
+      <Typography
+        variant="h4"
+        sx={{
+          fontWeight: 800,
+          color: "text.primary",
+          lineHeight: 1,
+          letterSpacing: '-0.02em'
+        }}
+      >
+        {value}
+      </Typography>
+
       {urgent && (
-        <div style={{
-          fontSize: "var(--font-size-xs)",
-          color: accentColor,
-          fontWeight: "var(--font-weight-semibold)",
-          marginTop: "var(--spacing-1)"
-        }}>
-          ⚠️ Requires Attention
-        </div>
+        <Box
+          component={motion.div}
+          animate={{ opacity: [0.7, 1, 0.7] }}
+          transition={{ duration: 2, repeat: Infinity }}
+          sx={{
+            display: 'flex',
+            alignItems: 'center',
+            gap: 1,
+            color: "error.main",
+            fontSize: "0.7rem",
+            fontWeight: 700,
+            textTransform: 'uppercase'
+          }}
+        >
+          <span>⚠️</span> Requires Attention
+        </Box>
       )}
-    </div>
+    </Box>
   );
 }
+

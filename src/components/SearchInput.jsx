@@ -1,46 +1,70 @@
 import React from "react";
+import { Search } from "lucide-react";
+import { Box, InputBase } from "@mui/material";
 
-export default function SearchInput({ placeholder = "Search", value, onChange, style }) {
+/**
+ * Premium SearchInput Component
+ */
+export default function SearchInput({ placeholder = "Search...", value, onChange, style }) {
   return (
-    <div
-      style={{
+    <Box
+      sx={{
         display: "flex",
         alignItems: "center",
-        gap: "var(--spacing-2)",
-        padding: "var(--spacing-3) var(--spacing-4)",
+        gap: 1.5,
+        padding: "8px 20px",
         borderRadius: "999px",
-        background: "var(--color-surface)",
-        border: "1px solid var(--color-border)",
+        background: (theme) => theme.palette.mode === 'dark' ? 'rgba(31, 41, 55, 0.5)' : '#FFFFFF',
+        border: "1px solid",
+        borderColor: "divider",
         boxShadow: "var(--shadow-sm)",
-        color: "var(--color-text-secondary)",
-        transition: "all var(--transition-base)",
+        color: "text.secondary",
+        transition: "all 0.2s cubic-bezier(0.4, 0, 0.2, 1)",
+        width: '100%',
+        maxWidth: 400,
+        "&:focus-within": {
+          borderColor: "primary.main",
+          boxShadow: '0 0 0 4px rgba(37, 99, 235, 0.15)',
+          width: '100%',
+          maxWidth: 500
+        },
         ...style,
       }}
-      onFocus={(e) => {
-        e.currentTarget.style.borderColor = "var(--color-primary)";
-        e.currentTarget.style.boxShadow = "0 0 0 3px var(--color-primary-soft)";
-      }}
-      onBlur={(e) => {
-        e.currentTarget.style.borderColor = "var(--color-border)";
-        e.currentTarget.style.boxShadow = "var(--shadow-sm)";
-      }}
     >
-      <span style={{ opacity: 0.7, fontSize: "var(--font-size-sm)" }}>🔎</span>
-      <input
+      <Search size={18} />
+      <InputBase
+        fullWidth
         value={value}
         onChange={onChange}
         placeholder={placeholder}
-        style={{
-          outline: "none",
-          border: "none",
-          background: "transparent",
-          color: "var(--color-text-primary)",
-          width: "100%",
-          fontSize: "var(--font-size-sm)",
-          fontFamily: "var(--font-family)",
+        sx={{
+          color: "text.primary",
+          fontSize: "0.875rem",
+          fontWeight: 500,
+          "& input::placeholder": {
+            opacity: 0.6,
+            color: 'text.secondary',
+            fontStyle: 'italic'
+          }
         }}
       />
-    </div>
+      <Box sx={{
+        display: { xs: 'none', md: 'flex' },
+        alignItems: 'center',
+        justifyContent: 'center',
+        px: 1,
+        py: 0.25,
+        borderRadius: 'var(--radius-sm)',
+        bgcolor: 'action.hover',
+        fontSize: '0.65rem',
+        fontWeight: 700,
+        color: 'text.secondary',
+        border: '1px solid',
+        borderColor: 'divider'
+      }}>
+        ⌘K
+      </Box>
+    </Box>
   );
 }
 

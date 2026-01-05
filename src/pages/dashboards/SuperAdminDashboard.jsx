@@ -35,22 +35,22 @@ export default function SuperAdminDashboard() {
     if (dashboardData && (dashboardData.salesTrend || dashboardData.monthlySales)) {
       return dashboardData.salesTrend || dashboardData.monthlySales;
     }
-    
+
     // Extract from regional sales data
     if (!regions) return [];
-    
+
     let regionList = [];
     if (Array.isArray(regions)) {
       regionList = regions;
     } else if (regions && typeof regions === 'object') {
-      regionList = Array.isArray(regions.regions) ? regions.regions : 
-                   Array.isArray(regions.data) ? regions.data : [];
+      regionList = Array.isArray(regions.regions) ? regions.regions :
+        Array.isArray(regions.data) ? regions.data : [];
     }
-    
+
     if (!Array.isArray(regionList) || regionList.length === 0) return [];
-    
+
     const monthlySales = {};
-    
+
     regionList.forEach(region => {
       if (region.monthlySales && Array.isArray(region.monthlySales)) {
         region.monthlySales.forEach(item => {
@@ -62,7 +62,7 @@ export default function SuperAdminDashboard() {
           monthlySales[month].orders += item.orders || 0;
         });
       }
-      
+
       // Also check territories and dealers for monthly data
       if (region.territories && Array.isArray(region.territories)) {
         region.territories.forEach(territory => {
@@ -79,7 +79,7 @@ export default function SuperAdminDashboard() {
         });
       }
     });
-    
+
     return Object.values(monthlySales).sort((a, b) => {
       const dateA = new Date(a.month);
       const dateB = new Date(b.month);
@@ -91,11 +91,11 @@ export default function SuperAdminDashboard() {
     if (dashboardData.userGrowth || dashboardData.monthlyGrowth) {
       return dashboardData.userGrowth || dashboardData.monthlyGrowth;
     }
-    
+
     if (adminSummary && adminSummary.userGrowth) {
       return adminSummary.userGrowth;
     }
-    
+
     // Generate placeholder if no data available
     return [];
   }
@@ -104,15 +104,15 @@ export default function SuperAdminDashboard() {
     if (dashboardData.docsPerMonth) {
       return dashboardData.docsPerMonth;
     }
-    
+
     if (adminSummary && adminSummary.docsPerMonth) {
       return adminSummary.docsPerMonth;
     }
-    
+
     if (adminSummary && adminSummary.documentsByMonth) {
       return adminSummary.documentsByMonth;
     }
-    
+
     return [];
   }
 
@@ -120,31 +120,31 @@ export default function SuperAdminDashboard() {
     if (dashboardData.pricingTrend) {
       return dashboardData.pricingTrend;
     }
-    
+
     if (adminSummary && adminSummary.pricingTrend) {
       return adminSummary.pricingTrend;
     }
-    
+
     if (adminSummary && adminSummary.pricingUpdatesByMonth) {
       return adminSummary.pricingUpdatesByMonth;
     }
-    
+
     return [];
   }
 
   function extractDealerDistribution(regions) {
     if (!regions) return [];
-    
+
     let regionList = [];
     if (Array.isArray(regions)) {
       regionList = regions;
     } else if (regions && typeof regions === 'object') {
-      regionList = Array.isArray(regions.regions) ? regions.regions : 
-                   Array.isArray(regions.data) ? regions.data : [];
+      regionList = Array.isArray(regions.regions) ? regions.regions :
+        Array.isArray(regions.data) ? regions.data : [];
     }
-    
+
     if (!Array.isArray(regionList)) return [];
-    
+
     return regionList.map(r => ({
       region: r.name || r.regionName || r.id,
       count: r.dealerCount || r.totalDealers || 0
@@ -153,19 +153,19 @@ export default function SuperAdminDashboard() {
 
   function extractTopDealers(regions) {
     if (!regions) return [];
-    
+
     let regionList = [];
     if (Array.isArray(regions)) {
       regionList = regions;
     } else if (regions && typeof regions === 'object') {
-      regionList = Array.isArray(regions.regions) ? regions.regions : 
-                   Array.isArray(regions.data) ? regions.data : [];
+      regionList = Array.isArray(regions.regions) ? regions.regions :
+        Array.isArray(regions.data) ? regions.data : [];
     }
-    
+
     if (!Array.isArray(regionList)) return [];
-    
+
     const allDealers = [];
-    
+
     regionList.forEach(region => {
       if (region.territories && Array.isArray(region.territories)) {
         region.territories.forEach(territory => {
@@ -174,12 +174,12 @@ export default function SuperAdminDashboard() {
           }
         });
       }
-      
+
       if (region.dealers && Array.isArray(region.dealers)) {
         allDealers.push(...region.dealers);
       }
     });
-    
+
     return allDealers
       .sort((a, b) => (b.totalSales || b.sales || 0) - (a.totalSales || a.sales || 0))
       .slice(0, 10);
@@ -187,17 +187,17 @@ export default function SuperAdminDashboard() {
 
   function calculateTotalSales(regions) {
     if (!regions) return 0;
-    
+
     let regionList = [];
     if (Array.isArray(regions)) {
       regionList = regions;
     } else if (regions && typeof regions === 'object') {
-      regionList = Array.isArray(regions.regions) ? regions.regions : 
-                   Array.isArray(regions.data) ? regions.data : [];
+      regionList = Array.isArray(regions.regions) ? regions.regions :
+        Array.isArray(regions.data) ? regions.data : [];
     }
-    
+
     if (!Array.isArray(regionList)) return 0;
-    
+
     return regionList.reduce((sum, r) => sum + (r.totalSales || r.sales || 0), 0);
   }
 
@@ -205,7 +205,7 @@ export default function SuperAdminDashboard() {
     setLoading(true);
     try {
       const params = getTimeRangeParams(timeRange);
-      
+
       // Fetch data from available endpoints
       const [dashboardData, regionData, adminSummaryData, heatmapData] = await Promise.allSettled([
         dashboardAPI.getSuperAdminDashboard(params),
@@ -229,14 +229,14 @@ export default function SuperAdminDashboard() {
       // Extract sales trend from regional sales data
       let salesTrendData = [];
       try {
-        salesTrendData = typeof extractSalesTrend === 'function' 
-          ? extractSalesTrend(regions, data) 
+        salesTrendData = typeof extractSalesTrend === 'function'
+          ? extractSalesTrend(regions, data)
           : [];
       } catch (e) {
         console.warn('Error extracting sales trend:', e);
         salesTrendData = [];
       }
-      
+
       // Extract user growth data
       let userGrowthData = [];
       try {
@@ -247,7 +247,7 @@ export default function SuperAdminDashboard() {
         console.warn('Error extracting user growth:', e);
         userGrowthData = [];
       }
-      
+
       // Extract documents per month
       let docsPerMonthData = [];
       try {
@@ -258,7 +258,7 @@ export default function SuperAdminDashboard() {
         console.warn('Error extracting docs per month:', e);
         docsPerMonthData = [];
       }
-      
+
       // Extract pricing trend
       let pricingTrendData = [];
       try {
@@ -298,13 +298,13 @@ export default function SuperAdminDashboard() {
           userGrowth: formatChartData(userGrowthData),
           docsPerMonth: formatChartData(docsPerMonthData),
           pricingTrend: formatChartData(pricingTrendData),
-          dealerDistribution: data.dealerDistribution || 
-            (data.regions && Array.isArray(data.regions) 
-              ? data.regions.map(r => ({ 
-                  region: r.name || r.regionName || r.id, 
-                  count: r.dealerCount || r.totalDealers || 0 
-                }))
-              : []) || 
+          dealerDistribution: data.dealerDistribution ||
+            (data.regions && Array.isArray(data.regions)
+              ? data.regions.map(r => ({
+                region: r.name || r.regionName || r.id,
+                count: r.dealerCount || r.totalDealers || 0
+              }))
+              : []) ||
             (regions && typeof extractDealerDistribution === 'function' ? extractDealerDistribution(regions) : []) || [],
           regionComparison: typeof formatRegionComparison === 'function' ? formatRegionComparison(regions) : [],
           salesTrend: formatChartData(salesTrendData),
@@ -312,26 +312,26 @@ export default function SuperAdminDashboard() {
         recentActivity: data.recentActivity || [],
         regionRanking: typeof formatRegionRanking === 'function' ? formatRegionRanking(regions) : [],
         dealerRanking: formatDealerRanking(
-          data.topDealers || 
+          data.topDealers ||
           (regions && typeof extractTopDealers === 'function' ? extractTopDealers(regions) : [])
         ),
         heatmapData: heatmap || [],
       };
-      
+
       setStats(mappedStats);
     } catch (e) {
       console.error("Failed to load dashboard:", e);
-      setStats({ 
-        kpis: {}, 
+      setStats({
+        kpis: {},
         previousKpis: {},
-        charts: { 
-          userGrowth: [], 
-          docsPerMonth: [], 
-          pricingTrend: [], 
+        charts: {
+          userGrowth: [],
+          docsPerMonth: [],
+          pricingTrend: [],
           dealerDistribution: [],
           regionComparison: [],
           salesTrend: [],
-        }, 
+        },
         recentActivity: [],
         regionRanking: [],
         dealerRanking: [],
@@ -385,17 +385,17 @@ export default function SuperAdminDashboard() {
 
   function formatRegionComparison(regions) {
     if (!regions) return [];
-    
+
     let regionList = [];
     if (Array.isArray(regions)) {
       regionList = regions;
     } else if (regions && typeof regions === 'object') {
-      regionList = Array.isArray(regions.regions) ? regions.regions : 
-                   Array.isArray(regions.data) ? regions.data : [];
+      regionList = Array.isArray(regions.regions) ? regions.regions :
+        Array.isArray(regions.data) ? regions.data : [];
     }
-    
+
     if (!Array.isArray(regionList)) return [];
-    
+
     return regionList.map(r => ({
       name: r.name || r.regionName || r.id,
       sales: r.totalSales || r.sales || 0,
@@ -406,17 +406,17 @@ export default function SuperAdminDashboard() {
 
   function formatRegionRanking(regions) {
     if (!regions) return [];
-    
+
     let regionList = [];
     if (Array.isArray(regions)) {
       regionList = regions;
     } else if (regions && typeof regions === 'object') {
-      regionList = Array.isArray(regions.regions) ? regions.regions : 
-                   Array.isArray(regions.data) ? regions.data : [];
+      regionList = Array.isArray(regions.regions) ? regions.regions :
+        Array.isArray(regions.data) ? regions.data : [];
     }
-    
+
     if (!Array.isArray(regionList)) return [];
-    
+
     return regionList
       .map(r => ({
         id: r.id,
@@ -479,16 +479,16 @@ export default function SuperAdminDashboard() {
       {(() => {
         const pendingApprovals = k.totalApprovalsPending || 0;
         const hasRisks = pendingApprovals > 50 || k.totalOutstanding > 10000000;
-        
+
         if (!hasRisks) return null;
-        
+
         return (
-          <div style={{ 
-            marginBottom: "var(--spacing-6)", 
-            padding: "var(--spacing-6)", 
-            background: "rgba(245, 158, 11, 0.1)", 
-            border: "2px solid var(--color-warning)", 
-            borderRadius: "var(--radius-lg)" 
+          <div style={{
+            marginBottom: "var(--spacing-6)",
+            padding: "var(--spacing-6)",
+            background: "rgba(245, 158, 11, 0.1)",
+            border: "2px solid var(--color-warning)",
+            borderRadius: "var(--radius-lg)"
           }}>
             <h3 style={{ fontSize: "var(--font-size-lg)", fontWeight: "var(--font-weight-bold)", margin: 0, marginBottom: "var(--spacing-4)", color: "var(--color-warning)" }}>
               ⚠️ Governance Alerts
@@ -567,10 +567,10 @@ export default function SuperAdminDashboard() {
         }}
       >
         <KPI title="Total Invoices" value={k.totalInvoices || 0} color="var(--color-primary)" />
-        <KPI 
-          title="Pending Approvals" 
-          value={k.totalApprovalsPending || 0} 
-          color={k.totalApprovalsPending > 50 ? "var(--color-error)" : "var(--color-warning)"} 
+        <KPI
+          title="Pending Approvals"
+          value={k.totalApprovalsPending || 0}
+          color={k.totalApprovalsPending > 50 ? "var(--color-error)" : "var(--color-warning)"}
         />
         <KPI title="Active Campaigns" value={k.activeCampaigns || 0} color="var(--color-primary-dark)" />
         <KPI title="Collection Rate" value={`${collectionRate.toFixed(1)}%`} color={collectionRate > 80 ? "var(--color-success)" : collectionRate > 60 ? "var(--color-warning)" : "var(--color-error)"} />
@@ -743,6 +743,67 @@ export default function SuperAdminDashboard() {
           </tbody>
         </table>
       </Card>
+
+      {/* DESIGN PALETTE (KHROMA) */}
+      <div style={{ marginTop: "2rem" }}>
+        <h2 style={{ fontSize: "1.5rem", fontWeight: 700, marginBottom: "1rem" }}>Premium Design Palette</h2>
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: "1.5rem" }}>
+          <PaletteCard
+            name="Opal"
+            hex="#A1C2C7"
+            usage="Info states, Active filters, Calming backgrounds"
+            className="bg-opal"
+          />
+          <PaletteCard
+            name="Blue Bell"
+            hex="#9E96C6"
+            usage="Creative headers, Scheduled tasks, Premium highlights"
+            className="bg-blue-bell"
+          />
+          <PaletteCard
+            name="Your Pink"
+            hex="#FEC7BF"
+            usage="New badges, Interactive hover states, Soft alerts"
+            className="bg-pink"
+          />
+          <PaletteCard
+            name="Corvette"
+            hex="#FBDAA4"
+            usage="Pending reviews, Warm highlights, Dashboard accents"
+            className="bg-corvette"
+          />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function PaletteCard({ name, hex, usage, className }) {
+  return (
+    <div style={{
+      background: 'var(--color-surface)',
+      borderRadius: 'var(--radius-xl)',
+      padding: 'var(--spacing-4)',
+      border: '1px solid var(--color-border)',
+      boxShadow: 'var(--shadow-sm)'
+    }}>
+      <div className={className} style={{
+        height: '80px',
+        borderRadius: 'var(--radius-md)',
+        marginBottom: 'var(--spacing-3)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: 'white',
+        fontWeight: 700,
+        textShadow: '0 1px 4px rgba(0,0,0,0.2)'
+      }}>
+        {hex}
+      </div>
+      <h4 style={{ margin: 0, fontSize: '1rem', fontWeight: 700 }}>{name}</h4>
+      <p style={{ fontSize: '0.75rem', opacity: 0.7, marginTop: 'var(--spacing-1)', lineHeight: 1.4 }}>
+        <strong>Usage:</strong> {usage}
+      </p>
     </div>
   );
 }

@@ -57,6 +57,8 @@ api.interceptors.response.use(
         "/reports/dashboard/", // Dashboard endpoints may have validation errors
         "/inventory/summary",
         "/payments/due",
+        "/users/me",
+        "/auth/me",
         // Manager-specific helper endpoints are intentionally *not* called directly
         // from the UI anymore. They are kept here only for backward compatibility
         // with older builds that might still hit them.

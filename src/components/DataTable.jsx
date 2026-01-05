@@ -4,25 +4,19 @@ import {
   TableBody,
   TableCell,
   TableContainer,
-  TableHead,
   TableRow,
+  TableHead,
   Paper,
-  Typography,
   Box,
   Skeleton,
   TablePagination
 } from "@mui/material";
+import EmptyState from "./EmptyState";
+import { motion } from "framer-motion";
 
 /**
- * DataTable Component
- * A wrapper around MUI Table that supports DataGrid-style column definitions
- * 
- * @param {Array} columns - Column definitions { field, headerName, renderCell, flex, width }
- * @param {Array} rows - Data rows
- * @param {Boolean} loading - Loading state
- * @param {String} emptyMessage - Message to show when no data
- * @param {Function} onRowClick - Optional click handler
- * @param {Object} pagination - Pagination state and handlers
+ * Premium DataTable Component
+ * Enhanced with better loading states and empty views
  */
 export default function DataTable({
   columns,
@@ -34,12 +28,23 @@ export default function DataTable({
 }) {
   if (loading) {
     return (
-      <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2 }}>
+      <TableContainer
+        component={Paper}
+        elevation={0}
+        sx={{
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: "var(--radius-lg)",
+          overflow: "hidden"
+        }}
+      >
         <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: "action.hover" }}>
+            <TableRow sx={{ bgcolor: "background.default" }}>
               {columns.map((col, i) => (
-                <TableCell key={i} sx={{ fontWeight: 600 }}>{col.headerName || col.label}</TableCell>
+                <TableCell key={i} sx={{ fontWeight: 600, py: 2 }}>
+                  <Skeleton variant="text" width="60%" height={24} />
+                </TableCell>
               ))}
             </TableRow>
           </TableHead>
@@ -47,8 +52,13 @@ export default function DataTable({
             {[1, 2, 3, 4, 5].map((row) => (
               <TableRow key={row}>
                 {columns.map((col, i) => (
-                  <TableCell key={i}>
-                    <Skeleton variant="text" />
+                  <TableCell key={i} sx={{ py: 2 }}>
+                    <Skeleton
+                      variant="rectangular"
+                      width={i === 0 ? "80%" : "40%"}
+                      height={20}
+                      sx={{ borderRadius: "var(--radius-sm)" }}
+                    />
                   </TableCell>
                 ))}
               </TableRow>
@@ -61,26 +71,42 @@ export default function DataTable({
 
   if (!rows || rows.length === 0) {
     return (
-      <Box sx={{ py: 8, textAlign: "center", border: "1px dashed", borderColor: "divider", borderRadius: 2 }}>
-        <Typography color="text.secondary">{emptyMessage}</Typography>
-      </Box>
+      <EmptyState
+        title="No Results Found"
+        description={emptyMessage}
+        icon="📊"
+      />
     );
   }
 
   return (
     <Box>
-      <TableContainer component={Paper} elevation={0} sx={{ border: "1px solid", borderColor: "divider", borderRadius: 2, overflow: "hidden" }}>
+      <TableContainer
+        component={Paper}
+        elevation={0}
+        sx={{
+          border: "1px solid",
+          borderColor: "divider",
+          borderRadius: "var(--radius-lg)",
+          overflow: "hidden",
+          boxShadow: 'var(--shadow-sm)'
+        }}
+      >
         <Table>
           <TableHead>
-            <TableRow sx={{ bgcolor: "action.hover" }}>
+            <TableRow sx={{ bgcolor: "background.default" }}>
               {columns.map((col) => (
                 <TableCell
                   key={col.field || col.key}
                   sx={{
-                    fontWeight: 600,
+                    fontWeight: 700,
                     color: "text.primary",
                     width: col.width || "auto",
                     minWidth: col.minWidth || "auto",
+                    py: 2,
+                    textTransform: 'uppercase',
+                    fontSize: '0.7rem',
+                    letterSpacing: '0.05em'
                   }}
                 >
                   {col.headerName || col.label}
@@ -91,16 +117,24 @@ export default function DataTable({
           <TableBody>
             {rows.map((row, idx) => (
               <TableRow
+                component={motion.tr}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: idx * 0.05 }}
                 key={row.id || idx}
                 hover
                 onClick={() => onRowClick && onRowClick(row)}
                 sx={{
                   cursor: onRowClick ? "pointer" : "default",
-                  '&:last-child td, &:last-child th': { border: 0 }
+                  '&:last-child td, &:last-child th': { border: 0 },
+                  transition: 'background-color 0.2s',
+                  '&:hover': {
+                    bgcolor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.03)' : 'rgba(0,0,0,0.02)'
+                  }
                 }}
               >
                 {columns.map((col) => (
-                  <TableCell key={col.field || col.key}>
+                  <TableCell key={col.field || col.key} sx={{ py: 2 }}>
                     {col.renderCell
                       ? col.renderCell({ row, value: row[col.field || col.key] })
                       : col.render
@@ -123,8 +157,17 @@ export default function DataTable({
           rowsPerPage={pagination.limit || 10}
           onRowsPerPageChange={(e) => pagination.onLimitChange && pagination.onLimitChange(parseInt(e.target.value, 10))}
           rowsPerPageOptions={[5, 10, 25, 50]}
+          sx={{
+            borderTop: 'none',
+            color: 'text.secondary',
+            '.MuiTablePagination-selectLabel, .MuiTablePagination-displayedRows': {
+              fontSize: '0.8rem',
+              fontWeight: 500
+            }
+          }}
         />
       )}
     </Box>
   );
 }
+

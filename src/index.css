@@ -28,6 +28,25 @@
   --color-surface: #FFFFFF;
 
   /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+     PREMIUM PALETTE (From Khroma)
+     ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+  --color-opal: #A1C2C7;
+  --color-blue-bell: #9E96C6;
+  --color-pink: #FEC7BF;
+  --color-corvette: #FBDAA4;
+
+  --color-opal-soft: rgba(161, 194, 199, 0.15);
+  --color-blue-bell-soft: rgba(158, 150, 198, 0.15);
+  --color-pink-soft: rgba(254, 199, 191, 0.15);
+  --color-corvette-soft: rgba(251, 218, 164, 0.15);
+
+  /* GRADIENT TOKENS */
+  --gradient-opal: linear-gradient(135deg, #A1C2C7 0%, #7E9FA3 100%);
+  --gradient-blue-bell: linear-gradient(135deg, #9E96C6 0%, #7D74A8 100%);
+  --gradient-morning: linear-gradient(135deg, #A1C2C7 0%, #9E96C6 100%);
+  --gradient-sunset: linear-gradient(135deg, #FEC7BF 0%, #FBDAA4 100%);
+
+  /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
      SPACING SCALE
      ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
   --spacing-1: 4px;
@@ -67,14 +86,22 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
-  --font-size-xs: 0.75rem;    /* 12px */
-  --font-size-sm: 0.875rem;   /* 14px */
-  --font-size-base: 1rem;     /* 16px */
-  --font-size-lg: 1.125rem;   /* 18px */
-  --font-size-xl: 1.25rem;    /* 20px */
-  --font-size-2xl: 1.5rem;   /* 24px */
-  --font-size-3xl: 1.875rem; /* 30px */
-  --font-size-4xl: 2.25rem;   /* 36px */
+  --font-size-xs: 0.75rem;
+  /* 12px */
+  --font-size-sm: 0.875rem;
+  /* 14px */
+  --font-size-base: 1rem;
+  /* 16px */
+  --font-size-lg: 1.125rem;
+  /* 18px */
+  --font-size-xl: 1.25rem;
+  /* 20px */
+  --font-size-2xl: 1.5rem;
+  /* 24px */
+  --font-size-3xl: 1.875rem;
+  /* 30px */
+  --font-size-4xl: 2.25rem;
+  /* 36px */
 
   --line-height-tight: 1.25;
   --line-height-normal: 1.5;
@@ -121,7 +148,12 @@ body {
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
    TYPOGRAPHY HIERARCHY
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
-h1, h2, h3, h4, h5, h6 {
+h1,
+h2,
+h3,
+h4,
+h5,
+h6 {
   margin: 0;
   font-weight: var(--font-weight-semibold);
   color: var(--color-text-primary);
@@ -298,16 +330,142 @@ tbody tr:last-child td {
   color: var(--color-error);
 }
 
+/* KHROMA COLOR UTILITIES */
+.bg-opal {
+  background-color: var(--color-opal);
+}
+
+.bg-blue-bell {
+  background-color: var(--color-blue-bell);
+}
+
+.bg-pink {
+  background-color: var(--color-pink);
+}
+
+.bg-corvette {
+  background-color: var(--color-corvette);
+}
+
+.text-opal {
+  color: var(--color-opal);
+}
+
+.text-blue-bell {
+  color: var(--color-blue-bell);
+}
+
+.glass-opal {
+  background: rgba(161, 194, 199, 0.4);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(161, 194, 199, 0.3);
+}
+
+.gradient-morning {
+  background: var(--gradient-morning);
+}
+
+.gradient-sunset {
+  background: var(--gradient-sunset);
+}
+
 /* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   ACCESSIBILITY
+   GLOBAL UX POLISH
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+
+html {
+  scroll-behavior: smooth;
+}
+
+::selection {
+  background-color: var(--color-primary-soft);
+  color: var(--color-primary-dark);
+}
+
+/* Custom Scrollbar for modern browsers */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: var(--color-background);
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border);
+  border-radius: 10px;
+  transition: background var(--transition-base);
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-secondary);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   GLASSMORPHISM UTILITIES
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+.glass {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.3);
+}
+
+[data-theme="dark"] .glass {
+  background: rgba(31, 41, 55, 0.7);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ANIMATION KEYFRAMES
+   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-subtle {
+  0% {
+    transform: scale(1);
+  }
+
+  50% {
+    transform: scale(1.02);
+  }
+
+  100% {
+    transform: scale(1);
+  }
+}
+
+.animate-fade-in {
+  animation: fadeIn 0.5s ease forwards;
+}
+
+.animate-pulse-subtle {
+  animation: pulse-subtle 2s infinite ease-in-out;
+}
+
+/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+   ACCESSIBILITY & PRINT
    ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 @media (prefers-reduced-motion: reduce) {
+
   *,
   *::before,
   *::after {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
   }
 }
 
@@ -321,11 +479,8 @@ textarea:focus-visible {
   outline-offset: 2px;
 }
 
-/* ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-   PRINT STYLES
-   ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━ */
 @media print {
-  /* Hide navigation and non-essential elements */
+
   nav,
   header,
   aside,
@@ -334,24 +489,20 @@ textarea:focus-visible {
     display: none !important;
   }
 
-  /* Ensure invoice template prints correctly */
   body {
     background: white;
     color: black;
   }
 
-  /* Page setup */
   @page {
     size: A4;
     margin: 20mm;
   }
 
-  /* Ensure proper page breaks */
   .invoice-page {
     page-break-after: always;
   }
 
-  /* Print-friendly colors */
   * {
     -webkit-print-color-adjust: exact;
     print-color-adjust: exact;
