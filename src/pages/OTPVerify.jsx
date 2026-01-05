@@ -1,4 +1,4 @@
-import React, { useState, useContext } from "react";
+import React, { useState, useContext, useEffect } from "react";
 import { AuthContext } from "../context/AuthContext";
 import { useNavigate } from "react-router-dom";
 import {
@@ -14,21 +14,60 @@ import { motion } from "framer-motion";
 import { ShieldCheck, ArrowRight, RefreshCw } from "lucide-react";
 
 export default function OTPVerify({ userId }) {
-  const { verifyOTP } = useContext(AuthContext);
+  const { verifyOTP, isAuthenticated, user, token, loading: authLoading } = useContext(AuthContext);
   const [otp, setOtp] = useState("");
   const [error, setError] = useState(null);
   const [loading, setLoading] = useState(false);
+  const [verificationSuccess, setVerificationSuccess] = useState(false);
   const navigate = useNavigate();
+
+  // Navigate to dashboard once authentication state is confirmed
+  useEffect(() => {
+    // Wait for auth loading to complete and all auth state to be set
+    if (verificationSuccess && !authLoading && isAuthenticated && user && token) {
+      console.log("OTP Verification: All auth state confirmed, navigating to dashboard", {
+        isAuthenticated,
+        hasUser: !!user,
+        hasToken: !!token,
+        authLoading,
+        userRole: user.role || user.roleDetails?.name || user.roleName
+      });
+      
+      // Verify localStorage is also set (double-check)
+      const storedToken = localStorage.getItem("token");
+      const storedUser = localStorage.getItem("user");
+      
+      if (!storedToken || !storedUser) {
+        console.error("OTP Verification: localStorage not set, waiting...");
+        return;
+      }
+      
+      // Use window.location for a more reliable navigation that forces a full re-render
+      // This ensures ProtectedRoute sees the updated auth state
+      const timer = setTimeout(() => {
+        console.log("OTP Verification: Navigating to dashboard");
+        window.location.href = "/dashboard";
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [verificationSuccess, authLoading, isAuthenticated, user, token]);
 
   const handleVerify = async (e) => {
     e.preventDefault();
     setError(null);
     setLoading(true);
+    setVerificationSuccess(false);
+    
     try {
+      console.log("OTP Verification: Starting verification...");
       await verifyOTP(userId, otp);
-      navigate("/dashboard");
+      console.log("OTP Verification: Success, waiting for auth state update...");
+      // Mark verification as successful - useEffect will handle navigation
+      setVerificationSuccess(true);
     } catch (err) {
-      setError(err.response?.data?.error || "Invalid OTP. Please try again.");
+      console.error("OTP Verification: Error", err);
+      setError(err.response?.data?.error || err.message || "Invalid OTP. Please try again.");
+      setVerificationSuccess(false);
     } finally {
       setLoading(false);
     }

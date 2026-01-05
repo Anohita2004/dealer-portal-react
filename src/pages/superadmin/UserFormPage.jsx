@@ -35,6 +35,8 @@ import {
   Save,
   CheckCircle,
   Info,
+  Eye,
+  EyeOff,
 } from "lucide-react";
 import api, { geoAPI, dealerAPI, teamAPI, roleAPI, userAPI } from "../../services/api";
 import { toast } from "react-toastify";
@@ -62,7 +64,10 @@ export default function UserFormPage() {
 
   const [errors, setErrors] = useState({});
   const [loading, setLoading] = useState(false);
+
   const [activeStep, setActiveStep] = useState(0);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   // Dropdown data
   const [roles, setRoles] = useState([]);
@@ -126,10 +131,10 @@ export default function UserFormPage() {
         return { ...formRef.current };
       };
       window.__getValidationState = () => {
-        const isValid = validate();
+        const validationResult = validate();
         return {
-          isValid,
-          errors: window.__lastValidationErrors || {},
+          isValid: validationResult.isValid,
+          errors: validationResult.errors,
           formState: { ...form },
         };
       };
@@ -419,42 +424,47 @@ export default function UserFormPage() {
       newErrors.roleId = "Please select a role";
     }
 
+    // Get hierarchy based on the current role being validated (not the closure variable)
+    const selectedRole = roles.find((r) => r.id === formToValidate.roleId);
+    const roleName = selectedRole?.name?.toLowerCase().replace(/\s+/g, "_") || "";
+    const currentHierarchy = selectedRole ? (roleHierarchy[roleName] || roleHierarchy[selectedRole.name] || null) : null;
+
     // Hierarchy-based validations
-    if (hierarchy) {
-      if (hierarchy.requires.includes("region") && !formToValidate.regionId) {
+    if (currentHierarchy) {
+      if (currentHierarchy.requires.includes("region") && !formToValidate.regionId) {
         newErrors.regionId = "Region is required for this role";
       }
-      if (hierarchy.requires.includes("area") && !formToValidate.areaId) {
+      if (currentHierarchy.requires.includes("area") && !formToValidate.areaId) {
         newErrors.areaId = "Area is required for this role";
       }
-      if (hierarchy.requires.includes("territory") && !formToValidate.territoryId) {
+      if (currentHierarchy.requires.includes("territory") && !formToValidate.territoryId) {
         newErrors.territoryId = "Territory is required for this role";
       }
-      if (hierarchy.requires.includes("dealer") && !formToValidate.dealerId) {
+      if (currentHierarchy.requires.includes("dealer") && !formToValidate.dealerId) {
         newErrors.dealerId = "Dealer is required for this role";
       }
     }
 
     // Sales Executive must have a manager for hierarchy placement
-    const selectedRole = roles.find((r) => r.id === formToValidate.roleId);
-    const roleName = selectedRole?.name?.toLowerCase().replace(/\s+/g, "_") || "";
     if (roleName === "sales_executive" && !formToValidate.managerId) {
       newErrors.managerId = "Manager is required for Sales Executive (needed for company hierarchy)";
     }
 
     setErrors(newErrors);
 
+    const isValid = Object.keys(newErrors).length === 0;
+
     // Expose validation errors to tests for debugging
     if (typeof window !== "undefined" && process.env.NODE_ENV === "test") {
       window.__lastValidationErrors = newErrors;
-      window.__isFormValid = Object.keys(newErrors).length === 0;
+      window.__isFormValid = isValid;
       window.__lastValidationFormState = { ...formToValidate };
       window.__lastValidationRoles = roles.length;
       window.__lastValidationSelectedRole = selectedRole ? { id: selectedRole.id, name: selectedRole.name } : null;
-      window.__lastValidationHierarchy = hierarchy ? { requires: hierarchy.requires } : null;
+      window.__lastValidationHierarchy = currentHierarchy ? { requires: currentHierarchy.requires } : null;
 
       // Detailed logging for test debugging
-      if (Object.keys(newErrors).length > 0) {
+      if (!isValid) {
         console.error('[VALIDATION FAILED]', {
           errors: newErrors,
           formState: { ...formToValidate },
@@ -462,12 +472,17 @@ export default function UserFormPage() {
           selectedRole: selectedRole ? { id: selectedRole.id, name: selectedRole.name } : null,
           roleName,
           rolesCount: roles.length,
-          hierarchy: hierarchy ? { requires: hierarchy.requires } : null,
+          hierarchy: currentHierarchy ? { requires: currentHierarchy.requires } : null,
         });
       }
     }
 
-    return Object.keys(newErrors).length === 0;
+    // Store errors in a ref for immediate access after validation
+    if (typeof window !== "undefined") {
+      window.__lastValidationErrors = newErrors;
+    }
+
+    return { isValid, errors: newErrors };
   };
 
   // Field handler
@@ -529,12 +544,14 @@ export default function UserFormPage() {
       // Actually, we can't do this easily. Let's use formRef.current directly in validate
     }
 
-    const isValid = validate();
+    const validationResult = validate();
+    const isValid = validationResult.isValid;
+    const validationErrors = validationResult.errors;
 
     // Expose validation result for tests
     if (typeof window !== "undefined" && process.env.NODE_ENV === "test") {
       window.__lastSaveValidationResult = isValid;
-      window.__lastSaveValidationErrors = window.__lastValidationErrors || {};
+      window.__lastSaveValidationErrors = validationErrors;
       const currentFormState = process.env.NODE_ENV === "test" ? formRef.current : form;
       window.__lastSaveFormState = { ...currentFormState };
       window.__handleSaveCalled = true;
@@ -552,7 +569,7 @@ export default function UserFormPage() {
 
       if (!isValid) {
         console.error('[HANDLE_SAVE] Validation failed:', JSON.stringify({
-          errors: window.__lastSaveValidationErrors,
+          errors: validationErrors,
           formState: { ...form },
         }));
         // In test mode, if validation fails but form state looks correct, allow bypass for debugging
@@ -570,7 +587,10 @@ export default function UserFormPage() {
       }
     } else {
       if (!isValid) {
-        toast.error("Please fix the errors in the form");
+        // Log errors to console for debugging
+        console.error("Form validation failed:", validationErrors);
+        const errorFields = Object.keys(validationErrors).join(", ");
+        toast.error(`Please fix the errors in the form${errorFields ? `: ${errorFields}` : ""}`);
         return;
       }
     }
@@ -736,7 +756,7 @@ export default function UserFormPage() {
                         <TextField
                           fullWidth
                           label="Password"
-                          type="password"
+                          type={showPassword ? "text" : "password"}
                           inputProps={{ "data-testid": "password-input" }}
                           value={form.password}
                           onChange={(e) => updateField("password", e.target.value)}
@@ -749,6 +769,19 @@ export default function UserFormPage() {
                                 <Lock size={18} />
                               </InputAdornment>
                             ),
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                <IconButton
+                                  aria-label="toggle password visibility"
+                                  onClick={() => setShowPassword(!showPassword)}
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  edge="end"
+                                  type="button"
+                                >
+                                  {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </IconButton>
+                              </InputAdornment>
+                            ),
                           }}
                         />
                       </Grid>
@@ -757,7 +790,7 @@ export default function UserFormPage() {
                         <TextField
                           fullWidth
                           label="Confirm Password"
-                          type="password"
+                          type={showConfirmPassword ? "text" : "password"}
                           inputProps={{ "data-testid": "confirm-password-input" }}
                           value={form.confirmPassword}
                           onChange={(e) => updateField("confirmPassword", e.target.value)}
@@ -770,6 +803,19 @@ export default function UserFormPage() {
                                 <Lock size={18} />
                               </InputAdornment>
                             ),
+                            endAdornment: (
+                              <InputAdornment position="end">
+                                <IconButton
+                                  aria-label="toggle password visibility"
+                                  onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                                  onMouseDown={(e) => e.preventDefault()}
+                                  edge="end"
+                                  type="button"
+                                >
+                                  {showConfirmPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                                </IconButton>
+                              </InputAdornment>
+                            ),
                           }}
                         />
                       </Grid>
@@ -778,7 +824,7 @@ export default function UserFormPage() {
                 </Grid>
 
                 <Box sx={{ mt: 3, display: "flex", justifyContent: "flex-end" }}>
-                  <Button variant="contained" onClick={() => setActiveStep(1)}>
+                  <Button variant="contained" onClick={() => setActiveStep(1)} type="button">
                     Next: Role & Hierarchy
                   </Button>
                 </Box>
@@ -1016,10 +1062,10 @@ export default function UserFormPage() {
                 </Grid>
 
                 <Box sx={{ mt: 3, display: "flex", justifyContent: "space-between" }}>
-                  <Button variant="outlined" onClick={() => setActiveStep(0)}>
+                  <Button variant="outlined" onClick={() => setActiveStep(0)} type="button">
                     Back
                   </Button>
-                  <Button variant="contained" onClick={() => setActiveStep(2)}>
+                  <Button variant="contained" onClick={() => setActiveStep(2)} type="button">
                     Next: Assignments
                   </Button>
                 </Box>
@@ -1058,7 +1104,7 @@ export default function UserFormPage() {
                 </Grid>
 
                 <Box sx={{ mt: 3, display: "flex", justifyContent: "space-between" }}>
-                  <Button variant="outlined" onClick={() => setActiveStep(1)}>
+                  <Button variant="outlined" onClick={() => setActiveStep(1)} type="button">
                     Back
                   </Button>
                   <Button type="submit" variant="contained" disabled={loading} startIcon={<Save size={18} />}>

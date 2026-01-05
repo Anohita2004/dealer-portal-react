@@ -65,13 +65,21 @@ export default function ProtectedRoute({ children, allowed, requireAuth = true }
   if (requireAuth) {
     // User not logged in → redirect to login with return path
     if (!token || !user || !isAuthenticated) {
+      console.log("ProtectedRoute: Redirecting to login - missing auth", {
+        hasToken: !!token,
+        hasUser: !!user,
+        isAuthenticated
+      });
       return <Navigate to="/login" state={{ from: location }} replace />;
     }
 
-    // Role-protected routes
-    if (allowed && allowed.length > 0 && !hasRoleAccess(user.role, allowed)) {
-      // Redirect to unauthorized page or user's landing page
-      return <Navigate to="/unauthorized" replace />;
+    // Role-protected routes - extract role from user object (supports multiple formats)
+    if (allowed && allowed.length > 0) {
+      const userRole = user.role || user.roleDetails?.name || user.roleName || "";
+      if (!hasRoleAccess(userRole, allowed)) {
+        // Redirect to unauthorized page or user's landing page
+        return <Navigate to="/unauthorized" replace />;
+      }
     }
   }
 

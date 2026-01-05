@@ -153,6 +153,11 @@ export const AuthProvider = ({ children }) => {
         throw new Error("Invalid token received");
       }
 
+      // IMPORTANT: Set token in localStorage FIRST before making any authenticated API calls
+      // This ensures the axios interceptor can pick up the token
+      localStorage.setItem("token", newToken);
+      setToken(newToken);
+
       // Try to fetch full user profile if name is missing
       let fullUser = newUser;
       if (!newUser.name && newUser.id) {
@@ -164,7 +169,9 @@ export const AuthProvider = ({ children }) => {
           if (role === "super_admin" || role === "technical_admin") {
             try {
               userRes = await api.get(`/admin/users/${newUser.id}`);
-            } catch (e) { /* fallback */ }
+            } catch (e) { 
+              console.debug("Admin user profile fetch failed, using basic user data");
+            }
           }
 
           // Strategy 2: If dealer, try dealer profile
@@ -174,7 +181,9 @@ export const AuthProvider = ({ children }) => {
               if (dealerData.data) {
                 userRes = { data: { ...newUser, name: dealerData.data.contactPerson } };
               }
-            } catch (e) { /* fallback */ }
+            } catch (e) { 
+              console.debug("Dealer profile fetch failed, using basic user data");
+            }
           }
 
           // Strategy 3: Try a generic "me" endpoint if nothing else worked
@@ -185,7 +194,9 @@ export const AuthProvider = ({ children }) => {
               // Try the reported failing endpoint as a last resort, but silently
               try {
                 userRes = await api.get(`/users/me`);
-              } catch (innerE) { /* ignore 404 */ }
+              } catch (innerE) { 
+                console.debug("User profile endpoints failed, using basic user data");
+              }
             }
           }
 
@@ -194,14 +205,12 @@ export const AuthProvider = ({ children }) => {
           }
         } catch (err) {
           // Silent fallback - the user object from verifyOTP response is usually sufficient
-          console.debug("Optional user profile enrichment skipped");
+          console.debug("Optional user profile enrichment skipped:", err.message);
         }
       }
 
-      localStorage.setItem("token", newToken);
+      // Store the final user object
       localStorage.setItem("user", JSON.stringify(fullUser));
-
-      setToken(newToken);
       setUser(fullUser);
       setIsAuthenticated(true);
 
@@ -210,6 +219,11 @@ export const AuthProvider = ({ children }) => {
 
       return fullUser;
     } catch (error) {
+      // Clear token if verification failed
+      localStorage.removeItem("token");
+      localStorage.removeItem("user");
+      setToken(null);
+      setUser(null);
       setIsAuthenticated(false);
       throw error;
     } finally {
