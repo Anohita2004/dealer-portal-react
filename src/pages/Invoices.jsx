@@ -34,6 +34,8 @@ import AdvancedFilterSidebar from "../components/AdvancedFilterSidebar";
 import FilterChips from "../components/FilterChips";
 import { useDebounce } from "../hooks/useDebounce";
 import { onPaymentSuccess, offPaymentSuccess } from "../services/socket";
+import { getInvoiceStatusLabel, getInvoiceStatusColor, isPaidViaIntegration } from "../utils/invoiceStatus";
+import { CreditCard } from "lucide-react";
 
 // Helper component for workflow badge in table
 function InvoiceWorkflowBadge({ invoiceId }) {
@@ -268,9 +270,23 @@ export default function Invoices() {
         name: "Dealer Management Portal",
         description: `Payment for Invoice ${invoice.invoiceNumber || invoice.id}`,
         order_id: orderId,
-        handler: function (response) {
-          toast.success(`Payment Successful! ID: ${response.razorpay_payment_id}`);
-          fetchInvoices();
+        handler: async function (response) {
+          try {
+            toast.info("Verifying payment...");
+            await paymentAPI.verifyGatewayPayment({
+              paymentRequestId,
+              razorpay_payment_id: response.razorpay_payment_id,
+              razorpay_order_id: response.razorpay_order_id,
+              razorpay_signature: response.razorpay_signature
+            });
+            toast.success("Payment verified successfully!");
+            fetchInvoices();
+          } catch (err) {
+            console.error("Payment verification failed:", err);
+            toast.warning("Payment successful but verification pending. Refreshing...");
+            // Backup refetch after delay to allow webhook processing
+            setTimeout(fetchInvoices, 2000);
+          }
         },
         prefill: {
           name: user.username || user.name,
@@ -351,6 +367,7 @@ export default function Invoices() {
           <Tab label="All" value="all" />
           <Tab label="Pending" value="pending" />
           <Tab label="Approved" value="approved" />
+          <Tab label="Paid" value="paid" />
           <Tab label="Rejected" value="rejected" />
         </Tabs>
 
@@ -455,17 +472,18 @@ export default function Invoices() {
                         ₹{Number(invoice.totalAmount || invoice.baseAmount || 0).toLocaleString()}
                       </td>
                       <td style={{ padding: "12px", textAlign: "center" }}>
-                        <Chip
-                          label={invoice.approvalStatus || invoice.status || "PENDING"}
-                          color={
-                            invoice.approvalStatus === "approved" || invoice.status === "approved"
-                              ? "success"
-                              : invoice.approvalStatus === "rejected" || invoice.status === "rejected"
-                                ? "error"
-                                : "warning"
-                          }
-                          size="small"
-                        />
+                        <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+                          <Chip
+                            label={getInvoiceStatusLabel(invoice)}
+                            color={getInvoiceStatusColor(getInvoiceStatusLabel(invoice))}
+                            size="small"
+                          />
+                          {isPaidViaIntegration(invoice) && (
+                            <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'primary.main', fontWeight: 600 }}>
+                              <CreditCard size={12} /> Online
+                            </Typography>
+                          )}
+                        </Box>
                       </td>
                       <td style={{ padding: "12px", textAlign: "center" }}>
                         <InvoiceWorkflowBadge invoiceId={invoice.id} />

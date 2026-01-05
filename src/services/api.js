@@ -343,6 +343,10 @@ export const paymentAPI = {
   initiateGatewayPayment: (payload) =>
     api.post("/payments/gateway/init", payload).then((r) => r.data),
 
+  // Razorpay Gateway Verification
+  verifyGatewayPayment: (payload) =>
+    api.post("/payments/gateway/verify", payload).then((r) => r.data),
+
   // Dealer: View own payment requests
   getMyRequests: (params) =>
     api.get("/payments/mine", { params }).then((r) => r.data),

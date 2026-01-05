@@ -6,12 +6,14 @@ import {
   TextField,
   InputAdornment,
 } from "@mui/material";
-import { Search, Filter, Eye, Download } from "lucide-react";
+import { Search, Filter, Eye, Download, CreditCard } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { invoiceAPI } from "../../services/api";
+import { getInvoiceStatusLabel, getInvoiceStatusColor, isPaidViaIntegration } from "../../utils/invoiceStatus";
 import { toast } from "react-toastify";
 import PageHeader from "../../components/PageHeader";
 import ScopedDataTable from "../../components/ScopedDataTable";
+import { Typography } from "@mui/material";
 import AdvancedFilterSidebar from "../../components/AdvancedFilterSidebar";
 import FilterChips from "../../components/FilterChips";
 import { useDebounce } from "../../hooks/useDebounce";
@@ -116,19 +118,22 @@ export default function RegionalInvoices() {
       headerName: "Status",
       flex: 1,
       renderCell: (params) => {
-        const val = params.value || "pending";
+        const invoice = params.row;
+        const statusLabel = getInvoiceStatusLabel(invoice);
+        const statusColor = getInvoiceStatusColor(statusLabel);
         return (
-          <Chip
-            label={val.toUpperCase()}
-            size="small"
-            color={
-              val === "approved" || val === "paid"
-                ? "success"
-                : val === "rejected"
-                  ? "error"
-                  : "warning"
-            }
-          />
+          <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 0.5 }}>
+            <Chip
+              label={statusLabel}
+              size="small"
+              color={statusColor}
+            />
+            {isPaidViaIntegration(invoice) && (
+              <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'primary.main', fontWeight: 600 }}>
+                <CreditCard size={12} /> Online
+              </Typography>
+            )}
+          </Box>
         );
       }
     },

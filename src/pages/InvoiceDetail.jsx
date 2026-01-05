@@ -11,9 +11,12 @@ import {
   CircularProgress,
   Alert,
 } from "@mui/material";
-import { ArrowLeft, Download, Printer, FileText } from "lucide-react";
+import { ArrowLeft, Download, Printer, FileText, CreditCard } from "lucide-react";
 import { invoiceAPI } from "../services/api";
+import { getInvoiceStatusLabel, getInvoiceStatusColor, isPaidViaIntegration } from "../utils/invoiceStatus";
+import { onPaymentSuccess, offPaymentSuccess } from "../services/socket";
 import { useWorkflow } from "../hooks/useWorkflow";
+import { toast } from "react-toastify";
 import {
   WorkflowStatus,
   WorkflowTimeline,
@@ -61,6 +64,29 @@ export default function InvoiceDetail() {
 
     fetchInvoice();
   }, [id]);
+
+  // Real-time updates for payment success
+  useEffect(() => {
+    onPaymentSuccess((data) => {
+      // If the successful payment is for this invoice, refresh data
+      if (data.invoiceId === id || data.orderId === invoice?.order?.id) {
+        toast.success("Payment confirmed! Updating status...");
+        const fetchInvoice = async () => {
+          try {
+            const response = await invoiceAPI.getInvoiceById(id);
+            setInvoice(response.invoice || response.data || response);
+          } catch (err) {
+            console.error("Error refreshing invoice:", err);
+          }
+        };
+        fetchInvoice();
+      }
+    });
+
+    return () => {
+      offPaymentSuccess();
+    };
+  }, [id, invoice?.order?.id]);
 
   // Handle approve
   const handleApprove = async (remarks) => {
@@ -206,165 +232,166 @@ export default function InvoiceDetail() {
       {viewMode === "details" && (
         <>
 
-      {workflowError && (
-        <Alert severity="warning" sx={{ mb: 3 }}>
-          {workflowError}
-        </Alert>
-      )}
+          {workflowError && (
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              {workflowError}
+            </Alert>
+          )}
 
-      <Grid container spacing={3}>
-        {/* Invoice Information */}
-        <Grid item xs={12} md={8}>
-          <Card sx={{ mb: 3 }}>
-            <CardContent>
-              <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                Invoice Information
-              </Typography>
+          <Grid container spacing={3}>
+            {/* Invoice Information */}
+            <Grid item xs={12} md={8}>
+              <Card sx={{ mb: 3 }}>
+                <CardContent>
+                  <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                    Invoice Information
+                  </Typography>
 
-              <Grid container spacing={2}>
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Invoice Number
-                  </Typography>
-                  <Typography variant="body1" sx={{ fontWeight: 600 }}>
-                    {invoice.invoiceNumber || invoice.id}
-                  </Typography>
-                </Grid>
+                  <Grid container spacing={2}>
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Invoice Number
+                      </Typography>
+                      <Typography variant="body1" sx={{ fontWeight: 600 }}>
+                        {invoice.invoiceNumber || invoice.id}
+                      </Typography>
+                    </Grid>
 
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Status
-                  </Typography>
-                  <Chip
-                    label={invoice.status?.toUpperCase() || "PENDING"}
-                    color={
-                      invoice.status === "approved"
-                        ? "success"
-                        : invoice.status === "rejected"
-                        ? "error"
-                        : "warning"
-                    }
-                    size="small"
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Status
+                      </Typography>
+                      <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start', gap: 0.5 }}>
+                        <Chip
+                          label={getInvoiceStatusLabel(invoice)}
+                          color={getInvoiceStatusColor(getInvoiceStatusLabel(invoice))}
+                          size="small"
+                        />
+                        {isPaidViaIntegration(invoice) && (
+                          <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'primary.main', fontWeight: 600 }}>
+                            <CreditCard size={12} /> Paid via Razorpay
+                          </Typography>
+                        )}
+                      </Box>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Dealer
+                      </Typography>
+                      <Typography variant="body1">
+                        {invoice.dealer?.name || invoice.dealerName || "N/A"}
+                      </Typography>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Order Number
+                      </Typography>
+                      <Typography variant="body1">
+                        {invoice.orderNumber || invoice.order?.orderNumber || "N/A"}
+                      </Typography>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Invoice Date
+                      </Typography>
+                      <Typography variant="body1">{formatDate(invoice.invoiceDate || invoice.createdAt)}</Typography>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Due Date
+                      </Typography>
+                      <Typography variant="body1">{formatDate(invoice.dueDate)}</Typography>
+                    </Grid>
+
+                    <Grid item xs={12} sm={6}>
+                      <Typography variant="body2" color="text.secondary">
+                        Total Amount
+                      </Typography>
+                      <Typography variant="h6" sx={{ fontWeight: 600, color: "primary.main" }}>
+                        {formatCurrency(invoice.totalAmount || invoice.amount)}
+                      </Typography>
+                    </Grid>
+
+                    {invoice.paidAmount && (
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="body2" color="text.secondary">
+                          Paid Amount
+                        </Typography>
+                        <Typography variant="body1" sx={{ fontWeight: 600, color: "success.main" }}>
+                          {formatCurrency(invoice.paidAmount)}
+                        </Typography>
+                      </Grid>
+                    )}
+
+                    {invoice.outstandingAmount && (
+                      <Grid item xs={12} sm={6}>
+                        <Typography variant="body2" color="text.secondary">
+                          Outstanding Amount
+                        </Typography>
+                        <Typography variant="body1" sx={{ fontWeight: 600, color: "error.main" }}>
+                          {formatCurrency(invoice.outstandingAmount)}
+                        </Typography>
+                      </Grid>
+                    )}
+                  </Grid>
+                </CardContent>
+              </Card>
+
+              {/* Payment History */}
+              {invoice.payments && invoice.payments.length > 0 && (
+                <Card>
+                  <CardContent>
+                    <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
+                      Payment History
+                    </Typography>
+                    {/* Payment history table can be added here */}
+                    <Typography variant="body2" color="text.secondary">
+                      {invoice.payments.length} payment(s) recorded
+                    </Typography>
+                  </CardContent>
+                </Card>
+              )}
+            </Grid>
+
+            {/* Workflow Section */}
+            <Grid item xs={12} md={4}>
+              {/* Workflow Progress Bar */}
+              {workflow && <WorkflowProgressBar workflow={workflow} />}
+
+              {/* Workflow Status */}
+              {workflow && (
+                <Box sx={{ mt: 3 }}>
+                  <WorkflowStatus workflow={workflow} entityType="invoice" />
+                </Box>
+              )}
+
+              {/* Approval Actions */}
+              {workflow && (
+                <Box sx={{ mt: 3 }}>
+                  <ApprovalActions
+                    workflow={workflow}
+                    entityType="invoice"
+                    entityId={id}
+                    onApprove={handleApprove}
+                    onReject={handleReject}
+                    loading={workflowLoading}
+                    error={workflowError}
                   />
-                </Grid>
+                </Box>
+              )}
+            </Grid>
+          </Grid>
 
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Dealer
-                  </Typography>
-                  <Typography variant="body1">
-                    {invoice.dealer?.name || invoice.dealerName || "N/A"}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Order Number
-                  </Typography>
-                  <Typography variant="body1">
-                    {invoice.orderNumber || invoice.order?.orderNumber || "N/A"}
-                  </Typography>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Invoice Date
-                  </Typography>
-                  <Typography variant="body1">{formatDate(invoice.invoiceDate || invoice.createdAt)}</Typography>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Due Date
-                  </Typography>
-                  <Typography variant="body1">{formatDate(invoice.dueDate)}</Typography>
-                </Grid>
-
-                <Grid item xs={12} sm={6}>
-                  <Typography variant="body2" color="text.secondary">
-                    Total Amount
-                  </Typography>
-                  <Typography variant="h6" sx={{ fontWeight: 600, color: "primary.main" }}>
-                    {formatCurrency(invoice.totalAmount || invoice.amount)}
-                  </Typography>
-                </Grid>
-
-                {invoice.paidAmount && (
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Paid Amount
-                    </Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 600, color: "success.main" }}>
-                      {formatCurrency(invoice.paidAmount)}
-                    </Typography>
-                  </Grid>
-                )}
-
-                {invoice.outstandingAmount && (
-                  <Grid item xs={12} sm={6}>
-                    <Typography variant="body2" color="text.secondary">
-                      Outstanding Amount
-                    </Typography>
-                    <Typography variant="body1" sx={{ fontWeight: 600, color: "error.main" }}>
-                      {formatCurrency(invoice.outstandingAmount)}
-                    </Typography>
-                  </Grid>
-                )}
-              </Grid>
-            </CardContent>
-          </Card>
-
-          {/* Payment History */}
-          {invoice.payments && invoice.payments.length > 0 && (
-            <Card>
-              <CardContent>
-                <Typography variant="h6" sx={{ mb: 2, fontWeight: 600 }}>
-                  Payment History
-                </Typography>
-                {/* Payment history table can be added here */}
-                <Typography variant="body2" color="text.secondary">
-                  {invoice.payments.length} payment(s) recorded
-                </Typography>
-              </CardContent>
-            </Card>
-          )}
-        </Grid>
-
-        {/* Workflow Section */}
-        <Grid item xs={12} md={4}>
-          {/* Workflow Progress Bar */}
-          {workflow && <WorkflowProgressBar workflow={workflow} />}
-
-          {/* Workflow Status */}
-          {workflow && (
+          {/* Workflow Timeline */}
+          {workflow && workflow.timeline && (
             <Box sx={{ mt: 3 }}>
-              <WorkflowStatus workflow={workflow} entityType="invoice" />
+              <WorkflowTimeline timeline={workflow.timeline} workflow={workflow} />
             </Box>
           )}
-
-          {/* Approval Actions */}
-          {workflow && (
-            <Box sx={{ mt: 3 }}>
-              <ApprovalActions
-                workflow={workflow}
-                entityType="invoice"
-                entityId={id}
-                onApprove={handleApprove}
-                onReject={handleReject}
-                loading={workflowLoading}
-                error={workflowError}
-              />
-            </Box>
-          )}
-        </Grid>
-      </Grid>
-
-      {/* Workflow Timeline */}
-      {workflow && workflow.timeline && (
-        <Box sx={{ mt: 3 }}>
-          <WorkflowTimeline timeline={workflow.timeline} workflow={workflow} />
-        </Box>
-      )}
         </>
       )}
     </Box>

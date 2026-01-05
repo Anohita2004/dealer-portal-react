@@ -12,9 +12,10 @@ import {
   alpha,
   IconButton,
 } from "@mui/material";
-import { CheckCircle, XCircle, Download, FileText, Clock, AlertCircle } from "lucide-react";
+import { CheckCircle, XCircle, Download, FileText, Clock, AlertCircle, CreditCard } from "lucide-react";
 import { invoiceAPI } from "../services/api";
 import { toast } from "react-toastify";
+import { getInvoiceStatusLabel, getInvoiceStatusColor, isPaidViaIntegration } from "../utils/invoiceStatus";
 import { useWorkflow } from "../hooks/useWorkflow";
 import {
   WorkflowStatus,
@@ -188,17 +189,18 @@ export default function InvoiceApprovalCard({ invoice, onUpdate, selectable, sel
               )}
             </Box>
             <Box sx={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 1 }}>
-              <Chip
-                label={workflow?.approvalStatus?.toUpperCase() || invoice.approvalStatus?.toUpperCase() || invoice.status?.toUpperCase() || "PENDING"}
-                color={
-                  workflow?.approvalStatus === "approved" || invoice.approvalStatus === "approved" || invoice.status === "approved"
-                    ? "success"
-                    : workflow?.approvalStatus === "rejected" || invoice.approvalStatus === "rejected" || invoice.status === "rejected"
-                      ? "error"
-                      : "warning"
-                }
-                size="small"
-              />
+              <Box sx={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end', gap: 0.5 }}>
+                <Chip
+                  label={getInvoiceStatusLabel(invoice)}
+                  color={getInvoiceStatusColor(getInvoiceStatusLabel(invoice))}
+                  size="small"
+                />
+                {isPaidViaIntegration(invoice) && (
+                  <Typography variant="caption" sx={{ display: 'flex', alignItems: 'center', gap: 0.5, color: 'primary.main', fontWeight: 600 }}>
+                    <CreditCard size={12} /> Online
+                  </Typography>
+                )}
+              </Box>
               {currentStage && (
                 <Chip
                   label={`Stage: ${formatStageName(currentStage)}`}
