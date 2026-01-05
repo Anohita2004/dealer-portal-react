@@ -89,10 +89,12 @@ const TruckManagement = () => {
       key: 'location',
       label: 'Location',
       render: (_, row) => {
-        if (row.currentLat && row.currentLng) {
+        const lat = Number(row.currentLat);
+        const lng = Number(row.currentLng);
+        if (!isNaN(lat) && !isNaN(lng)) {
           return (
             <span>
-              {row.currentLat.toFixed(4)}, {row.currentLng.toFixed(4)}
+              {lat.toFixed(4)}, {lng.toFixed(4)}
             </span>
           );
         }
