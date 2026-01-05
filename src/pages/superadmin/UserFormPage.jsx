@@ -281,16 +281,164 @@ export default function UserFormPage() {
 
       // Get users with manager roles
       const managerRoles = hierarchy.canHaveManager;
-      const allManagers = await Promise.all(
-        managerRoles.map((role) =>
-          userAPI.getUsers({ role }).catch(() => ({ users: [] }))
-        )
-      );
+      
+      // For dealer_staff, we need to fetch dealer_admins filtered by the selected dealer
+      if (roleName === "dealer_staff") {
+        // If no dealer selected yet, show empty list
+        if (!form.dealerId) {
+          setManagers([]);
+          return;
+        }
+        
+        try {
+          // Try to fetch dealer_admins with dealerId filter
+          let dealerAdmins = [];
+          
+          try {
+            // Try with dealerId parameter
+            const response = await userAPI.getUsers({ 
+              role: "dealer_admin",
+              dealerId: form.dealerId 
+            });
+            dealerAdmins = response?.users || response?.data || response || [];
+          } catch (err) {
+            // If that fails, try fetching dealer to see if it has users
+            try {
+              const dealerResponse = await dealerAPI.getDealerById(form.dealerId);
+              const dealer = dealerResponse?.dealer || dealerResponse;
+              
+              // Check if dealer response includes users
+              if (dealer?.users && Array.isArray(dealer.users)) {
+                dealerAdmins = dealer.users.filter((user) => {
+                  const userRole = (user.roleDetails?.name || user.role || "")
+                    .toLowerCase()
+                    .replace(/\s+/g, "_");
+                  return userRole === "dealer_admin";
+                });
+              } else {
+                // Fallback: fetch all dealer_admins and enrich with dealerId
+                // Limit to first 100 to avoid performance issues
+                const allResponse = await userAPI.getUsers({ role: "dealer_admin" });
+                const allAdmins = allResponse?.users || allResponse?.data || allResponse || [];
+                
+                // Fetch dealerId for each admin (limit to 50 for performance)
+                const adminsToCheck = allAdmins.slice(0, 50);
+                const enrichedAdmins = await Promise.allSettled(
+                  adminsToCheck.map(async (admin) => {
+                    try {
+                      const fullUser = await userAPI.getUserById(admin.id);
+                      const user = fullUser?.user || fullUser;
+                      return {
+                        ...admin,
+                        dealerId: user?.dealerId || admin.dealerId || null
+                      };
+                    } catch {
+                      return { ...admin, dealerId: admin.dealerId || null };
+                    }
+                  })
+                );
+                
+                dealerAdmins = enrichedAdmins
+                  .filter(result => result.status === "fulfilled")
+                  .map(result => result.value)
+                  .filter(admin => admin.dealerId === form.dealerId);
+              }
+            } catch (dealerErr) {
+              // Last resort: show all dealer_admins (backend will validate)
+              const allResponse = await userAPI.getUsers({ role: "dealer_admin" });
+              dealerAdmins = allResponse?.users || allResponse?.data || allResponse || [];
+            }
+          }
+          
+          // Final filter: ensure they're dealer_admins
+          const filtered = dealerAdmins.filter((manager) => {
+            const managerRole = (manager.roleDetails?.name || manager.role || "")
+              .toLowerCase()
+              .replace(/\s+/g, "_");
+            return managerRole === "dealer_admin";
+          });
+          
+          setManagers(Array.isArray(filtered) ? filtered : []);
+          return;
+        } catch (err) {
+          console.error("Failed to load dealer admins:", err);
+          setManagers([]);
+          return;
+        }
+      }
 
-      const managersList = allManagers.flatMap((m) => m?.users || m?.data || []);
+      // For geographic-based roles, we need to enrich manager data with full user details
+      // to get their geographic assignments (regionId, areaId, territoryId)
+      const needsGeographicFiltering = 
+        roleName === "regional_manager" || 
+        roleName === "area_manager" || 
+        roleName === "territory_manager" || 
+        roleName === "sales_executive";
 
-      // Filter managers based on hierarchy + role-specific rules
+      let managersList = [];
+
+      if (needsGeographicFiltering) {
+        // Fetch all managers for the eligible roles
+        const allManagers = await Promise.all(
+          managerRoles.map((role) => {
+            return userAPI.getUsers({ role }).catch(() => ({ users: [] }));
+          })
+        );
+
+        const initialManagersList = allManagers.flatMap((m) => m?.users || m?.data || []);
+        
+        // Enrich managers with full user details to get geographic fields
+        // Limit to first 50 for performance
+        const managersToEnrich = initialManagersList.slice(0, 50);
+        const enrichedManagers = await Promise.allSettled(
+          managersToEnrich.map(async (manager) => {
+            try {
+              // If manager already has geographic fields, use them
+              if (manager.regionId !== undefined || manager.areaId !== undefined || manager.territoryId !== undefined) {
+                return manager;
+              }
+              
+              // Otherwise, fetch full user details
+              const fullUser = await userAPI.getUserById(manager.id);
+              const user = fullUser?.user || fullUser;
+              return {
+                ...manager,
+                regionId: user?.regionId || manager.regionId || null,
+                areaId: user?.areaId || manager.areaId || null,
+                territoryId: user?.territoryId || manager.territoryId || null
+              };
+            } catch (err) {
+              console.warn(`Failed to fetch full details for manager ${manager.id}:`, err);
+              return manager;
+            }
+          })
+        );
+
+        managersList = enrichedManagers
+          .filter(result => result.status === "fulfilled")
+          .map(result => result.value);
+      } else {
+        // For non-geographic roles (like dealer_admin), fetch normally
+        const allManagers = await Promise.all(
+          managerRoles.map((role) => {
+            const params = { role };
+            // Add dealerId filter if available and relevant
+            if (form.dealerId && roleName === "dealer_admin") {
+              params.dealerId = form.dealerId;
+            }
+            return userAPI.getUsers(params).catch(() => ({ users: [] }));
+          })
+        );
+
+        managersList = allManagers.flatMap((m) => m?.users || m?.data || []);
+      }
+
+      // Filter managers based on hierarchy + role-specific geographic rules
       const filtered = managersList.filter((manager) => {
+        const managerRole = (manager.roleDetails?.name || manager.role || "")
+          .toLowerCase()
+          .replace(/\s+/g, "_");
+        
         // For dealer_admin, we want Territory/Area/Regional managers that
         // cover the dealer's geographic scope, not dealerId.
         if (roleName === "dealer_admin") {
@@ -303,34 +451,56 @@ export default function UserFormPage() {
           return true;
         }
 
-        // Generic: match explicit scope fields from the form when present
-        if (form.regionId && manager.regionId !== form.regionId) return false;
-        if (form.areaId && manager.areaId !== form.areaId) return false;
-        if (form.territoryId && manager.territoryId !== form.territoryId) return false;
-
-        // For dealer_staff, manager must be a dealer_admin on the same dealer
-        if (roleName === "dealer_staff" && form.dealerId) {
-          if (!manager.dealerId || manager.dealerId !== form.dealerId) return false;
+        // For regional_manager: can have regional_admin from the same region
+        if (roleName === "regional_manager") {
+          if (!form.regionId) return true; // no region selected yet
+          // Regional admin must be in the same region
+          if (managerRole === "regional_admin" && manager.regionId !== form.regionId) return false;
+          return true;
         }
 
-        // For dealer_admin, if manager is a sales_executive, they should ideally be linked to the same dealer
-        // or geography, but since sales_executives can have multiple dealers, we'll allow them if they match the geography
-        if (roleName === "dealer_admin" && manager.role === "sales_executive") {
-          const dealer = dealers.find((d) => d.id === form.dealerId);
-          if (dealer) {
-            if (dealer.regionId && manager.regionId && dealer.regionId !== manager.regionId) return false;
-            if (dealer.areaId && manager.areaId && dealer.areaId !== manager.areaId) return false;
+        // For area_manager: can have regional_manager or regional_admin from the same region
+        if (roleName === "area_manager") {
+          if (!form.regionId) return true; // no region selected yet
+          // Regional manager/admin must be in the same region
+          if ((managerRole === "regional_manager" || managerRole === "regional_admin") && 
+              manager.regionId !== form.regionId) return false;
+          return true;
+        }
+
+        // For territory_manager: can have area_manager from the same area/region
+        if (roleName === "territory_manager") {
+          if (!form.areaId && !form.regionId) return true; // no area/region selected yet
+          // Area manager must be in the same area (or region if area not set)
+          if (managerRole === "area_manager") {
+            if (form.areaId && manager.areaId !== form.areaId) return false;
+            if (!form.areaId && form.regionId && manager.regionId !== form.regionId) return false;
           }
+          return true;
         }
 
-        // For sales_executive, filter managers by geographic scope if provided
+        // For sales_executive: can have territory_manager from the same territory/area/region
         if (roleName === "sales_executive") {
-          // If sales executive has geographic scope, filter managers by that scope
+          // Territory manager must match the sales executive's geographic scope
+          if (managerRole === "territory_manager") {
+            // If territory is set, manager must be in the same territory
+            if (form.territoryId && manager.territoryId !== form.territoryId) return false;
+            // If area is set (but territory not), manager must be in the same area
+            if (!form.territoryId && form.areaId && manager.areaId !== form.areaId) return false;
+            // If region is set (but area/territory not), manager must be in the same region
+            if (!form.territoryId && !form.areaId && form.regionId && manager.regionId !== form.regionId) return false;
+          }
+          // For other manager types (area_manager, regional_manager), use geographic matching
           if (form.regionId && manager.regionId && form.regionId !== manager.regionId) return false;
           if (form.areaId && manager.areaId && form.areaId !== manager.areaId) return false;
           if (form.territoryId && manager.territoryId && form.territoryId !== manager.territoryId) return false;
           // If no geographic scope set, show all eligible managers (no filtering)
         }
+
+        // Generic: match explicit scope fields from the form when present (for other roles)
+        if (form.regionId && manager.regionId && manager.regionId !== form.regionId) return false;
+        if (form.areaId && manager.areaId && manager.areaId !== form.areaId) return false;
+        if (form.territoryId && manager.territoryId && manager.territoryId !== form.territoryId) return false;
 
         return true;
       });
@@ -674,6 +844,7 @@ export default function UserFormPage() {
   const steps = ["Basic Information", "Role & Hierarchy", "Assignments"];
 
   const selectedRole = roles.find((r) => r.id === form.roleId);
+  const roleName = selectedRole?.name?.toLowerCase().replace(/\s+/g, "_") || "";
 
   return (
     <Box sx={{ p: 3, maxWidth: 1200, mx: "auto", boxSizing: "border-box" }}>
@@ -855,7 +1026,7 @@ export default function UserFormPage() {
                     >
                       <InputLabel>Role</InputLabel>
                       <Select
-                        value={form.roleId}
+                        value={roles.some(r => r.id === form.roleId) ? form.roleId : ""}
                         onChange={(e) => updateField("roleId", e.target.value)}
                         label="Role"
                         startAdornment={<Shield size={18} style={{ marginRight: 8 }} />}
@@ -875,7 +1046,7 @@ export default function UserFormPage() {
                       <FormControl fullWidth required error={!!errors.regionId}>
                         <InputLabel>Region</InputLabel>
                         <Select
-                          value={form.regionId}
+                          value={regions.some(r => r.id === form.regionId) ? form.regionId : ""}
                           onChange={(e) => updateField("regionId", e.target.value)}
                           label="Region"
                         >
@@ -895,7 +1066,7 @@ export default function UserFormPage() {
                       <FormControl fullWidth required error={!!errors.areaId} disabled={!form.regionId}>
                         <InputLabel>Area</InputLabel>
                         <Select
-                          value={form.areaId}
+                          value={filteredAreas.some(a => a.id === form.areaId) ? form.areaId : ""}
                           onChange={(e) => updateField("areaId", e.target.value)}
                           label="Area"
                         >
@@ -916,7 +1087,7 @@ export default function UserFormPage() {
                       <FormControl fullWidth required error={!!errors.territoryId} disabled={!form.areaId}>
                         <InputLabel>Territory</InputLabel>
                         <Select
-                          value={form.territoryId}
+                          value={filteredTerritories.some(t => t.id === form.territoryId) ? form.territoryId : ""}
                           onChange={(e) => updateField("territoryId", e.target.value)}
                           label="Territory"
                         >
@@ -937,7 +1108,7 @@ export default function UserFormPage() {
                       <FormControl fullWidth required error={!!errors.dealerId}>
                         <InputLabel>Dealer</InputLabel>
                         <Select
-                          value={form.dealerId}
+                          value={filteredDealers.some(d => d.id === form.dealerId) ? form.dealerId : ""}
                           onChange={(e) => updateField("dealerId", e.target.value)}
                           label="Dealer"
                         >
@@ -964,7 +1135,7 @@ export default function UserFormPage() {
                         <FormControl fullWidth>
                           <InputLabel>Region (Optional)</InputLabel>
                           <Select
-                            value={form.regionId || ""}
+                            value={regions.some(r => r.id === form.regionId) ? form.regionId : ""}
                             onChange={(e) => updateField("regionId", e.target.value)}
                             label="Region (Optional)"
                           >
@@ -984,7 +1155,7 @@ export default function UserFormPage() {
                         <FormControl fullWidth disabled={!form.regionId}>
                           <InputLabel>Area (Optional)</InputLabel>
                           <Select
-                            value={form.areaId || ""}
+                            value={filteredAreas.some(a => a.id === form.areaId) ? form.areaId : ""}
                             onChange={(e) => updateField("areaId", e.target.value)}
                             label="Area (Optional)"
                           >
@@ -1004,7 +1175,7 @@ export default function UserFormPage() {
                         <FormControl fullWidth disabled={!form.areaId}>
                           <InputLabel>Territory (Optional)</InputLabel>
                           <Select
-                            value={form.territoryId || ""}
+                            value={filteredTerritories.some(t => t.id === form.territoryId) ? form.territoryId : ""}
                             onChange={(e) => updateField("territoryId", e.target.value)}
                             label="Territory (Optional)"
                           >
@@ -1034,7 +1205,7 @@ export default function UserFormPage() {
                           Manager {selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive" ? "(Required)" : "(Optional)"}
                         </InputLabel>
                         <Select
-                          value={form.managerId || ""}
+                          value={managers.some(m => m.id === form.managerId) ? form.managerId : ""}
                           onChange={(e) => updateField("managerId", e.target.value)}
                           label={`Manager ${selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive" ? "(Required)" : "(Optional)"}`}
                           disabled={managers.length === 0}
@@ -1045,16 +1216,51 @@ export default function UserFormPage() {
                           {managers.map((m) => (
                             <MenuItem key={m.id} value={m.id}>
                               {m.username} ({m.roleDetails?.name || m.role || "Manager"})
+                              {roleName === "dealer_staff" && m.dealerId && m.dealerId !== form.dealerId && (
+                                <span style={{ color: "#ff9800", marginLeft: "8px" }}>⚠️ Different dealer</span>
+                              )}
+                              {roleName === "regional_manager" && m.regionId && m.regionId !== form.regionId && (
+                                <span style={{ color: "#ff9800", marginLeft: "8px" }}>⚠️ Different region</span>
+                              )}
+                              {roleName === "area_manager" && m.regionId && m.regionId !== form.regionId && (
+                                <span style={{ color: "#ff9800", marginLeft: "8px" }}>⚠️ Different region</span>
+                              )}
+                              {roleName === "territory_manager" && form.areaId && m.areaId && m.areaId !== form.areaId && (
+                                <span style={{ color: "#ff9800", marginLeft: "8px" }}>⚠️ Different area</span>
+                              )}
+                              {roleName === "sales_executive" && form.territoryId && m.territoryId && m.territoryId !== form.territoryId && (
+                                <span style={{ color: "#ff9800", marginLeft: "8px" }}>⚠️ Different territory</span>
+                              )}
                             </MenuItem>
                           ))}
                         </Select>
                         <FormHelperText>
                           {errors.managerId ? errors.managerId :
                             managers.length === 0
-                              ? "No managers available for this role/hierarchy"
-                              : selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive"
-                                ? `Required: Assign to ${hierarchy.canHaveManager.join(", ")} for hierarchy placement`
-                                : `Available managers: ${hierarchy.canHaveManager.join(", ")}`}
+                              ? roleName === "dealer_staff" && !form.dealerId
+                                ? "Please select a dealer first to see available dealer admins"
+                                : roleName === "regional_manager" && !form.regionId
+                                  ? "Please select a region first to see available regional admins"
+                                : roleName === "area_manager" && !form.regionId
+                                  ? "Please select a region first to see available regional managers/admins"
+                                : roleName === "territory_manager" && !form.areaId && !form.regionId
+                                  ? "Please select a region and area first to see available area managers"
+                                : roleName === "sales_executive" && !form.territoryId && !form.areaId && !form.regionId
+                                  ? "Please select a territory, area, or region first to see available territory managers"
+                                : "No managers available for this role/hierarchy"
+                              : roleName === "dealer_staff"
+                                ? `Select a dealer admin assigned to ${dealers.find(d => d.id === form.dealerId)?.businessName || "the selected dealer"}. Only dealer admins for this dealer are shown.`
+                                : roleName === "regional_manager"
+                                  ? `Select a regional admin from ${regions.find(r => r.id === form.regionId)?.name || regions.find(r => r.id === form.regionId)?.regionName || "the selected region"}. Only regional admins for this region are shown.`
+                                : roleName === "area_manager"
+                                  ? `Select a regional manager/admin from ${regions.find(r => r.id === form.regionId)?.name || regions.find(r => r.id === form.regionId)?.regionName || "the selected region"}. Only regional managers/admins for this region are shown.`
+                                : roleName === "territory_manager"
+                                  ? `Select an area manager from ${areas.find(a => a.id === form.areaId)?.name || areas.find(a => a.id === form.areaId)?.areaName || "the selected area"} (${regions.find(r => r.id === form.regionId)?.name || regions.find(r => r.id === form.regionId)?.regionName || "region"}). Only area managers for this area are shown.`
+                                : roleName === "sales_executive"
+                                  ? `Select a territory manager from ${territories.find(t => t.id === form.territoryId)?.name || territories.find(t => t.id === form.territoryId)?.territoryName || "the selected territory"}. Only territory managers for this territory are shown.`
+                                : selectedRole && selectedRole.name?.toLowerCase().replace(/\s+/g, "_") === "sales_executive"
+                                  ? `Required: Assign to ${hierarchy.canHaveManager.join(", ")} for hierarchy placement`
+                                  : `Available managers: ${hierarchy.canHaveManager.join(", ")}`}
                         </FormHelperText>
                       </FormControl>
                     </Grid>
@@ -1085,7 +1291,7 @@ export default function UserFormPage() {
                     <FormControl fullWidth>
                       <InputLabel>Sales Team (Optional)</InputLabel>
                       <Select
-                        value={form.salesGroupId}
+                        value={salesTeams.some(t => t.id === form.salesGroupId) ? form.salesGroupId : ""}
                         onChange={(e) => updateField("salesGroupId", e.target.value)}
                         label="Sales Team (Optional)"
                       >

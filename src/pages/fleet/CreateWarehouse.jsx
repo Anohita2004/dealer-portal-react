@@ -61,18 +61,41 @@ const CreateWarehouse = () => {
   const fetchRegions = async () => {
     try {
       const response = await geoAPI.getRegions();
-      setRegions(response.regions || []);
+      console.log('Regions API response:', response);
+      // Handle both array response and object with regions property
+      let regionsData = [];
+      if (Array.isArray(response)) {
+        regionsData = response;
+      } else if (response && Array.isArray(response.regions)) {
+        regionsData = response.regions;
+      } else if (response && Array.isArray(response.data)) {
+        regionsData = response.data;
+      }
+      console.log('Setting regions:', regionsData);
+      console.log('Regions count:', regionsData.length);
+      setRegions(regionsData || []);
     } catch (error) {
       console.error('Error fetching regions:', error);
+      setRegions([]);
     }
   };
 
   const fetchAreas = async (regionId) => {
     try {
       const response = await geoAPI.getAreas({ regionId });
-      setAreas(response.areas || []);
+      // Handle both array response and object with areas property
+      let areasData = [];
+      if (Array.isArray(response)) {
+        areasData = response;
+      } else if (response && Array.isArray(response.areas)) {
+        areasData = response.areas;
+      } else if (response && Array.isArray(response.data)) {
+        areasData = response.data;
+      }
+      setAreas(areasData || []);
     } catch (error) {
       console.error('Error fetching areas:', error);
+      setAreas([]);
     }
   };
 
@@ -329,43 +352,66 @@ const CreateWarehouse = () => {
 
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth required error={!!errors.regionId}>
-                  <InputLabel>Region</InputLabel>
+                  <InputLabel id="region-select-label">Region</InputLabel>
                   <Select
-                    value={formData.regionId}
+                    labelId="region-select-label"
+                    value={formData.regionId || ""}
                     onChange={handleChange('regionId')}
                     label="Region"
+                    displayEmpty
                   >
-                    <MenuItem value="">Select Region</MenuItem>
-                    {regions.map(region => (
-                      <MenuItem key={region.id} value={region.id}>
-                        {region.name}
+                    <MenuItem value="">
+                      <em>Select Region</em>
+                    </MenuItem>
+                    {Array.isArray(regions) && regions.length > 0 ? (
+                      regions.map(region => (
+                        <MenuItem key={region.id} value={region.id}>
+                          {region.name || region.regionName || region.code || 'Unknown'}
+                        </MenuItem>
+                      ))
+                    ) : (
+                      <MenuItem value="" disabled>
+                        {regions.length === 0 ? 'Loading regions...' : 'No regions available'}
                       </MenuItem>
-                    ))}
+                    )}
                   </Select>
                   {errors.regionId && (
                     <FormHelperText>{errors.regionId}</FormHelperText>
+                  )}
+                  {!errors.regionId && regions.length > 0 && (
+                    <FormHelperText>{regions.length} region(s) available</FormHelperText>
                   )}
                 </FormControl>
               </Grid>
 
               <Grid item xs={12} md={6}>
                 <FormControl fullWidth>
-                  <InputLabel>Area (Optional)</InputLabel>
+                  <InputLabel id="area-select-label">Area (Optional)</InputLabel>
                   <Select
-                    value={formData.areaId}
+                    labelId="area-select-label"
+                    value={areas.some(a => a.id === formData.areaId) ? formData.areaId : ""}
                     onChange={handleChange('areaId')}
                     label="Area (Optional)"
                     disabled={!formData.regionId}
+                    displayEmpty
                   >
-                    <MenuItem value="">Select Area</MenuItem>
-                    {areas.map(area => (
-                      <MenuItem key={area.id} value={area.id}>
-                        {area.name}
+                    <MenuItem value="">
+                      <em>Select Area</em>
+                    </MenuItem>
+                    {Array.isArray(areas) && areas.length > 0 ? (
+                      areas.map(area => (
+                        <MenuItem key={area.id} value={area.id}>
+                          {area.name || area.areaName || area.code || 'Unknown'}
+                        </MenuItem>
+                      ))
+                    ) : (
+                      <MenuItem value="" disabled>
+                        {!formData.regionId ? 'Select a region first' : 'No areas available'}
                       </MenuItem>
-                    ))}
+                    )}
                   </Select>
                   <FormHelperText>
-                    {!formData.regionId ? 'Select a region first' : 'Optional'}
+                    {!formData.regionId ? 'Select a region first' : areas.length > 0 ? `${areas.length} area(s) available` : 'Optional'}
                   </FormHelperText>
                 </FormControl>
               </Grid>

@@ -52,6 +52,9 @@ export default function DealerFormPage() {
   const [loading, setLoading] = useState(false);
   const [loadingDropdowns, setLoadingDropdowns] = useState(false);
   const [errors, setErrors] = useState({});
+  const [dealerCodeExists, setDealerCodeExists] = useState(false);
+  const [checkingCode, setCheckingCode] = useState(false);
+  const [originalDealerCode, setOriginalDealerCode] = useState("");
 
   // Test-only helper to allow E2E tests to set form state without brittle UI interactions
   useEffect(() => {
@@ -125,10 +128,13 @@ export default function DealerFormPage() {
       setLoading(true);
       const data = await dealerAPI.getDealerById(id);
       const d = data.dealer || data;
+      const dealerCode = d.dealerCode || "";
+      
+      setOriginalDealerCode(dealerCode);
 
       setForm((prev) => ({
         ...prev,
-        dealerCode: d.dealerCode || "",
+        dealerCode: dealerCode,
         businessName: d.businessName || "",
         contactPerson: d.contactPerson || "",
         email: d.email || "",
@@ -160,6 +166,66 @@ export default function DealerFormPage() {
   const filteredTerritories = territories.filter(
     (t) => !form.areaId || t.areaId === form.areaId
   );
+
+  // Check if dealer code exists
+  const checkDealerCodeExists = async (code) => {
+    if (!code || !code.trim()) {
+      setDealerCodeExists(false);
+      return;
+    }
+
+    // If editing and code hasn't changed, don't check
+    if (isEdit && code.trim() === originalDealerCode) {
+      setDealerCodeExists(false);
+      return;
+    }
+
+    try {
+      setCheckingCode(true);
+      const trimmedCode = code.trim().toLowerCase();
+      
+      // Try to fetch dealers - backend may or may not support dealerCode filter
+      // If it doesn't, we'll fetch all and filter client-side
+      let response;
+      try {
+        response = await dealerAPI.getDealers({ dealerCode: trimmedCode });
+      } catch (err) {
+        // If filtering fails, try fetching all dealers
+        response = await dealerAPI.getDealers();
+      }
+      
+      const dealers = response.dealers || response.data || response || [];
+      
+      // Check if any dealer has this code (excluding current dealer if editing)
+      const exists = dealers.some(
+        (dealer) => 
+          dealer.dealerCode?.trim().toLowerCase() === trimmedCode &&
+          (!isEdit || dealer.id !== id)
+      );
+      
+      setDealerCodeExists(exists);
+    } catch (err) {
+      console.error("Failed to check dealer code:", err);
+      // Don't show error to user, just silently fail
+      setDealerCodeExists(false);
+    } finally {
+      setCheckingCode(false);
+    }
+  };
+
+  // Debounced check for dealer code
+  useEffect(() => {
+    if (!form.dealerCode || form.dealerCode.trim() === "") {
+      setDealerCodeExists(false);
+      return;
+    }
+
+    const timer = setTimeout(() => {
+      checkDealerCodeExists(form.dealerCode);
+    }, 500); // Wait 500ms after user stops typing
+
+    return () => clearTimeout(timer);
+  }, [form.dealerCode, isEdit, id, originalDealerCode]);
 
   // Safer update with cascade + error clearing
   const handleChange = (name, value) => {
@@ -196,6 +262,8 @@ export default function DealerFormPage() {
 
     if (!form.dealerCode.trim()) {
       nextErrors.dealerCode = "Dealer code is required";
+    } else if (dealerCodeExists) {
+      nextErrors.dealerCode = "This dealer code already exists. Please use a different code.";
     }
     if (!form.businessName.trim()) {
       nextErrors.businessName = "Business name is required";
@@ -293,8 +361,17 @@ export default function DealerFormPage() {
                   value={form.dealerCode}
                   onChange={(e) => handleChange("dealerCode", e.target.value)}
                   required
-                  error={!!errors.dealerCode}
-                  helperText={errors.dealerCode}
+                  error={!!errors.dealerCode || dealerCodeExists}
+                  helperText={
+                    checkingCode
+                      ? "Checking availability..."
+                      : errors.dealerCode || (dealerCodeExists ? "⚠️ This dealer code already exists. Please use a different code." : "")
+                  }
+                  InputProps={{
+                    endAdornment: checkingCode ? (
+                      <CircularProgress size={20} />
+                    ) : null,
+                  }}
                 />
               </Grid>
 

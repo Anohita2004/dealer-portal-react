@@ -28,6 +28,7 @@ import {
   FaBoxes,
   FaBuilding,
   FaTruck,
+  FaUserPlus,
 } from "react-icons/fa";
 
 export default function Sidebar() {
@@ -56,6 +57,7 @@ export default function Sidebar() {
       { label: "Roles & Permissions", path: "/superadmin/roles", icon: <FaCogs />, section: "Governance" },
       { label: "Audit Logs", path: "/superadmin/activity", icon: <FaBell />, section: "Governance" },
       { label: "Dealer Management", path: "/dealers", icon: <FaUsers />, section: "Governance" },
+      { label: "Create Dealer", path: "/superadmin/dealers/new", icon: <FaUserPlus />, section: "Governance" },
       { label: "Pending Approvals", path: "/approvals", icon: <FaClipboardList />, section: "Governance" },
       { label: "All Orders", path: "/superadmin/orders", icon: <FaFileAlt />, section: "Global Visibility" },
       { label: "All Invoices", path: "/superadmin/invoices", icon: <FaFileInvoice />, section: "Global Visibility" },

@@ -39,6 +39,7 @@ L.Icon.Default.mergeOptions({
 const WarehouseDetail = () => {
   const { id } = useParams();
   const navigate = useNavigate();
+  const isCreateMode = !id || id === 'create';
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [editing, setEditing] = useState(false);
@@ -65,10 +66,15 @@ const WarehouseDetail = () => {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
-    if (id) {
+    if (!isCreateMode) {
       fetchWarehouse();
-      fetchRegions();
+    } else {
+      // In create mode, set editing to true by default
+      setEditing(true);
+      setLoading(false);
     }
+    // Always fetch regions for both create and edit modes
+    fetchRegions();
   }, [id]);
 
   useEffect(() => {
@@ -78,6 +84,13 @@ const WarehouseDetail = () => {
       setAreas([]);
     }
   }, [formData.regionId]);
+
+  // Debug: Log regions when they change
+  useEffect(() => {
+    console.log('Regions state updated:', regions);
+    console.log('Regions count:', regions.length);
+    console.log('Editing mode:', editing);
+  }, [regions, editing]);
 
   const fetchWarehouse = async () => {
     try {
@@ -112,18 +125,47 @@ const WarehouseDetail = () => {
   const fetchRegions = async () => {
     try {
       const response = await geoAPI.getRegions();
-      setRegions(response.regions || []);
+      console.log('Regions API response:', response);
+      console.log('Response type:', typeof response);
+      console.log('Is array?', Array.isArray(response));
+      
+      // Handle both array response and object with regions property
+      let regionsData = [];
+      if (Array.isArray(response)) {
+        regionsData = response;
+      } else if (response && Array.isArray(response.regions)) {
+        regionsData = response.regions;
+      } else if (response && Array.isArray(response.data)) {
+        regionsData = response.data;
+      } else {
+        console.warn('Unexpected response format:', response);
+      }
+      
+      console.log('Setting regions:', regionsData);
+      console.log('Regions count:', regionsData.length);
+      setRegions(regionsData || []);
     } catch (error) {
       console.error('Error fetching regions:', error);
+      setRegions([]);
     }
   };
 
   const fetchAreas = async (regionId) => {
     try {
       const response = await geoAPI.getAreas({ regionId });
-      setAreas(response.areas || []);
+      // Handle both array response and object with areas property
+      if (Array.isArray(response)) {
+        setAreas(response);
+      } else if (Array.isArray(response.areas)) {
+        setAreas(response.areas);
+      } else if (Array.isArray(response.data)) {
+        setAreas(response.data);
+      } else {
+        setAreas([]);
+      }
     } catch (error) {
       console.error('Error fetching areas:', error);
+      setAreas([]);
     }
   };
 
@@ -210,13 +252,19 @@ const WarehouseDetail = () => {
         areaId: formData.areaId || undefined
       };
 
-      await warehouseAPI.update(id, payload);
-      toast.success('Warehouse updated successfully');
-      setEditing(false);
-      fetchWarehouse();
+      if (isCreateMode) {
+        await warehouseAPI.create(payload);
+        toast.success('Warehouse created successfully');
+        navigate('/fleet/warehouses');
+      } else {
+        await warehouseAPI.update(id, payload);
+        toast.success('Warehouse updated successfully');
+        setEditing(false);
+        fetchWarehouse();
+      }
     } catch (error) {
-      console.error('Error updating warehouse:', error);
-      toast.error(error.response?.data?.error || 'Failed to update warehouse');
+      console.error(`Error ${isCreateMode ? 'creating' : 'updating'} warehouse:`, error);
+      toast.error(error.response?.data?.error || `Failed to ${isCreateMode ? 'create' : 'update'} warehouse`);
     } finally {
       setSaving(false);
     }
@@ -241,7 +289,7 @@ const WarehouseDetail = () => {
     }
   };
 
-  if (loading) {
+  if (loading && !isCreateMode) {
     return (
       <div>
         <PageHeader title="Warehouse Details" icon={<FaWarehouse />} />
@@ -252,18 +300,20 @@ const WarehouseDetail = () => {
     );
   }
 
-  if (!warehouse) {
+  if (!isCreateMode && !warehouse) {
     return null;
   }
 
-  const mapCenter = warehouse.lat && warehouse.lng
+  const mapCenter = !isCreateMode && warehouse?.lat && warehouse?.lng
     ? [warehouse.lat, warehouse.lng]
+    : formData.lat && formData.lng
+    ? [parseFloat(formData.lat), parseFloat(formData.lng)]
     : [19.0760, 72.8777];
 
   return (
     <div>
       <PageHeader
-        title={`Warehouse: ${warehouse.name}`}
+        title={isCreateMode ? 'Create Warehouse' : `Warehouse: ${warehouse.name}`}
         icon={<FaWarehouse />}
         action={
           <Box sx={{ display: 'flex', gap: 1 }}>
@@ -276,14 +326,16 @@ const WarehouseDetail = () => {
                 >
                   Edit
                 </Button>
-                <Button
-                  variant="outlined"
-                  color="error"
-                  startIcon={<FaTrash />}
-                  onClick={() => setDeleteDialogOpen(true)}
-                >
-                  Delete
-                </Button>
+                {!isCreateMode && (
+                  <Button
+                    variant="outlined"
+                    color="error"
+                    startIcon={<FaTrash />}
+                    onClick={() => setDeleteDialogOpen(true)}
+                  >
+                    Delete
+                  </Button>
+                )}
                 <Button
                   variant="outlined"
                   startIcon={<FaArrowLeft />}
@@ -310,7 +362,7 @@ const WarehouseDetail = () => {
                   onClick={handleSave}
                   disabled={saving}
                 >
-                  {saving ? 'Saving...' : 'Save Changes'}
+                  {saving ? 'Saving...' : isCreateMode ? 'Create Warehouse' : 'Save Changes'}
                 </Button>
               </>
             )}
@@ -441,21 +493,50 @@ const WarehouseDetail = () => {
 
                 <Grid item xs={12} md={6}>
                   <FormControl fullWidth required error={!!errors.regionId} disabled={!editing}>
-                    <InputLabel>Region</InputLabel>
+                    <InputLabel id="region-select-label">Region</InputLabel>
                     <Select
-                      value={formData.regionId}
+                      key={`region-select-${regions.length}`}
+                      labelId="region-select-label"
+                      value={formData.regionId || ""}
                       onChange={handleChange('regionId')}
                       label="Region"
+                      displayEmpty
+                      renderValue={(selected) => {
+                        if (!selected) return <em>Select Region</em>;
+                        const region = regions.find(r => r.id === selected);
+                        return region ? (region.name || region.regionName || region.code || 'Unknown') : <em>Select Region</em>;
+                      }}
                     >
-                      <MenuItem value="">Select Region</MenuItem>
-                      {regions.map(region => (
-                        <MenuItem key={region.id} value={region.id}>
-                          {region.name}
+                      <MenuItem value="">
+                        <em>Select Region</em>
+                      </MenuItem>
+                      {Array.isArray(regions) && regions.length > 0 ? (
+                        regions.map((region, index) => {
+                          if (!region || !region.id) {
+                            console.warn('Invalid region at index', index, region);
+                            return null;
+                          }
+                          const displayName = region.name || region.regionName || region.code || 'Unknown';
+                          return (
+                            <MenuItem key={region.id} value={region.id}>
+                              {displayName}
+                            </MenuItem>
+                          );
+                        }).filter(Boolean)
+                      ) : (
+                        <MenuItem value="" disabled>
+                          {loading ? 'Loading regions...' : `No regions available (${regions?.length || 0} loaded)`}
                         </MenuItem>
-                      ))}
+                      )}
                     </Select>
                     {errors.regionId && (
                       <FormHelperText>{errors.regionId}</FormHelperText>
+                    )}
+                    {!errors.regionId && (!regions || regions.length === 0) && !loading && (
+                      <FormHelperText>Please wait while regions are loaded...</FormHelperText>
+                    )}
+                    {!errors.regionId && regions && regions.length > 0 && (
+                      <FormHelperText>{regions.length} region(s) available</FormHelperText>
                     )}
                   </FormControl>
                 </Grid>
@@ -464,14 +545,14 @@ const WarehouseDetail = () => {
                   <FormControl fullWidth disabled={!editing || !formData.regionId}>
                     <InputLabel>Area (Optional)</InputLabel>
                     <Select
-                      value={formData.areaId}
+                      value={areas.some(a => a.id === formData.areaId) ? formData.areaId : ""}
                       onChange={handleChange('areaId')}
                       label="Area (Optional)"
                     >
                       <MenuItem value="">Select Area</MenuItem>
                       {areas.map(area => (
                         <MenuItem key={area.id} value={area.id}>
-                          {area.name}
+                          {area.name || area.areaName}
                         </MenuItem>
                       ))}
                     </Select>
@@ -547,7 +628,7 @@ const WarehouseDetail = () => {
         </Grid>
 
         {/* Map Card */}
-        {!editing && warehouse.lat && warehouse.lng && (
+        {!editing && !isCreateMode && warehouse?.lat && warehouse?.lng && (
           <Grid item xs={12} md={6}>
             <Card>
               <Box sx={{ p: 2 }}>

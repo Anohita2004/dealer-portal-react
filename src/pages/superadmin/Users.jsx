@@ -178,6 +178,10 @@ export default function Users() {
   const handleMenuClose = () => {
     setAnchorEl(null);
     setSelectedUser(null);
+    // Blur any focused elements to prevent aria-hidden conflicts
+    if (document.activeElement instanceof HTMLElement) {
+      document.activeElement.blur();
+    }
   };
 
   const handleEdit = (user) => {
@@ -630,7 +634,13 @@ export default function Users() {
       </Box>
 
       {/* Action Menu - kept as is */}
-      <Menu anchorEl={anchorEl} open={Boolean(anchorEl)} onClose={handleMenuClose}>
+      <Menu 
+        anchorEl={anchorEl} 
+        open={Boolean(anchorEl)} 
+        onClose={handleMenuClose}
+        onClick={handleMenuClose}
+        disableAutoFocusItem
+      >
         <MenuItem onClick={() => handleEdit(selectedUser)}>
           <Edit size={16} style={{ marginRight: 8 }} />
           Edit User
@@ -666,9 +676,13 @@ export default function Users() {
         </MenuItem>
         <Divider />
         <MenuItem
-          onClick={() => {
-            setDeleteDialogOpen(true);
+          onClick={(e) => {
+            e.preventDefault();
             handleMenuClose();
+            // Use setTimeout to ensure menu closes and focus is cleared before dialog opens
+            setTimeout(() => {
+              setDeleteDialogOpen(true);
+            }, 150);
           }}
           sx={{ color: "error.main" }}
         >
@@ -678,8 +692,16 @@ export default function Users() {
       </Menu>
 
       {/* Dialogs kept as is */}
-      <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog 
+        open={deleteDialogOpen} 
+        onClose={() => setDeleteDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        disableAutoFocus={false}
+        disableEnforceFocus={false}
+        aria-labelledby="delete-dialog-title"
+      >
+        <DialogTitle id="delete-dialog-title">
           Confirm User Deletion
         </DialogTitle>
         <DialogContent>
@@ -698,8 +720,16 @@ export default function Users() {
         </DialogActions>
       </Dialog>
 
-      <Dialog open={bulkActionDialogOpen} onClose={() => setBulkActionDialogOpen(false)} maxWidth="sm" fullWidth>
-        <DialogTitle>
+      <Dialog 
+        open={bulkActionDialogOpen} 
+        onClose={() => setBulkActionDialogOpen(false)} 
+        maxWidth="sm" 
+        fullWidth
+        disableAutoFocus={false}
+        disableEnforceFocus={false}
+        aria-labelledby="bulk-action-dialog-title"
+      >
+        <DialogTitle id="bulk-action-dialog-title">
           Bulk Action Confirmation
         </DialogTitle>
         <DialogContent>
