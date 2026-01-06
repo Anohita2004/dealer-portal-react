@@ -278,8 +278,14 @@
                 });
 
                 if (!response.ok) {
-                    const error = await response.json();
-                    throw new Error(error.error || error.message || 'Unknown error');
+                    let errorMsg = `HTTP ${response.status}`;
+                    try {
+                        const error = await response.json();
+                        errorMsg = error.error || error.message || errorMsg;
+                    } catch (e) {
+                        errorMsg = await response.text() || errorMsg;
+                    }
+                    throw new Error(errorMsg);
                 }
 
                 const data = await response.json();
@@ -291,17 +297,21 @@
                 
                 if (error.message.includes('401') || error.message.includes('Unauthorized')) {
                     stopSimulation();
-                    alert('Token expired or invalid! Please get a new token.');
+                    alert('Token expired or invalid! Please get a new token and try again.');
+                } else if (error.message.includes('Failed to fetch')) {
+                    log('❌ Cannot connect to backend. Is the server running on port 3000?', 'error');
+                    setStatus('❌ Backend connection failed', 'error');
+                    stopSimulation();
                 }
             }
         }
 
         function startSimulation() {
-            const token = document.getElementById('token').value;
-            const truckId = document.getElementById('truckId').value;
+            const token = document.getElementById('token').value.trim();
+            const truckId = document.getElementById('truckId').value.trim();
 
             if (!token) {
-                alert('Please enter your authentication token!');
+                alert('Please enter your authentication token!\n\nSteps:\n1. Login at http://localhost:5173\n2. Press F12 → Console\n3. Run: localStorage.getItem("token")\n4. Copy and paste the token here');
                 return;
             }
 
@@ -310,16 +320,23 @@
                 return;
             }
 
+            // Clear previous logs
+            document.getElementById('logs').innerHTML = '';
+            
             log('🚀 Starting simulation...', 'info');
             log(`📍 Truck ID: ${truckId}`, 'info');
+            log(`📍 Starting at: (${lat.toFixed(6)}, ${lng.toFixed(6)})`, 'info');
             log(`📡 Sending updates every 3 seconds`, 'info');
             log(`🗺️  Open Live Tracking page to see movement!`, 'info');
+            log('', 'info');
             
             setStatus('🚀 Simulation starting...', 'info');
 
             // Disable start, enable stop
             document.querySelector('.btn-primary').disabled = true;
             document.getElementById('stopBtn').disabled = false;
+            document.getElementById('token').disabled = true;
+            document.getElementById('truckId').disabled = true;
 
             // Send immediately
             sendLocation();
@@ -332,19 +349,32 @@
             if (interval) {
                 clearInterval(interval);
                 interval = null;
+                log('', 'info');
                 log('⏹️ Simulation stopped', 'info');
                 setStatus('⏹️ Simulation stopped', 'info');
                 
                 // Enable start, disable stop
                 document.querySelector('.btn-primary').disabled = false;
                 document.getElementById('stopBtn').disabled = true;
+                document.getElementById('token').disabled = false;
+                document.getElementById('truckId').disabled = false;
             }
         }
 
-        // Clear logs on load
-        window.onload = () => {
-            log('Ready to start simulation...', 'info');
-        };
+        // Initialize on load
+        window.addEventListener('DOMContentLoaded', () => {
+            log('✅ Test simulator ready!', 'success');
+            log('📋 Enter your auth token and click Start Simulation', 'info');
+            
+            // Check if backend is reachable
+            fetch('http://localhost:3000/api')
+                .then(() => log('✅ Backend server detected on port 3000', 'success'))
+                .catch(() => {
+                    log('⚠️  Warning: Cannot reach backend on port 3000', 'error');
+                    log('⚠️  Make sure the backend server is running!', 'error');
+                    setStatus('⚠️  Backend not reachable - start the server first', 'error');
+                });
+        });
     </script>
 </body>
 </html>

@@ -65,8 +65,9 @@ TaskManager.defineTask(LOCATION_TASK_NAME, async ({ data, error }) => {
         };
 
         // Make API call directly (can't use api service in background task)
+        // API_BASE_URL already includes /api suffix
         await axios.post(
-          `${API_BASE_URL}/api/tracking/location`,
+          `${API_BASE_URL}/tracking/location`,
           locationData,
           {
             headers: {
