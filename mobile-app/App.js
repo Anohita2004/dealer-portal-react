@@ -3,7 +3,7 @@ import { NavigationContainer } from '@react-navigation/native';
 import { createStackNavigator } from '@react-navigation/stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Platform, Alert } from 'react-native';
+import { ActivityIndicator, View, StyleSheet, Text, TouchableOpacity, Platform, Alert, AppState } from 'react-native';
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { API_BASE_URL, SOCKET_URL } from './utils/config';
 
@@ -15,6 +15,9 @@ import AssignmentScreen from './screens/AssignmentScreen';
 
 // Services
 import { initSocket } from './services/socket';
+import driverLocationService from './services/driverLocationService';
+// Import background location task to register it
+import './tasks/locationTask';
 
 const Stack = createStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -50,6 +53,7 @@ const ProfileScreen = ({ navigation }) => {
               
               await authAPI.logout();
               disconnectSocket();
+              driverLocationService.stopTracking();
               navigation.reset({
                 index: 0,
                 routes: [{ name: 'Login' }],
@@ -167,6 +171,11 @@ export default function App() {
             console.warn('[App] Socket initialization failed:', err);
             // Continue anyway - socket is optional for initial load
           });
+
+          // Start location tracking for driver (will wait for truckId to be set)
+          console.log('[App] Initializing driver location tracking...');
+          // Don't start tracking yet - wait for truckId to be set from DashboardScreen
+          // Tracking will start automatically when setTruckId() is called
         }, 100);
       } else {
         console.log('[App] No token found, user not authenticated');
@@ -207,9 +216,51 @@ export default function App() {
       }
     }, 5000); // Check every 5 seconds (reduced frequency)
     
+    // Handle app state changes (foreground/background)
+    let appState = AppState.currentState;
+    
+    const handleAppStateChange = (nextAppState) => {
+      console.log(`[App] App state changed: ${appState} → ${nextAppState}`);
+      
+      if (nextAppState === 'active' && isAuthenticated) {
+        console.log('[App] ✅ App came to foreground - ensuring location tracking is active');
+        // Ensure tracking is still active when app comes to foreground
+        const status = driverLocationService.getTrackingStatus();
+        console.log('[App] Tracking status:', status);
+        
+        if (status.truckId) {
+          if (!status.isTracking) {
+            console.log('[App] 🔄 Restarting location tracking (was stopped)...');
+            driverLocationService.startTracking().catch(err => {
+              console.warn('[App] ❌ Failed to restart tracking:', err);
+            });
+          } else {
+            console.log('[App] ✅ Location tracking is already active');
+            // Even if tracking is active, verify it's working by checking last update
+            // The monitoring in driverLocationService will handle restart if needed
+          }
+        } else {
+          console.log('[App] ⏳ No truck assigned yet - tracking will start when truck is assigned');
+        }
+      } else if (nextAppState === 'background' && isAuthenticated) {
+        console.log('[App] 📱 App went to background - location tracking should continue');
+        const status = driverLocationService.getTrackingStatus();
+        if (status.isTracking && status.truckId) {
+          console.log('[App] ✅ Location tracking should continue in background');
+        } else {
+          console.warn('[App] ⚠️ Location tracking not active - may not work in background');
+        }
+      }
+      
+      appState = nextAppState;
+    };
+    
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+    
     return () => {
       clearInterval(interval);
       clearTimeout(loadingTimeout);
+      subscription?.remove();
     };
   }, [checkAuth, isAuthenticated, isLoading]);
 

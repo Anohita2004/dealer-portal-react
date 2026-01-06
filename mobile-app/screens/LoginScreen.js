@@ -48,7 +48,10 @@ const LoginScreen = ({ navigation }) => {
 
     try {
       setLoading(true);
-      const response = await authAPI.login(username, password);
+      // Trim whitespace from username and password to prevent authentication failures
+      const trimmedUsername = username.trim();
+      const trimmedPassword = password.trim();
+      const response = await authAPI.login(trimmedUsername, trimmedPassword);
 
       console.log('Login response:', JSON.stringify(response, null, 2));
 
@@ -84,10 +87,10 @@ const LoginScreen = ({ navigation }) => {
       }
     } catch (error) {
       console.error('Login error:', error);
-      
+
       // Better error messages with platform-specific info
       let errorMessage = 'Login failed. Please try again.';
-      
+
       if (isNetworkError(error)) {
         errorMessage = getNetworkErrorMessage(error);
         // Add API URL info for mobile debugging
@@ -111,10 +114,10 @@ const LoginScreen = ({ navigation }) => {
       } else if (error.message) {
         errorMessage = error.message;
       }
-      
+
       // Log full error for debugging
       console.log('Full error response:', JSON.stringify(error.response?.data, null, 2));
-      
+
       Alert.alert('Login Failed', errorMessage);
     } finally {
       setLoading(false);

@@ -6,6 +6,7 @@ import PageHeader from '../../components/PageHeader';
 import Card from '../../components/Card';
 import { toast } from 'react-toastify';
 import { FaTruck, FaPlus, FaCheckCircle, FaTimesCircle, FaEdit, FaEye } from 'react-icons/fa';
+import { useDebounce } from '../../hooks/useDebounce';
 import { 
   Button, 
   Dialog, 
@@ -44,6 +45,7 @@ const FleetAssignments = () => {
   const [orders, setOrders] = useState([]);
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [orderSearchTerm, setOrderSearchTerm] = useState('');
+  const debouncedSearchTerm = useDebounce(orderSearchTerm, 500);
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
@@ -122,8 +124,18 @@ const FleetAssignments = () => {
       let allOrders = [];
       let response;
       
-      // Try fetching with status filter (try both capitalized and lowercase)
-      const statusValues = ['Approved', 'approved'];
+      // Prepare search params - search can be by order number, dealer name, or order ID
+      const searchParams = {};
+      if (searchTerm && searchTerm.trim().length > 0) {
+        // Try different search parameter names that the API might support
+        searchParams.search = searchTerm.trim();
+        // Some APIs might use different parameter names
+        searchParams.orderNumber = searchTerm.trim();
+        searchParams.query = searchTerm.trim();
+      }
+      
+      // Try fetching with status filter first
+      const statusValues = ['approved', 'Approved'];
       let fetchSuccess = false;
       
       for (const statusValue of statusValues) {
@@ -133,7 +145,7 @@ const FleetAssignments = () => {
           const params = {
             status: statusValue,
             limit: 500,
-            ...(searchTerm && searchTerm.length >= 2 && { search: searchTerm })
+            ...searchParams
           };
           
           response = await orderAPI.getAllOrders(params);
@@ -161,7 +173,7 @@ const FleetAssignments = () => {
         try {
           const params = {
             limit: 500,
-            ...(searchTerm && searchTerm.length >= 2 && { search: searchTerm })
+            ...searchParams
           };
           
           response = await orderAPI.getAllOrders(params);
@@ -185,7 +197,7 @@ const FleetAssignments = () => {
       console.log('Total orders fetched:', allOrders.length);
       
       // Filter to only approved orders that are ready for assignment
-      const approvedOrders = allOrders.filter(order => {
+      let approvedOrders = allOrders.filter(order => {
         if (!order || !order.id) return false;
         
         // Exclude if already assigned
@@ -214,8 +226,28 @@ const FleetAssignments = () => {
         return isApproved && !isExcluded;
       });
       
+      // If search term exists, also filter client-side by order number, dealer name, or ID
+      if (searchTerm && searchTerm.trim().length > 0) {
+        const searchLower = searchTerm.toLowerCase().trim();
+        approvedOrders = approvedOrders.filter(order => {
+          const orderNumber = (order.orderNumber || '').toLowerCase();
+          const orderId = (order.id || '').toLowerCase();
+          const dealerName = (order.dealer?.businessName || order.dealer?.name || '').toLowerCase();
+          const dealerCity = (order.dealer?.city || '').toLowerCase();
+          
+          return (
+            orderNumber.includes(searchLower) ||
+            orderId.includes(searchLower) ||
+            dealerName.includes(searchLower) ||
+            dealerCity.includes(searchLower)
+          );
+        });
+      }
+      
       console.log('Filtered approved orders:', approvedOrders.length, 'orders');
-      console.log('Sample approved orders:', approvedOrders.slice(0, 3));
+      if (approvedOrders.length > 0) {
+        console.log('Sample approved orders:', approvedOrders.slice(0, 3));
+      }
       
       setOrders(approvedOrders);
     } catch (error) {
@@ -227,6 +259,14 @@ const FleetAssignments = () => {
       setOrdersLoading(false);
     }
   };
+
+  // Effect to trigger search when debounced search term changes
+  useEffect(() => {
+    if (openModal && !editingAssignment) {
+      fetchApprovedOrders(debouncedSearchTerm);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [debouncedSearchTerm, openModal, editingAssignment]);
 
   const handleCreate = () => {
     setEditingAssignment(null);
@@ -243,8 +283,7 @@ const FleetAssignments = () => {
     setOrderSearchTerm('');
     setOrders([]);
     setOpenModal(true);
-    // Fetch approved orders when modal opens
-    fetchApprovedOrders();
+    // fetchApprovedOrders will be triggered by useEffect when modal opens
   };
 
   const handleEdit = async (assignment) => {
@@ -552,15 +591,18 @@ const FleetAssignments = () => {
                 onChange={(event, newValue) => {
                   setFormData({ ...formData, orderId: newValue?.id || '' });
                 }}
-                onInputChange={(event, newInputValue) => {
+                onInputChange={(event, newInputValue, reason) => {
                   if (editingAssignment) return; // Don't search when editing
-                  setOrderSearchTerm(newInputValue);
-                  if (newInputValue.length >= 2) {
-                    fetchApprovedOrders(newInputValue);
-                  } else if (newInputValue.length === 0) {
-                    fetchApprovedOrders();
+                  
+                  // Only update search term on user input, not on selection/clear
+                  if (reason === 'input') {
+                    setOrderSearchTerm(newInputValue);
+                  } else if (reason === 'clear') {
+                    setOrderSearchTerm('');
+                    setFormData({ ...formData, orderId: '' });
                   }
                 }}
+                inputValue={orderSearchTerm}
                 getOptionLabel={(option) => {
                   if (typeof option === 'string') return option;
                   return `${option.orderNumber || option.id} - ${option.dealer?.businessName || 'Unknown Dealer'}`;

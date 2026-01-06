@@ -7,6 +7,28 @@ import Card from '../../components/Card';
 import { FaTruck, FaWarehouse, FaMapMarkerAlt } from 'react-icons/fa';
 import 'leaflet/dist/leaflet.css';
 
+// Custom marker component that updates position smoothly
+const UpdatingMarker = ({ position, icon, children }) => {
+  const markerRef = useRef(null);
+
+  useEffect(() => {
+    if (markerRef.current && position) {
+      const latlng = L.latLng(position[0], position[1]);
+      markerRef.current.setLatLng(latlng);
+    }
+  }, [position]);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={position}
+      icon={icon}
+    >
+      {children}
+    </Marker>
+  );
+};
+
 // Fix for default marker icon
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -312,7 +334,8 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
 
           {/* Truck Current Location */}
           {truckLocation && truckLocation.lat && truckLocation.lng && assignment?.truck && (
-            <Marker
+            <UpdatingMarker
+              key={`truck-${assignmentId || assignment?.id || orderId || 'tracking'}-${truckLocation.lat}-${truckLocation.lng}`}
               position={[truckLocation.lat, truckLocation.lng]}
               icon={createTruckIcon(assignment.status)}
             >

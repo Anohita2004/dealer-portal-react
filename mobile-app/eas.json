@@ -9,10 +9,24 @@
       "distribution": "internal"
     },
     "preview": {
-      "distribution": "internal"
+      "distribution": "internal",
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://yourdomain.com/api",
+        "EXPO_PUBLIC_SOCKET_URL": "https://yourdomain.com"
+      }
     },
     "production": {
-      "autoIncrement": true
+      "autoIncrement": true,
+      "android": {
+        "buildType": "apk"
+      },
+      "env": {
+        "EXPO_PUBLIC_API_URL": "https://yourdomain.com/api",
+        "EXPO_PUBLIC_SOCKET_URL": "https://yourdomain.com"
+      }
     }
   },
   "submit": {

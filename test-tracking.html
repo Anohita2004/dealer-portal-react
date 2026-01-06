@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live Tracking Test Simulator</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        
+        .container {
+            max-width: 800px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.3);
+            overflow: hidden;
+        }
+        
+        .header {
+            background: #4A90E2;
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+        
+        .header h1 {
+            font-size: 28px;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            opacity: 0.9;
+        }
+        
+        .content {
+            padding: 30px;
+        }
+        
+        .form-group {
+            margin-bottom: 20px;
+        }
+        
+        label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 600;
+            color: #333;
+        }
+        
+        input {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #e0e0e0;
+            border-radius: 8px;
+            font-size: 14px;
+            font-family: monospace;
+        }
+        
+        input:focus {
+            outline: none;
+            border-color: #4A90E2;
+        }
+        
+        .btn {
+            padding: 14px 28px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-right: 10px;
+        }
+        
+        .btn-primary {
+            background: #4A90E2;
+            color: white;
+        }
+        
+        .btn-primary:hover {
+            background: #357ABD;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(74, 144, 226, 0.4);
+        }
+        
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+        
+        .btn-danger:hover {
+            background: #c82333;
+        }
+        
+        .btn:disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        
+        .status {
+            margin-top: 20px;
+            padding: 15px;
+            border-radius: 8px;
+            font-size: 14px;
+        }
+        
+        .status.info {
+            background: #e3f2fd;
+            color: #1976d2;
+            border: 1px solid #90caf9;
+        }
+        
+        .status.success {
+            background: #e8f5e9;
+            color: #388e3c;
+            border: 1px solid #81c784;
+        }
+        
+        .status.error {
+            background: #ffebee;
+            color: #c62828;
+            border: 1px solid #e57373;
+        }
+        
+        .logs {
+            margin-top: 20px;
+            background: #263238;
+            color: #aed581;
+            padding: 20px;
+            border-radius: 8px;
+            font-family: 'Courier New', monospace;
+            font-size: 13px;
+            max-height: 400px;
+            overflow-y: auto;
+        }
+        
+        .log-entry {
+            margin-bottom: 8px;
+            padding: 4px 0;
+        }
+        
+        .log-success {
+            color: #81c784;
+        }
+        
+        .log-error {
+            color: #e57373;
+        }
+        
+        .log-info {
+            color: #64b5f6;
+        }
+        
+        .instructions {
+            background: #fff3e0;
+            border: 1px solid #ffb74d;
+            padding: 15px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+        
+        .instructions h3 {
+            color: #e65100;
+            margin-bottom: 10px;
+        }
+        
+        .instructions ol {
+            margin-left: 20px;
+        }
+        
+        .instructions li {
+            margin-bottom: 5px;
+            color: #5d4037;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🚚 Live Tracking Test Simulator</h1>
+            <p>Simulate truck movement to test real-time tracking</p>
+        </div>
+        
+        <div class="content">
+            <div class="instructions">
+                <h3>📋 Quick Setup:</h3>
+                <ol>
+                    <li>Login to the main app: <a href="http://localhost:5173" target="_blank">http://localhost:5173</a></li>
+                    <li>Open DevTools (F12) → Console tab</li>
+                    <li>Run: <code>localStorage.getItem('token')</code></li>
+                    <li>Copy the token and paste it below</li>
+                    <li>Click "Start Simulation"</li>
+                    <li>Open Fleet → Live Tracking to watch the truck move!</li>
+                </ol>
+            </div>
+            
+            <div class="form-group">
+                <label for="token">Authentication Token:</label>
+                <input type="text" id="token" placeholder="Paste your token here...">
+            </div>
+            
+            <div class="form-group">
+                <label for="truckId">Truck ID:</label>
+                <input type="text" id="truckId" value="8cf20524-e0be-4589-9572-a9efc37b0bf4">
+            </div>
+            
+            <div class="form-group">
+                <button class="btn btn-primary" onclick="startSimulation()">🚀 Start Simulation</button>
+                <button class="btn btn-danger" onclick="stopSimulation()" disabled id="stopBtn">⏹️ Stop</button>
+            </div>
+            
+            <div id="status"></div>
+            
+            <div class="logs" id="logs">
+                <div class="log-info">Ready to start simulation...</div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const API_BASE_URL = 'http://localhost:3000/api';
+        let interval = null;
+        let lat = 22.540638;
+        let lng = 88.353808;
+        let updateCount = 0;
+
+        function log(message, type = 'info') {
+            const logsDiv = document.getElementById('logs');
+            const timestamp = new Date().toLocaleTimeString();
+            const logEntry = document.createElement('div');
+            logEntry.className = `log-entry log-${type}`;
+            logEntry.textContent = `[${timestamp}] ${message}`;
+            logsDiv.appendChild(logEntry);
+            logsDiv.scrollTop = logsDiv.scrollHeight;
+        }
+
+        function setStatus(message, type = 'info') {
+            const statusDiv = document.getElementById('status');
+            statusDiv.className = `status ${type}`;
+            statusDiv.textContent = message;
+        }
+
+        async function sendLocation() {
+            const token = document.getElementById('token').value;
+            const truckId = document.getElementById('truckId').value;
+
+            // Move truck
+            lat += 0.0001;
+            lng += 0.0001;
+            updateCount++;
+
+            try {
+                const response = await fetch(`${API_BASE_URL}/tracking/location`, {
+                    method: 'POST',
+                    headers: {
+                        'Authorization': `Bearer ${token}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({
+                        truckId: truckId,
+                        lat: lat,
+                        lng: lng,
+                        speed: 30 + Math.random() * 10,
+                        heading: 45,
+                        timestamp: new Date().toISOString()
+                    })
+                });
+
+                if (!response.ok) {
+                    const error = await response.json();
+                    throw new Error(error.error || error.message || 'Unknown error');
+                }
+
+                const data = await response.json();
+                log(`✅ [${updateCount}] Location sent: (${lat.toFixed(6)}, ${lng.toFixed(6)})`, 'success');
+                setStatus(`✅ Simulation running... Updates sent: ${updateCount}`, 'success');
+            } catch (error) {
+                log(`❌ Error: ${error.message}`, 'error');
+                setStatus(`❌ Error: ${error.message}`, 'error');
+                
+                if (error.message.includes('401') || error.message.includes('Unauthorized')) {
+                    stopSimulation();
+                    alert('Token expired or invalid! Please get a new token.');
+                }
+            }
+        }
+
+        function startSimulation() {
+            const token = document.getElementById('token').value;
+            const truckId = document.getElementById('truckId').value;
+
+            if (!token) {
+                alert('Please enter your authentication token!');
+                return;
+            }
+
+            if (!truckId) {
+                alert('Please enter a truck ID!');
+                return;
+            }
+
+            log('🚀 Starting simulation...', 'info');
+            log(`📍 Truck ID: ${truckId}`, 'info');
+            log(`📡 Sending updates every 3 seconds`, 'info');
+            log(`🗺️  Open Live Tracking page to see movement!`, 'info');
+            
+            setStatus('🚀 Simulation starting...', 'info');
+
+            // Disable start, enable stop
+            document.querySelector('.btn-primary').disabled = true;
+            document.getElementById('stopBtn').disabled = false;
+
+            // Send immediately
+            sendLocation();
+
+            // Then every 3 seconds
+            interval = setInterval(sendLocation, 3000);
+        }
+
+        function stopSimulation() {
+            if (interval) {
+                clearInterval(interval);
+                interval = null;
+                log('⏹️ Simulation stopped', 'info');
+                setStatus('⏹️ Simulation stopped', 'info');
+                
+                // Enable start, disable stop
+                document.querySelector('.btn-primary').disabled = false;
+                document.getElementById('stopBtn').disabled = true;
+            }
+        }
+
+        // Clear logs on load
+        window.onload = () => {
+            log('Ready to start simulation...', 'info');
+        };
+    </script>
+</body>
+</html>

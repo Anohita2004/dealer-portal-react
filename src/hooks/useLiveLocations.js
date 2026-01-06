@@ -49,15 +49,18 @@ export const useLiveLocations = (driverPhone = null) => {
   // Initial fetch
   useEffect(() => {
     fetchLocations();
-    
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchLocations, 30000);
-    return () => clearInterval(interval);
   }, [fetchLocations]);
 
   // Listen to real-time location updates
   useEffect(() => {
     const handleLocationUpdate = (data) => {
+      console.log('📍 Socket.IO location update received:', {
+        truckId: data.truckId,
+        lat: data.lat,
+        lng: data.lng,
+        assignmentId: data.assignmentId,
+        timestamp: data.timestamp
+      });
       setLocations(prev => {
         // Filter by phone number if specified
         if (driverPhone && data.driverPhone !== driverPhone) {

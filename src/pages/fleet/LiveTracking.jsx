@@ -1,16 +1,33 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { trackingAPI, warehouseAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { MapContainer, TileLayer, Marker, Popup, Polyline } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import Card from '../../components/Card';
 import PageHeader from '../../components/PageHeader';
 import { toast } from 'react-toastify';
 import { FaMapMarkerAlt, FaTruck, FaWarehouse } from 'react-icons/fa';
 import { Chip, TextField, MenuItem, Grid, FormControlLabel, Switch } from '@mui/material';
-import { onTruckLocationUpdate, offTruckLocationUpdate } from '../../services/socket';
+import { onTruckLocationUpdate, offTruckLocationUpdate, trackTruck, untrackTruck } from '../../services/socket';
 import { getCachedRoute } from '../../services/routing';
 import 'leaflet/dist/leaflet.css';
+
+// Custom marker component that updates position dynamically
+const DynamicMarker = ({ position, icon, children, ...props }) => {
+  const markerRef = useRef(null);
+
+  useEffect(() => {
+    if (markerRef.current) {
+      markerRef.current.setLatLng(position);
+    }
+  }, [position]);
+
+  return (
+    <Marker ref={markerRef} position={position} icon={icon} {...props}>
+      {children}
+    </Marker>
+  );
+};
 
 // Fix for default marker icon
 delete L.Icon.Default.prototype._getIconUrl;
@@ -96,6 +113,25 @@ const createDealerIcon = () => {
   });
 };
 
+// Component to fit bounds only on initial load
+const FitBoundsOnce = ({ bounds }) => {
+  const map = useMap();
+  const hasSetBounds = useRef(false);
+
+  useEffect(() => {
+    if (!hasSetBounds.current && bounds && bounds.length === 2) {
+      try {
+        map.fitBounds(bounds, { padding: [50, 50], maxZoom: 15 });
+        hasSetBounds.current = true;
+      } catch (error) {
+        console.error('Error fitting bounds:', error);
+      }
+    }
+  }, [map, bounds]);
+
+  return null;
+};
+
 const LiveTracking = () => {
   const { user } = useAuth();
   const [locations, setLocations] = useState([]);
@@ -107,6 +143,7 @@ const LiveTracking = () => {
   const [routes, setRoutes] = useState({}); // Store routes by assignmentId
   const routeLoadingRef = useRef({}); // Track loading state per route (using ref to avoid dependency issues)
   const [lastTruckPositions, setLastTruckPositions] = useState({}); // Track last known truck positions
+  const trackedTrucksRef = useRef(new Set()); // Track which trucks are being monitored
 
   // Check if user is dealer admin/staff - filter to their orders only
   const isDealerUser = user?.role === 'dealer_admin' || user?.role === 'dealer_staff';
@@ -118,6 +155,7 @@ const LiveTracking = () => {
 
     // Setup Socket.IO listener for real-time updates
     const handleLocationUpdate = (data) => {
+      console.log('Socket.IO location update received:', data);
       setLocations(prev => {
         const index = prev.findIndex(loc => loc.truck?.id === data.truckId);
         if (index >= 0) {
@@ -128,10 +166,21 @@ const LiveTracking = () => {
               ...updated[index].truck,
               lat: data.lat,
               lng: data.lng,
+              speed: data.speed,
+              heading: data.heading,
               lastUpdate: data.timestamp
             }
           };
+          console.log('Updated truck position:', {
+            truckId: data.truckId,
+            oldLat: prev[index].truck?.lat,
+            newLat: data.lat,
+            oldLng: prev[index].truck?.lng,
+            newLng: data.lng
+          });
           return updated;
+        } else {
+          console.log('Truck not found in locations list:', data.truckId);
         }
         return prev;
       });
@@ -139,14 +188,40 @@ const LiveTracking = () => {
 
     onTruckLocationUpdate(handleLocationUpdate);
 
-    // Refresh every 30 seconds
-    const interval = setInterval(fetchLiveLocations, 30000);
-
     return () => {
-      clearInterval(interval);
       offTruckLocationUpdate();
+      // Untrack all trucks on unmount
+      trackedTrucksRef.current.forEach(truckId => {
+        untrackTruck(truckId);
+      });
+      trackedTrucksRef.current.clear();
     };
   }, []);
+
+  // Separate effect to join/leave truck tracking rooms when locations change
+  useEffect(() => {
+    const currentTruckIds = new Set(
+      locations.map(loc => loc.truck?.id).filter(Boolean)
+    );
+
+    // Join rooms for new trucks
+    currentTruckIds.forEach(truckId => {
+      if (!trackedTrucksRef.current.has(truckId)) {
+        console.log('Joining truck tracking room:', truckId);
+        trackTruck(truckId);
+        trackedTrucksRef.current.add(truckId);
+      }
+    });
+
+    // Leave rooms for trucks no longer in the list
+    trackedTrucksRef.current.forEach(truckId => {
+      if (!currentTruckIds.has(truckId)) {
+        console.log('Leaving truck tracking room:', truckId);
+        untrackTruck(truckId);
+        trackedTrucksRef.current.delete(truckId);
+      }
+    });
+  }, [locations]);
 
   const fetchLiveLocations = async () => {
     try {
@@ -491,8 +566,8 @@ const LiveTracking = () => {
     fetchRoutes();
   }, [filteredLocations, lastTruckPositions, routes]);
 
-  // Calculate map bounds
-  const getMapBounds = () => {
+  // Calculate map bounds (memoized to prevent unnecessary recalculations)
+  const bounds = useMemo(() => {
     const allPoints = [];
     
     // Add truck locations, warehouses, start locations, and dealers (after pickup)
@@ -543,13 +618,12 @@ const LiveTracking = () => {
     const maxLng = Math.max(...lngs);
 
     return [[minLat, minLng], [maxLat, maxLng]];
-  };
+  }, [filteredLocations, warehouses, showWarehouses]);
 
-  const bounds = getMapBounds();
-  const center = [
+  const center = useMemo(() => [
     (bounds[0][0] + bounds[1][0]) / 2,
     (bounds[0][1] + bounds[1][1]) / 2
-  ];
+  ], [bounds]);
 
   const getStatusColor = (status) => {
     const colors = {
@@ -644,8 +718,11 @@ const LiveTracking = () => {
               center={center}
               zoom={10}
               style={{ height: '100%', width: '100%' }}
-              bounds={bounds}
+              whenCreated={(mapInstance) => {
+                console.log('Map created');
+              }}
             >
+              <FitBoundsOnce bounds={bounds} />
               <TileLayer
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
                 attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
@@ -711,11 +788,12 @@ const LiveTracking = () => {
                   lat: numLat, 
                   lng: numLng, 
                   status,
-                  assignmentId: location.assignmentId 
+                  assignmentId: location.assignmentId,
+                  truckId: truck.id
                 });
 
                 return (
-                  <Marker
+                  <DynamicMarker
                     key={location.assignmentId || location.id || `truck-${index}`}
                     position={[numLat, numLng]}
                     icon={createTruckIcon(status)}
@@ -772,7 +850,7 @@ const LiveTracking = () => {
                         )}
                       </div>
                     </Popup>
-                  </Marker>
+                  </DynamicMarker>
                 );
               })}
 

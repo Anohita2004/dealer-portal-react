@@ -6,6 +6,28 @@ import { Box, Typography, CircularProgress, Alert } from '@mui/material';
 import { getCachedRoute } from '../../services/routing';
 import 'leaflet/dist/leaflet.css';
 
+// Custom marker component that updates position smoothly
+const UpdatingMarker = ({ position, icon, children }) => {
+  const markerRef = useRef(null);
+
+  useEffect(() => {
+    if (markerRef.current && position) {
+      const latlng = L.latLng(position[0], position[1]);
+      markerRef.current.setLatLng(latlng);
+    }
+  }, [position]);
+
+  return (
+    <Marker
+      ref={markerRef}
+      position={position}
+      icon={icon}
+    >
+      {children}
+    </Marker>
+  );
+};
+
 // Fix for default marker icons
 delete L.Icon.Default.prototype._getIconUrl;
 L.Icon.Default.mergeOptions({
@@ -322,8 +344,8 @@ const TruckLocationMap = ({ driverPhone = null, center = [20.5937, 78.9629], zoo
         {filteredLocations
           .filter(loc => loc.truck?.lat && loc.truck?.lng)
           .map(location => (
-            <Marker
-              key={`truck-${location.assignmentId}`}
+            <UpdatingMarker
+              key={`truck-${location.assignmentId}-${location.truck.lat}-${location.truck.lng}`}
               position={[location.truck.lat, location.truck.lng]}
               icon={createTruckIcon(location.status)}
             >

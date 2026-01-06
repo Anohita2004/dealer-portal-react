@@ -11,6 +11,7 @@ import {
 import Icon from 'react-native-vector-icons/MaterialIcons';
 import { fleetAPI } from '../services/api';
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import driverLocationService from '../services/driverLocationService';
 
 const DashboardScreen = ({ navigation }) => {
   const [assignments, setAssignments] = useState([]);
@@ -131,7 +132,27 @@ const DashboardScreen = ({ navigation }) => {
       }
 
       setAssignments(Array.isArray(assignmentsList) ? assignmentsList : []);
-      setError(null); // Clear any previous errors on success
+      setError(null);
+
+      if (Array.isArray(assignmentsList) && assignmentsList.length > 0) {
+        const activeAssignment = assignmentsList.find(a => 
+          ['assigned', 'picked_up', 'in_transit'].includes((a.status || '').toLowerCase())
+        );
+        
+        if (activeAssignment && activeAssignment.truckId) {
+          console.log('Setting truck ID for location tracking:', activeAssignment.truckId);
+          // setTruckId will automatically start tracking if not already started
+          await driverLocationService.setTruckId(activeAssignment.truckId);
+          
+          // Verify tracking status
+          const status = driverLocationService.getTrackingStatus();
+          console.log('Location tracking status:', status);
+        }
+      } else {
+        // No active assignments - stop tracking
+        console.log('No active assignments found, stopping location tracking');
+        driverLocationService.stopTracking();
+      }
     } catch (error) {
       console.error('Fatal error fetching assignments:', error);
       const errorMessage = error.response?.data?.error || 
