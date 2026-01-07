@@ -149,7 +149,7 @@ const TruckLocationMap = ({ driverPhone = null, center = [20.5937, 78.9629], zoo
         if (!loc.warehouse?.lat || !loc.warehouse?.lng || !loc.truck?.lat || !loc.truck?.lng) {
           return false;
         }
-        
+
         // Check if route doesn't exist or truck has moved significantly
         const lastPosition = lastTruckPositions[loc.assignmentId];
         const hasMoved = !lastPosition || hasSignificantMovement(
@@ -158,11 +158,11 @@ const TruckLocationMap = ({ driverPhone = null, center = [20.5937, 78.9629], zoo
           loc.truck.lat,
           loc.truck.lng
         );
-        
+
         // Check if route already exists or is currently loading
         const routeExists = routes[loc.assignmentId];
         const isLoading = routeLoadingRef.current[loc.assignmentId];
-        
+
         return hasMoved && !isLoading && !routeExists;
       });
 
@@ -182,8 +182,8 @@ const TruckLocationMap = ({ driverPhone = null, center = [20.5937, 78.9629], zoo
             location.warehouse.lat,
             location.warehouse.lng
           );
-          return { 
-            assignmentId: location.assignmentId, 
+          return {
+            assignmentId: location.assignmentId,
             route,
             truckLat: location.truck.lat,
             truckLng: location.truck.lng
@@ -267,7 +267,7 @@ const TruckLocationMap = ({ driverPhone = null, center = [20.5937, 78.9629], zoo
   // Calculate map bounds
   const getMapBounds = () => {
     const allPoints = [];
-    
+
     filteredLocations.forEach(loc => {
       if (loc.truck?.lat && loc.truck?.lng) {
         allPoints.push([loc.truck.lat, loc.truck.lng]);
@@ -292,8 +292,8 @@ const TruckLocationMap = ({ driverPhone = null, center = [20.5937, 78.9629], zoo
   const mapCenter = bounds && bounds.getCenter
     ? [bounds.getCenter().lat, bounds.getCenter().lng]
     : bounds && Array.isArray(bounds) && bounds.length === 2
-    ? [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2]
-    : center;
+      ? [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2]
+      : center;
 
   return (
     <Box sx={{ width: '100%', height: '100%', position: 'relative' }}>
@@ -316,7 +316,7 @@ const TruckLocationMap = ({ driverPhone = null, center = [20.5937, 78.9629], zoo
         {/* Warehouse markers */}
         {filteredLocations.map(location => {
           if (!location.warehouse?.lat || !location.warehouse?.lng) return null;
-          
+
           return (
             <Marker
               key={`warehouse-${location.assignmentId}`}
@@ -368,10 +368,10 @@ const TruckLocationMap = ({ driverPhone = null, center = [20.5937, 78.9629], zoo
                   </div>
                   <div style={{ fontSize: '12px', marginBottom: '6px' }}>
                     <strong>Status:</strong>{' '}
-                    <span style={{ 
-                      color: location.status === 'delivered' ? '#28a745' : 
-                             location.status === 'in_transit' ? '#007bff' :
-                             location.status === 'delayed' ? '#dc3545' : '#666',
+                    <span style={{
+                      color: location.status === 'delivered' ? '#28a745' :
+                        location.status === 'in_transit' ? '#007bff' :
+                          location.status === 'delayed' ? '#dc3545' : '#666',
                       fontWeight: 'bold'
                     }}>
                       {location.status?.replace('_', ' ').toUpperCase() || 'N/A'}
@@ -387,7 +387,7 @@ const TruckLocationMap = ({ driverPhone = null, center = [20.5937, 78.9629], zoo
                   </div>
                 </div>
               </Popup>
-            </Marker>
+            </UpdatingMarker>
           ))}
 
         {/* Route line from truck to warehouse via roads */}

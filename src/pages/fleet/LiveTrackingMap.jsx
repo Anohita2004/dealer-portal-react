@@ -71,13 +71,13 @@ const createTruckIcon = (status) => {
 const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOrder }) => {
   const [trackingData, setTrackingData] = useState(initialTrackingData || null);
   // Get initial truck location from tracking data or order assignment
-  const initialTruckLoc = initialTrackingData?.currentLocation || 
-                          initialOrder?.truckAssignment?.currentLocation ||
-                          (initialOrder?.truckAssignment?.lat && initialOrder?.truckAssignment?.lng ? {
-                            lat: initialOrder.truckAssignment.lat,
-                            lng: initialOrder.truckAssignment.lng,
-                            lastUpdate: new Date().toISOString()
-                          } : null);
+  const initialTruckLoc = initialTrackingData?.currentLocation ||
+    initialOrder?.truckAssignment?.currentLocation ||
+    (initialOrder?.truckAssignment?.lat && initialOrder?.truckAssignment?.lng ? {
+      lat: initialOrder.truckAssignment.lat,
+      lng: initialOrder.truckAssignment.lng,
+      lastUpdate: new Date().toISOString()
+    } : null);
   const [truckLocation, setTruckLocation] = useState(initialTruckLoc);
   const [loading, setLoading] = useState(!initialTrackingData && !initialOrder?.truckAssignment);
   const mapRef = useRef(null);
@@ -211,22 +211,22 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
   // Dealer only shows after pickup status
   const routePath = [];
   const boundsPoints = [];
-  
+
   // Start point: Start Location (if exists)
   if (startLocation && startLocation.lat && startLocation.lng) {
     routePath.push([startLocation.lat, startLocation.lng]);
     boundsPoints.push([startLocation.lat, startLocation.lng]);
   }
-  
+
   // Warehouse (pickup point)
   if (warehouse && warehouse.lat && warehouse.lng) {
     routePath.push([warehouse.lat, warehouse.lng]);
     boundsPoints.push([warehouse.lat, warehouse.lng]);
   }
-  
+
   // Historical route points (truck movement after pickup)
-  if (locationHistory && locationHistory.length > 0 && 
-      (status === 'picked_up' || status === 'in_transit' || status === 'delivered')) {
+  if (locationHistory && locationHistory.length > 0 &&
+    (status === 'picked_up' || status === 'in_transit' || status === 'delivered')) {
     // Add historical points
     [...locationHistory].reverse().forEach(point => {
       if (point.lat && point.lng) {
@@ -235,13 +235,13 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
       }
     });
   }
-  
+
   // Current truck location
   if (truckLocation && truckLocation.lat && truckLocation.lng) {
     routePath.push([truckLocation.lat, truckLocation.lng]);
     boundsPoints.push([truckLocation.lat, truckLocation.lng]);
   }
-  
+
   // End point: Dealer location (always show if coordinates available)
   if (dealer && dealer.lat && dealer.lng) {
     routePath.push([dealer.lat, dealer.lng]);
@@ -251,7 +251,7 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
   // Determine map center and bounds
   let center = [19.0760, 72.8777]; // Default to Mumbai
   let bounds = null;
-  
+
   if (boundsPoints.length > 0) {
     try {
       bounds = L.latLngBounds(boundsPoints);
@@ -287,10 +287,10 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
     center = truckLocation && truckLocation.lat && truckLocation.lng
       ? [truckLocation.lat, truckLocation.lng]
       : warehouse && warehouse.lat && warehouse.lng
-      ? [warehouse.lat, warehouse.lng]
-      : dealer && dealer.lat && dealer.lng
-      ? [dealer.lat, dealer.lng]
-      : [19.0760, 72.8777];
+        ? [warehouse.lat, warehouse.lng]
+        : dealer && dealer.lat && dealer.lng
+          ? [dealer.lat, dealer.lng]
+          : [19.0760, 72.8777];
   }
 
   return (
@@ -380,7 +380,7 @@ const LiveTrackingMap = ({ orderId, assignmentId, initialTrackingData, initialOr
                   )}
                 </div>
               </Popup>
-            </Marker>
+            </UpdatingMarker>
           )}
 
           {/* Dealer/Destination Marker - Always show if coordinates available */}
