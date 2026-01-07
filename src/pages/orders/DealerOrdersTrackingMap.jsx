@@ -5,7 +5,7 @@ import { orderAPI, trackingAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 import PageHeader from '../../components/PageHeader';
 import Card from '../../components/Card';
-import { FaTruck, FaWarehouse, FaMapMarkerAlt, FaRefresh } from 'react-icons/fa';
+import { FaTruck, FaWarehouse, FaMapMarkerAlt, FaSync } from 'react-icons/fa';
 import { Button, Chip, Box, Typography, CircularProgress, Alert, Paper, List, ListItem, ListItemText } from '@mui/material';
 import { toast } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
@@ -172,12 +172,12 @@ const DealerOrdersTrackingMap = () => {
       // Fetch all orders for the dealer
       const response = await orderAPI.getAllOrders({ dealerId });
       const ordersList = response.orders || response.data || response || [];
-      
+
       // Filter orders that are in transit or have assignments
       const inTransitOrders = ordersList.filter(order => {
         const orderStatus = (order.status || '').toLowerCase();
         const assignmentStatus = (order.truckAssignment?.status || order.assignment?.status || '').toLowerCase();
-        
+
         return (
           orderStatus === 'shipped' ||
           assignmentStatus === 'in_transit' ||
@@ -225,7 +225,7 @@ const DealerOrdersTrackingMap = () => {
   // Calculate map bounds to fit all markers
   const getMapBounds = () => {
     const allPoints = [];
-    
+
     orders.forEach(order => {
       const tracking = trackingData[order.id];
       if (tracking) {
@@ -268,13 +268,13 @@ const DealerOrdersTrackingMap = () => {
   if (loading) {
     return (
       <Box>
-        <PageHeader 
-          title="Orders in Transit - Map View" 
+        <PageHeader
+          title="Orders in Transit - Map View"
           icon={<FaTruck />}
           action={
             <Button
               variant="outlined"
-              startIcon={<FaRefresh />}
+              startIcon={<FaSync />}
               onClick={fetchOrdersInTransit}
               disabled={loading}
             >
@@ -306,13 +306,13 @@ const DealerOrdersTrackingMap = () => {
   if (orders.length === 0) {
     return (
       <Box>
-        <PageHeader 
-          title="Orders in Transit - Map View" 
+        <PageHeader
+          title="Orders in Transit - Map View"
           icon={<FaTruck />}
           action={
             <Button
               variant="outlined"
-              startIcon={<FaRefresh />}
+              startIcon={<FaSync />}
               onClick={fetchOrdersInTransit}
             >
               Refresh
@@ -331,13 +331,13 @@ const DealerOrdersTrackingMap = () => {
 
   return (
     <Box>
-      <PageHeader 
+      <PageHeader
         title={`Orders in Transit - Map View (${orders.length})`}
         icon={<FaTruck />}
         action={
           <Button
             variant="outlined"
-            startIcon={<FaRefresh />}
+            startIcon={<FaSync />}
             onClick={fetchOrdersInTransit}
             disabled={loading}
           >
