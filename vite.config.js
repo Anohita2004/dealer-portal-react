@@ -10,4 +10,7 @@ export default defineConfig({
       },
     }),
   ],
+  preview: {
+    allowedHosts: ['dealer-portal-react-production.up.railway.app'],
+  },
 })
