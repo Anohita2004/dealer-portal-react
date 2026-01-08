@@ -858,14 +858,14 @@ const LiveTracking = () => {
                 <React.Fragment key={`path-${truckId}`}>
                   <Polyline
                     positions={path}
-                    pathOptions={{ color: '#ff0000', weight: 3, opacity: 0.6, dashArray: '5, 10' }}
+                    pathOptions={{ color: '#2196F3', weight: 4, opacity: 0.8 }}
                   />
                   {path.map((point, idx) => (
                     <CircleMarker
                       key={`path-point-${truckId}-${idx}`}
                       center={point}
-                      radius={3}
-                      pathOptions={{ color: '#ff0000', fillColor: '#ff0000', fillOpacity: 0.8 }}
+                      radius={2}
+                      pathOptions={{ color: '#2196F3', fillColor: '#2196F3', fillOpacity: 1, stroke: false }}
                     />
                   ))}
                 </React.Fragment>
