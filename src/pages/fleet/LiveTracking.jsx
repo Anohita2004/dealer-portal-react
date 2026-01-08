@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
 import { trackingAPI, warehouseAPI } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-import { MapContainer, TileLayer, Marker, Popup, Polyline, useMap } from 'react-leaflet';
+import { MapContainer, TileLayer, Marker, Popup, Polyline, CircleMarker, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import Card from '../../components/Card';
 import PageHeader from '../../components/PageHeader';
@@ -145,6 +145,9 @@ const LiveTracking = () => {
   const [lastTruckPositions, setLastTruckPositions] = useState({}); // Track last known truck positions
   const trackedTrucksRef = useRef(new Set()); // Track which trucks are being monitored
 
+  // New state for storing truck paths (breadcrumbs)
+  const [truckPaths, setTruckPaths] = useState({});
+
   // Check if user is dealer admin/staff - filter to their orders only
   const isDealerUser = user?.role === 'dealer_admin' || user?.role === 'dealer_staff';
   const dealerId = user?.dealerId || user?.dealer?.id;
@@ -181,6 +184,27 @@ const LiveTracking = () => {
           return updated;
         } else {
           console.log('Truck not found in locations list:', data.truckId);
+        }
+        return prev;
+      });
+
+      // Update truck paths (breadcrumbs)
+      setTruckPaths(prev => {
+        const truckId = data.truckId;
+        const currentPath = prev[truckId] || [];
+        const lastPoint = currentPath.length > 0 ? currentPath[currentPath.length - 1] : null;
+
+        // Only add point if it moved significantly to avoid clutter
+        // Using a smaller threshold for breadcrumbs: 0.0005 (approx 50m)
+        const shouldAdd = !lastPoint ||
+          Math.abs(data.lat - lastPoint[0]) > 0.0005 ||
+          Math.abs(data.lng - lastPoint[1]) > 0.0005;
+
+        if (shouldAdd) {
+          return {
+            ...prev,
+            [truckId]: [...currentPath, [data.lat, data.lng]]
+          };
         }
         return prev;
       });
@@ -230,7 +254,7 @@ const LiveTracking = () => {
       const params = isDealerUser && dealerId ? { dealerId } : {};
       const response = await trackingAPI.getLiveLocations(params);
       console.log('API Response:', response);
-      
+
       // Handle different response structures
       let locationsList = [];
       if (Array.isArray(response)) {
@@ -245,9 +269,9 @@ const LiveTracking = () => {
       } else {
         console.warn('Unexpected response structure:', response);
       }
-      
+
       console.log('Raw locations from API:', locationsList.length, locationsList);
-      
+
       // Debug: Log dealer information
       locationsList.forEach((loc, idx) => {
         const dealer = loc.dealer || loc.order?.dealer || loc.assignment?.order?.dealer;
@@ -261,7 +285,7 @@ const LiveTracking = () => {
           });
         }
       });
-      
+
       // Additional client-side filtering for dealer users (in case API doesn't filter)
       // Since we pass dealerId param to API, backend should already filter
       // Only do client-side filtering if dealerId is present in response
@@ -269,34 +293,34 @@ const LiveTracking = () => {
         const beforeFilter = locationsList.length;
         locationsList = locationsList.filter(loc => {
           // Check multiple possible dealer ID fields
-          const locDealerId = loc.dealerId || 
-                             loc.order?.dealerId || 
-                             loc.assignment?.order?.dealerId || 
-                             loc.order?.dealer?.id ||
-                             loc.assignment?.order?.dealer?.id;
-          
+          const locDealerId = loc.dealerId ||
+            loc.order?.dealerId ||
+            loc.assignment?.order?.dealerId ||
+            loc.order?.dealer?.id ||
+            loc.assignment?.order?.dealer?.id;
+
           // If dealerId is not in response, assume API already filtered correctly
           // (since we passed dealerId param) and include the location
           if (!locDealerId) {
             console.log('Location has no dealerId - assuming API filtered correctly:', loc.orderNumber || loc.orderId);
             return true;
           }
-          
+
           // If dealerId exists, verify it matches
           const matches = locDealerId === dealerId || String(locDealerId) === String(dealerId);
           if (!matches) {
-            console.log('Filtered out location - dealer mismatch:', { 
-              locDealerId, 
-              dealerId, 
+            console.log('Filtered out location - dealer mismatch:', {
+              locDealerId,
+              dealerId,
               orderId: loc.orderId,
-              orderNumber: loc.orderNumber 
+              orderNumber: loc.orderNumber
             });
           }
           return matches;
         });
         console.log(`Dealer filter: ${beforeFilter} -> ${locationsList.length} locations`);
       }
-      
+
       // Ensure truck locations have valid coordinates and extract dealer data
       // The API returns: { locations: [{ truck: { lat, lng, ... }, ... }] }
       locationsList = locationsList.map(loc => {
@@ -304,26 +328,26 @@ const LiveTracking = () => {
         const truck = loc.truck || {};
         const lat = truck.lat;
         const lng = truck.lng;
-        
+
         // Normalize coordinates to numbers
         const normalizedLat = lat != null ? Number(lat) : null;
         const normalizedLng = lng != null ? Number(lng) : null;
-        
+
         // Extract dealer information from multiple possible locations
-        const dealer = loc.dealer || 
-                      loc.order?.dealer || 
-                      loc.assignment?.order?.dealer ||
-                      loc.order?.dealerDetails ||
-                      loc.assignment?.order?.dealerDetails ||
-                      null;
-        
+        const dealer = loc.dealer ||
+          loc.order?.dealer ||
+          loc.assignment?.order?.dealer ||
+          loc.order?.dealerDetails ||
+          loc.assignment?.order?.dealerDetails ||
+          null;
+
         // Normalize dealer coordinates if dealer exists
         let normalizedDealer = null;
         if (dealer) {
           const dealerLat = dealer.lat;
           const dealerLng = dealer.lng;
-          if (dealerLat != null && dealerLng != null && 
-              !isNaN(Number(dealerLat)) && !isNaN(Number(dealerLng))) {
+          if (dealerLat != null && dealerLng != null &&
+            !isNaN(Number(dealerLat)) && !isNaN(Number(dealerLng))) {
             normalizedDealer = {
               ...dealer,
               lat: Number(dealerLat),
@@ -331,7 +355,7 @@ const LiveTracking = () => {
             };
           }
         }
-        
+
         // Return location with normalized truck coordinates and dealer
         return {
           ...loc,
@@ -346,20 +370,20 @@ const LiveTracking = () => {
           dealer: normalizedDealer || dealer || null
         };
       });
-      
+
       // Filter out locations without valid coordinates AFTER normalization
       const beforeCoordFilter = locationsList.length;
       locationsList = locationsList.filter(loc => {
         const truck = loc.truck || {};
         const lat = truck.lat;
         const lng = truck.lng;
-        const hasValidCoords = lat != null && 
-                              lng != null && 
-                              !isNaN(Number(lat)) && 
-                              !isNaN(Number(lng));
+        const hasValidCoords = lat != null &&
+          lng != null &&
+          !isNaN(Number(lat)) &&
+          !isNaN(Number(lng));
         if (!hasValidCoords) {
-          console.log('Filtered out location - invalid coordinates:', { 
-            location: loc, 
+          console.log('Filtered out location - invalid coordinates:', {
+            location: loc,
             truck: truck,
             lat: lat,
             lng: lng,
@@ -369,7 +393,7 @@ const LiveTracking = () => {
         }
         return hasValidCoords;
       });
-      
+
       console.log(`Coordinate filter: ${beforeCoordFilter} -> ${locationsList.length} locations`);
       console.log('Final normalized locations:', locationsList.length, locationsList);
       setLocations(locationsList);
@@ -385,14 +409,14 @@ const LiveTracking = () => {
   const fetchWarehouses = async () => {
     try {
       const response = await warehouseAPI.getAll();
-      const warehousesList = Array.isArray(response) 
-        ? response 
+      const warehousesList = Array.isArray(response)
+        ? response
         : response?.warehouses || response?.data || [];
-      
+
       // Filter warehouses with valid coordinates
       const validWarehouses = warehousesList.filter(
-        w => w.lat && w.lng && 
-        !isNaN(Number(w.lat)) && !isNaN(Number(w.lng))
+        w => w.lat && w.lng &&
+          !isNaN(Number(w.lat)) && !isNaN(Number(w.lng))
       );
       setWarehouses(validWarehouses);
     } catch (error) {
@@ -403,11 +427,11 @@ const LiveTracking = () => {
 
   const filteredLocations = filterStatus
     ? locations.filter(loc => {
-        const status = loc.status || loc.assignment?.status;
-        return status === filterStatus;
-      })
+      const status = loc.status || loc.assignment?.status;
+      return status === filterStatus;
+    })
     : locations;
-  
+
   console.log('Filtered locations for map:', filteredLocations.length, filteredLocations);
 
   // Helper function to check if truck has moved significantly
@@ -429,18 +453,18 @@ const LiveTracking = () => {
         const startLocation = loc.startLocation || {};
         const truck = loc.truck || {};
         const key = loc.assignmentId || loc.id;
-        
+
         // Only build routes if we have warehouse and dealer (dealer shows after pickup)
         // Route should be: Start → Warehouse → Dealer
         const hasWarehouse = warehouse.lat && warehouse.lng;
         const hasDealer = dealer.lat && dealer.lng;
         const hasStart = startLocation.lat && startLocation.lng;
-        
+
         // Need at least warehouse and dealer for route (dealer shows after pickup)
         if (!hasWarehouse || !hasDealer) {
           return false;
         }
-        
+
         // Check if route doesn't exist or truck has moved significantly
         const lastPosition = lastTruckPositions[key];
         const hasMoved = !lastPosition || hasSignificantMovement(
@@ -449,11 +473,11 @@ const LiveTracking = () => {
           truck.lat || warehouse.lat,
           truck.lng || warehouse.lng
         );
-        
+
         // Check if route already exists or is currently loading
         const routeExists = routes[key];
         const isLoading = routeLoadingRef.current[key];
-        
+
         return hasMoved && !isLoading && !routeExists;
       });
 
@@ -471,10 +495,10 @@ const LiveTracking = () => {
           const warehouse = location.warehouse || {};
           const dealer = location.dealer || {};
           const startLocation = location.startLocation || {};
-          
+
           // Build route segments
           const routeSegments = [];
-          
+
           // Segment 1: Start → Warehouse (if start location exists)
           if (startLocation.lat && startLocation.lng && warehouse.lat && warehouse.lng) {
             const startToWarehouse = await getCachedRoute(
@@ -485,7 +509,7 @@ const LiveTracking = () => {
             );
             routeSegments.push(...startToWarehouse);
           }
-          
+
           // Segment 2: Warehouse → Dealer
           if (warehouse.lat && warehouse.lng && dealer.lat && dealer.lng) {
             const warehouseToDealer = await getCachedRoute(
@@ -501,9 +525,9 @@ const LiveTracking = () => {
               routeSegments.push(...warehouseToDealer);
             }
           }
-          
-          return { 
-            assignmentId: location.assignmentId || location.id, 
+
+          return {
+            assignmentId: location.assignmentId || location.id,
             route: routeSegments.length > 0 ? routeSegments : [
               startLocation.lat && startLocation.lng ? [startLocation.lat, startLocation.lng] : null,
               [warehouse.lat, warehouse.lng],
@@ -569,33 +593,33 @@ const LiveTracking = () => {
   // Calculate map bounds (memoized to prevent unnecessary recalculations)
   const bounds = useMemo(() => {
     const allPoints = [];
-    
+
     // Add truck locations, warehouses, start locations, and dealers (after pickup)
     filteredLocations.forEach(loc => {
       const status = loc.status || loc.assignment?.status || '';
-      
+
       // Truck location
       if (loc.truck?.lat && loc.truck?.lng) {
         allPoints.push([loc.truck.lat, loc.truck.lng]);
       }
-      
+
       // Warehouse location
       if (loc.warehouse?.lat && loc.warehouse?.lng) {
         allPoints.push([Number(loc.warehouse.lat), Number(loc.warehouse.lng)]);
       }
-      
+
       // Start location
       if (loc.startLocation?.lat && loc.startLocation?.lng) {
         allPoints.push([Number(loc.startLocation.lat), Number(loc.startLocation.lng)]);
       }
-      
+
       // Dealer locations (always show if coordinates available)
       const dealer = loc.dealer;
       if (dealer?.lat && dealer?.lng) {
         allPoints.push([Number(dealer.lat), Number(dealer.lng)]);
       }
     });
-    
+
     // Add warehouse locations if showing warehouses
     if (showWarehouses) {
       warehouses.forEach(warehouse => {
@@ -648,8 +672,8 @@ const LiveTracking = () => {
 
   return (
     <div>
-      <PageHeader 
-        title={isDealerUser ? "My Orders - Live Tracking" : "Live Truck Tracking"} 
+      <PageHeader
+        title={isDealerUser ? "My Orders - Live Tracking" : "Live Truck Tracking"}
         icon={<FaMapMarkerAlt />}
         subtitle={isDealerUser ? `Tracking orders for your dealer` : undefined}
       />
@@ -670,7 +694,7 @@ const LiveTracking = () => {
             <MenuItem value="in_transit">In Transit</MenuItem>
             <MenuItem value="delivered">Delivered</MenuItem>
           </TextField>
-          
+
           <FormControlLabel
             control={
               <Switch
@@ -681,7 +705,7 @@ const LiveTracking = () => {
             }
             label="Show Warehouses"
           />
-          
+
           <FormControlLabel
             control={
               <Switch
@@ -692,7 +716,7 @@ const LiveTracking = () => {
             }
             label="Show Dealers"
           />
-          
+
           <div>
             <strong>Total Trucks:</strong> {filteredLocations.length}
             {showWarehouses && warehouses.length > 0 && (
@@ -767,12 +791,30 @@ const LiveTracking = () => {
                 </Marker>
               ))}
 
+              {/* Render Truck Paths (Breadcrumbs) */}
+              {Object.entries(truckPaths).map(([truckId, path]) => (
+                <React.Fragment key={`path-${truckId}`}>
+                  <Polyline
+                    positions={path}
+                    pathOptions={{ color: '#ff0000', weight: 3, opacity: 0.6, dashArray: '5, 10' }}
+                  />
+                  {path.map((point, idx) => (
+                    <CircleMarker
+                      key={`path-point-${truckId}-${idx}`}
+                      center={point}
+                      radius={3}
+                      pathOptions={{ color: '#ff0000', fillColor: '#ff0000', fillOpacity: 0.8 }}
+                    />
+                  ))}
+                </React.Fragment>
+              ))}
+
               {/* Truck Markers */}
               {filteredLocations.map((location, index) => {
                 const truck = location.truck || {};
                 const lat = truck.lat;
                 const lng = truck.lng;
-                
+
                 // Skip if no valid coordinates (check for null/undefined and NaN)
                 if (lat == null || lng == null || isNaN(Number(lat)) || isNaN(Number(lng))) {
                   console.log('Skipping location - invalid coordinates:', { location, truck, lat, lng });
@@ -783,10 +825,10 @@ const LiveTracking = () => {
                 const numLng = Number(lng);
                 const status = location.status || location.assignment?.status || 'unknown';
 
-                console.log('Rendering truck marker:', { 
-                  truckName: truck.truckName, 
-                  lat: numLat, 
-                  lng: numLng, 
+                console.log('Rendering truck marker:', {
+                  truckName: truck.truckName,
+                  lat: numLat,
+                  lng: numLng,
                   status,
                   assignmentId: location.assignmentId,
                   truckId: truck.id
@@ -922,10 +964,10 @@ const LiveTracking = () => {
                   const dealer = loc.dealer || {};
                   const key = loc.assignmentId || loc.id;
                   // Show route if we have warehouse, dealer, and route data
-                  return warehouse.lat && warehouse.lng && 
-                         dealer.lat && dealer.lng && 
-                         routes[key] && 
-                         routes[key].length > 0;
+                  return warehouse.lat && warehouse.lng &&
+                    dealer.lat && dealer.lng &&
+                    routes[key] &&
+                    routes[key].length > 0;
                 })
                 .map(location => {
                   const key = location.assignmentId || location.id;
