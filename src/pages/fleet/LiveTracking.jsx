@@ -195,10 +195,10 @@ const LiveTracking = () => {
         const lastPoint = currentPath.length > 0 ? currentPath[currentPath.length - 1] : null;
 
         // Only add point if it moved significantly to avoid clutter
-        // Using a smaller threshold for breadcrumbs: 0.0005 (approx 50m)
+        // Lowered threshold to catchment finer movements
         const shouldAdd = !lastPoint ||
-          Math.abs(data.lat - lastPoint[0]) > 0.0005 ||
-          Math.abs(data.lng - lastPoint[1]) > 0.0005;
+          Math.abs(data.lat - lastPoint[0]) > 0.00001 ||
+          Math.abs(data.lng - lastPoint[1]) > 0.00001;
 
         if (shouldAdd) {
           return {
@@ -221,6 +221,68 @@ const LiveTracking = () => {
       trackedTrucksRef.current.clear();
     };
   }, []);
+
+  const historyFetchedRef = useRef(new Set());
+
+  // Fetch history for trucks when they load
+  useEffect(() => {
+    const fetchHistory = async () => {
+      const trucksToFetch = filteredLocations
+        .map(loc => loc.truck?.id)
+        .filter(id => id && !historyFetchedRef.current.has(id));
+
+      if (trucksToFetch.length === 0) return;
+
+      // Mark as fetching to prevent duplicate calls
+      trucksToFetch.forEach(id => historyFetchedRef.current.add(id));
+
+      const updates = {};
+      await Promise.all(trucksToFetch.map(async (truckId) => {
+        try {
+          // Fetch last 50 points
+          const response = await trackingAPI.getTruckHistory(truckId, { limit: 50 });
+          const history = Array.isArray(response) ? response : (response.data || []);
+
+          // Extract valid coordinates
+          const points = history
+            .map(h => [Number(h.lat), Number(h.lng)])
+            .filter(p => !isNaN(p[0]) && !isNaN(p[1]));
+
+          // If the points seem to be newest first (based on timestamps if available, or just assumption)
+          // Let's reverse them so the path draws chronologically
+          if (history.length > 1) {
+            const first = new Date(history[0].timestamp || 0);
+            const last = new Date(history[history.length - 1].timestamp || 0);
+            if (first > last) {
+              points.reverse();
+            }
+          }
+
+          if (points.length > 0) {
+            updates[truckId] = points;
+          }
+        } catch (error) {
+          console.error(`Error fetching history for truck ${truckId}:`, error);
+        }
+      }));
+
+      if (Object.keys(updates).length > 0) {
+        setTruckPaths(prev => {
+          const next = { ...prev };
+          Object.entries(updates).forEach(([id, points]) => {
+            if (!next[id] || next[id].length === 0) {
+              next[id] = points;
+            } else {
+              next[id] = [...points, ...next[id]];
+            }
+          });
+          return next;
+        });
+      }
+    };
+
+    fetchHistory();
+  }, [filteredLocations]);
 
   // Separate effect to join/leave truck tracking rooms when locations change
   useEffect(() => {
