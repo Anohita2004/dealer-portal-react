@@ -224,69 +224,7 @@ const LiveTracking = () => {
 
   const historyFetchedRef = useRef(new Set());
 
-  // Fetch history for trucks when they load
-  useEffect(() => {
-    const fetchHistory = async () => {
-      const trucksToFetch = filteredLocations
-        .map(loc => loc.truck?.id)
-        .filter(id => id && !historyFetchedRef.current.has(id));
 
-      if (trucksToFetch.length === 0) return;
-
-      // Mark as fetching to prevent duplicate calls
-      trucksToFetch.forEach(id => historyFetchedRef.current.add(id));
-
-      const updates = {};
-      await Promise.all(trucksToFetch.map(async (truckId) => {
-        try {
-          // Fetch last 50 points
-          const response = await trackingAPI.getTruckHistory(truckId, { limit: 50 });
-          const history = Array.isArray(response) ? response : (response.data || []);
-
-          // Extract valid coordinates
-          // API usually returns newest first. We want chronological order (oldest -> newest) for the line.
-          const points = history
-            .map(h => [Number(h.lat), Number(h.lng)])
-            .filter(p => !isNaN(p[0]) && !isNaN(p[1]));
-
-          // If response has timestamps, sort by timestamp ascending
-          if (history.length > 0 && history[0].timestamp) {
-            const sortedPoints = history
-              .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
-              .map(h => [Number(h.lat), Number(h.lng)])
-              .filter(p => !isNaN(p[0]) && !isNaN(p[1]));
-
-            if (sortedPoints.length > 0) {
-              updates[truckId] = sortedPoints;
-            }
-          } else {
-            // Fallback: reverse because usually APIs return DESC order
-            if (points.length > 0) {
-              updates[truckId] = points.reverse();
-            }
-          }
-        } catch (error) {
-          console.error(`Error fetching history for truck ${truckId}:`, error);
-        }
-      }));
-
-      if (Object.keys(updates).length > 0) {
-        setTruckPaths(prev => {
-          const next = { ...prev };
-          Object.entries(updates).forEach(([id, points]) => {
-            if (!next[id] || next[id].length === 0) {
-              next[id] = points;
-            } else {
-              next[id] = [...points, ...next[id]];
-            }
-          });
-          return next;
-        });
-      }
-    };
-
-    fetchHistory();
-  }, [filteredLocations]);
 
   // Separate effect to join/leave truck tracking rooms when locations change
   useEffect(() => {
@@ -499,6 +437,70 @@ const LiveTracking = () => {
     : locations;
 
   console.log('Filtered locations for map:', filteredLocations.length, filteredLocations);
+
+  // Fetch history for trucks when they load
+  useEffect(() => {
+    const fetchHistory = async () => {
+      const trucksToFetch = filteredLocations
+        .map(loc => loc.truck?.id)
+        .filter(id => id && !historyFetchedRef.current.has(id));
+
+      if (trucksToFetch.length === 0) return;
+
+      // Mark as fetching to prevent duplicate calls
+      trucksToFetch.forEach(id => historyFetchedRef.current.add(id));
+
+      const updates = {};
+      await Promise.all(trucksToFetch.map(async (truckId) => {
+        try {
+          // Fetch last 50 points
+          const response = await trackingAPI.getTruckHistory(truckId, { limit: 50 });
+          const history = Array.isArray(response) ? response : (response.data || []);
+
+          // Extract valid coordinates
+          // API usually returns newest first. We want chronological order (oldest -> newest) for the line.
+          const points = history
+            .map(h => [Number(h.lat), Number(h.lng)])
+            .filter(p => !isNaN(p[0]) && !isNaN(p[1]));
+
+          // If response has timestamps, sort by timestamp ascending
+          if (history.length > 0 && history[0].timestamp) {
+            const sortedPoints = history
+              .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+              .map(h => [Number(h.lat), Number(h.lng)])
+              .filter(p => !isNaN(p[0]) && !isNaN(p[1]));
+
+            if (sortedPoints.length > 0) {
+              updates[truckId] = sortedPoints;
+            }
+          } else {
+            // Fallback: reverse because usually APIs return DESC order
+            if (points.length > 0) {
+              updates[truckId] = points.reverse();
+            }
+          }
+        } catch (error) {
+          console.error(`Error fetching history for truck ${truckId}:`, error);
+        }
+      }));
+
+      if (Object.keys(updates).length > 0) {
+        setTruckPaths(prev => {
+          const next = { ...prev };
+          Object.entries(updates).forEach(([id, points]) => {
+            if (!next[id] || next[id].length === 0) {
+              next[id] = points;
+            } else {
+              next[id] = [...points, ...next[id]];
+            }
+          });
+          return next;
+        });
+      }
+    };
+
+    fetchHistory();
+  }, [filteredLocations]);
 
   // Helper function to check if truck has moved significantly
   const hasSignificantMovement = (lat1, lng1, lat2, lng2) => {
