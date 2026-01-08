@@ -244,22 +244,26 @@ const LiveTracking = () => {
           const history = Array.isArray(response) ? response : (response.data || []);
 
           // Extract valid coordinates
+          // API usually returns newest first. We want chronological order (oldest -> newest) for the line.
           const points = history
             .map(h => [Number(h.lat), Number(h.lng)])
             .filter(p => !isNaN(p[0]) && !isNaN(p[1]));
 
-          // If the points seem to be newest first (based on timestamps if available, or just assumption)
-          // Let's reverse them so the path draws chronologically
-          if (history.length > 1) {
-            const first = new Date(history[0].timestamp || 0);
-            const last = new Date(history[history.length - 1].timestamp || 0);
-            if (first > last) {
-              points.reverse();
-            }
-          }
+          // If response has timestamps, sort by timestamp ascending
+          if (history.length > 0 && history[0].timestamp) {
+            const sortedPoints = history
+              .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+              .map(h => [Number(h.lat), Number(h.lng)])
+              .filter(p => !isNaN(p[0]) && !isNaN(p[1]));
 
-          if (points.length > 0) {
-            updates[truckId] = points;
+            if (sortedPoints.length > 0) {
+              updates[truckId] = sortedPoints;
+            }
+          } else {
+            // Fallback: reverse because usually APIs return DESC order
+            if (points.length > 0) {
+              updates[truckId] = points.reverse();
+            }
           }
         } catch (error) {
           console.error(`Error fetching history for truck ${truckId}:`, error);
@@ -854,22 +858,28 @@ const LiveTracking = () => {
               ))}
 
               {/* Render Truck Paths (Breadcrumbs) */}
-              {Object.entries(truckPaths).map(([truckId, path]) => (
-                <React.Fragment key={`path-${truckId}`}>
-                  <Polyline
-                    positions={path}
-                    pathOptions={{ color: '#2196F3', weight: 4, opacity: 0.8 }}
-                  />
-                  {path.map((point, idx) => (
-                    <CircleMarker
-                      key={`path-point-${truckId}-${idx}`}
-                      center={point}
-                      radius={2}
-                      pathOptions={{ color: '#2196F3', fillColor: '#2196F3', fillOpacity: 1, stroke: false }}
+              {Object.entries(truckPaths).map(([truckId, path]) => {
+                if (!Array.isArray(path) || path.length < 1) return null;
+                const safePath = path.filter(p => Array.isArray(p) && p.length === 2 && !isNaN(p[0]) && !isNaN(p[1]));
+                if (safePath.length === 0) return null;
+
+                return (
+                  <React.Fragment key={`path-${truckId}`}>
+                    <Polyline
+                      positions={safePath}
+                      pathOptions={{ color: '#2196F3', weight: 4, opacity: 0.8 }}
                     />
-                  ))}
-                </React.Fragment>
-              ))}
+                    {safePath.map((point, idx) => (
+                      <CircleMarker
+                        key={`path-point-${truckId}-${idx}`}
+                        center={point}
+                        radius={2}
+                        pathOptions={{ color: '#2196F3', fillColor: '#2196F3', fillOpacity: 1, stroke: false }}
+                      />
+                    ))}
+                  </React.Fragment>
+                );
+              })}
 
               {/* Truck Markers */}
               {filteredLocations.map((location, index) => {
