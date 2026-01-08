@@ -1020,9 +1020,6 @@ const LiveTracking = () => {
                     key={location.assignmentId || location.id || `truck-${index}`}
                     position={[Number(lat), Number(lng)]}
                     icon={createTruckIcon(status, isSelected)}
-                    eventHandlers={{
-                      click: () => handleTruckClick(location)
-                    }}
                   >
                     <Popup>
                       <div style={{ minWidth: '200px' }}>
@@ -1077,6 +1074,35 @@ const LiveTracking = () => {
                               <strong>To:</strong> {location.dealer.businessName || location.dealer.name}
                             </Grid>
                           )}
+
+                          <Grid item xs={12} style={{ marginTop: '12px' }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTruckClick(location);
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '8px 16px',
+                                backgroundColor: isSelected ? '#666' : '#FF4081',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                fontSize: '13px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                              }}
+                              onMouseOver={(e) => e.target.style.opacity = '0.9'}
+                              onMouseOut={(e) => e.target.style.opacity = '1'}
+                            >
+                              <FaRoad />
+                              {isSelected ? 'Hide Route' : 'Show Route'}
+                            </button>
+                          </Grid>
                         </Grid>
                       </div>
                     </Popup>
@@ -1153,6 +1179,29 @@ const LiveTracking = () => {
                       Location: {truck.lat.toFixed(4)}, {truck.lng.toFixed(4)}
                     </div>
                   )}
+
+                  <button
+                    onClick={() => handleTruckClick(location)}
+                    style={{
+                      marginTop: '12px',
+                      width: '100%',
+                      padding: '8px 12px',
+                      backgroundColor: selectedTruck?.assignmentId === (location.assignmentId || location.id) ? '#666' : '#FF4081',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <FaRoad />
+                    {selectedTruck?.assignmentId === (location.assignmentId || location.id) ? 'Hide Route' : 'Show Route'}
+                  </button>
                 </div>
               </div>
             );
