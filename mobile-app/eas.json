@@ -14,8 +14,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://localhost:3000/api",
-        "EXPO_PUBLIC_SOCKET_URL": "http://localhost:3000"
+        "EXPO_PUBLIC_API_URL": "https://dealer-management-portal-production.up.railway.app/api",
+        "EXPO_PUBLIC_SOCKET_URL": "https://dealer-management-portal-production.up.railway.app"
       }
     },
     "production": {
@@ -24,8 +24,8 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "http://localhost:3000/api",
-        "EXPO_PUBLIC_SOCKET_URL": "http://localhost:3000"
+        "EXPO_PUBLIC_API_URL": "https://dealer-management-portal-production.up.railway.app/api",
+        "EXPO_PUBLIC_SOCKET_URL": "https://dealer-management-portal-production.up.railway.app"
       }
     }
   },

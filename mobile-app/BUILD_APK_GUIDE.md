@@ -46,20 +46,22 @@ The `eas.json` file is already configured. You can review it:
 
 ## Step 3: Configure Server URL (IMPORTANT!)
 
-**Before building**, update `eas.json` with your public server URL:
+**The `eas.json` file is already configured with your production URL:** `https://dealer-management-portal-production.up.railway.app`
 
 ```json
 {
   "build": {
     "preview": {
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://api.yourdomain.com/api",
-        "EXPO_PUBLIC_SOCKET_URL": "https://api.yourdomain.com"
+        "EXPO_PUBLIC_API_URL": "https://dealer-management-portal-production.up.railway.app/api",
+        "EXPO_PUBLIC_SOCKET_URL": "https://dealer-management-portal-production.up.railway.app"
       }
     }
   }
 }
 ```
+
+This ensures the APK works on any network (Mobile Data, WiFi, etc.) and connects to your live backend.
 
 Replace `yourdomain.com` with your actual server domain. This ensures the APK works on any network, not just same WiFi.
 

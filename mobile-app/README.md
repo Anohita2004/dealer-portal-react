@@ -112,15 +112,21 @@ Update these URLs in the service files:
 - `services/api.js`: Set `API_BASE_URL`
 - `services/socket.js`: Set `SOCKET_URL`
 
-## Building for Production
+## Building for Production (Standalone APK)
 
-```bash
-# Build for Android
-expo build:android
+This project uses EAS Build to generate standalone APKs.
 
-# Build for iOS
-expo build:ios
-```
+1.  **Configure EAS**:
+    Edit `eas.json` to ensure the `EXPO_PUBLIC_API_URL` points to your production server.
+
+2.  **Build APK**:
+    ```bash
+    # Build a standalone APK for Android
+    eas build --platform android --profile preview
+    ```
+
+3.  **Install**:
+    Download the APK from the Expo dashboard link provided after the build completes.
 
 ## Troubleshooting
 
