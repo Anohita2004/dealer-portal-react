@@ -653,50 +653,90 @@ const LiveTracking = () => {
 
   // Handle truck marker click - show live route from current position
   const handleTruckClick = async (location) => {
+    console.log('🚚 Truck clicked:', location);
+    toast.info(`Loading route for ${location.truck?.truckName || 'truck'}...`, { autoClose: 2000 });
+
     const truck = location.truck || {};
     const warehouse = location.warehouse || {};
     const dealer = location.dealer || {};
 
     // If clicking the same truck, deselect it
     if (selectedTruck?.assignmentId === (location.assignmentId || location.id)) {
+      console.log('Deselecting truck');
       setSelectedTruck(null);
       setLiveRoute(null);
+      toast.info('Route cleared', { autoClose: 1000 });
       return;
     }
 
     setSelectedTruck({ ...location, assignmentId: location.assignmentId || location.id });
+    console.log('Selected truck:', truck.truckName);
 
     // Build live route: Current Truck Position → Warehouse → Dealer
     try {
       const routeSegments = [];
       const status = location.status || location.assignment?.status;
+      console.log('Building route for status:', status);
 
       // Segment 1: Truck → Warehouse (if not yet picked up)
       if (status === 'assigned' && truck.lat && truck.lng && warehouse.lat && warehouse.lng) {
-        const leg1 = await getCachedRoute(
-          Number(truck.lat), Number(truck.lng),
-          Number(warehouse.lat), Number(warehouse.lng)
-        );
-        routeSegments.push(...leg1);
-      }
-
-      // Segment 2: Warehouse → Dealer (or Truck → Dealer if already picked up)
-      if (dealer.lat && dealer.lng) {
-        const startLat = (status === 'assigned' && warehouse.lat) ? Number(warehouse.lat) : Number(truck.lat);
-        const startLng = (status === 'assigned' && warehouse.lng) ? Number(warehouse.lng) : Number(truck.lng);
-
-        const leg2 = await getCachedRoute(
-          startLat, startLng,
-          Number(dealer.lat), Number(dealer.lng)
-        );
-
-        if (routeSegments.length > 0 && leg2.length > 0) {
-          routeSegments.push(...leg2.slice(1)); // Avoid duplicate point
-        } else {
-          routeSegments.push(...leg2);
+        console.log('Fetching route: Truck → Warehouse');
+        try {
+          const leg1 = await getCachedRoute(
+            Number(truck.lat), Number(truck.lng),
+            Number(warehouse.lat), Number(warehouse.lng)
+          );
+          if (leg1 && leg1.length > 0) {
+            routeSegments.push(...leg1);
+            console.log('✅ Added truck→warehouse segment:', leg1.length, 'points');
+          } else {
+            // Fallback to straight line
+            routeSegments.push([Number(truck.lat), Number(truck.lng)], [Number(warehouse.lat), Number(warehouse.lng)]);
+            console.log('⚠️ Using straight line for truck→warehouse');
+          }
+        } catch (err) {
+          console.error('Error fetching truck→warehouse route:', err);
+          routeSegments.push([Number(truck.lat), Number(truck.lng)], [Number(warehouse.lat), Number(warehouse.lng)]);
         }
       }
 
+      // Segment 2: Warehouse → Dealer (or Truck → Dealer if already picked up)
+      if (dealer.lat && dealer.lng && truck.lat && truck.lng) {
+        const startLat = (status === 'assigned' && warehouse.lat) ? Number(warehouse.lat) : Number(truck.lat);
+        const startLng = (status === 'assigned' && warehouse.lng) ? Number(warehouse.lng) : Number(truck.lng);
+
+        console.log('Fetching route: Start → Dealer');
+        try {
+          const leg2 = await getCachedRoute(
+            startLat, startLng,
+            Number(dealer.lat), Number(dealer.lng)
+          );
+
+          if (leg2 && leg2.length > 0) {
+            if (routeSegments.length > 0 && leg2.length > 0) {
+              routeSegments.push(...leg2.slice(1)); // Avoid duplicate point
+            } else {
+              routeSegments.push(...leg2);
+            }
+            console.log('✅ Added →dealer segment:', leg2.length, 'points');
+          } else {
+            // Fallback to straight line
+            if (routeSegments.length === 0) {
+              routeSegments.push([startLat, startLng]);
+            }
+            routeSegments.push([Number(dealer.lat), Number(dealer.lng)]);
+            console.log('⚠️ Using straight line for →dealer');
+          }
+        } catch (err) {
+          console.error('Error fetching →dealer route:', err);
+          if (routeSegments.length === 0) {
+            routeSegments.push([startLat, startLng]);
+          }
+          routeSegments.push([Number(dealer.lat), Number(dealer.lng)]);
+        }
+      }
+
+      console.log('📍 Total route segments:', routeSegments.length);
       setLiveRoute(routeSegments.length > 0 ? routeSegments : null);
 
       // Auto-zoom to fit the route
@@ -708,9 +748,10 @@ const LiveTracking = () => {
           [Math.max(...lats), Math.max(...lngs)]
         ];
         mapRef.current.fitBounds(bounds, { padding: [80, 80], maxZoom: 14 });
+        console.log('🗺️ Map zoomed to route bounds');
       }
     } catch (error) {
-      console.error('Error fetching live route:', error);
+      console.error('❌ Error in handleTruckClick:', error);
       toast.error('Failed to load route');
     }
   };
