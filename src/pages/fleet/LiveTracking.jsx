@@ -12,6 +12,21 @@ import { onTruckLocationUpdate, offTruckLocationUpdate, trackTruck, untrackTruck
 import { getCachedRoute } from '../../services/routing';
 import 'leaflet/dist/leaflet.css';
 
+// Add CSS for live route animation
+const style = document.createElement('style');
+style.textContent = `
+  @keyframes dash {
+    to {
+      stroke-dashoffset: -30;
+    }
+  }
+  
+  .live-route-animation {
+    animation: dash 1s linear infinite;
+  }
+`;
+document.head.appendChild(style);
+
 // Custom marker component that updates position dynamically
 const DynamicMarker = ({ position, icon, children, ...props }) => {
   const markerRef = useRef(null);
@@ -38,7 +53,7 @@ L.Icon.Default.mergeOptions({
 });
 
 // Custom truck icon
-const createTruckIcon = (status) => {
+const createTruckIcon = (status, isSelected = false) => {
   const colors = {
     assigned: '#ffc107',
     picked_up: '#17a2b8',
@@ -53,14 +68,16 @@ const createTruckIcon = (status) => {
       height: 30px;
       background-color: ${colors[status] || '#6c757d'};
       border-radius: 50%;
-      border: 3px solid white;
-      box-shadow: 0 2px 8px rgba(0,0,0,0.3);
+      border: 3px solid ${isSelected ? '#FF4081' : 'white'};
+      box-shadow: ${isSelected ? '0 0 20px rgba(255, 64, 129, 0.8), 0 2px 8px rgba(0,0,0,0.3)' : '0 2px 8px rgba(0,0,0,0.3)'};
       display: flex;
       align-items: center;
       justify-content: center;
       color: white;
       font-weight: bold;
       font-size: 16px;
+      transform: ${isSelected ? 'scale(1.2)' : 'scale(1)'};
+      transition: all 0.3s ease;
     ">🚚</div>`,
     iconSize: [30, 30],
     iconAnchor: [15, 15]
@@ -150,6 +167,19 @@ const FitBoundsOnce = ({ bounds }) => {
   return null;
 };
 
+// Component to capture map reference
+const MapRefSetter = ({ mapRef }) => {
+  const map = useMap();
+
+  useEffect(() => {
+    if (map && mapRef) {
+      mapRef.current = map;
+    }
+  }, [map, mapRef]);
+
+  return null;
+};
+
 // Helper: Haversine Distance (km)
 const getDistanceKm = (lat1, lon1, lat2, lon2) => {
   if (lat1 == null || lon1 == null || lat2 == null || lon2 == null) return 0;
@@ -185,6 +215,9 @@ const LiveTracking = () => {
   const [showGeofence, setShowGeofence] = useState(true);
   const [routes, setRoutes] = useState({}); // Store routes by assignmentId
   const routeLoadingRef = useRef({}); // Track loading state per route (using ref to avoid dependency issues)
+  const [selectedTruck, setSelectedTruck] = useState(null); // Track clicked truck for route display
+  const [liveRoute, setLiveRoute] = useState(null); // Store live route from current position
+  const mapRef = useRef(null); // Reference to map instance
   const [lastTruckPositions, setLastTruckPositions] = useState({}); // Track last known truck positions
   const trackedTrucksRef = useRef(new Set()); // Track which trucks are being monitored
 
@@ -618,6 +651,71 @@ const LiveTracking = () => {
     };
   };
 
+  // Handle truck marker click - show live route from current position
+  const handleTruckClick = async (location) => {
+    const truck = location.truck || {};
+    const warehouse = location.warehouse || {};
+    const dealer = location.dealer || {};
+
+    // If clicking the same truck, deselect it
+    if (selectedTruck?.assignmentId === (location.assignmentId || location.id)) {
+      setSelectedTruck(null);
+      setLiveRoute(null);
+      return;
+    }
+
+    setSelectedTruck({ ...location, assignmentId: location.assignmentId || location.id });
+
+    // Build live route: Current Truck Position → Warehouse → Dealer
+    try {
+      const routeSegments = [];
+      const status = location.status || location.assignment?.status;
+
+      // Segment 1: Truck → Warehouse (if not yet picked up)
+      if (status === 'assigned' && truck.lat && truck.lng && warehouse.lat && warehouse.lng) {
+        const leg1 = await getCachedRoute(
+          Number(truck.lat), Number(truck.lng),
+          Number(warehouse.lat), Number(warehouse.lng)
+        );
+        routeSegments.push(...leg1);
+      }
+
+      // Segment 2: Warehouse → Dealer (or Truck → Dealer if already picked up)
+      if (dealer.lat && dealer.lng) {
+        const startLat = (status === 'assigned' && warehouse.lat) ? Number(warehouse.lat) : Number(truck.lat);
+        const startLng = (status === 'assigned' && warehouse.lng) ? Number(warehouse.lng) : Number(truck.lng);
+
+        const leg2 = await getCachedRoute(
+          startLat, startLng,
+          Number(dealer.lat), Number(dealer.lng)
+        );
+
+        if (routeSegments.length > 0 && leg2.length > 0) {
+          routeSegments.push(...leg2.slice(1)); // Avoid duplicate point
+        } else {
+          routeSegments.push(...leg2);
+        }
+      }
+
+      setLiveRoute(routeSegments.length > 0 ? routeSegments : null);
+
+      // Auto-zoom to fit the route
+      if (mapRef.current && routeSegments.length > 0) {
+        const lats = routeSegments.map(p => p[0]);
+        const lngs = routeSegments.map(p => p[1]);
+        const bounds = [
+          [Math.min(...lats), Math.min(...lngs)],
+          [Math.max(...lats), Math.max(...lngs)]
+        ];
+        mapRef.current.fitBounds(bounds, { padding: [80, 80], maxZoom: 14 });
+      }
+    } catch (error) {
+      console.error('Error fetching live route:', error);
+      toast.error('Failed to load route');
+    }
+  };
+
+
   return (
     <div>
       <PageHeader
@@ -685,6 +783,41 @@ const LiveTracking = () => {
               <> | <strong>Dealers:</strong> {filteredLocations.filter(loc => loc.dealer?.lat && loc.dealer?.lng).length}</>
             )}
           </div>
+
+          {selectedTruck && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 12px',
+              backgroundColor: '#FF4081',
+              color: 'white',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}>
+              <FaTruck />
+              <span>Showing route for: <strong>{selectedTruck.truck?.truckName || 'Truck'}</strong></span>
+              <button
+                onClick={() => {
+                  setSelectedTruck(null);
+                  setLiveRoute(null);
+                }}
+                style={{
+                  marginLeft: '8px',
+                  padding: '4px 8px',
+                  backgroundColor: 'white',
+                  color: '#FF4081',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '12px'
+                }}
+              >
+                Clear Route
+              </button>
+            </div>
+          )}
         </div>
       </Card>
 
@@ -706,6 +839,7 @@ const LiveTracking = () => {
               }}
             >
               <FitBoundsOnce bounds={bounds} />
+              <MapRefSetter mapRef={mapRef} />
 
               <LayersControl position="topright">
                 <LayersControl.BaseLayer checked name="Street View">
@@ -814,6 +948,21 @@ const LiveTracking = () => {
                 );
               })}
 
+              {/* Live Route - Shown when truck is clicked */}
+              {liveRoute && liveRoute.length > 0 && (
+                <Polyline
+                  positions={liveRoute}
+                  pathOptions={{
+                    color: '#FF4081',
+                    weight: 6,
+                    opacity: 0.9,
+                    dashArray: '10, 5',
+                    className: 'live-route-animation'
+                  }}
+                />
+              )}
+
+
               {/* Truck Markers */}
               {filteredLocations.map((location, index) => {
                 const truck = location.truck || {};
@@ -821,6 +970,7 @@ const LiveTracking = () => {
                 const lng = truck.lng;
                 const status = location.status || location.assignment?.status || 'unknown';
                 const metrics = getTruckMetrics(location);
+                const isSelected = selectedTruck?.assignmentId === (location.assignmentId || location.id);
 
                 if (lat == null || lng == null || isNaN(Number(lat)) || isNaN(Number(lng))) return null;
 
@@ -828,7 +978,10 @@ const LiveTracking = () => {
                   <DynamicMarker
                     key={location.assignmentId || location.id || `truck-${index}`}
                     position={[Number(lat), Number(lng)]}
-                    icon={createTruckIcon(status)}
+                    icon={createTruckIcon(status, isSelected)}
+                    eventHandlers={{
+                      click: () => handleTruckClick(location)
+                    }}
                   >
                     <Popup>
                       <div style={{ minWidth: '200px' }}>
