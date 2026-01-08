@@ -570,10 +570,10 @@ const LiveTracking = () => {
           // Segment 1: Start → Warehouse (if start location exists)
           if (startLocation.lat && startLocation.lng && warehouse.lat && warehouse.lng) {
             const startToWarehouse = await getCachedRoute(
-              startLocation.lat,
-              startLocation.lng,
-              warehouse.lat,
-              warehouse.lng
+              Number(startLocation.lat),
+              Number(startLocation.lng),
+              Number(warehouse.lat),
+              Number(warehouse.lng)
             );
             routeSegments.push(...startToWarehouse);
           }
@@ -581,10 +581,10 @@ const LiveTracking = () => {
           // Segment 2: Warehouse → Dealer
           if (warehouse.lat && warehouse.lng && dealer.lat && dealer.lng) {
             const warehouseToDealer = await getCachedRoute(
-              warehouse.lat,
-              warehouse.lng,
-              dealer.lat,
-              dealer.lng
+              Number(warehouse.lat),
+              Number(warehouse.lng),
+              Number(dealer.lat),
+              Number(dealer.lng)
             );
             // If we already have start segment, skip first point of warehouseToDealer to avoid duplicate
             if (routeSegments.length > 0 && warehouseToDealer.length > 0) {
