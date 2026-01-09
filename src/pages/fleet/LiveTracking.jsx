@@ -6,13 +6,13 @@ import L from 'leaflet';
 import Card from '../../components/Card';
 import PageHeader from '../../components/PageHeader';
 import { toast } from 'react-toastify';
-import { Chip, TextField, MenuItem, Grid, FormControlLabel, Switch, Typography, Box, Avatar, InputBase, Paper, Divider, IconButton, Tooltip, Button } from '@mui/material';
+import { FaMapMarkerAlt, FaTruck, FaWarehouse, FaRoad, FaClock } from 'react-icons/fa';
+import { Chip, TextField, MenuItem, Grid, FormControlLabel, Switch, Typography, Box } from '@mui/material';
 import { onTruckLocationUpdate, offTruckLocationUpdate, trackTruck, untrackTruck } from '../../services/socket';
 import { getCachedRoute } from '../../services/routing';
-import { FaMapMarkerAlt, FaTruck, FaWarehouse, FaRoad, FaClock, FaSearch, FaPhone, FaInfoCircle, FaTimes, FaCrosshairs } from 'react-icons/fa';
 import 'leaflet/dist/leaflet.css';
 
-// Add CSS for premium glass-morphism and animations
+// Add CSS for live route animation
 const style = document.createElement('style');
 style.textContent = `
   @keyframes dash {
@@ -23,81 +23,6 @@ style.textContent = `
   
   .live-route-animation {
     animation: dash 1s linear infinite;
-  }
-
-  .glass-panel {
-    background: rgba(255, 255, 255, 0.7);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.3);
-    box-shadow: 0 8px 32px 0 rgba(31, 38, 135, 0.15);
-  }
-
-  .dark-glass {
-    background: rgba(15, 23, 42, 0.8);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    color: white;
-  }
-
-  .sidebar-container {
-    position: absolute;
-    top: 20px;
-    left: 20px;
-    bottom: 20px;
-    width: 320px;
-    z-index: 1000;
-    display: flex;
-    flex-direction: column;
-    border-radius: 16px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-  }
-
-  .hud-container {
-    position: absolute;
-    top: 20px;
-    right: 80px;
-    display: flex;
-    gap: 12px;
-    z-index: 1000;
-  }
-
-  .hud-card {
-    padding: 12px 20px;
-    border-radius: 12px;
-    text-align: center;
-    min-width: 100px;
-  }
-
-  .truck-list-item {
-    transition: all 0.2s ease;
-    cursor: pointer;
-    border-radius: 8px;
-    margin-bottom: 8px;
-  }
-
-  .truck-list-item:hover {
-    background: rgba(255, 255, 255, 0.9);
-    transform: translateX(4px);
-  }
-
-  .follow-badge {
-    position: absolute;
-    bottom: 20px;
-    left: 360px;
-    z-index: 1000;
-    background: #FF4081;
-    color: white;
-    padding: 6px 12px;
-    border-radius: 20px;
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    font-weight: bold;
-    box-shadow: 0 4px 12px rgba(255, 64, 129, 0.4);
-    cursor: pointer;
   }
 `;
 document.head.appendChild(style);
@@ -295,8 +220,6 @@ const LiveTracking = () => {
   const mapRef = useRef(null); // Reference to map instance
   const [lastTruckPositions, setLastTruckPositions] = useState({}); // Track last known truck positions
   const trackedTrucksRef = useRef(new Set()); // Track which trucks are being monitored
-  const [searchQuery, setSearchQuery] = useState('');
-  const [followingTruckId, setFollowingTruckId] = useState(null);
 
   // New state for storing truck paths (breadcrumbs)
   const [truckPaths, setTruckPaths] = useState({});
@@ -327,12 +250,6 @@ const LiveTracking = () => {
               lastUpdate: data.timestamp
             }
           };
-
-          // If this is the truck we are following, update map center
-          if (followingTruckId === data.truckId && mapRef.current) {
-            mapRef.current.panTo([data.lat, data.lng]);
-          }
-
           return updated;
         }
         return prev;
@@ -369,7 +286,7 @@ const LiveTracking = () => {
       });
       trackedTrucksRef.current.clear();
     };
-  }, [followingTruckId]); // Re-subscribe when followingTruckId changes to capture it in closure or use a ref
+  }, []);
 
   const historyFetchedRef = useRef(new Set());
 
@@ -382,6 +299,7 @@ const LiveTracking = () => {
     // Join rooms for new trucks
     currentTruckIds.forEach(truckId => {
       if (!trackedTrucksRef.current.has(truckId)) {
+        // console.log('Joining truck tracking room:', truckId);
         trackTruck(truckId);
         trackedTrucksRef.current.add(truckId);
       }
@@ -390,6 +308,7 @@ const LiveTracking = () => {
     // Leave rooms for trucks no longer in the list
     trackedTrucksRef.current.forEach(truckId => {
       if (!currentTruckIds.has(truckId)) {
+        // console.log('Leaving truck tracking room:', truckId);
         untrackTruck(truckId);
         trackedTrucksRef.current.delete(truckId);
       }
@@ -399,9 +318,11 @@ const LiveTracking = () => {
   const fetchLiveLocations = async () => {
     try {
       setLoading(true);
+      // For dealer users, filter by dealerId
       const params = isDealerUser && dealerId ? { dealerId } : {};
       const response = await trackingAPI.getLiveLocations(params);
 
+      // Handle different response structures
       let locationsList = [];
       if (Array.isArray(response)) {
         locationsList = response;
@@ -411,13 +332,18 @@ const LiveTracking = () => {
         locationsList = response.data;
       }
 
+      // Ensure truck locations have valid coordinates and extract dealer data
       locationsList = locationsList.map(loc => {
+        // The truck object already has lat/lng from the API
         const truck = loc.truck || {};
         const lat = truck.lat;
         const lng = truck.lng;
+
+        // Normalize coordinates to numbers
         const normalizedLat = lat != null ? Number(lat) : null;
         const normalizedLng = lng != null ? Number(lng) : null;
 
+        // Extract dealer information from multiple possible locations
         const dealer = loc.dealer ||
           loc.order?.dealer ||
           loc.assignment?.order?.dealer ||
@@ -425,15 +351,22 @@ const LiveTracking = () => {
           loc.assignment?.order?.dealerDetails ||
           null;
 
+        // Normalize dealer coordinates if dealer exists
         let normalizedDealer = null;
         if (dealer) {
           const dealerLat = dealer.lat;
           const dealerLng = dealer.lng;
-          if (dealerLat != null && dealerLng != null && !isNaN(Number(dealerLat)) && !isNaN(Number(dealerLng))) {
-            normalizedDealer = { ...dealer, lat: Number(dealerLat), lng: Number(dealerLng) };
+          if (dealerLat != null && dealerLng != null &&
+            !isNaN(Number(dealerLat)) && !isNaN(Number(dealerLng))) {
+            normalizedDealer = {
+              ...dealer,
+              lat: Number(dealerLat),
+              lng: Number(dealerLng)
+            };
           }
         }
 
+        // Return location with normalized truck coordinates and dealer
         return {
           ...loc,
           truck: {
@@ -448,9 +381,12 @@ const LiveTracking = () => {
         };
       });
 
+      // Filter out locations without valid coordinates AFTER normalization
       locationsList = locationsList.filter(loc => {
         const truck = loc.truck || {};
-        return truck.lat != null && truck.lng != null && !isNaN(Number(truck.lat)) && !isNaN(Number(truck.lng));
+        const lat = truck.lat;
+        const lng = truck.lng;
+        return lat != null && lng != null && !isNaN(Number(lat)) && !isNaN(Number(lng));
       });
 
       setLocations(locationsList);
@@ -466,273 +402,813 @@ const LiveTracking = () => {
   const fetchWarehouses = async () => {
     try {
       const response = await warehouseAPI.getAll();
-      const warehousesList = Array.isArray(response) ? response : response?.warehouses || response?.data || [];
-      const validWarehouses = warehousesList.filter(w => w.lat && w.lng && !isNaN(Number(w.lat)) && !isNaN(Number(w.lng)));
+      const warehousesList = Array.isArray(response)
+        ? response
+        : response?.warehouses || response?.data || [];
+
+      // Filter warehouses with valid coordinates
+      const validWarehouses = warehousesList.filter(
+        w => w.lat && w.lng &&
+          !isNaN(Number(w.lat)) && !isNaN(Number(w.lng))
+      );
       setWarehouses(validWarehouses);
     } catch (error) {
       console.error('Error fetching warehouses:', error);
     }
   };
 
-  const filteredLocations = useMemo(() => {
-    return locations.filter(loc => {
+  const filteredLocations = filterStatus
+    ? locations.filter(loc => {
       const status = loc.status || loc.assignment?.status;
-      const truckName = loc.truck?.truckName || '';
-      const orderNumber = loc.orderNumber || loc.orderId || '';
-      const driverName = loc.driverName || '';
+      return status === filterStatus;
+    })
+    : locations;
 
-      const matchesStatus = !filterStatus || status === filterStatus;
-      const matchesSearch = !searchQuery ||
-        truckName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        orderNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        driverName.toLowerCase().includes(searchQuery.toLowerCase());
+  // Fetch history for trucks when they load
+  useEffect(() => {
+    const fetchHistory = async () => {
+      const trucksToFetch = filteredLocations
+        .map(loc => loc.truck?.id)
+        .filter(id => id && !historyFetchedRef.current.has(id));
 
-      return matchesStatus && matchesSearch;
-    });
-  }, [locations, filterStatus, searchQuery]);
+      if (trucksToFetch.length === 0) return;
 
-  // Handle truck marker click - show live route from current position
-  const handleTruckClick = async (location, options = {}) => {
-    const { flyTo = false, follow = false } = options;
-    const truck = location.truck || {};
-    const assignmentId = location.assignmentId || location.id;
+      // Mark as fetching to prevent duplicate calls
+      trucksToFetch.forEach(id => historyFetchedRef.current.add(id));
 
-    if (flyTo && mapRef.current && truck.lat && truck.lng) {
-      mapRef.current.flyTo([truck.lat, truck.lng], 14, { duration: 1.5 });
-    }
+      const updates = {};
+      await Promise.all(trucksToFetch.map(async (truckId) => {
+        try {
+          // Fetch last 50 points
+          const response = await trackingAPI.getTruckHistory(truckId, { limit: 50 });
+          const history = Array.isArray(response) ? response : (response.data || []);
 
-    if (follow) {
-      setFollowingTruckId(prev => prev === truck.id ? null : truck.id);
-    }
-
-    if (selectedTruck?.assignmentId === assignmentId && !follow && !flyTo) {
-      setSelectedTruck(null);
-      setLiveRoute(null);
-      if (followingTruckId === truck.id) setFollowingTruckId(null);
-      return;
-    }
-
-    setSelectedTruck({ ...location, assignmentId });
-    
-    // Fetch route logic...
-    try {
-      const routeSegments = [];
-      const status = location.status || location.assignment?.status;
-      const warehouse = location.warehouse || {};
-      const dealer = location.dealer || {};
-
-      if (status === 'assigned' && truck.lat && truck.lng && warehouse.lat && warehouse.lng) {
-        const leg1 = await getCachedRoute(Number(truck.lat), Number(truck.lng), Number(warehouse.lat), Number(warehouse.lng));
-        if (leg1) routeSegments.push(...leg1);
-      }
-
-      const startLat = (status === 'assigned' && warehouse.lat) ? Number(warehouse.lat) : Number(truck.lat);
-      const startLng = (status === 'assigned' && warehouse.lng) ? Number(warehouse.lng) : Number(truck.lng);
-      if (dealer.lat && dealer.lng) {
-        const leg2 = await getCachedRoute(startLat, startLng, Number(dealer.lat), Number(dealer.lng));
-        if (leg2) {
-          if (routeSegments.length > 0) routeSegments.push(...leg2.slice(1));
-          else routeSegments.push(...leg2);
+          // Standardize and sort points
+          if (history.length > 0) {
+            updates[truckId] = history
+              .sort((a, b) => new Date(a.timestamp) - new Date(b.timestamp))
+              .map(h => [Number(h.lat), Number(h.lng)])
+              .filter(p => !isNaN(p[0]) && !isNaN(p[1]));
+          }
+        } catch (error) {
+          console.error(`Error fetching history for truck ${truckId}:`, error);
         }
+      }));
+
+      if (Object.keys(updates).length > 0) {
+        setTruckPaths(prev => {
+          const next = { ...prev };
+          Object.entries(updates).forEach(([id, points]) => {
+            if (!next[id] || next[id].length === 0) {
+              next[id] = points;
+            } else {
+              // Prepend history to existing live points (simplification)
+              // Ideally we merge and sort, but prepend is usually okay on load
+              next[id] = [...points, ...next[id]];
+            }
+          });
+          return next;
+        });
       }
-      setLiveRoute(routeSegments.length > 0 ? routeSegments : null);
-    } catch (error) {
-       console.error(error);
-    }
+    };
+
+    fetchHistory();
+  }, [filteredLocations]);
+
+  // Helper function to check if truck has moved significantly
+  const hasSignificantMovement = (lat1, lng1, lat2, lng2) => {
+    if (!lat1 || !lng1 || !lat2 || !lng2) return true;
+    const latDiff = Math.abs(lat1 - lat2);
+    const lngDiff = Math.abs(lng1 - lng2);
+    return latDiff > 0.01 || lngDiff > 0.01;
   };
+
+  // Fetch routes for all locations
+  useEffect(() => {
+    const fetchRoutes = async () => {
+      const routesToFetch = filteredLocations.filter(loc => {
+        const warehouse = loc.warehouse || {};
+        const dealer = loc.dealer || {};
+        const key = loc.assignmentId || loc.id;
+        const truck = loc.truck || {};
+
+        const hasEndpoints = warehouse.lat && warehouse.lng && dealer.lat && dealer.lng;
+        if (!hasEndpoints) return false;
+
+        const lastPosition = lastTruckPositions[key];
+        const hasMoved = !lastPosition || hasSignificantMovement(
+          lastPosition.lat, lastPosition.lng,
+          truck.lat || warehouse.lat, truck.lng || warehouse.lng
+        );
+
+        const routeExists = routes[key];
+        const isLoading = routeLoadingRef.current[key];
+
+        return hasMoved && !isLoading && !routeExists;
+      });
+
+      if (routesToFetch.length === 0) return;
+
+      routesToFetch.forEach(loc => {
+        const key = loc.assignmentId || loc.id;
+        routeLoadingRef.current[key] = true;
+      });
+
+      const routePromises = routesToFetch.map(async (location) => {
+        try {
+          const warehouse = location.warehouse || {};
+          const dealer = location.dealer || {};
+          const startLocation = location.startLocation || {};
+          const routeSegments = [];
+
+          // Segment 1: Start -> Warehouse
+          if (startLocation.lat && startLocation.lng && warehouse.lat && warehouse.lng) {
+            const leg1 = await getCachedRoute(
+              Number(startLocation.lat), Number(startLocation.lng),
+              Number(warehouse.lat), Number(warehouse.lng)
+            );
+            routeSegments.push(...leg1);
+          }
+
+          // Segment 2: Warehouse -> Dealer
+          if (warehouse.lat && warehouse.lng && dealer.lat && dealer.lng) {
+            const leg2 = await getCachedRoute(
+              Number(warehouse.lat), Number(warehouse.lng),
+              Number(dealer.lat), Number(dealer.lng)
+            );
+            if (routeSegments.length > 0 && leg2.length > 0) {
+              routeSegments.push(...leg2.slice(1));
+            } else {
+              routeSegments.push(...leg2);
+            }
+          }
+
+          return {
+            assignmentId: location.assignmentId || location.id,
+            route: routeSegments.length > 0 ? routeSegments : [
+              startLocation.lat ? [startLocation.lat, startLocation.lng] : null,
+              [warehouse.lat, warehouse.lng],
+              [dealer.lat, dealer.lng]
+            ].filter(Boolean)
+          };
+        } catch (error) {
+          console.error(`Error fetching route:`, error);
+          return {
+            assignmentId: location.assignmentId || location.id,
+            route: []
+          };
+        }
+      });
+
+      const fetchedRoutes = await Promise.all(routePromises);
+
+      setRoutes(prev => {
+        const newRoutes = { ...prev };
+        fetchedRoutes.forEach(({ assignmentId, route }) => {
+          if (route.length > 0) newRoutes[assignmentId] = route;
+        });
+        return newRoutes;
+      });
+
+      fetchedRoutes.forEach(({ assignmentId }) => {
+        delete routeLoadingRef.current[assignmentId];
+      });
+    };
+
+    fetchRoutes();
+  }, [filteredLocations, lastTruckPositions, routes]);
+
+  // Calculate map bounds
+  const bounds = useMemo(() => {
+    const allPoints = [];
+    filteredLocations.forEach(loc => {
+      if (loc.truck?.lat && loc.truck?.lng) allPoints.push([loc.truck.lat, loc.truck.lng]);
+      if (loc.warehouse?.lat && loc.warehouse?.lng) allPoints.push([Number(loc.warehouse.lat), Number(loc.warehouse.lng)]);
+      if (loc.dealer?.lat && loc.dealer?.lng) allPoints.push([Number(loc.dealer.lat), Number(loc.dealer.lng)]);
+    });
+    if (showWarehouses) {
+      warehouses.forEach(w => {
+        if (w.lat && w.lng) allPoints.push([Number(w.lat), Number(w.lng)]);
+      });
+    }
+
+    if (allPoints.length === 0) return [[19.0760, 72.8777], [19.0760, 72.8777]]; // Default Mumbai
+
+    const lats = allPoints.map(p => p[0]);
+    const lngs = allPoints.map(p => p[1]);
+    return [
+      [Math.min(...lats), Math.min(...lngs)],
+      [Math.max(...lats), Math.max(...lngs)]
+    ];
+  }, [filteredLocations, warehouses, showWarehouses]);
+
+  const center = useMemo(() => [
+    (bounds[0][0] + bounds[1][0]) / 2,
+    (bounds[0][1] + bounds[1][1]) / 2
+  ], [bounds]);
+
+  const getStatusColor = (status) => {
+    const colors = {
+      assigned: 'warning',
+      picked_up: 'info',
+      in_transit: 'primary',
+      delivered: 'success'
+    };
+    return colors[status] || 'default';
+  };
+
+  if (loading) {
+    return (
+      <div>
+        <PageHeader title="Live Truck Tracking" icon={<FaMapMarkerAlt />} />
+        <Card>
+          <div style={{ padding: '40px', textAlign: 'center' }}>Loading live locations...</div>
+        </Card>
+      </div>
+    );
+  }
 
   // Calculate metrics for trucks (Distance & ETA)
   const getTruckMetrics = (location) => {
     const truck = location.truck || {};
     const dealer = location.dealer || {};
     const status = location.status || location.assignment?.status;
+
     if (!truck.lat || !truck.lng || !dealer.lat || !dealer.lng) return null;
     if (status === 'delivered') return { distance: 0, eta: 'Arrived' };
+
+    // Calculate distance (Haversine) - adding 20% buffer for road winding
     const rawDist = getDistanceKm(truck.lat, truck.lng, dealer.lat, dealer.lng);
     const roadDist = rawDist * 1.2;
+
+    // Estimate speed: Use current speed or avg 40km/h
     const currentSpeed = truck.speed > 5 ? truck.speed : 40;
     const timeHours = roadDist / currentSpeed;
-    return { distance: roadDist.toFixed(1), eta: formatDuration(timeHours) };
-  };
 
-  const hudStats = useMemo(() => {
-    const stats = { inTransit: 0, stopped: 0, arrivingSoon: 0, delayed: 0 };
-    filteredLocations.forEach(loc => {
-      const status = loc.status || loc.assignment?.status;
-      const speed = loc.truck?.speed || 0;
-      const metrics = getTruckMetrics(loc);
-      if (status === 'delivered') return;
-      if (status === 'in_transit' || status === 'picked_up') stats.inTransit++;
-      if (speed <= 5) {
-        stats.stopped++;
-        if (status === 'in_transit' || status === 'picked_up') stats.delayed++;
-      }
-      if (metrics?.eta?.includes('mins')) {
-        const mins = parseInt(metrics.eta);
-        if (mins <= 30) stats.arrivingSoon++;
-      }
-    });
-    return stats;
-  }, [filteredLocations]);
-
-  // Fetch history
-  useEffect(() => {
-    const fetchHistory = async () => {
-      const trucksToFetch = filteredLocations.map(loc => loc.truck?.id).filter(id => id && !historyFetchedRef.current.has(id));
-      if (trucksToFetch.length === 0) return;
-      trucksToFetch.forEach(id => historyFetchedRef.current.add(id));
-      await Promise.all(trucksToFetch.map(async (truckId) => {
-        try {
-          const response = await trackingAPI.getTruckHistory(truckId, { limit: 50 });
-          const history = Array.isArray(response) ? response : (response.data || []);
-          if (history.length > 0) {
-            setTruckPaths(prev => ({
-              ...prev,
-              [truckId]: history.sort((a,b) => new Date(a.timestamp) - new Date(b.timestamp)).map(h => [Number(h.lat), Number(h.lng)])
-            }));
-          }
-        } catch (e) {}
-      }));
+    return {
+      distance: roadDist.toFixed(1),
+      eta: formatDuration(timeHours)
     };
-    fetchHistory();
-  }, [filteredLocations]);
-
-  const bounds = useMemo(() => {
-    const allPoints = [];
-    filteredLocations.forEach(loc => {
-      if (loc.truck?.lat && loc.truck?.lng) allPoints.push([loc.truck.lat, loc.truck.lng]);
-    });
-    if (allPoints.length === 0) return [[19.0760, 72.8777], [19.0860, 72.8877]];
-    const lats = allPoints.map(p => p[0]);
-    const lngs = allPoints.map(p => p[1]);
-    return [[Math.min(...lats), Math.min(...lngs)], [Math.max(...lats), Math.max(...lngs)]];
-  }, [filteredLocations]);
-
-  const center = [(bounds[0][0] + bounds[1][0]) / 2, (bounds[0][1] + bounds[1][1]) / 2];
-
-  const getStatusColor = (status) => {
-    const colors = { assigned: 'warning', picked_up: 'info', in_transit: 'primary', delivered: 'success' };
-    return colors[status] || 'default';
   };
 
-  if (loading) return (
-    <Box sx={{ p: 4, textAlign: 'center' }}>
-      <PageHeader title="Live tracking" icon={<FaMapMarkerAlt />} />
-      <Card sx={{ p: 4 }}>Loading Dashboard...</Card>
-    </Box>
-  );
+  // Handle truck marker click - show live route from current position
+  const handleTruckClick = async (location) => {
+    console.log('🚚 Truck clicked:', location);
+    toast.info(`Loading route for ${location.truck?.truckName || 'truck'}...`, { autoClose: 2000 });
+
+    const truck = location.truck || {};
+    const warehouse = location.warehouse || {};
+    const dealer = location.dealer || {};
+
+    // If clicking the same truck, deselect it
+    if (selectedTruck?.assignmentId === (location.assignmentId || location.id)) {
+      console.log('Deselecting truck');
+      setSelectedTruck(null);
+      setLiveRoute(null);
+      toast.info('Route cleared', { autoClose: 1000 });
+      return;
+    }
+
+    setSelectedTruck({ ...location, assignmentId: location.assignmentId || location.id });
+    console.log('Selected truck:', truck.truckName);
+
+    // Build live route: Current Truck Position → Warehouse → Dealer
+    try {
+      const routeSegments = [];
+      const status = location.status || location.assignment?.status;
+      console.log('Building route for status:', status);
+
+      // Segment 1: Truck → Warehouse (if not yet picked up)
+      if (status === 'assigned' && truck.lat && truck.lng && warehouse.lat && warehouse.lng) {
+        console.log('Fetching route: Truck → Warehouse');
+        try {
+          const leg1 = await getCachedRoute(
+            Number(truck.lat), Number(truck.lng),
+            Number(warehouse.lat), Number(warehouse.lng)
+          );
+          if (leg1 && leg1.length > 0) {
+            routeSegments.push(...leg1);
+            console.log('✅ Added truck→warehouse segment:', leg1.length, 'points');
+          } else {
+            // Fallback to straight line
+            routeSegments.push([Number(truck.lat), Number(truck.lng)], [Number(warehouse.lat), Number(warehouse.lng)]);
+            console.log('⚠️ Using straight line for truck→warehouse');
+          }
+        } catch (err) {
+          console.error('Error fetching truck→warehouse route:', err);
+          routeSegments.push([Number(truck.lat), Number(truck.lng)], [Number(warehouse.lat), Number(warehouse.lng)]);
+        }
+      }
+
+      // Segment 2: Warehouse → Dealer (or Truck → Dealer if already picked up)
+      if (dealer.lat && dealer.lng && truck.lat && truck.lng) {
+        const startLat = (status === 'assigned' && warehouse.lat) ? Number(warehouse.lat) : Number(truck.lat);
+        const startLng = (status === 'assigned' && warehouse.lng) ? Number(warehouse.lng) : Number(truck.lng);
+
+        console.log('Fetching route: Start → Dealer');
+        try {
+          const leg2 = await getCachedRoute(
+            startLat, startLng,
+            Number(dealer.lat), Number(dealer.lng)
+          );
+
+          if (leg2 && leg2.length > 0) {
+            if (routeSegments.length > 0 && leg2.length > 0) {
+              routeSegments.push(...leg2.slice(1)); // Avoid duplicate point
+            } else {
+              routeSegments.push(...leg2);
+            }
+            console.log('✅ Added →dealer segment:', leg2.length, 'points');
+          } else {
+            // Fallback to straight line
+            if (routeSegments.length === 0) {
+              routeSegments.push([startLat, startLng]);
+            }
+            routeSegments.push([Number(dealer.lat), Number(dealer.lng)]);
+            console.log('⚠️ Using straight line for →dealer');
+          }
+        } catch (err) {
+          console.error('Error fetching →dealer route:', err);
+          if (routeSegments.length === 0) {
+            routeSegments.push([startLat, startLng]);
+          }
+          routeSegments.push([Number(dealer.lat), Number(dealer.lng)]);
+        }
+      }
+
+      console.log('📍 Total route segments:', routeSegments.length);
+      setLiveRoute(routeSegments.length > 0 ? routeSegments : null);
+
+      // Auto-zoom to fit the route
+      if (mapRef.current && routeSegments.length > 0) {
+        const lats = routeSegments.map(p => p[0]);
+        const lngs = routeSegments.map(p => p[1]);
+        const bounds = [
+          [Math.min(...lats), Math.min(...lngs)],
+          [Math.max(...lats), Math.max(...lngs)]
+        ];
+        mapRef.current.fitBounds(bounds, { padding: [80, 80], maxZoom: 14 });
+        console.log('🗺️ Map zoomed to route bounds');
+      }
+    } catch (error) {
+      console.error('❌ Error in handleTruckClick:', error);
+      toast.error('Failed to load route');
+    }
+  };
+
 
   return (
-    <Box sx={{ height: 'calc(100vh - 100px)', display: 'flex', flexDirection: 'column', position: 'relative', overflow: 'hidden' }}>
-      <Box className="hud-container">
-        <Paper className="hud-card dark-glass">
-          <Typography variant="caption" sx={{ opacity: 0.8 }}>IN TRANSIT</Typography>
-          <Typography variant="h6" fontWeight="bold">{hudStats.inTransit}</Typography>
-        </Paper>
-        <Paper className="hud-card dark-glass" sx={{ bgcolor: 'rgba(239, 68, 68, 0.4) !important' }}>
-          <Typography variant="caption" sx={{ opacity: 0.8 }}>DELAYED</Typography>
-          <Typography variant="h6" fontWeight="bold">{hudStats.delayed}</Typography>
-        </Paper>
-        <Paper className="hud-card dark-glass" sx={{ bgcolor: 'rgba(234, 179, 8, 0.4) !important' }}>
-          <Typography variant="caption" sx={{ opacity: 0.8 }}>ARRIVING SOON</Typography>
-          <Typography variant="h6" fontWeight="bold">{hudStats.arrivingSoon}</Typography>
-        </Paper>
-        <Paper className="hud-card dark-glass">
-          <Typography variant="caption" sx={{ opacity: 0.8 }}>STOPPED</Typography>
-          <Typography variant="h6" fontWeight="bold">{hudStats.stopped}</Typography>
-        </Paper>
-      </Box>
+    <div>
+      <PageHeader
+        title={isDealerUser ? "My Orders - Live Tracking" : "Live Truck Tracking"}
+        icon={<FaMapMarkerAlt />}
+        subtitle={isDealerUser ? `Tracking orders for your dealer` : undefined}
+      />
 
-      <Box className="sidebar-container glass-panel">
-        <Box sx={{ p: 2, display: 'flex', flexDirection: 'column', gap: 2 }}>
-          <Typography variant="h6" fontWeight="bold" color="primary">Fleet Track</Typography>
-          <Paper sx={{ p: '2px 4px', display: 'flex', alignItems: 'center', borderRadius: 2, border: '1px solid #eee' }} elevation={0}>
-            <IconButton sx={{ p: '8px' }}><FaSearch size={16} /></IconButton>
-            <InputBase sx={{ ml: 1, flex: 1, fontSize: '14px' }} placeholder="Search Fleet..." value={searchQuery} onChange={e => setSearchQuery(e.target.value)} />
-            {searchQuery && <IconButton sx={{ p: '8px' }} onClick={() => setSearchQuery('')}><FaTimes size={14} /></IconButton>}
-          </Paper>
-          <Box sx={{ display: 'flex', gap: 1, overflowX: 'auto' }}>
-            {['', 'in_transit', 'assigned'].map(s => (
-              <Chip key={s} label={s || 'All'} size="small" onClick={() => setFilterStatus(s)} color={filterStatus === s ? 'primary' : 'default'} />
-            ))}
-          </Box>
-        </Box>
-        <Divider />
-        <Box sx={{ flex: 1, overflowY: 'auto', p: 1.5 }}>
-          {filteredLocations.map((location, idx) => {
-            const truck = location.truck || {};
-            const metrics = getTruckMetrics(location);
-            const isFollowing = followingTruckId === truck.id;
-            return (
-              <Box key={location.assignmentId || idx} className="truck-list-item" sx={{ p: 2, bgcolor: isFollowing ? 'rgba(33, 150, 243, 0.08)' : 'white', border: '1px solid #f0f0f0' }} onClick={() => handleTruckClick(location, { flyTo: true })}>
-                <Box display="flex" justifyContent="space-between" mb={1}>
-                  <Typography variant="subtitle2" fontWeight="bold">{truck.truckName}</Typography>
-                  <Chip label={location.status?.replace('_', ' ')} size="small" color={getStatusColor(location.status)} sx={{ height: 18, fontSize: 10 }} />
-                </Box>
-                {metrics && <Typography variant="caption" color="text.secondary">{metrics.distance} km | {metrics.eta}</Typography>}
-                <Box display="flex" justifyContent="space-between" mt={1}>
-                   <Typography variant="caption" color="text.secondary">Driver: {location.driverName}</Typography>
-                   <IconButton size="small" onClick={e => { e.stopPropagation(); handleTruckClick(location, { flyTo: true, follow: true }); }} color={isFollowing ? 'secondary' : 'default'}><FaCrosshairs size={14} /></IconButton>
-                </Box>
-              </Box>
-            );
-          })}
-        </Box>
-      </Box>
+      <Card style={{ marginBottom: '16px' }}>
+        <div style={{ display: 'flex', gap: '16px', alignItems: 'center', flexWrap: 'wrap' }}>
+          <TextField
+            label="Filter by Status"
+            select
+            size="small"
+            value={filterStatus}
+            onChange={(e) => setFilterStatus(e.target.value)}
+            style={{ minWidth: '200px' }}
+          >
+            <MenuItem value="">All Statuses</MenuItem>
+            <MenuItem value="assigned">Assigned</MenuItem>
+            <MenuItem value="picked_up">Picked Up</MenuItem>
+            <MenuItem value="in_transit">In Transit</MenuItem>
+            <MenuItem value="delivered">Delivered</MenuItem>
+          </TextField>
 
-      {followingTruckId && (
-        <Box className="follow-badge" onClick={() => setFollowingTruckId(null)}>
-          <FaCrosshairs /> Following Truck #{followingTruckId.slice(-4)}
-        </Box>
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showWarehouses}
+                onChange={(e) => setShowWarehouses(e.target.checked)}
+                color="primary"
+              />
+            }
+            label="Show Warehouses"
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showDealers}
+                onChange={(e) => setShowDealers(e.target.checked)}
+                color="primary"
+              />
+            }
+            label="Show Dealers"
+          />
+
+          <FormControlLabel
+            control={
+              <Switch
+                checked={showGeofence}
+                onChange={(e) => setShowGeofence(e.target.checked)}
+                color="secondary"
+              />
+            }
+            label="Show Geofences"
+          />
+
+          <div>
+            <strong>Total Trucks:</strong> {filteredLocations.length}
+            {showWarehouses && warehouses.length > 0 && (
+              <> | <strong>Warehouses:</strong> {warehouses.length}</>
+            )}
+            {showDealers && filteredLocations.filter(loc => loc.dealer?.lat && loc.dealer?.lng).length > 0 && (
+              <> | <strong>Dealers:</strong> {filteredLocations.filter(loc => loc.dealer?.lat && loc.dealer?.lng).length}</>
+            )}
+          </div>
+
+          {selectedTruck && (
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '8px',
+              padding: '8px 12px',
+              backgroundColor: '#FF4081',
+              color: 'white',
+              borderRadius: '4px',
+              fontSize: '14px'
+            }}>
+              <FaTruck />
+              <span>Showing route for: <strong>{selectedTruck.truck?.truckName || 'Truck'}</strong></span>
+              <button
+                onClick={() => {
+                  setSelectedTruck(null);
+                  setLiveRoute(null);
+                }}
+                style={{
+                  marginLeft: '8px',
+                  padding: '4px 8px',
+                  backgroundColor: 'white',
+                  color: '#FF4081',
+                  border: 'none',
+                  borderRadius: '4px',
+                  cursor: 'pointer',
+                  fontWeight: 'bold',
+                  fontSize: '12px'
+                }}
+              >
+                Clear Route
+              </button>
+            </div>
+          )}
+        </div>
+      </Card>
+
+      {filteredLocations.length === 0 && (!showWarehouses || warehouses.length === 0) ? (
+        <Card>
+          <div style={{ padding: '40px', textAlign: 'center' }}>
+            No trucks or warehouses are currently being tracked.
+          </div>
+        </Card>
+      ) : (
+        <Card style={{ position: 'relative', zIndex: 1 }}> {/* Ensure Card z-index doesn't block map controls if configured poorly, but Card usually okay. */}
+          <div style={{ height: '600px', width: '100%' }}>
+            <MapContainer
+              center={center}
+              zoom={10}
+              style={{ height: '100%', width: '100%' }}
+              whenCreated={(mapInstance) => {
+                // console.log('Map created');
+              }}
+            >
+              <FitBoundsOnce bounds={bounds} />
+              <MapRefSetter mapRef={mapRef} />
+
+              <LayersControl position="topright">
+                <LayersControl.BaseLayer checked name="Street View">
+                  <TileLayer
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    attribution='&copy; OpenStreetMap contributors'
+                  />
+                </LayersControl.BaseLayer>
+                <LayersControl.BaseLayer name="Satellite View">
+                  <TileLayer
+                    url="https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}"
+                    attribution='Tiles &copy; Esri &mdash; Source: Esri, i-cubed, USDA, USGS, AEX, GeoEye, Getmapping, Aerogrid, IGN, IGP, UPR-EGP'
+                  />
+                </LayersControl.BaseLayer>
+
+                <LayersControl.Overlay checked={showGeofence} name="Geofences">
+                  <LayerGroup>
+                    {/* Warehouse Geofences (1000m) */}
+                    {showWarehouses && warehouses.map((w, i) => (
+                      w.lat && w.lng && (
+                        <Circle
+                          key={`geo-wh-${i}`}
+                          center={[Number(w.lat), Number(w.lng)]}
+                          radius={1000}
+                          pathOptions={{ color: '#6c757d', fillColor: '#6c757d', fillOpacity: 0.1, weight: 1, dashArray: '5, 5' }}
+                        />
+                      )
+                    ))}
+                    {/* Dealer Geofences (500m) */}
+                    {showDealers && filteredLocations.map((loc, i) => {
+                      const d = loc.dealer;
+                      // Avoid duplicate dealers circles if possible, but map will handle overlap fine visually
+                      if (d && d.lat && d.lng) {
+                        return (
+                          <Circle
+                            key={`geo-dlr-${i}`}
+                            center={[Number(d.lat), Number(d.lng)]}
+                            radius={500}
+                            pathOptions={{ color: '#28a745', fillColor: '#28a745', fillOpacity: 0.1, weight: 1, dashArray: '5, 5' }}
+                          />
+                        );
+                      }
+                      return null;
+                    })}
+                  </LayerGroup>
+                </LayersControl.Overlay>
+              </LayersControl>
+
+              {/* Warehouse Markers */}
+              {showWarehouses && warehouses.map((warehouse, index) => (
+                <Marker
+                  key={warehouse.id || index}
+                  position={[Number(warehouse.lat), Number(warehouse.lng)]}
+                  icon={createWarehouseIcon()}
+                >
+                  <Popup>
+                    <div>
+                      <strong><FaWarehouse /> Warehouse: {warehouse.name}</strong>
+                      <br />
+                      {warehouse.address}
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+
+              {/* Render Truck Paths (Breadcrumbs) */}
+              {Object.entries(truckPaths).map(([truckId, path]) => {
+                const safePath = path.filter(p => Array.isArray(p) && p.length === 2 && !isNaN(p[0]) && !isNaN(p[1]));
+                if (safePath.length < 1) return null;
+
+                return (
+                  <React.Fragment key={`path-${truckId}`}>
+                    <Polyline
+                      positions={safePath}
+                      pathOptions={{ color: '#2196F3', weight: 4, opacity: 0.8 }}
+                    />
+                    {safePath.map((point, idx) => (
+                      <CircleMarker
+                        key={`path-point-${truckId}-${idx}`}
+                        center={point}
+                        radius={2}
+                        pathOptions={{ color: '#2196F3', fillColor: '#2196F3', fillOpacity: 1, stroke: false }}
+                      />
+                    ))}
+                  </React.Fragment>
+                );
+              })}
+
+              {/* Route lines */}
+              {filteredLocations.map(location => {
+                const key = location.assignmentId || location.id;
+                const status = location.status || location.assignment?.status || '';
+                const route = routes[key];
+
+                if (!route || route.length === 0) return null;
+
+                return (
+                  <Polyline
+                    key={`route-${key}`}
+                    positions={route}
+                    color={status === 'assigned' ? '#ffc107' : '#007bff'}
+                    weight={4}
+                    opacity={status === 'assigned' ? 0.5 : 0.7}
+                    dashArray={status === 'assigned' ? '20, 10' : '10, 5'}
+                  />
+                );
+              })}
+
+              {/* Live Route - Shown when truck is clicked */}
+              {liveRoute && liveRoute.length > 0 && (
+                <Polyline
+                  positions={liveRoute}
+                  pathOptions={{
+                    color: '#FF4081',
+                    weight: 6,
+                    opacity: 0.9,
+                    dashArray: '10, 5',
+                    className: 'live-route-animation'
+                  }}
+                />
+              )}
+
+
+              {/* Truck Markers */}
+              {filteredLocations.map((location, index) => {
+                const truck = location.truck || {};
+                const lat = truck.lat;
+                const lng = truck.lng;
+                const status = location.status || location.assignment?.status || 'unknown';
+                const metrics = getTruckMetrics(location);
+                const isSelected = selectedTruck?.assignmentId === (location.assignmentId || location.id);
+
+                if (lat == null || lng == null || isNaN(Number(lat)) || isNaN(Number(lng))) return null;
+
+                return (
+                  <DynamicMarker
+                    key={location.assignmentId || location.id || `truck-${index}`}
+                    position={[Number(lat), Number(lng)]}
+                    icon={createTruckIcon(status, isSelected)}
+                  >
+                    <Popup>
+                      <div style={{ minWidth: '200px' }}>
+                        <div style={{ borderBottom: '1px solid #eee', paddingBottom: '8px', marginBottom: '8px' }}>
+                          <strong style={{ fontSize: '1.1em' }}>
+                            <FaTruck style={{ marginRight: '6px' }} />
+                            {truck.truckName || 'Truck'}
+                          </strong>
+                          <Chip
+                            label={status.replace('_', ' ')}
+                            color={getStatusColor(status)}
+                            size="small"
+                            style={{ marginLeft: 'auto', float: 'right', height: '20px', fontSize: '10px' }}
+                          />
+                        </div>
+
+                        <Grid container spacing={1} style={{ fontSize: '13px' }}>
+                          {metrics && (
+                            <>
+                              <Grid item xs={6}>
+                                <Box display="flex" alignItems="center" color="text.secondary">
+                                  <FaRoad style={{ marginRight: '4px' }} /> Distance
+                                </Box>
+                                <Typography variant="body2" fontWeight="bold">
+                                  {metrics.distance} km
+                                </Typography>
+                              </Grid>
+                              <Grid item xs={6}>
+                                <Box display="flex" alignItems="center" color="text.secondary">
+                                  <FaClock style={{ marginRight: '4px' }} /> ETA
+                                </Box>
+                                <Typography variant="body2" fontWeight="bold">
+                                  {metrics.eta}
+                                </Typography>
+                              </Grid>
+                            </>
+                          )}
+
+                          <Grid item xs={12} style={{ marginTop: '8px' }}>
+                            <strong>Order:</strong> {location.orderNumber || location.orderId || 'N/A'}
+                          </Grid>
+                          <Grid item xs={12}>
+                            <strong>Driver:</strong> {location.driverName || 'N/A'}
+                          </Grid>
+                          {location.warehouse && (
+                            <Grid item xs={12}>
+                              <strong>From:</strong> {location.warehouse.name}
+                            </Grid>
+                          )}
+                          {location.dealer && (
+                            <Grid item xs={12}>
+                              <strong>To:</strong> {location.dealer.businessName || location.dealer.name}
+                            </Grid>
+                          )}
+
+                          <Grid item xs={12} style={{ marginTop: '12px' }}>
+                            <button
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handleTruckClick(location);
+                              }}
+                              style={{
+                                width: '100%',
+                                padding: '8px 16px',
+                                backgroundColor: isSelected ? '#666' : '#FF4081',
+                                color: 'white',
+                                border: 'none',
+                                borderRadius: '4px',
+                                cursor: 'pointer',
+                                fontWeight: 'bold',
+                                fontSize: '13px',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center',
+                                gap: '6px'
+                              }}
+                              onMouseOver={(e) => e.target.style.opacity = '0.9'}
+                              onMouseOut={(e) => e.target.style.opacity = '1'}
+                            >
+                              <FaRoad />
+                              {isSelected ? 'Hide Route' : 'Show Route'}
+                            </button>
+                          </Grid>
+                        </Grid>
+                      </div>
+                    </Popup>
+                  </DynamicMarker>
+                );
+              })}
+
+              {/* Dealer Markers */}
+              {showDealers && filteredLocations.map((location, index) => {
+                const dealer = location.dealer;
+                // Avoid rendering duplicates if possible, or let React handle it essentially by key
+                // Using assignmentId to differentiate even if same dealer
+                if (dealer?.lat && dealer?.lng) {
+                  return (
+                    <Marker
+                      key={`dealer-${location.assignmentId || index}`}
+                      position={[Number(dealer.lat), Number(dealer.lng)]}
+                      icon={createDealerIcon()}
+                    >
+                      <Popup>
+                        <div style={{ textAlign: 'center' }}>
+                          <strong>{dealer.businessName || dealer.name}</strong>
+                          <br />
+                          {dealer.city}, {dealer.state}
+                        </div>
+                      </Popup>
+                    </Marker>
+                  )
+                }
+                return null;
+              })}
+
+            </MapContainer>
+          </div>
+        </Card>
       )}
 
-      <Box sx={{ flex: 1 }}>
-        <MapContainer center={center} zoom={10} style={{ height: '100%', width: '100%' }}>
-          <FitBoundsOnce bounds={bounds} />
-          <MapRefSetter mapRef={mapRef} />
-          <TileLayer url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-          
+      {/* Truck List */}
+      <Card style={{ marginTop: '16px' }}>
+        <h3>Truck List</h3>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))', gap: '16px' }}>
           {filteredLocations.map((location, index) => {
-            const truck = location.truck || {};
-            const isSelected = selectedTruck?.assignmentId === (location.assignmentId || location.id);
+            const truck = location.truck;
             const metrics = getTruckMetrics(location);
-            if (!truck.lat || !truck.lng) return null;
-
             return (
-              <DynamicMarker key={location.assignmentId || index} position={[Number(truck.lat), Number(truck.lng)]} icon={createTruckIcon(location.status, isSelected)}>
-                <Popup minWidth={280}>
-                  <Box sx={{ p: 1 }}>
-                    <Box display="flex" alignItems="center" gap={2} mb={2}>
-                      <Avatar sx={{ bgcolor: 'primary.main' }}>{location.driverName?.charAt(0)}</Avatar>
-                      <Box>
-                        <Typography variant="subtitle1" fontWeight="bold">{truck.truckName}</Typography>
-                        <Chip label={location.status} size="small" color={getStatusColor(location.status)} />
-                      </Box>
-                    </Box>
-                    <Divider sx={{ mb: 2 }} />
-                    <Grid container spacing={2} mb={2}>
-                      <Grid item xs={6}><Typography variant="caption">Order</Typography><Typography variant="body2" fontWeight="bold">{location.orderNumber}</Typography></Grid>
-                      <Grid item xs={6}><Typography variant="caption">Driver</Typography><Typography variant="body2" fontWeight="bold">{location.driverName}</Typography></Grid>
-                      {metrics && <Grid item xs={12}><Typography variant="body2" color="primary">ETA: {metrics.eta} ({metrics.distance} km)</Typography></Grid>}
-                    </Grid>
-                    <Box display="flex" gap={1}>
-                       <Button fullWidth variant="contained" component="a" href={`tel:${location.driverPhone}`} startIcon={<FaPhone size={14} />}>Call</Button>
-                       <Button fullWidth variant="outlined" startIcon={<FaInfoCircle size={14} />}>Details</Button>
-                    </Box>
-                    <Box mt={1}>
-                       <Button fullWidth color="secondary" onClick={() => handleTruckClick(location)}>{isSelected ? 'Hide Route' : 'Show Route'}</Button>
-                    </Box>
-                  </Box>
-                </Popup>
-              </DynamicMarker>
+              <div
+                key={location.assignmentId || index}
+                style={{
+                  border: '1px solid #ddd',
+                  borderRadius: '8px',
+                  padding: '16px',
+                  backgroundColor: '#f9f9f9'
+                }}
+              >
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '8px' }}>
+                  <strong>{truck?.truckName || 'Unknown'}</strong>
+                  <Chip
+                    label={location.status?.replace('_', ' ')}
+                    color={getStatusColor(location.status)}
+                    size="small"
+                  />
+                </div>
+                <div style={{ fontSize: '14px', color: '#666' }}>
+                  {metrics && (
+                    <div style={{ display: 'flex', gap: '16px', marginBottom: '8px', fontWeight: 'bold', color: '#333' }}>
+                      <span><FaRoad /> {metrics.distance} km</span>
+                      <span><FaClock /> {metrics.eta}</span>
+                    </div>
+                  )}
+                  <div>License: {truck?.licenseNumber || 'N/A'}</div>
+                  <div>Driver: {location.driverName}</div>
+                  {truck?.lat && truck?.lng && (
+                    <div>
+                      Location: {truck.lat.toFixed(4)}, {truck.lng.toFixed(4)}
+                    </div>
+                  )}
+
+                  <button
+                    onClick={() => handleTruckClick(location)}
+                    style={{
+                      marginTop: '12px',
+                      width: '100%',
+                      padding: '8px 12px',
+                      backgroundColor: selectedTruck?.assignmentId === (location.assignmentId || location.id) ? '#666' : '#FF4081',
+                      color: 'white',
+                      border: 'none',
+                      borderRadius: '4px',
+                      cursor: 'pointer',
+                      fontWeight: 'bold',
+                      fontSize: '13px',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      gap: '6px'
+                    }}
+                  >
+                    <FaRoad />
+                    {selectedTruck?.assignmentId === (location.assignmentId || location.id) ? 'Hide Route' : 'Show Route'}
+                  </button>
+                </div>
+              </div>
             );
           })}
-          
-          {liveRoute && <Polyline positions={liveRoute} pathOptions={{ color: '#FF4081', weight: 6, className: 'live-route-animation' }} />}
-          {Object.entries(truckPaths).map(([id, path]) => <Polyline key={id} positions={path} color="#333" weight={2} opacity={0.3} dashArray="5, 10" />)}
-        </MapContainer>
-      </Box>
-    </Box>
+        </div>
+      </Card>
+    </div>
   );
 };
 
