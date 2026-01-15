@@ -38,6 +38,7 @@ import {
   Box,
   Tag,
   Phone,
+  Package,
 } from "lucide-react";
 
 import "./DashboardLayout.css";
