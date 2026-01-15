@@ -28,8 +28,8 @@ import {
 import {
   Download,
   Info,
-  ExpandMore,
-  ExpandLess,
+  ChevronDown,
+  ChevronUp,
   RefreshCw,
   Filter,
   ChevronRight,
@@ -459,7 +459,7 @@ export default function Reports() {
                     <Info size={18} color={theme.palette.info.main} />
                     <Typography variant="subtitle2" fontWeight="700">Governance Scope</Typography>
                   </Stack>
-                  {scopeExplanationOpen ? <ExpandLess size={18} /> : <ExpandMore size={18} />}
+                  {scopeExplanationOpen ? <ChevronUp size={18} /> : <ChevronDown size={18} />}
                 </Stack>
                 <Collapse in={scopeExplanationOpen}>
                   <Box sx={{ mt: 2 }}>
