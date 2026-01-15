@@ -336,7 +336,20 @@ export default function Reports() {
           </Box>
         );
       case "compliance": return <DynamicReportView title="Compliance Report" columns={[{ field: 'rule', headerName: 'Rule' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
-      case "rr-summary": return <DynamicReportView title="RR Summary" columns={[{ field: 'rrNo', headerName: 'RR #' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
+      case "rr-summary":
+        const rrData = useMemo(() => {
+          if (!data) return [];
+          if (data.receipts) {
+            return data.receipts.map(r => ({
+              ...r,
+              rrNo: r.rrNumber,
+              date: r.rrDate ? r.rrDate.split('T')[0] : r.rrDate,
+              status: r.status || 'Received' // Fallback if status missing
+            }));
+          }
+          return data;
+        }, [data]);
+        return <DynamicReportView title="RR Summary" columns={[{ field: 'rrNo', headerName: 'RR #' }, { field: 'date', headerName: 'Date' }, { field: 'status', headerName: 'Status' }]} {...commonProps} data={rrData} />;
       case "rake-arrival": return <DynamicReportView title="Rake Arrival" columns={[{ field: 'rakeId', headerName: 'Rake ID' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
       case "rake-data": return <DynamicReportView title="Rake Data" columns={[{ field: 'wagonNo', headerName: 'Wagon' }, { field: 'material', headerName: 'Material' }]} {...commonProps} />;
       case "rake-exception": return <DynamicReportView title="Exceptions" columns={[{ field: 'issue', headerName: 'Issue' }, { field: 'severity', headerName: 'Severity' }]} {...commonProps} />;
