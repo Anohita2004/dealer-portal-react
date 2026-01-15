@@ -285,8 +285,43 @@ export default function Reports() {
     }
   };
 
+  // Centralized Data Transformation to avoid Hook Rules Violation
+  const transformedData = useMemo(() => {
+    if (!data) return null;
+
+    // FI Daywise Transformation
+    if (reportType === "fi-daywise" && (data.invoices || data.payments)) {
+      const dates = new Set([
+        ...(data.invoices || []).map(i => i.date),
+        ...(data.payments || []).map(p => p.date)
+      ]);
+
+      return Array.from(dates).map(date => {
+        const inv = (data.invoices || []).find(i => i.date === date);
+        const pmt = (data.payments || []).find(p => p.date === date);
+        return {
+          date,
+          sales: inv ? inv.totalSales : 0,
+          collection: pmt ? pmt.totalCollection : 0
+        };
+      }).sort((a, b) => new Date(b.date) - new Date(a.date));
+    }
+
+    // RR Summary Transformation
+    if (reportType === "rr-summary" && data.receipts) {
+      return data.receipts.map(r => ({
+        ...r,
+        rrNo: r.rrNumber,
+        date: r.rrDate ? r.rrDate.split('T')[0] : r.rrDate,
+        status: r.status || 'Received'
+      }));
+    }
+
+    return data;
+  }, [data, reportType]);
+
   const renderCurrentReport = () => {
-    const commonProps = { data, loading, error, fetchReport, filters, role };
+    const commonProps = { data: transformedData, loading, error, fetchReport, filters, role };
     switch (reportType) {
       case "dealer-performance": return <DealerPerformance {...commonProps} />;
       case "account-statement": return <AccountStatement {...commonProps} />;
@@ -299,28 +334,7 @@ export default function Reports() {
       case "admin-summary": return <AdminSummary {...commonProps} />;
       case "le-register": return <DynamicReportView title="Le Register" columns={[{ field: 'date', headerName: 'Date' }, { field: 'desc', headerName: 'Description' }, { field: 'amount', headerName: 'Amount' }]} {...commonProps} />;
       case "fi-daywise":
-        const fiData = useMemo(() => {
-          if (!data) return [];
-          // Handle valid API response with invoices/payments arrays
-          if (data.invoices || data.payments) {
-            const dates = new Set([
-              ...(data.invoices || []).map(i => i.date),
-              ...(data.payments || []).map(p => p.date)
-            ]);
-
-            return Array.from(dates).map(date => {
-              const inv = (data.invoices || []).find(i => i.date === date);
-              const pmt = (data.payments || []).find(p => p.date === date);
-              return {
-                date,
-                sales: inv ? inv.totalSales : 0,
-                collection: pmt ? pmt.totalCollection : 0
-              };
-            }).sort((a, b) => new Date(b.date) - new Date(a.date));
-          }
-          return data;
-        }, [data]);
-        return <DynamicReportView title="FI Daywise Report" columns={[{ field: 'date', headerName: 'Date' }, { field: 'sales', headerName: 'Sales' }, { field: 'collection', headerName: 'Collection' }]} {...commonProps} data={fiData} />;
+        return <DynamicReportView title="FI Daywise Report" columns={[{ field: 'date', headerName: 'Date' }, { field: 'sales', headerName: 'Sales' }, { field: 'collection', headerName: 'Collection' }]} {...commonProps} />;
       case "drcr-note": return <DynamicReportView title="DR/CR Note Register" columns={[{ field: 'noteNo', headerName: 'Note #' }, { field: 'date', headerName: 'Date' }, { field: 'amount', headerName: 'Amount' }]} {...commonProps} />;
       case "sales-register": return <DynamicReportView title="Sales Register" columns={[{ field: 'invNo', headerName: 'Inv #' }, { field: 'date', headerName: 'Date' }, { field: 'amount', headerName: 'Amount' }]} {...commonProps} />;
       case "collection": return <DynamicReportView title="Collection Report" columns={[{ field: 'receiptNo', headerName: 'Receipt #' }, { field: 'date', headerName: 'Date' }, { field: 'amount', headerName: 'Amount' }]} {...commonProps} />;
@@ -337,19 +351,7 @@ export default function Reports() {
         );
       case "compliance": return <DynamicReportView title="Compliance Report" columns={[{ field: 'rule', headerName: 'Rule' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
       case "rr-summary":
-        const rrData = useMemo(() => {
-          if (!data) return [];
-          if (data.receipts) {
-            return data.receipts.map(r => ({
-              ...r,
-              rrNo: r.rrNumber,
-              date: r.rrDate ? r.rrDate.split('T')[0] : r.rrDate,
-              status: r.status || 'Received' // Fallback if status missing
-            }));
-          }
-          return data;
-        }, [data]);
-        return <DynamicReportView title="RR Summary" columns={[{ field: 'rrNo', headerName: 'RR #' }, { field: 'date', headerName: 'Date' }, { field: 'status', headerName: 'Status' }]} {...commonProps} data={rrData} />;
+        return <DynamicReportView title="RR Summary" columns={[{ field: 'rrNo', headerName: 'RR #' }, { field: 'date', headerName: 'Date' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
       case "rake-arrival": return <DynamicReportView title="Rake Arrival" columns={[{ field: 'rakeId', headerName: 'Rake ID' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
       case "rake-data": return <DynamicReportView title="Rake Data" columns={[{ field: 'wagonNo', headerName: 'Wagon' }, { field: 'material', headerName: 'Material' }]} {...commonProps} />;
       case "rake-exception": return <DynamicReportView title="Exceptions" columns={[{ field: 'issue', headerName: 'Issue' }, { field: 'severity', headerName: 'Severity' }]} {...commonProps} />;
