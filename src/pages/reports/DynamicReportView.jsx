@@ -43,12 +43,15 @@ export default function DynamicReportView({
 
     const rows = useMemo(() => {
         if (!data) return [];
-        const rawRows = Array.isArray(data.data)
-            ? data.data
-            : Array.isArray(data)
-                ? data
-                : data.items || [];
-        return rawRows;
+        let rawRows = [];
+        if (Array.isArray(data)) {
+            rawRows = data;
+        } else if (data && Array.isArray(data.data)) {
+            rawRows = data.data;
+        } else if (data && Array.isArray(data.items)) {
+            rawRows = data.items;
+        }
+        return Array.isArray(rawRows) ? rawRows : [];
     }, [data]);
 
     const handleSort = (property) => {
