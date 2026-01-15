@@ -1,5 +1,4 @@
-// src/pages/reports/Reports.jsx
-import React, { useState, useEffect, useContext } from "react";
+import React, { useState, useEffect, useContext, useMemo } from "react";
 import { Box, Typography, Button, Chip, Alert, Card, CardContent, Collapse, IconButton, Stack } from "@mui/material";
 import { Download, Info, ExpandMore, ExpandLess, Refresh as RefreshIcon, Filter } from "@mui/icons-material";
 import { AuthContext } from "../context/AuthContext";
@@ -67,17 +66,41 @@ const REPORT_OPTIONS_BY_ROLE = {
     { value: "pending-approvals", label: "Pending Approvals" },
     ...NEW_REPORT_OPTIONS
   ],
+  regional_admin: [
+    { value: "regional-sales-summary", label: "Regional Sales Summary" },
+    { value: "territory", label: "Territory Summary" },
+    ...NEW_REPORT_OPTIONS.filter(r => r.category === "Finance" || r.category === "Inventory")
+  ],
   finance_admin: [
     { value: "account-statement", label: "Account Statement" },
     { value: "invoice-register", label: "Invoice Register" },
     { value: "credit-debit-notes", label: "Credit / Debit Notes" },
     ...NEW_REPORT_OPTIONS.filter(r => r.category === "Finance")
   ],
+  accounts_user: [
+    { value: "account-statement", label: "Account Statement" },
+    { value: "invoice-register", label: "Invoice Register" },
+    ...NEW_REPORT_OPTIONS.filter(r => r.category === "Finance")
+  ],
+  regional_manager: [
+    { value: "regional-sales-summary", label: "Regional Sales Summary" },
+    ...NEW_REPORT_OPTIONS.filter(r => r.category === "Rake")
+  ],
   regional_head: [
     ...NEW_REPORT_OPTIONS.filter(r => r.category === "Rake")
   ],
   cfa: [
     ...NEW_REPORT_OPTIONS.filter(r => r.category === "Rake")
+  ],
+  technical_admin: [
+    ...NEW_REPORT_OPTIONS.filter(r => r.category === "Technical")
+  ],
+  area_manager: [
+    { value: "territory", label: "Territory Summary" },
+    ...NEW_REPORT_OPTIONS.filter(r => r.category === "Inventory")
+  ],
+  territory_manager: [
+    ...NEW_REPORT_OPTIONS.filter(r => r.category === "Inventory")
   ]
 };
 

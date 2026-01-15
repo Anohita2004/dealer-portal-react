@@ -43,11 +43,11 @@ const ReportsOverview = () => {
             description: "Financial tracking and ledger records",
             roles: ['super_admin', 'regional_admin', 'finance_admin', 'accounts_user', 'dealer_admin'],
             reports: [
-                { id: 'le-register', label: 'Le Register', path: '/reports/finance/le-register', hideOnMonthEnd: true },
-                { id: 'fi-daywise', label: 'FI Daywise Report', path: '/reports/finance/fi-daywise' },
-                { id: 'drcr-note', label: 'DR/CR Note Register', path: '/reports/finance/drcr-note' },
-                { id: 'sales-register', label: 'Sales Register', path: '/reports/finance/sales-register', hideOnMonthEnd: true },
-                { id: 'collection', label: 'Collection Report', path: '/reports/finance/collection' },
+                { id: 'le-register', label: 'Le Register', path: '/reports?type=le-register', hideOnMonthEnd: true },
+                { id: 'fi-daywise', label: 'FI Daywise Report', path: '/reports?type=fi-daywise' },
+                { id: 'drcr-note', label: 'DR/CR Note Register', path: '/reports?type=drcr-note' },
+                { id: 'sales-register', label: 'Sales Register', path: '/reports?type=sales-register', hideOnMonthEnd: true },
+                { id: 'collection', label: 'Collection Report', path: '/reports?type=collection' },
                 { id: 'ageing', label: 'Ageing Report', path: 'https://sap-external.example.com/ageing', isExternal: true },
             ]
         },
@@ -57,10 +57,10 @@ const ReportsOverview = () => {
             description: "Manage depot stocks and compliance",
             roles: ['super_admin', 'regional_admin', 'inventory_user', 'dealer_admin'],
             reports: [
-                { id: 'stock-overview', label: 'Stock Overview', path: '/reports/inventory/stock-overview' },
-                { id: 'comparative', label: 'Comparative Report', path: '/reports/inventory/comparative' },
-                { id: 'compliance', label: 'Compliance Report', path: '/reports/inventory/compliance' },
-                { id: 'rr-summary', label: 'RR Summary Report', path: '/reports/inventory/rr-summary' },
+                { id: 'stock-overview', label: 'Stock Overview', path: '/reports?type=stock-overview' },
+                { id: 'comparative', label: 'Comparative Report', path: '/reports?type=comparative' },
+                { id: 'compliance', label: 'Compliance Report', path: '/reports?type=compliance' },
+                { id: 'rr-summary', label: 'RR Summary Report', path: '/reports?type=rr-summary' },
             ]
         },
         {
@@ -69,10 +69,10 @@ const ReportsOverview = () => {
             description: "Track rail shipments and damage",
             roles: ['super_admin', 'regional_manager', 'regional_head', 'cfa'],
             reports: [
-                { id: 'rake-arrival', label: 'Rake Arrival Report', path: '/reports/rake/arrival' },
-                { id: 'rake-data', label: 'Rake Arrival Data', path: '/reports/rake/data' },
-                { id: 'rake-exception', label: 'Consolidated Exception', path: '/reports/rake/exception' },
-                { id: 'rake-approval', label: 'Rake Report Approval', path: '/reports/rake/approval' },
+                { id: 'rake-arrival', label: 'Rake Arrival Report', path: '/reports?type=rake-arrival' },
+                { id: 'rake-data', label: 'Rake Arrival Data', path: '/reports?type=rake-data' },
+                { id: 'rake-exception', label: 'Consolidated Exception', path: '/reports?type=rake-exception' },
+                { id: 'rake-approval', label: 'Rake Report Approval', path: '/reports?type=rake-approval' },
             ]
         },
         {
@@ -81,8 +81,8 @@ const ReportsOverview = () => {
             description: "System data and diversion tracking",
             roles: ['super_admin', 'technical_admin'],
             reports: [
-                { id: 'diversion', label: 'Diversion Report', path: '/reports/diversion' },
-                { id: 'dms-request', label: 'DMS Order Request', path: '/reports/dms-requests' },
+                { id: 'diversion', label: 'Diversion Report', path: '/reports?type=diversion' },
+                { id: 'dms-request', label: 'DMS Order Request', path: '/reports?type=dms-request' },
             ]
         }
     ];

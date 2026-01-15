@@ -313,6 +313,14 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="reports"
+                element={
+                  <ProtectedRoute>
+                    <Reports />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* ================= UNAUTHORIZED ================= */}
               <Route
