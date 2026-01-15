@@ -298,7 +298,29 @@ export default function Reports() {
       case "pending-approvals": return <PendingApprovals {...commonProps} />;
       case "admin-summary": return <AdminSummary {...commonProps} />;
       case "le-register": return <DynamicReportView title="Le Register" columns={[{ field: 'date', headerName: 'Date' }, { field: 'desc', headerName: 'Description' }, { field: 'amount', headerName: 'Amount' }]} {...commonProps} />;
-      case "fi-daywise": return <DynamicReportView title="FI Daywise Report" columns={[{ field: 'date', headerName: 'Date' }, { field: 'sales', headerName: 'Sales' }, { field: 'collection', headerName: 'Collection' }]} {...commonProps} />;
+      case "fi-daywise":
+        const fiData = useMemo(() => {
+          if (!data) return [];
+          // Handle valid API response with invoices/payments arrays
+          if (data.invoices || data.payments) {
+            const dates = new Set([
+              ...(data.invoices || []).map(i => i.date),
+              ...(data.payments || []).map(p => p.date)
+            ]);
+
+            return Array.from(dates).map(date => {
+              const inv = (data.invoices || []).find(i => i.date === date);
+              const pmt = (data.payments || []).find(p => p.date === date);
+              return {
+                date,
+                sales: inv ? inv.totalSales : 0,
+                collection: pmt ? pmt.totalCollection : 0
+              };
+            }).sort((a, b) => new Date(b.date) - new Date(a.date));
+          }
+          return data;
+        }, [data]);
+        return <DynamicReportView title="FI Daywise Report" columns={[{ field: 'date', headerName: 'Date' }, { field: 'sales', headerName: 'Sales' }, { field: 'collection', headerName: 'Collection' }]} {...commonProps} data={fiData} />;
       case "drcr-note": return <DynamicReportView title="DR/CR Note Register" columns={[{ field: 'noteNo', headerName: 'Note #' }, { field: 'date', headerName: 'Date' }, { field: 'amount', headerName: 'Amount' }]} {...commonProps} />;
       case "sales-register": return <DynamicReportView title="Sales Register" columns={[{ field: 'invNo', headerName: 'Inv #' }, { field: 'date', headerName: 'Date' }, { field: 'amount', headerName: 'Amount' }]} {...commonProps} />;
       case "collection": return <DynamicReportView title="Collection Report" columns={[{ field: 'receiptNo', headerName: 'Receipt #' }, { field: 'date', headerName: 'Date' }, { field: 'amount', headerName: 'Amount' }]} {...commonProps} />;
