@@ -317,6 +317,14 @@ export default function Reports() {
       }));
     }
 
+    // Stock Overview Transformation
+    if (reportType === "stock-overview" && data.inventory) {
+      return data.inventory.map(item => ({
+        ...item,
+        material: item.name || item.materialNumber // Map name to material column
+      }));
+    }
+
     return data;
   }, [data, reportType]);
 
