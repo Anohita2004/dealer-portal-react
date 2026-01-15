@@ -27,6 +27,7 @@ const PlantInventory = React.lazy(() => import("./pages/inventory/PlantInventory
 const InventoryReports = React.lazy(() => import("./pages/inventory/InventoryReports"));
 const AccountsDashboard = React.lazy(() => import("./pages/dashboards/AccountsDashboard"));
 const GoodsReceived = React.lazy(() => import("./pages/inventory/GoodsReceived"));
+const ReportsOverview = React.lazy(() => import("./pages/reports/ReportsOverview"));
 
 // 📄 Common Pages
 import Invoices from "./pages/Invoices";
@@ -301,6 +302,14 @@ export default function App() {
                 element={
                   <ProtectedRoute>
                     <Notifications />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="reports/overview"
+                element={
+                  <ProtectedRoute>
+                    <ReportsOverview />
                   </ProtectedRoute>
                 }
               />

@@ -65,6 +65,8 @@ export default function Sidebar() {
       { label: "All Dealers", path: "/superadmin/dealers", icon: <FaUsers />, section: "Global Visibility" },
       { label: "Documents", path: "/documents", icon: <FaFileAlt />, section: "Global Visibility" },
       { label: "Campaign Management", path: "/campaigns", icon: <FaBullhorn />, section: "Global Visibility" },
+      { label: "Overview Dashboard", path: "/dashboard/super", icon: <FaHome />, section: "Dashboard" },
+      { label: "Reports Hub", path: "/reports/overview", icon: <FaChartBar />, section: "Analytics & Reports" },
       { label: "Global Reports", path: "/superadmin/reports", icon: <FaChartBar />, section: "Analytics & Reports" },
       { label: "Region Performance", path: "/superadmin/region-reports", icon: <FaChartBar />, section: "Analytics & Reports" },
       { label: "Global Maps", path: "/map-view", icon: <FaFire />, section: "Analytics & Reports" },
@@ -101,6 +103,7 @@ export default function Sidebar() {
       { label: "Campaign Approvals", path: "/regional/campaign-approvals", icon: <FaClipboardList />, section: "Workflows" },
       { label: "Regional Campaigns", path: "/regional/campaigns", icon: <FaBullhorn />, section: "Campaigns" },
       { label: "Campaign Analytics", path: "/regional/campaigns/analytics", icon: <FaChartBar />, section: "Campaigns" },
+      { label: "Reports Hub", path: "/reports/overview", icon: <FaChartBar />, section: "Reports" },
       { label: "Regional Reports", path: "/regional/reports", icon: <FaChartBar />, section: "Reports" },
       { label: "Territory Performance", path: "/regional/reports/territory", icon: <FaChartBar />, section: "Reports" },
       { label: "Dealer Performance", path: "/regional/reports/dealer", icon: <FaChartBar />, section: "Reports" },
@@ -188,6 +191,7 @@ export default function Sidebar() {
       { label: "Payment Approvals", path: "/payments/finance/pending", icon: <FaMoneyCheckAlt />, section: "Financial Operations" },
       { label: "All Invoices", path: "/invoices", icon: <FaFileInvoice />, section: "Financial Operations" },
       { label: "Reconciliation", path: "/accounts/invoices", icon: <FaClipboardList />, section: "Financial Operations" },
+      { label: "Reports Hub", path: "/reports/overview", icon: <FaChartBar />, section: "Reports" },
       { label: "Financial Reports", path: "/accounts/reports", icon: <FaChartBar />, section: "Reports" },
     ],
     accounts_user: [
@@ -195,6 +199,7 @@ export default function Sidebar() {
       { label: "Payment Approvals", path: "/payments/finance/pending", icon: <FaMoneyCheckAlt />, section: "Financial Operations" },
       { label: "All Payments", path: "/payments/my", icon: <FaMoneyCheckAlt />, section: "Financial Operations" },
       { label: "Invoices", path: "/accounts/invoices", icon: <FaFileInvoice />, section: "Financial Operations" },
+      { label: "Reports Hub", path: "/reports/overview", icon: <FaChartBar />, section: "Reports" },
       { label: "Financial Reports", path: "/accounts/reports", icon: <FaChartBar />, section: "Reports" },
     ],
     inventory_user: [
@@ -203,6 +208,7 @@ export default function Sidebar() {
       { label: "Stock Alerts", path: "/inventory/alerts", icon: <FaExclamationTriangle />, section: "Inventory Management" },
       { label: "Materials Management", path: "/materials", icon: <FaBoxes />, section: "Inventory Management" },
       { label: "Warehouse Inventory", path: "/inventory/plants", icon: <FaWarehouse />, section: "Inventory Management" },
+      { label: "Reports Hub", path: "/reports/overview", icon: <FaChartBar />, section: "Reports & Analytics" },
       { label: "Inventory Reports", path: "/inventory/reports", icon: <FaChartBar />, section: "Reports & Analytics" },
     ],
     sales_executive: [
@@ -211,6 +217,16 @@ export default function Sidebar() {
       { label: "Create Order", path: "/sales/orders/new", icon: <FaFileAlt />, section: "Sales" },
       { label: "Pending Approvals", path: "/approvals", icon: <FaClipboardList />, section: "Sales" },
       { label: "Create Payment Request", path: "/sales/payments/new", icon: <FaMoneyCheckAlt />, section: "Sales" },
+    ],
+    regional_head: [
+      { label: "Regional Dashboard", path: "/dashboard/regional", icon: <FaHome />, section: "Dashboard" },
+      { label: "Reports Hub", path: "/reports/overview", icon: <FaChartBar />, section: "Logistics & Analytics" },
+      { label: "Rake Arrival Report", path: "/reports/rake/arrival", icon: <FaTruck />, section: "Logistics & Analytics" },
+    ],
+    cfa: [
+      { label: "Depot Dashboard", path: "/dashboard", icon: <FaHome />, section: "Dashboard" },
+      { label: "Reports Hub", path: "/reports/overview", icon: <FaChartBar />, section: "Logistics & Analytics" },
+      { label: "Rake Arrival Data", path: "/reports/rake/data", icon: <FaTruck />, section: "Logistics & Analytics" },
     ],
   };
 

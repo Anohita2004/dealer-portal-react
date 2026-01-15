@@ -896,6 +896,29 @@ export const reportAPI = {
       responseType: "blob"
     }).then((r) => r.data),
 
+  // Financial Reports
+  getLERegister: (params) => api.get("/reports/finance/le-register", { params }).then((r) => r.data),
+  getFIDaywise: (params) => api.get("/reports/finance/fi-daywise", { params }).then((r) => r.data),
+  getDRCRNoteRegister: (params) => api.get("/reports/finance/drcr-note", { params }).then((r) => r.data),
+  getSalesRegister: (params) => api.get("/reports/finance/sales-register", { params }).then((r) => r.data),
+  getCollectionReport: (params) => api.get("/reports/finance/collection", { params }).then((r) => r.data),
+
+  // Inventory & Stock Reports
+  getStockOverview: (params) => api.get("/reports/inventory/stock-overview", { params }).then((r) => r.data),
+  getComparativeReport: (params) => api.get("/reports/inventory/comparative", { params }).then((r) => r.data),
+  getComplianceReport: (params) => api.get("/reports/inventory/compliance", { params }).then((r) => r.data),
+  getRRSummary: (params) => api.get("/reports/inventory/rr-summary", { params }).then((r) => r.data),
+
+  // Rake & Logistics Reports
+  getRakeArrivalReport: (params) => api.get("/reports/rake/arrival", { params }).then((r) => r.data),
+  getRakeArrivalData: (params) => api.get("/reports/rake/data", { params }).then((r) => r.data),
+  getConsolidatedException: (params) => api.get("/reports/rake/exception", { params }).then((r) => r.data),
+  getRakeApproval: (params) => api.get("/reports/rake/approval", { params }).then((r) => r.data),
+
+  // Technical & Data Management
+  getDiversionReport: (params) => api.get("/reports/diversion", { params }).then((r) => r.data),
+  getDMSOrderRequests: (params) => api.get("/reports/dms-requests", { params }).then((r) => r.data),
+
   // Role-specific dashboard data
   getRoleDashboardData: (role) =>
     api.get(`/reports/${role}/dashboard-data`).then((r) => r.data),
