@@ -325,6 +325,16 @@ export default function Reports() {
       }));
     }
 
+    // Compliance/Expiry Transformation
+    if (reportType === "compliance" && (data.expringSoon || data.expiringSoon)) {
+      return (data.expringSoon || data.expiringSoon).map(item => ({
+        ...item,
+        material: item.name,
+        code: item.materialNumber,
+        expiry: item.expiryDate ? item.expiryDate.split('T')[0] : 'N/A'
+      }));
+    }
+
     return data;
   }, [data, reportType]);
 
@@ -357,7 +367,7 @@ export default function Reports() {
             </Paper>}
           </Box>
         );
-      case "compliance": return <DynamicReportView title="Compliance Report" columns={[{ field: 'rule', headerName: 'Rule' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
+      case "compliance": return <DynamicReportView title="Expiry / Compliance Report" columns={[{ field: 'material', headerName: 'Material' }, { field: 'code', headerName: 'Code' }, { field: 'expiry', headerName: 'Expiry Date' }]} {...commonProps} />;
       case "rr-summary":
         return <DynamicReportView title="RR Summary" columns={[{ field: 'rrNo', headerName: 'RR #' }, { field: 'date', headerName: 'Date' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
       case "rake-arrival": return <DynamicReportView title="Rake Arrival" columns={[{ field: 'rakeId', headerName: 'Rake ID' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
