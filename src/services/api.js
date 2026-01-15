@@ -1277,5 +1277,27 @@ export const trackingAPI = {
     api.get(`/tracking/truck/${truckId}/history`, { params }).then((r) => r.data),
 };
 
+export const barcodeAPI = {
+  scan: (barcode) =>
+    api.post("/barcodes/scan", { barcode }).then((r) => r.data),
+
+  getHistory: (params) =>
+    api.get("/barcodes/history", { params }).then((r) => r.data),
+};
+
+export const goodsReceiptAPI = {
+  getPending: (params) =>
+    api.get("/goods-receipt/pending", { params }).then((r) => r.data),
+
+  getById: (id) =>
+    api.get(`/goods-receipt/${id}`).then((r) => r.data),
+
+  postReceipt: (payload) =>
+    api.post("/goods-receipt/post", payload).then((r) => r.data),
+
+  getSummary: () =>
+    api.get("/goods-receipt/summary").then((r) => r.data),
+};
+
 // Default export
 export default api;

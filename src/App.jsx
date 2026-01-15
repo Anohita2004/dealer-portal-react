@@ -26,6 +26,7 @@ const InventoryStockAlerts = React.lazy(() => import("./pages/inventory/StockAle
 const PlantInventory = React.lazy(() => import("./pages/inventory/PlantInventory"));
 const InventoryReports = React.lazy(() => import("./pages/inventory/InventoryReports"));
 const AccountsDashboard = React.lazy(() => import("./pages/dashboards/AccountsDashboard"));
+const GoodsReceived = React.lazy(() => import("./pages/inventory/GoodsReceived"));
 
 // 📄 Common Pages
 import Invoices from "./pages/Invoices";
@@ -319,6 +320,14 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="inventory/goods-received"
+                element={
+                  <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
+                    <GoodsReceived />
+                  </ProtectedRoute>
+                }
+              />
 
               {/* ================= MANAGER PAGES ================= */}
               <Route
@@ -414,7 +423,7 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-              
+
               {/* Fleet Management Routes */}
               <Route
                 path="fleet"
@@ -1402,14 +1411,14 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
-                  <Route
-                    path="orders/tracking-map"
-                    element={
-                      <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
-                        <DealerOrdersTrackingMap />
-                      </ProtectedRoute>
-                    }
-                  />
+              <Route
+                path="orders/tracking-map"
+                element={
+                  <ProtectedRoute allowed={["dealer_admin", "dealer_staff"]}>
+                    <DealerOrdersTrackingMap />
+                  </ProtectedRoute>
+                }
+              />
               <Route
                 path="payments/create/:invoiceId"
                 element={

@@ -60,6 +60,7 @@ export default function DealerDashboard() {
   const [pricingStats, setPricingStats] = useState([]);
   const [showPriceModal, setShowPriceModal] = useState(false);
   const [duePayments, setDuePayments] = useState([]);
+  const [pendingGoodsReceipts, setPendingGoodsReceipts] = useState([]);
 
   // Use design system colors
   const COLORS = ["var(--color-primary)", "var(--color-primary-dark)", "#2563EB", "#1E40AF", "var(--color-primary-soft)"];
@@ -84,6 +85,7 @@ export default function DealerDashboard() {
           trendRes,
           inventoryRes,
           duePaymentsRes,
+          goodsReceiptRes,
         ] = await Promise.allSettled([
           dashboardAPI.getDealerDashboard(params).catch(() => ({})),
           dashboardAPI.getDealerDashboard(prevParams).catch(() => ({})),
@@ -119,13 +121,14 @@ export default function DealerDashboard() {
             }
             return { data: [] };
           }),
+          api.get("/goods-receipt/pending").catch(() => ({ data: [] })),
         ]);
 
         if (!mounted) return;
 
         const summary = summaryRes.status === 'fulfilled' ? summaryRes.value : {};
         const prevSummary = prevSummaryRes.status === 'fulfilled' ? prevSummaryRes.value : {};
-        
+
         setSummary(summary || {});
         setPreviousSummary(prevSummary || {});
         setInvoices(invoiceRes.status === 'fulfilled' ? (invoiceRes.value.data?.invoices || invoiceRes.value.invoices || invoiceRes.value || []) : []);
@@ -136,6 +139,7 @@ export default function DealerDashboard() {
         setTrend(formatTrendData(trendRes.status === 'fulfilled' ? (trendRes.value.trend || trendRes.value.data?.trend || []) : []));
         setInventory(inventoryRes.status === 'fulfilled' ? (inventoryRes.value.data?.inventory || inventoryRes.value.inventory || inventoryRes.value || []) : []);
         setDuePayments(duePaymentsRes.status === 'fulfilled' ? (duePaymentsRes.value.data || duePaymentsRes.value || []) : []);
+        setPendingGoodsReceipts(goodsReceiptRes?.status === 'fulfilled' ? (goodsReceiptRes.value.data || goodsReceiptRes.value.shipments || goodsReceiptRes.value || []) : []);
 
         const pb = summary?.pricingBreakdown;
         if (pb) {
@@ -386,6 +390,16 @@ export default function DealerDashboard() {
           scope="Active"
           accent="var(--color-primary-dark)"
         />
+        <StatCard
+          title="Pending Receipts"
+          value={pendingGoodsReceipts?.length || 0}
+          icon={<Package />}
+          scope="Inventory"
+          accent="var(--color-success)"
+          urgent={pendingGoodsReceipts?.length > 0}
+          onClick={() => navigate("/inventory/goods-received")}
+          style={{ cursor: "pointer" }}
+        />
       </div>
 
       {/* MAIN GRID */}
@@ -419,11 +433,11 @@ export default function DealerDashboard() {
                       <td>₹{Number(p.amount || 0).toLocaleString()}</td>
                       <td>{p.dueDate ? new Date(p.dueDate).toLocaleDateString() : "-"}</td>
                       <td className={
-                        p.isOverdue 
-                          ? "status-overdue" 
-                          : p.status === "overdue" 
+                        p.isOverdue
                           ? "status-overdue"
-                          : "status-pending"
+                          : p.status === "overdue"
+                            ? "status-overdue"
+                            : "status-pending"
                       }>
                         {/* Backend enum: paid, unpaid, partial, overdue */}
                         {p.isOverdue || p.status === "overdue" ? "Overdue" : p.status === "partial" ? "Partial" : "Due Soon"}
@@ -453,23 +467,23 @@ export default function DealerDashboard() {
                   {orders.slice(0, 6).map((o) => {
                     const orderStatus = o.status;
                     const assignmentStatus = o.truckAssignment?.status;
-                    const canTrackOrder = 
-                      orderStatus === 'Shipped' || 
-                      assignmentStatus === 'in_transit' || 
+                    const canTrackOrder =
+                      orderStatus === 'Shipped' ||
+                      assignmentStatus === 'in_transit' ||
                       assignmentStatus === 'picked_up' ||
                       assignmentStatus === 'assigned';
-                    
+
                     return (
                       <tr key={o.id}>
                         <td>{o.orderNumber || o.id}</td>
                         <td>{o.createdAt ? new Date(o.createdAt).toLocaleDateString() : "-"}</td>
                         <td>{Number(o.totalAmount || 0).toLocaleString()}</td>
                         <td className={
-                          (o.status || o.approvalStatus || "").toLowerCase() === "approved" 
-                            ? "status-approved" 
+                          (o.status || o.approvalStatus || "").toLowerCase() === "approved"
+                            ? "status-approved"
                             : (o.status || o.approvalStatus || "").toLowerCase() === "rejected"
-                            ? "status-rejected"
-                            : "status-pending"
+                              ? "status-rejected"
+                              : "status-pending"
                         }>
                           {/* Backend enum: pending, approved, rejected */}
                           {(o.status || o.approvalStatus || "pending").toLowerCase()}
@@ -515,13 +529,13 @@ export default function DealerDashboard() {
                       <td>{i.invoiceDate ? new Date(i.invoiceDate).toLocaleDateString() : "-"}</td>
                       <td>{Number(i.totalAmount || 0).toLocaleString()}</td>
                       <td className={
-                        (i.status || "").toLowerCase() === "paid" 
-                          ? "status-approved" 
+                        (i.status || "").toLowerCase() === "paid"
+                          ? "status-approved"
                           : (i.status || "").toLowerCase() === "overdue"
-                          ? "status-overdue"
-                          : (i.status || "").toLowerCase() === "partial"
-                          ? "status-partial"
-                          : "status-pending"
+                            ? "status-overdue"
+                            : (i.status || "").toLowerCase() === "partial"
+                              ? "status-partial"
+                              : "status-pending"
                       }>
                         {/* Backend enum: paid, unpaid, partial, overdue */}
                         {(i.status || "unpaid").toLowerCase()}

@@ -5,6 +5,7 @@ import { Outlet, useLocation } from "react-router-dom";
 import { Box } from "@mui/material";
 import { AnimatePresence } from "framer-motion";
 import PageTransition from "./PageTransition";
+import BarcodeCaptureWidget from "./BarcodeCaptureWidget";
 
 export default function Layout() {
   const location = useLocation();
@@ -20,6 +21,7 @@ export default function Layout() {
     >
       {/* Sidebar */}
       <Sidebar />
+      <BarcodeCaptureWidget />
 
       {/* Main section (Navbar + dashboard content) */}
       <Box
