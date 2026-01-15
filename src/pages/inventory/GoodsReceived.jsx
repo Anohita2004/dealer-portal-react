@@ -59,8 +59,9 @@ const GoodsReceived = () => {
     const fetchPendingShipments = async () => {
         setLoading(true);
         try {
-            const data = await goodsReceiptAPI.getPending();
-            setPendingShipments(Array.isArray(data) ? data : data.shipments || []);
+            const res = await goodsReceiptAPI.getPending();
+            const shipments = Array.isArray(res) ? res : (res.data || res.shipments || []);
+            setPendingShipments(shipments);
         } catch (err) {
             console.error(err);
             toast.error("Failed to load pending shipments");
@@ -75,7 +76,7 @@ const GoodsReceived = () => {
         const items = (shipment.items || []).map(item => ({
             materialId: item.materialId,
             materialName: item.materialName || item.material?.name || 'Unknown Item',
-            expectedQty: item.shippedQty || item.quantity || 0,
+            expectedQty: item.qty || item.shippedQty || item.quantity || 0,
             receivedQty: 0,
             barcode: item.barcode || item.material?.barcode
         }));

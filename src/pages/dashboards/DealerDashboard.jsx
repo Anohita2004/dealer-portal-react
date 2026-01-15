@@ -139,8 +139,11 @@ export default function DealerDashboard() {
         setDocuments(docRes.status === 'fulfilled' ? (docRes.value.data?.documents || docRes.value.documents || docRes.value || []) : []);
         setTrend(formatTrendData(trendRes.status === 'fulfilled' ? (trendRes.value.trend || trendRes.value.data?.trend || []) : []));
         setInventory(inventoryRes.status === 'fulfilled' ? (inventoryRes.value.data?.inventory || inventoryRes.value.inventory || inventoryRes.value || []) : []);
-        setDuePayments(duePaymentsRes.status === 'fulfilled' ? (duePaymentsRes.value.data || duePaymentsRes.value || []) : []);
-        setPendingGoodsReceipts(goodsReceiptRes?.status === 'fulfilled' ? (goodsReceiptRes.value.data || goodsReceiptRes.value.shipments || goodsReceiptRes.value || []) : []);
+        const dueData = duePaymentsRes.status === 'fulfilled' ? duePaymentsRes.value.data : null;
+        setDuePayments(Array.isArray(dueData) ? dueData : (dueData?.data || []));
+        const grData = goodsReceiptRes?.status === 'fulfilled' ? goodsReceiptRes.value.data : null;
+        const grArray = Array.isArray(grData) ? grData : (grData?.data || grData?.shipments || []);
+        setPendingGoodsReceipts(grArray);
 
         const pb = summary?.pricingBreakdown;
         if (pb) {
