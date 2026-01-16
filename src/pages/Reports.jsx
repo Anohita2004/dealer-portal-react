@@ -79,11 +79,11 @@ const NEW_REPORT_OPTIONS = [
   // Rake
   { value: "rake-arrival", label: "Rake Arrival Report", category: "Rake" },
   { value: "rake-data", label: "Rake Arrival Data", category: "Rake" },
-  { value: "rake-exception", label: "Consolidated Exception", category: "Rake" },
+  { value: "rake-exception", label: "Consolidated Exception", category: "Rake", isNew: true },
   { value: "rake-approval", label: "Rake Report Approval", category: "Rake" },
   // Technical
-  { value: "diversion", label: "Diversion Report", category: "Technical" },
-  { value: "dms-request", label: "DMS Order Request Log", category: "Technical" },
+  { value: "diversion", label: "Diversion Report", category: "Technical", isNew: true },
+  { value: "dms-request", label: "DMS Order Request Log", category: "Technical", isNew: true },
 ];
 
 const REPORT_OPTIONS_BY_ROLE = {
@@ -546,7 +546,12 @@ export default function Reports() {
                         <FileText size={16} />
                       </ListItemIcon>
                       <ListItemText
-                        primary={r.label}
+                        primary={
+                          <Box display="flex" alignItems="center" justifyContent="space-between">
+                            <span>{r.label}</span>
+                            {r.isNew && <Chip label="NEW" size="small" sx={{ height: 16, fontSize: '0.5rem', fontWeight: 800, bgcolor: theme.palette.primary.main, color: 'white', ml: 1 }} />}
+                          </Box>
+                        }
                         primaryTypographyProps={{ fontSize: '0.85rem', fontWeight: reportType === r.value ? 700 : 500 }}
                       />
                     </ListItemButton>
