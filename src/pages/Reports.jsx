@@ -407,6 +407,15 @@ export default function Reports() {
       }));
     }
 
+    // Rake Data Transformation (Handle rakes array)
+    if (reportType === "rake-data" && data.rakes) {
+      return data.rakes.map(r => ({
+        ...r,
+        wagonNo: r.rakeNumber, // Showing Rake Number as primary identifier
+        material: r.material || r.productGroup || 'N/A'
+      }));
+    }
+
     return data;
   }, [data, reportType]);
 
