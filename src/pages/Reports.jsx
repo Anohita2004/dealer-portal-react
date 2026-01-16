@@ -425,6 +425,15 @@ export default function Reports() {
       }));
     }
 
+    // DMS Request Report Transformation
+    if (reportType === "dms-request" && data.dmsOrders) {
+      return data.dmsOrders.map(o => ({
+        ...o,
+        reqId: o.orderNumber || o.id.substring(0, 8),
+        status: o.status
+      }));
+    }
+
     return data;
   }, [data, reportType]);
 
