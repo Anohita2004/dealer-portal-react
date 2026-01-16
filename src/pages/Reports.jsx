@@ -416,6 +416,15 @@ export default function Reports() {
       }));
     }
 
+    // Diversion Report Transformation
+    if (reportType === "diversion" && data.diversions) {
+      return data.diversions.map(d => ({
+        ...d,
+        orderId: d.orderNumber || d.id.substring(0, 8),
+        newDest: d.shippingAddress || 'See Notes'
+      }));
+    }
+
     return data;
   }, [data, reportType]);
 
