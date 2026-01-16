@@ -355,6 +355,27 @@ export default function Reports() {
       }));
     }
 
+    // Le Register (Account Statement) Transformation
+    if (reportType === "le-register" && data.statements) {
+      return data.statements.map(s => ({
+        ...s,
+        date: s.statementDate ? s.statementDate.split('T')[0] : s.statementDate,
+        desc: s.description,
+        amount: s.creditAmount > 0 ? `+${s.creditAmount}` : `-${s.debitAmount}`
+      }));
+    }
+
+    // DR/CR Note Register Transformation
+    if (reportType === "drcr-note" && data.notes) {
+      return data.notes.map(n => ({
+        ...n,
+        noteNo: n.noteNumber,
+        date: n.noteDate ? n.noteDate.split('T')[0] : n.noteDate,
+        amount: n.noteType === 'credit' ? `+${n.amount}` : `-${n.amount}`,
+        status: n.status
+      }));
+    }
+
     return data;
   }, [data, reportType]);
 
