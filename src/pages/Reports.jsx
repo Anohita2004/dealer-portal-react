@@ -335,6 +335,26 @@ export default function Reports() {
       }));
     }
 
+    // Sales Register Transformation
+    if (reportType === "sales-register" && data.invoices) {
+      return data.invoices.map(inv => ({
+        ...inv,
+        invNo: inv.invoiceNumber,
+        date: inv.invoiceDate ? inv.invoiceDate.split('T')[0] : inv.invoiceDate,
+        amount: inv.totalAmount
+      }));
+    }
+
+    // Collection Report Transformation
+    if (reportType === "collection" && data.collections) {
+      return data.collections.map(c => ({
+        ...c,
+        receiptNo: c.transactionId || c.id.substring(0, 8).toUpperCase(),
+        date: c.createdAt ? c.createdAt.split('T')[0] : c.createdAt,
+        amount: c.amount
+      }));
+    }
+
     return data;
   }, [data, reportType]);
 
