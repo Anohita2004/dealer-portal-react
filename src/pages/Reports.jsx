@@ -387,6 +387,17 @@ export default function Reports() {
       }));
     }
 
+    // Rake Exception Transformation
+    if (reportType === "rake-exception") {
+      const exceptions = data.exceptions || (Array.isArray(data) ? data : []);
+      return exceptions.map(ex => ({
+        ...ex,
+        issue: ex.exceptions || ex.issue || 'Unknown Issue',
+        severity: ex.severity || 'High', // Default strictly for demo if missing
+        rakeId: ex.rakeNumber
+      }));
+    }
+
     return data;
   }, [data, reportType]);
 
@@ -424,7 +435,7 @@ export default function Reports() {
         return <DynamicReportView title="RR Summary" columns={[{ field: 'rrNo', headerName: 'RR #' }, { field: 'date', headerName: 'Date' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
       case "rake-arrival": return <DynamicReportView title="Rake Arrival" columns={[{ field: 'rakeId', headerName: 'Rake ID' }, { field: 'arrivalDate', headerName: 'Arrival Date' }, { field: 'wagonCount', headerName: 'Wagon Count' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
       case "rake-data": return <DynamicReportView title="Rake Data" columns={[{ field: 'wagonNo', headerName: 'Wagon' }, { field: 'material', headerName: 'Material' }]} {...commonProps} />;
-      case "rake-exception": return <DynamicReportView title="Exceptions" columns={[{ field: 'issue', headerName: 'Issue' }, { field: 'severity', headerName: 'Severity' }]} {...commonProps} />;
+      case "rake-exception": return <DynamicReportView title="Exceptions" columns={[{ field: 'rakeId', headerName: 'Rake ID' }, { field: 'issue', headerName: 'Issue' }, { field: 'severity', headerName: 'Severity' }]} {...commonProps} />;
       case "rake-approval": return <DynamicReportView title="Approvals" columns={[{ field: 'reportId', headerName: 'Report' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
       case "diversion": return <DynamicReportView title="Diversion" columns={[{ field: 'orderId', headerName: 'Order' }, { field: 'newDest', headerName: 'Destination' }]} {...commonProps} />;
       case "dms-request": return <DynamicReportView title="DMS Request" columns={[{ field: 'reqId', headerName: 'ID' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
