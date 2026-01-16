@@ -398,6 +398,15 @@ export default function Reports() {
       }));
     }
 
+    // Rake Approval Transformation
+    if (reportType === "rake-approval" && data.pendingApprovals) {
+      return data.pendingApprovals.map(app => ({
+        ...app,
+        reportId: app.rakeNumber,
+        status: app.approvalStatus || 'Pending'
+      }));
+    }
+
     return data;
   }, [data, reportType]);
 
