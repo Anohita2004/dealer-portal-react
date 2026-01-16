@@ -376,6 +376,17 @@ export default function Reports() {
       }));
     }
 
+    // Rake Arrival Transformation
+    if (reportType === "rake-arrival" && data.rakes) {
+      return data.rakes.map(r => ({
+        ...r,
+        rakeId: r.rakeNumber,
+        status: r.status || 'Arrived',
+        arrivalDate: r.arrivalDate ? r.arrivalDate.split('T')[0] : r.arrivalDate,
+        wagonCount: r.wagonCount || 0
+      }));
+    }
+
     return data;
   }, [data, reportType]);
 
@@ -411,7 +422,7 @@ export default function Reports() {
       case "compliance": return <DynamicReportView title="Expiry / Compliance Report" columns={[{ field: 'material', headerName: 'Material' }, { field: 'code', headerName: 'Code' }, { field: 'expiry', headerName: 'Expiry Date' }]} {...commonProps} />;
       case "rr-summary":
         return <DynamicReportView title="RR Summary" columns={[{ field: 'rrNo', headerName: 'RR #' }, { field: 'date', headerName: 'Date' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
-      case "rake-arrival": return <DynamicReportView title="Rake Arrival" columns={[{ field: 'rakeId', headerName: 'Rake ID' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
+      case "rake-arrival": return <DynamicReportView title="Rake Arrival" columns={[{ field: 'rakeId', headerName: 'Rake ID' }, { field: 'arrivalDate', headerName: 'Arrival Date' }, { field: 'wagonCount', headerName: 'Wagon Count' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
       case "rake-data": return <DynamicReportView title="Rake Data" columns={[{ field: 'wagonNo', headerName: 'Wagon' }, { field: 'material', headerName: 'Material' }]} {...commonProps} />;
       case "rake-exception": return <DynamicReportView title="Exceptions" columns={[{ field: 'issue', headerName: 'Issue' }, { field: 'severity', headerName: 'Severity' }]} {...commonProps} />;
       case "rake-approval": return <DynamicReportView title="Approvals" columns={[{ field: 'reportId', headerName: 'Report' }, { field: 'status', headerName: 'Status' }]} {...commonProps} />;
