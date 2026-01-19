@@ -66,26 +66,33 @@ export default function DeliveryOrders() {
     useEffect(() => {
         if (createOpen) {
             setLoadingOrders(true);
-            import("../../services/api").then(({ orderAPI, warehouseAPI }) => {
+            // Use dynamic import for code splitting or better dependency management
+            import("../../services/api").then((module) => {
+                const { orderAPI, warehouseAPI } = module;
+
                 // Fetch Orders
-                orderAPI.getAllOrders()
+                orderAPI.getAllOrders({ limit: 100 }) // Fetch more to ensure we find approved ones
                     .then(res => {
+                        // Handle both array and paginated response
                         const list = Array.isArray(res) ? res : res.orders || res.data || [];
                         const trainable = list.filter(o => {
                             const s = (o.status || "").toLowerCase();
                             const w = (o.approvalStatus || "").toLowerCase();
-                            return s === 'approved' || s === 'confirmed' || w === 'approved';
+                            // Show orders that are approved/confirmed and ready for delivery
+                            return (s === 'approved' || s === 'confirmed' || w === 'approved') && s !== 'delivered';
                         });
-                        setPendingOrders(trainable.length > 0 ? trainable : list);
+                        setPendingOrders(trainable.length > 0 ? trainable : []);
                     })
-                    .catch(console.error)
+                    .catch(err => {
+                        console.error("Failed to load orders:", err);
+                        toast.error("Could not load sales orders");
+                    })
                     .finally(() => setLoadingOrders(false));
 
                 // Fetch Storage Locations / Warehouses
                 warehouseAPI.getAll()
                     .then(res => {
                         const list = Array.isArray(res) ? res : res.warehouses || res.data || [];
-                        // Some systems might call it 'plants' or 'storageLocations'
                         setStorageLocations(list.length > 0 ? list : MASTER_DATA.storageLocations);
                     })
                     .catch(() => {
