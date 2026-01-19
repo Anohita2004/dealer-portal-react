@@ -166,6 +166,11 @@ const TerritoryDealerPerformance = React.lazy(() => import("./pages/territory/Te
 const TerritoryOutstanding = React.lazy(() => import("./pages/territory/TerritoryOutstanding"));
 const TerritoryInventory = React.lazy(() => import("./pages/territory/TerritoryInventory"));
 
+// Logistics & Operations (New Modules)
+const DeliveryOrders = React.lazy(() => import("./pages/orders/DeliveryOrders"));
+const PhysicalInventory = React.lazy(() => import("./pages/inventory/PhysicalInventory"));
+const Claims = React.lazy(() => import("./pages/claims/Claims"));
+
 // Sales Executive Pages
 const MyDealersPage = React.lazy(() => import("./pages/sales/MyDealersPage"));
 const SalesCreateOrderPage = React.lazy(() => import("./pages/sales/SalesCreateOrderPage"));
@@ -596,6 +601,32 @@ export default function App() {
                     "regional_admin"
                   ]}>
                     <CreateDriver />
+                  </ProtectedRoute>
+                }
+              />
+
+              {/* ================= LOGISTICS & OPERATIONS ================= */}
+              <Route
+                path="delivery-orders"
+                element={
+                  <ProtectedRoute allowed={["super_admin", "regional_manager", "dealer_admin", "regional_admin"]}>
+                    <DeliveryOrders />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="physical-inventory"
+                element={
+                  <ProtectedRoute allowed={["super_admin", "regional_manager", "dealer_admin", "regional_admin"]}>
+                    <PhysicalInventory />
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="custom-claims"
+                element={
+                  <ProtectedRoute allowed={["super_admin", "regional_manager", "dealer_admin", "regional_admin"]}>
+                    <Claims />
                   </ProtectedRoute>
                 }
               />

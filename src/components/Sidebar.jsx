@@ -79,6 +79,9 @@ export default function Sidebar() {
       { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
       { label: "Driver Management", path: "/fleet/drivers", icon: <FaUsers />, section: "Fleet Management" },
       { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
+      { label: "Delivery Orders", path: "/delivery-orders", icon: <FaTruck />, section: "Logistics" },
+      { label: "Physical Inventory", path: "/physical-inventory", icon: <FaWarehouse />, section: "Logistics" },
+      { label: "Insurance Claims", path: "/custom-claims", icon: <FaExclamationTriangle />, section: "Logistics" },
     ],
     technical_admin: [
       { label: "Permissions", path: "/technical-admin", icon: <FaCogs /> },
@@ -114,6 +117,9 @@ export default function Sidebar() {
       { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
       { label: "Driver Management", path: "/fleet/drivers", icon: <FaUsers />, section: "Fleet Management" },
       { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
+      { label: "Delivery Orders", path: "/delivery-orders", icon: <FaTruck />, section: "Logistics" },
+      { label: "Physical Inventory", path: "/physical-inventory", icon: <FaWarehouse />, section: "Logistics" },
+      { label: "Insurance Claims", path: "/custom-claims", icon: <FaExclamationTriangle />, section: "Logistics" },
     ],
     area_manager: [
       { label: "Area Dashboard", path: "/dashboard/area-manager", icon: <FaHome />, section: "Dashboard" },
@@ -170,7 +176,11 @@ export default function Sidebar() {
       { label: "Payment Approvals", path: "/payments/dealer/pending", icon: <FaMoneyCheckAlt /> },
       { label: "Goods Received", path: "/inventory/goods-received", icon: <FaBoxes /> },
       { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt /> },
+      { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt /> },
       { label: "Region Map", path: "/map-view", icon: <FaMapMarkedAlt /> },
+      { label: "Delivery Orders", path: "/delivery-orders", icon: <FaTruck /> },
+      { label: "Physical Inventory", path: "/physical-inventory", icon: <FaWarehouse /> },
+      { label: "Insurance Claims", path: "/custom-claims", icon: <FaExclamationTriangle /> },
     ],
     dealer_staff: [
       { label: "My Dashboard", path: "/dashboard", icon: <FaHome />, section: "Dashboard" },
