@@ -59,6 +59,42 @@ export default function DeliveryOrders() {
         loadingPoint: ""
     });
 
+    const [pendingOrders, setPendingOrders] = useState([]);
+    const [loadingOrders, setLoadingOrders] = useState(false);
+    const [storageLocations, setStorageLocations] = useState([]);
+
+    useEffect(() => {
+        if (createOpen) {
+            setLoadingOrders(true);
+            import("../../services/api").then(({ orderAPI, warehouseAPI }) => {
+                // Fetch Orders
+                orderAPI.getAllOrders()
+                    .then(res => {
+                        const list = Array.isArray(res) ? res : res.orders || res.data || [];
+                        const trainable = list.filter(o => {
+                            const s = (o.status || "").toLowerCase();
+                            const w = (o.approvalStatus || "").toLowerCase();
+                            return s === 'approved' || s === 'confirmed' || w === 'approved';
+                        });
+                        setPendingOrders(trainable.length > 0 ? trainable : list);
+                    })
+                    .catch(console.error)
+                    .finally(() => setLoadingOrders(false));
+
+                // Fetch Storage Locations / Warehouses
+                warehouseAPI.getAll()
+                    .then(res => {
+                        const list = Array.isArray(res) ? res : res.warehouses || res.data || [];
+                        // Some systems might call it 'plants' or 'storageLocations'
+                        setStorageLocations(list.length > 0 ? list : MASTER_DATA.storageLocations);
+                    })
+                    .catch(() => {
+                        setStorageLocations(MASTER_DATA.storageLocations);
+                    });
+            });
+        }
+    }, [createOpen]);
+
     const columns = [
         { field: "deliveryNo", headerName: "Delivery No" },
         { field: "salesOrder", headerName: "Sales Order" },
@@ -121,7 +157,7 @@ export default function DeliveryOrders() {
             <PageHeader
                 title="Delivery Order Management"
                 subtitle="Manage outbound shipments and dock scheduling"
-                action={
+                actions={
                     <Button variant="contained" startIcon={<Plus size={18} />} onClick={() => setCreateOpen(true)}>
                         Create Delivery
                     </Button>
@@ -140,11 +176,25 @@ export default function DeliveryOrders() {
                 <DialogContent>
                     <Box component="form" sx={{ display: 'flex', flexDirection: 'column', gap: 2, mt: 1 }}>
                         <TextField
-                            label="Sales Order Number"
+                            select
+                            label="Select Sales Order"
                             fullWidth
                             value={formData.salesOrder}
                             onChange={(e) => setFormData({ ...formData, salesOrder: e.target.value })}
-                        />
+                            helperText="Only approved orders pending delivery are shown"
+                        >
+                            {loadingOrders ? (
+                                <MenuItem disabled>Loading orders...</MenuItem>
+                            ) : pendingOrders.length === 0 ? (
+                                <MenuItem disabled>No pending approved orders found</MenuItem>
+                            ) : (
+                                pendingOrders.map((order) => (
+                                    <MenuItem key={order.orderNumber || order.id} value={order.orderNumber || order.orderId || `SO-${order.id}`}>
+                                        {order.orderNumber || `SO-${order.id}`} — {order.dealerName || "Unknown Dealer"} ({order.items?.length || 0} items)
+                                    </MenuItem>
+                                ))
+                            )}
+                        </TextField>
                         <TextField
                             label="Delivery Date"
                             type="date"
@@ -160,9 +210,15 @@ export default function DeliveryOrders() {
                             value={formData.storageLocation}
                             onChange={(e) => setFormData({ ...formData, storageLocation: e.target.value })}
                         >
-                            {MASTER_DATA.storageLocations.map((opt) => (
-                                <MenuItem key={opt.key} value={opt.key}>{opt.label}</MenuItem>
-                            ))}
+                            {storageLocations.length === 0 ? (
+                                <MenuItem disabled>Loading locations...</MenuItem>
+                            ) : (
+                                storageLocations.map((opt) => (
+                                    <MenuItem key={opt.id || opt.key} value={opt.code || opt.id || opt.key}>
+                                        {opt.name || opt.label || opt.code || opt.key}
+                                    </MenuItem>
+                                ))
+                            )}
                         </TextField>
                         <TextField
                             select

@@ -118,6 +118,7 @@ export default function Sidebar() {
       { label: "Driver Management", path: "/fleet/drivers", icon: <FaUsers />, section: "Fleet Management" },
       { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
       { label: "Delivery Orders", path: "/delivery-orders", icon: <FaTruck />, section: "Logistics" },
+      { label: "Create Delivery", path: "/delivery-orders", icon: <FaTruck />, section: "Logistics" },
       { label: "Physical Inventory", path: "/physical-inventory", icon: <FaWarehouse />, section: "Logistics" },
       { label: "Insurance Claims", path: "/custom-claims", icon: <FaExclamationTriangle />, section: "Logistics" },
     ],
@@ -139,6 +140,8 @@ export default function Sidebar() {
       { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
       { label: "Driver Management", path: "/fleet/drivers", icon: <FaUsers />, section: "Fleet Management" },
       { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
+      { label: "Delivery Orders", path: "/delivery-orders", icon: <FaTruck />, section: "Logistics" },
+      { label: "Insurance Claims", path: "/custom-claims", icon: <FaExclamationTriangle />, section: "Logistics" },
     ],
     regional_manager: [
       { label: "Regional Manager Dashboard", path: "/dashboard/regional-manager", icon: <FaHome />, section: "Dashboard" },
@@ -149,6 +152,9 @@ export default function Sidebar() {
       { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
       { label: "Driver Management", path: "/fleet/drivers", icon: <FaUsers />, section: "Fleet Management" },
       { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
+      { label: "Delivery Orders", path: "/delivery-orders", icon: <FaTruck />, section: "Logistics" },
+      { label: "Create Delivery", path: "/delivery-orders", icon: <FaTruck />, section: "Logistics" },
+      { label: "Insurance Claims", path: "/custom-claims", icon: <FaExclamationTriangle />, section: "Logistics" },
     ],
     territory_manager: [
       { label: "Territory Dashboard", path: "/dashboard/territory-manager", icon: <FaHome />, section: "Dashboard" },
@@ -166,6 +172,8 @@ export default function Sidebar() {
       { label: "Fleet Management", path: "/fleet", icon: <FaTruck />, section: "Fleet Management" },
       { label: "Driver Management", path: "/fleet/drivers", icon: <FaUsers />, section: "Fleet Management" },
       { label: "Live Tracking", path: "/fleet/tracking", icon: <FaMapMarkedAlt />, section: "Fleet Management" },
+      { label: "Delivery Orders", path: "/delivery-orders", icon: <FaTruck />, section: "Logistics" },
+      { label: "Insurance Claims", path: "/custom-claims", icon: <FaExclamationTriangle />, section: "Logistics" },
     ],
     dealer_admin: [
       { label: "My Company", path: "/dealer/profile", icon: <FaBuilding /> },
@@ -227,6 +235,8 @@ export default function Sidebar() {
       { label: "Create Order", path: "/sales/orders/new", icon: <FaFileAlt />, section: "Sales" },
       { label: "Pending Approvals", path: "/approvals", icon: <FaClipboardList />, section: "Sales" },
       { label: "Create Payment Request", path: "/sales/payments/new", icon: <FaMoneyCheckAlt />, section: "Sales" },
+      { label: "Delivery Orders", path: "/delivery-orders", icon: <FaTruck />, section: "Logistics" },
+      { label: "Insurance Claims", path: "/custom-claims", icon: <FaExclamationTriangle />, section: "Logistics" },
     ],
     regional_head: [
       { label: "Regional Dashboard", path: "/dashboard/regional", icon: <FaHome />, section: "Dashboard" },

@@ -108,7 +108,7 @@ export default function Claims() {
             <PageHeader
                 title="Insurance Claims"
                 subtitle="Manage claims for damages and shortages"
-                action={
+                actions={
                     <Box sx={{ display: 'flex', gap: 1 }}>
                         <Button variant="outlined" startIcon={<Download size={18} />} onClick={handleDownloadReport}>
                             Download Report

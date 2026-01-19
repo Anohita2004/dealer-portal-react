@@ -44,6 +44,8 @@ const CreateWarehouse = () => {
   const [errors, setErrors] = useState({});
   const [regions, setRegions] = useState([]);
   const [areas, setAreas] = useState([]);
+  const [fetchingRegions, setFetchingRegions] = useState(false);
+  const [fetchingAreas, setFetchingAreas] = useState(false);
 
   useEffect(() => {
     fetchRegions();
@@ -60,42 +62,30 @@ const CreateWarehouse = () => {
 
   const fetchRegions = async () => {
     try {
-      const response = await geoAPI.getRegions();
-      console.log('Regions API response:', response);
-      // Handle both array response and object with regions property
-      let regionsData = [];
-      if (Array.isArray(response)) {
-        regionsData = response;
-      } else if (response && Array.isArray(response.regions)) {
-        regionsData = response.regions;
-      } else if (response && Array.isArray(response.data)) {
-        regionsData = response.data;
-      }
-      console.log('Setting regions:', regionsData);
-      console.log('Regions count:', regionsData.length);
-      setRegions(regionsData || []);
+      setFetchingRegions(true);
+      const res = await geoAPI.getRegions();
+      const list = Array.isArray(res) ? res : res?.regions || res?.data || [];
+      setRegions(list);
     } catch (error) {
       console.error('Error fetching regions:', error);
+      toast.error('Failed to load regions');
       setRegions([]);
+    } finally {
+      setFetchingRegions(false);
     }
   };
 
   const fetchAreas = async (regionId) => {
     try {
-      const response = await geoAPI.getAreas({ regionId });
-      // Handle both array response and object with areas property
-      let areasData = [];
-      if (Array.isArray(response)) {
-        areasData = response;
-      } else if (response && Array.isArray(response.areas)) {
-        areasData = response.areas;
-      } else if (response && Array.isArray(response.data)) {
-        areasData = response.data;
-      }
-      setAreas(areasData || []);
+      setFetchingAreas(true);
+      const res = await geoAPI.getAreas({ regionId });
+      const list = Array.isArray(res) ? res : res?.areas || res?.data || [];
+      setAreas(list);
     } catch (error) {
       console.error('Error fetching areas:', error);
       setAreas([]);
+    } finally {
+      setFetchingAreas(false);
     }
   };
 
@@ -168,7 +158,7 @@ const CreateWarehouse = () => {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validate()) {
       toast.error('Please fix the errors in the form');
       return;
@@ -355,32 +345,23 @@ const CreateWarehouse = () => {
                   <InputLabel id="region-select-label">Region</InputLabel>
                   <Select
                     labelId="region-select-label"
-                    value={formData.regionId || ""}
+                    value={regions.some(r => r.id === formData.regionId) ? formData.regionId : ""}
                     onChange={handleChange('regionId')}
                     label="Region"
-                    displayEmpty
                   >
-                    <MenuItem value="">
-                      <em>Select Region</em>
+                    <MenuItem value="" disabled>
+                      {fetchingRegions ? 'Loading regions...' : 'Select Region'}
                     </MenuItem>
-                    {Array.isArray(regions) && regions.length > 0 ? (
-                      regions.map(region => (
-                        <MenuItem key={region.id} value={region.id}>
-                          {region.name || region.regionName || region.code || 'Unknown'}
-                        </MenuItem>
-                      ))
-                    ) : (
-                      <MenuItem value="" disabled>
-                        {regions.length === 0 ? 'Loading regions...' : 'No regions available'}
+                    {regions.map(region => (
+                      <MenuItem key={region.id} value={region.id}>
+                        {region.name || region.regionName || region.code || 'Unknown'}
                       </MenuItem>
+                    ))}
+                    {!fetchingRegions && regions.length === 0 && (
+                      <MenuItem disabled>No regions available</MenuItem>
                     )}
                   </Select>
-                  {errors.regionId && (
-                    <FormHelperText>{errors.regionId}</FormHelperText>
-                  )}
-                  {!errors.regionId && regions.length > 0 && (
-                    <FormHelperText>{regions.length} region(s) available</FormHelperText>
-                  )}
+                  {errors.regionId && <FormHelperText>{errors.regionId}</FormHelperText>}
                 </FormControl>
               </Grid>
 
@@ -392,27 +373,21 @@ const CreateWarehouse = () => {
                     value={areas.some(a => a.id === formData.areaId) ? formData.areaId : ""}
                     onChange={handleChange('areaId')}
                     label="Area (Optional)"
-                    disabled={!formData.regionId}
-                    displayEmpty
+                    disabled={!formData.regionId || fetchingAreas}
                   >
-                    <MenuItem value="">
-                      <em>Select Area</em>
+                    <MenuItem value="" disabled>
+                      {fetchingAreas ? 'Loading areas...' : 'Select Area'}
                     </MenuItem>
-                    {Array.isArray(areas) && areas.length > 0 ? (
-                      areas.map(area => (
-                        <MenuItem key={area.id} value={area.id}>
-                          {area.name || area.areaName || area.code || 'Unknown'}
-                        </MenuItem>
-                      ))
-                    ) : (
-                      <MenuItem value="" disabled>
-                        {!formData.regionId ? 'Select a region first' : 'No areas available'}
+                    {areas.map(area => (
+                      <MenuItem key={area.id} value={area.id}>
+                        {area.name || area.areaName || area.code || 'Unknown'}
                       </MenuItem>
+                    ))}
+                    {formData.regionId && !fetchingAreas && areas.length === 0 && (
+                      <MenuItem disabled>No areas in this region</MenuItem>
                     )}
                   </Select>
-                  <FormHelperText>
-                    {!formData.regionId ? 'Select a region first' : areas.length > 0 ? `${areas.length} area(s) available` : 'Optional'}
-                  </FormHelperText>
+                  {!formData.regionId && <FormHelperText>Select a region first</FormHelperText>}
                 </FormControl>
               </Grid>
 

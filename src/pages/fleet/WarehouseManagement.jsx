@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { warehouseAPI } from '../../services/api';
+import { warehouseAPI, geoAPI } from '../../services/api';
 import DataTable from '../../components/DataTable';
 import PageHeader from '../../components/PageHeader';
 import Card from '../../components/Card';
@@ -14,7 +14,12 @@ const WarehouseManagement = () => {
   const navigate = useNavigate();
   const { user } = useAuth();
   const [warehouses, setWarehouses] = useState([]);
+  const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+  const [regions, setRegions] = useState([]);
+  const [areas, setAreas] = useState([]);
+  const [fetchingRegions, setFetchingRegions] = useState(false);
+  const [fetchingAreas, setFetchingAreas] = useState(false);
   const [filters, setFilters] = useState({
     page: 1,
     limit: 10,
@@ -28,11 +33,51 @@ const WarehouseManagement = () => {
     fetchWarehouses();
   }, [filters]);
 
+  useEffect(() => {
+    fetchRegions();
+  }, []);
+
+  useEffect(() => {
+    if (filters.regionId) {
+      fetchAreas(filters.regionId);
+    } else {
+      setAreas([]);
+      if (filters.areaId) {
+        setFilters(prev => ({ ...prev, areaId: '', page: 1 }));
+      }
+    }
+  }, [filters.regionId]);
+
+  const fetchRegions = async () => {
+    try {
+      setFetchingRegions(true);
+      const data = await geoAPI.getRegions();
+      setRegions(Array.isArray(data) ? data : data.regions || data.data || []);
+    } catch (error) {
+      console.error('Error fetching regions:', error);
+    } finally {
+      setFetchingRegions(false);
+    }
+  };
+
+  const fetchAreas = async (regionId) => {
+    try {
+      setFetchingAreas(true);
+      const data = await geoAPI.getAreas({ regionId });
+      setAreas(Array.isArray(data) ? data : data.areas || data.data || []);
+    } catch (error) {
+      console.error('Error fetching areas:', error);
+    } finally {
+      setFetchingAreas(false);
+    }
+  };
+
   const fetchWarehouses = async () => {
     try {
       setLoading(true);
       const response = await warehouseAPI.getAll(filters);
       setWarehouses(response.warehouses || []);
+      setTotal(response.total || 0);
     } catch (error) {
       console.error('Error fetching warehouses:', error);
       toast.error('Failed to load warehouses');
@@ -49,6 +94,14 @@ const WarehouseManagement = () => {
     navigate(`/fleet/warehouses/${warehouse.id}`);
   };
 
+  const handlePageChange = (newPage) => {
+    setFilters(prev => ({ ...prev, page: newPage }));
+  };
+
+  const handleLimitChange = (newLimit) => {
+    setFilters(prev => ({ ...prev, limit: newLimit, page: 1 }));
+  };
+
   const columns = [
     { key: 'warehouseCode', label: 'Code' },
     { key: 'name', label: 'Name' },
@@ -56,6 +109,16 @@ const WarehouseManagement = () => {
     { key: 'state', label: 'State' },
     { key: 'contactPerson', label: 'Contact Person' },
     { key: 'phoneNumber', label: 'Phone' },
+    {
+      key: 'region',
+      label: 'Region',
+      render: (_, row) => row.region?.name || row.region?.regionName || '—'
+    },
+    {
+      key: 'area',
+      label: 'Area',
+      render: (_, row) => row.area?.name || row.area?.areaName || '—'
+    },
     {
       key: 'isActive',
       label: 'Status',
@@ -117,7 +180,37 @@ const WarehouseManagement = () => {
           >
             <MenuItem value={true}>Active</MenuItem>
             <MenuItem value={false}>Inactive</MenuItem>
-            <MenuItem value="">All</MenuItem>
+            <MenuItem value="">All Status</MenuItem>
+          </TextField>
+
+          <TextField
+            label="Region"
+            select
+            size="small"
+            value={filters.regionId}
+            onChange={(e) => setFilters({ ...filters, regionId: e.target.value, areaId: '', page: 1 })}
+            style={{ minWidth: '180px' }}
+            disabled={fetchingRegions}
+          >
+            <MenuItem value="">All Regions</MenuItem>
+            {regions.map(r => (
+              <MenuItem key={r.id} value={r.id}>{r.name || r.regionName}</MenuItem>
+            ))}
+          </TextField>
+
+          <TextField
+            label="Area"
+            select
+            size="small"
+            value={filters.areaId}
+            onChange={(e) => setFilters({ ...filters, areaId: e.target.value, page: 1 })}
+            style={{ minWidth: '180px' }}
+            disabled={!filters.regionId || fetchingAreas}
+          >
+            <MenuItem value="">All Areas</MenuItem>
+            {areas.map(a => (
+              <MenuItem key={a.id} value={a.id}>{a.name || a.areaName}</MenuItem>
+            ))}
           </TextField>
         </div>
 
@@ -128,6 +221,13 @@ const WarehouseManagement = () => {
             rows={warehouses}
             columns={columns}
             emptyMessage="No warehouses found"
+            pagination={{
+              page: filters.page,
+              limit: filters.limit,
+              total: total,
+              onPageChange: handlePageChange,
+              onLimitChange: handleLimitChange
+            }}
           />
         )}
       </Card>

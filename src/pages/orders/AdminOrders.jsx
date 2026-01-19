@@ -28,7 +28,7 @@ export default function AdminOrders() {
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("pending"); // pending, all, approved, rejected
+  const [statusFilter, setStatusFilter] = useState("all"); // all, rejected, pending, approved
   const [selectedOrder, setSelectedOrder] = useState(null);
 
   // Advanced Filters
@@ -217,10 +217,10 @@ export default function AdminOrders() {
           onChange={(e, newValue) => setStatusFilter(newValue)}
           sx={{ flex: 1 }}
         >
-          <Tab label="Pending" value="pending" />
-          <Tab label="All" value="all" />
-          <Tab label="Approved" value="approved" />
+          <Tab label="All Orders" value="all" />
           <Tab label="Rejected" value="rejected" />
+          <Tab label="Pending" value="pending" />
+          <Tab label="Approved" value="approved" />
         </Tabs>
 
         <Button

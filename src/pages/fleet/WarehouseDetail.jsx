@@ -63,17 +63,17 @@ const WarehouseDetail = () => {
   const [errors, setErrors] = useState({});
   const [regions, setRegions] = useState([]);
   const [areas, setAreas] = useState([]);
+  const [fetchingRegions, setFetchingRegions] = useState(false);
+  const [fetchingAreas, setFetchingAreas] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
 
   useEffect(() => {
     if (!isCreateMode) {
       fetchWarehouse();
     } else {
-      // In create mode, set editing to true by default
       setEditing(true);
       setLoading(false);
     }
-    // Always fetch regions for both create and edit modes
     fetchRegions();
   }, [id]);
 
@@ -84,13 +84,6 @@ const WarehouseDetail = () => {
       setAreas([]);
     }
   }, [formData.regionId]);
-
-  // Debug: Log regions when they change
-  useEffect(() => {
-    console.log('Regions state updated:', regions);
-    console.log('Regions count:', regions.length);
-    console.log('Editing mode:', editing);
-  }, [regions, editing]);
 
   const fetchWarehouse = async () => {
     try {
@@ -124,48 +117,29 @@ const WarehouseDetail = () => {
 
   const fetchRegions = async () => {
     try {
-      const response = await geoAPI.getRegions();
-      console.log('Regions API response:', response);
-      console.log('Response type:', typeof response);
-      console.log('Is array?', Array.isArray(response));
-      
-      // Handle both array response and object with regions property
-      let regionsData = [];
-      if (Array.isArray(response)) {
-        regionsData = response;
-      } else if (response && Array.isArray(response.regions)) {
-        regionsData = response.regions;
-      } else if (response && Array.isArray(response.data)) {
-        regionsData = response.data;
-      } else {
-        console.warn('Unexpected response format:', response);
-      }
-      
-      console.log('Setting regions:', regionsData);
-      console.log('Regions count:', regionsData.length);
-      setRegions(regionsData || []);
+      setFetchingRegions(true);
+      const res = await geoAPI.getRegions();
+      const list = Array.isArray(res) ? res : res?.regions || res?.data || [];
+      setRegions(list);
     } catch (error) {
       console.error('Error fetching regions:', error);
       setRegions([]);
+    } finally {
+      setFetchingRegions(false);
     }
   };
 
   const fetchAreas = async (regionId) => {
     try {
-      const response = await geoAPI.getAreas({ regionId });
-      // Handle both array response and object with areas property
-      if (Array.isArray(response)) {
-        setAreas(response);
-      } else if (Array.isArray(response.areas)) {
-        setAreas(response.areas);
-      } else if (Array.isArray(response.data)) {
-        setAreas(response.data);
-      } else {
-        setAreas([]);
-      }
+      setFetchingAreas(true);
+      const res = await geoAPI.getAreas({ regionId });
+      const list = Array.isArray(res) ? res : res?.areas || res?.data || [];
+      setAreas(list);
     } catch (error) {
       console.error('Error fetching areas:', error);
       setAreas([]);
+    } finally {
+      setFetchingAreas(false);
     }
   };
 
@@ -307,8 +281,8 @@ const WarehouseDetail = () => {
   const mapCenter = !isCreateMode && warehouse?.lat && warehouse?.lng
     ? [warehouse.lat, warehouse.lng]
     : formData.lat && formData.lng
-    ? [parseFloat(formData.lat), parseFloat(formData.lng)]
-    : [19.0760, 72.8777];
+      ? [parseFloat(formData.lat), parseFloat(formData.lng)]
+      : [19.0760, 72.8777];
 
   return (
     <div>
@@ -495,64 +469,42 @@ const WarehouseDetail = () => {
                   <FormControl fullWidth required error={!!errors.regionId} disabled={!editing}>
                     <InputLabel id="region-select-label">Region</InputLabel>
                     <Select
-                      key={`region-select-${regions.length}`}
                       labelId="region-select-label"
-                      value={formData.regionId || ""}
+                      value={regions.some(r => r.id === formData.regionId) ? formData.regionId : ""}
                       onChange={handleChange('regionId')}
                       label="Region"
-                      displayEmpty
-                      renderValue={(selected) => {
-                        if (!selected) return <em>Select Region</em>;
-                        const region = regions.find(r => r.id === selected);
-                        return region ? (region.name || region.regionName || region.code || 'Unknown') : <em>Select Region</em>;
-                      }}
                     >
-                      <MenuItem value="">
-                        <em>Select Region</em>
+                      <MenuItem value="" disabled>
+                        {fetchingRegions ? 'Loading regions...' : 'Select Region'}
                       </MenuItem>
-                      {Array.isArray(regions) && regions.length > 0 ? (
-                        regions.map((region, index) => {
-                          if (!region || !region.id) {
-                            console.warn('Invalid region at index', index, region);
-                            return null;
-                          }
-                          const displayName = region.name || region.regionName || region.code || 'Unknown';
-                          return (
-                            <MenuItem key={region.id} value={region.id}>
-                              {displayName}
-                            </MenuItem>
-                          );
-                        }).filter(Boolean)
-                      ) : (
-                        <MenuItem value="" disabled>
-                          {loading ? 'Loading regions...' : `No regions available (${regions?.length || 0} loaded)`}
+                      {regions.map(region => (
+                        <MenuItem key={region.id} value={region.id}>
+                          {region.name || region.regionName || region.code || 'Unknown'}
                         </MenuItem>
-                      )}
+                      ))}
                     </Select>
-                    {errors.regionId && (
-                      <FormHelperText>{errors.regionId}</FormHelperText>
-                    )}
-                    {!errors.regionId && (!regions || regions.length === 0) && !loading && (
-                      <FormHelperText>Please wait while regions are loaded...</FormHelperText>
-                    )}
-                    {!errors.regionId && regions && regions.length > 0 && (
-                      <FormHelperText>{regions.length} region(s) available</FormHelperText>
+                    {errors.regionId && <FormHelperText>{errors.regionId}</FormHelperText>}
+                    {!fetchingRegions && regions.length === 0 && (
+                      <FormHelperText color="error">No regions available</FormHelperText>
                     )}
                   </FormControl>
                 </Grid>
 
                 <Grid item xs={12} md={6}>
-                  <FormControl fullWidth disabled={!editing || !formData.regionId}>
-                    <InputLabel>Area (Optional)</InputLabel>
+                  <FormControl fullWidth disabled={!editing || !formData.regionId || fetchingAreas}>
+                    <InputLabel id="area-select-label">Area (Optional)</InputLabel>
                     <Select
+                      labelId="area-select-label"
                       value={areas.some(a => a.id === formData.areaId) ? formData.areaId : ""}
                       onChange={handleChange('areaId')}
                       label="Area (Optional)"
                     >
-                      <MenuItem value="">Select Area</MenuItem>
+                      <MenuItem value="" disabled>
+                        {fetchingAreas ? 'Loading areas...' : 'Select Area'}
+                      </MenuItem>
                       {areas.map(area => (
                         <MenuItem key={area.id} value={area.id}>
-                          {area.name || area.areaName}
+                          {area.name || area.areaName || area.code || 'Unknown'}
                         </MenuItem>
                       ))}
                     </Select>

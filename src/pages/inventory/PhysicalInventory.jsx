@@ -64,6 +64,20 @@ export default function PhysicalInventory() {
 
     // Count Sheet State
     const [countItems, setCountItems] = useState(MOCK_ITEMS);
+    const [warehouses, setWarehouses] = useState([]);
+
+    useEffect(() => {
+        if (createOpen) {
+            import("../../services/api").then(({ warehouseAPI }) => {
+                warehouseAPI.getAll()
+                    .then(res => {
+                        const list = Array.isArray(res) ? res : res.warehouses || res.data || [];
+                        setWarehouses(list);
+                    })
+                    .catch(console.error);
+            });
+        }
+    }, [createOpen]);
 
     const columns = [
         { field: "id", headerName: "ID" },
@@ -127,7 +141,7 @@ export default function PhysicalInventory() {
             <PageHeader
                 title="Physical Inventory"
                 subtitle="Manage stock counting sessions and variances"
-                action={
+                actions={
                     <Button variant="contained" startIcon={<Plus size={18} />} onClick={() => setCreateOpen(true)}>
                         Initiate Count
                     </Button>
@@ -158,9 +172,15 @@ export default function PhysicalInventory() {
                             value={formData.plant}
                             onChange={(e) => setFormData({ ...formData, plant: e.target.value })}
                         >
-                            {MASTER_DATA.plants.map((opt) => (
-                                <MenuItem key={opt.key} value={opt.key}>{opt.label}</MenuItem>
-                            ))}
+                            {warehouses.length === 0 ? (
+                                <MenuItem disabled>Loading plants...</MenuItem>
+                            ) : (
+                                warehouses.map((opt) => (
+                                    <MenuItem key={opt.id || opt.key} value={opt.code || opt.id || opt.key}>
+                                        {opt.name || opt.label || opt.code || opt.key}
+                                    </MenuItem>
+                                ))
+                            )}
                         </TextField>
                         <TextField
                             select
@@ -169,9 +189,15 @@ export default function PhysicalInventory() {
                             value={formData.storageLocation}
                             onChange={(e) => setFormData({ ...formData, storageLocation: e.target.value })}
                         >
-                            {MASTER_DATA.storageLocations.map((opt) => (
-                                <MenuItem key={opt.key} value={opt.key}>{opt.label}</MenuItem>
-                            ))}
+                            {warehouses.length === 0 ? (
+                                <MenuItem disabled>Loading locations...</MenuItem>
+                            ) : (
+                                warehouses.map((opt) => (
+                                    <MenuItem key={(opt.id || opt.key) + '_sloc'} value={opt.code || opt.id || opt.key}>
+                                        {opt.name || opt.label || opt.code || opt.key} (SLoc)
+                                    </MenuItem>
+                                ))
+                            )}
                         </TextField>
                         <TextField
                             label="Planned Date"
