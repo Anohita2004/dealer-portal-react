@@ -139,7 +139,7 @@ const TruckManagement = () => {
       <PageHeader
         title="Truck Management"
         actions={
-          user?.role === 'super_admin' || user?.role === 'regional_admin' ? (
+          user?.role === 'super_admin' || user?.role === 'regional_admin' || user?.role === 'regional_manager' ? (
             <Button
               variant="contained"
               startIcon={<FaPlus />}
