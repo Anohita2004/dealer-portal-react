@@ -1370,7 +1370,7 @@ export default function App() {
               <Route
                 path="invoices"
                 element={
-                  <ProtectedRoute allowed={["dealer_admin", "dealer_staff", "finance_admin", "territory_manager", "area_manager", "regional_manager", "regional_admin"]}>
+                  <ProtectedRoute allowed={["dealer_admin", "dealer_staff", "finance_admin", "territory_manager", "area_manager", "regional_manager", "regional_admin", "sales_executive"]}>
                     <Invoices />
                   </ProtectedRoute>
                 }
