@@ -317,8 +317,15 @@ export default function Invoices() {
     }
   };
 
-  // Filter invoices
-  const filteredInvoices = invoices; // Backend handles filtering now
+  // Filter invoices: Dealer admin/staff only see invoices with approved GR
+  let filteredInvoices = invoices;
+  if (["dealer_admin", "dealer_staff"].includes(user?.role)) {
+    filteredInvoices = invoices.filter(inv => {
+      // Check for nested goodsReceipt or gr object with status
+      const gr = inv.goodsReceipt || inv.gr;
+      return gr && (gr.status === "approved" || gr.approvalStatus === "approved");
+    });
+  }
 
   const canApprove = ["dealer_admin", "territory_manager", "area_manager", "regional_manager", "regional_admin"].includes(user?.role);
 
