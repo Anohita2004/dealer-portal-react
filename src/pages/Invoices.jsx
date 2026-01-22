@@ -317,15 +317,8 @@ export default function Invoices() {
     }
   };
 
-  // Filter invoices: Dealer admin/staff only see invoices with approved GR
-  let filteredInvoices = invoices;
-  if (["dealer_admin", "dealer_staff"].includes(user?.role)) {
-    filteredInvoices = invoices.filter(inv => {
-      // Check for nested goodsReceipt or gr object with status
-      const gr = inv.goodsReceipt || inv.gr;
-      return gr && (gr.status === "approved" || gr.approvalStatus === "approved");
-    });
-  }
+  // No client-side filtering; backend enforces access control
+  const filteredInvoices = invoices;
 
   const canApprove = ["dealer_admin", "territory_manager", "area_manager", "regional_manager", "regional_admin"].includes(user?.role);
 
@@ -411,7 +404,9 @@ export default function Invoices() {
                 ? "No invoices match your filters"
                 : viewMode === "approvals"
                   ? "No pending approvals"
-                  : "No invoices found"}
+                  : (["dealer_admin", "dealer_staff"].includes(user?.role)
+                      ? "No invoices available. Invoices are only visible after GR approval."
+                      : "No invoices found")}
             </Typography>
           </CardContent>
         </Card>
