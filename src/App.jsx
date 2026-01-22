@@ -1661,6 +1661,14 @@ export default function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route
+                path="gr-approvals"
+                element={
+                  <ProtectedRoute allowed={["sales_executive"]}>
+                    <GoodsReceived />
+                  </ProtectedRoute>
+                }
+              />
 
             </Route>
           </Routes>
