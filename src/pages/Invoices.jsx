@@ -497,7 +497,7 @@ export default function Invoices() {
                           >
                             View
                           </Button>
-                          {(invoice.status === "approved" || invoice.status === "unpaid") && (user.role === "dealer_admin" || user.role === "dealer_staff") && (
+                          {(invoice.status === "approved" || invoice.status === "unpaid") && (user.role === "dealer_admin" || user.role === "dealer_staff"|| user.role === "sales_executive") && (
                             <Button
                               size="small"
                               variant="contained"
