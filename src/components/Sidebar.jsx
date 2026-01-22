@@ -233,6 +233,7 @@ export default function Sidebar() {
       { label: "Sales Dashboard", path: "/dashboard", icon: <FaHome />, section: "Dashboard" },
       { label: "My Dealers", path: "/sales/my-dealers", icon: <FaUsers />, section: "Sales" },
       { label: "Create Order", path: "/sales/orders/new", icon: <FaFileAlt />, section: "Sales" },
+      { label: "Approve Goods Receipts", path: "/gr-approvals", icon: <FaClipboardList />, section: "Sales" },
       { label: "Pending Approvals", path: "/approvals", icon: <FaClipboardList />, section: "Sales" },
       { label: "Invoices", path: "/invoices", icon: <FaFileInvoice />, section: "Sales" },
       { label: "Create Payment Request", path: "/sales/payments/new", icon: <FaMoneyCheckAlt />, section: "Sales" },
