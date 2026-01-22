@@ -234,6 +234,7 @@ export default function Sidebar() {
       { label: "My Dealers", path: "/sales/my-dealers", icon: <FaUsers />, section: "Sales" },
       { label: "Create Order", path: "/sales/orders/new", icon: <FaFileAlt />, section: "Sales" },
       { label: "Pending Approvals", path: "/approvals", icon: <FaClipboardList />, section: "Sales" },
+      { label: "Invoices", path: "/invoices", icon: <FaFileInvoice />, section: "Sales" },
       { label: "Create Payment Request", path: "/sales/payments/new", icon: <FaMoneyCheckAlt />, section: "Sales" },
       { label: "Delivery Orders", path: "/delivery-orders", icon: <FaTruck />, section: "Logistics" },
       { label: "Insurance Claims", path: "/custom-claims", icon: <FaExclamationTriangle />, section: "Logistics" },
