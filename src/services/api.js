@@ -1320,6 +1320,12 @@ export const goodsReceiptAPI = {
 
   getSummary: () =>
     api.get("/goods-receipt/summary").then((r) => r.data),
+
+  approve: (id) =>
+    api.post(`/goods-receipt/${id}/approve`).then((r) => r.data),
+
+  reject: (id, remarks) =>
+    api.post(`/goods-receipt/${id}/reject`, { remarks }).then((r) => r.data),
 };
 
 // Default export

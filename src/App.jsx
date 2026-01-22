@@ -175,6 +175,7 @@ const Claims = React.lazy(() => import("./pages/claims/Claims"));
 const MyDealersPage = React.lazy(() => import("./pages/sales/MyDealersPage"));
 const SalesCreateOrderPage = React.lazy(() => import("./pages/sales/SalesCreateOrderPage"));
 const SalesCreatePaymentPage = React.lazy(() => import("./pages/sales/SalesCreatePaymentPage"));
+const SalesGRApprovals = React.lazy(() => import("./pages/sales/SalesGRApprovals"));
 
 
 export default function App() {
@@ -1665,7 +1666,7 @@ export default function App() {
                 path="gr-approvals"
                 element={
                   <ProtectedRoute allowed={["sales_executive"]}>
-                    <GoodsReceived />
+                    <SalesGRApprovals />
                   </ProtectedRoute>
                 }
               />
